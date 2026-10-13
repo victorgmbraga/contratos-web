@@ -27,7 +27,7 @@ async function interfaceFixture(options={}) {
     addEventListener(name,fn){(this.listeners[name]??=[]).push(fn);}
     async fire(name,extra={}){for(const fn of this.listeners[name] || [])await fn({target:this,preventDefault(){},...extra});await settle();await Promise.allSettled(pending);await settle();}
     focus(){dom.activeElement=this;}scrollIntoView(){}
-    setAttribute(name,value){(this.attributes??={})[name]=String(value);}getAttribute(name){return this.attributes?.[name] ?? null;}querySelectorAll(){return [];}showModal(){this.open=true;}
+    setAttribute(name,value){(this.attributes??={})[name]=String(value);}getAttribute(name){return this.attributes?.[name] ?? null;}querySelectorAll(){return [];}querySelector(){return null;}showModal(){this.open=true;}
     close(){this.open=false;for(const fn of this.listeners.close || [])fn();}
   }
   const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
@@ -99,7 +99,15 @@ async function interfaceFixture(options={}) {
   const footer=()=>uiCore.state.table.options.paginationCounter();
   const draft=()=>structuredClone(uiCore.state.draft);
   const setFilter=(name,value)=>uiCore.setDraftFilter(name,value);
-  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,openDocument,tableColumns,request,footer,buildTable,optionsReady:uiCore.state.optionsReady,browser};
+  const field=name=>nodes.get(`filter-${name}`);
+  const fieldNames=()=>all.filter(node=>nodes.get(node.id)===node && node.className==='filter-field').map(node=>node.id.slice('filter-field-'.length));
+  const editFilter=async(name,value)=>{
+    const input=field(name),cap=schema(cfg).capabilities.find(c=>c.name===name);
+    if(input.multiple)for(const option of input.children)option.selected=(value || []).includes(option.value);
+    else input.value=value===undefined?'':String(value);
+    await input.fire(cap.domain || cap.type==='boolean'?'change':'input');
+  };
+  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,editFilter,openDocument,tableColumns,request,footer,buildTable,optionsReady:uiCore.state.optionsReady,browser};
 }
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
@@ -430,8 +438,8 @@ test('TABLE-LOADER-02: resposta antiga não oculta o loader da consulta mais rec
 test('FILTERS-UI-01: aplicar texto, período e status envia apenas critérios nativos',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
   assert.equal(ui.requests.length,1);ui.nodes.get('draft-search').value='Oracle';
-  ui.nodes.get('draft-publication-start').value='2026-09-01';await ui.nodes.get('draft-publication-start').fire('input');
-  ui.nodes.get('draft-publication-end').value='2026-09-30';await ui.nodes.get('draft-publication-end').fire('input');
+  ui.nodes.get('filter-data_publicacao_inicio').value='2026-09-01';await ui.nodes.get('filter-data_publicacao_inicio').fire('input');
+  ui.nodes.get('filter-data_publicacao_fim').value='2026-09-30';await ui.nodes.get('filter-data_publicacao_fim').fire('input');
   ui.nodes.get('draft-status').value='recebendo_proposta';await ui.nodes.get('apply-filters').fire('click');
   assert.equal(ui.requests.length,2);
   assert.deepEqual(ui.requests[1],{api_version:'2.0',document_type:'edital',q:'Oracle',status:'recebendo_proposta',pncp_filters:{data_publicacao_inicio:'2026-09-01',data_publicacao_fim:'2026-09-30'},order:'-data',page:1,size:100});
@@ -441,7 +449,7 @@ test('FILTERS-UI-01: aplicar texto, período e status envia apenas critérios na
 test('FILTERS-UI-02: cancelar mantém a consulta; limpar remove todos os critérios',async()=>{
   const ui=await interfaceFixture();ui.nodes.get('search').value='firewall';await ui.nodes.get('search-form').fire('submit');
   const before=ui.state();await ui.nodes.get('filters-button').fire('click');
-  ui.nodes.get('draft-search').value='texto cancelado';ui.nodes.get('draft-publication-start').value='2026-09-20';await ui.nodes.get('draft-publication-start').fire('input');ui.nodes.get('filters-dialog').close();
+  ui.nodes.get('draft-search').value='texto cancelado';ui.nodes.get('filter-data_publicacao_inicio').value='2026-09-20';await ui.nodes.get('filter-data_publicacao_inicio').fire('input');ui.nodes.get('filters-dialog').close();
   assert.deepEqual(ui.state(),before);assert.equal(ui.requests.length,2);
   await ui.nodes.get('clear-button').fire('click');assert.equal(ui.requests.length,3);
   assert.equal(ui.state().q,'');assert.equal(ui.state().status,'todos');assert.deepEqual(ui.state().pncp_filters,{});
@@ -450,8 +458,8 @@ test('FILTERS-UI-02: cancelar mantém a consulta; limpar remove todos os critér
 
 test('FILTERS-UI-03: datas removidas do formulário não permanecem na requisição',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  ui.nodes.get('draft-publication-start').value='2026-09-01';await ui.nodes.get('draft-publication-start').fire('input');
-  ui.nodes.get('draft-publication-start').value='';await ui.nodes.get('draft-publication-start').fire('input');
+  ui.nodes.get('filter-data_publicacao_inicio').value='2026-09-01';await ui.nodes.get('filter-data_publicacao_inicio').fire('input');
+  ui.nodes.get('filter-data_publicacao_inicio').value='';await ui.nodes.get('filter-data_publicacao_inicio').fire('input');
   await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests[1].pncp_filters,{});
 });
 
@@ -535,13 +543,16 @@ test('DETAILS-UI-06: quantidade e valores do PNCP preservam precisão, zero e au
   ]);
 });
 
-test('FILTERS-UI-04: catálogo completo distingue a compatibilidade com contratos',async()=>{
-  const ui=await interfaceFixture(),groups=ui.nodes.get('native-field').children;
-  assert.deepEqual(groups.map(g=>g.label),['Contratação','Item','Resultado do item','Fornecedor','Contrato']);
-  const contracts=groups.at(-1).children;assert.equal(contracts.length,9);assert(contracts.every(o=>o.disabled && /somente (contratos|atas e contratos)$/.test(o.textContent)));
-  const srp=groups[0].children.find(o=>o.value==='srp');assert.equal(srp.disabled,false);assert.equal(srp.textContent,'Sistema de Registro de Preços');
-  const country=groups[3].children.find(o=>o.value==='paises_fornecedor');assert.equal(country.disabled,false);
-  assert(groups.flatMap(g=>g.children).every(o=>!o.textContent.includes('pendente')));
+test('FILTERS-UI-04: mostra todos os filtros compatíveis, agrupados, sem seletor nem botão de adicionar',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  const groups=ui.nodes.get('filter-groups').children;
+  assert.deepEqual(groups.map(g=>g.children[0].textContent),['Contratação','Item','Resultado do item','Fornecedor']);
+  const caps=schema(config()).capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.documents.includes('edital'));
+  assert.deepEqual(ui.fieldNames(),groups.flatMap(g=>g.children.at(-1).children.map(f=>f.id.slice('filter-field-'.length))));
+  assert.deepEqual([...ui.fieldNames()].sort(),caps.map(c=>c.name).sort());
+  assert.equal(ui.fieldNames().length,71);assert.equal(ui.field('tipos_contrato'),undefined);assert.equal(ui.nodes.has('add-native'),false);assert.equal(ui.nodes.has('native-field'),false);
+  for(const cap of caps){const input=ui.field(cap.name);assert.equal(input.disabled || false,false);if(!input.multiple)assert.equal(input.value,'');}
+  assert.deepEqual(ui.draft().pncp_filters,{});
 });
 
 test('FILTER-OPTIONS-UI-01: inicializa todas as listas e reabrir filtros dos três tipos não faz consultas',async()=>{
@@ -549,7 +560,7 @@ test('FILTER-OPTIONS-UI-01: inicializa todas as listas e reabrir filtros dos tr�
   assert.deepEqual(ui.domainRequests.filter(request=>request.field===null).map(request=>request.type),['edital','ata','contrato']);
   for(const type of ['edital','ata','contrato']){
     if(type!=='edital'){ui.nodes.get('document-type').value=type;await ui.nodes.get('document-type').fire('change');}
-    for(let i=0;i<2;i++){await ui.nodes.get('filters-button').fire('click');assert.equal(ui.nodes.get('add-native').disabled,false);assert(ui.nodes.get('native-options').children.length>0);ui.nodes.get('filters-dialog').close();}
+    for(let i=0;i<2;i++){await ui.nodes.get('filters-button').fire('click');assert.equal(ui.field('ufs').disabled,false);assert(ui.field('ufs').children.length>0);ui.nodes.get('filters-dialog').close();}
   }
   assert.equal(ui.domainRequests.length,8);
 });
@@ -567,8 +578,8 @@ test('FILTER-OPTIONS-UI-03: aba aberta invalida memória após quatro horas e re
     return core.domains(payload.type,payload.normatives,options.signal,null,payload.field);
   }});
   assert.equal(ui.requests.length,1);assert.equal(ui.nodes.get('startup-error').hidden,true);assert.equal(ui.nodes.get('result-title').textContent,'64 contratações');
-  await ui.nodes.get('filters-button').fire('click');assert.equal(ui.nodes.get('add-native').disabled,false);assert.equal(ui.domainRequests.length,9);ui.nodes.get('filters-dialog').close();
-  time+=FILTER_OPTIONS_TTL;await ui.nodes.get('filters-button').fire('click');assert.equal(ui.domainRequests.length,10);assert.equal(ui.nodes.get('add-native').disabled,false);
+  await ui.nodes.get('filters-button').fire('click');assert.equal(ui.field('ufs').disabled,false);assert.equal(ui.domainRequests.length,9);ui.nodes.get('filters-dialog').close();
+  time+=FILTER_OPTIONS_TTL;await ui.nodes.get('filters-button').fire('click');assert.equal(ui.domainRequests.length,15);assert.equal(ui.field('ufs').disabled,false);
 });
 
 test('FILTER-OPTIONS-UI-04: pré-carga lenta não bloqueia a tabela e abrir filtros compartilha a chamada pendente',async()=>{
@@ -577,57 +588,56 @@ test('FILTER-OPTIONS-UI-04: pré-carga lenta não bloqueia a tabela e abrir filt
     await gate;return core.domains(payload.type,payload.normatives,options.signal,null,payload.field);
   }});
   assert.equal(ui.nodes.get('result-title').textContent,'64 contratações');assert.equal(ui.domainRequests.length,1);
-  const opening=ui.nodes.get('filters-button').fire('click');await settle();assert.equal(ui.nodes.get('add-native').disabled,true);assert.equal(ui.domainRequests.length,1);
+  const opening=ui.nodes.get('filters-button').fire('click');await settle();assert.equal(ui.field('ufs').disabled,true);assert.equal(ui.domainRequests.length,1);
   release();await opening;await ui.optionsReady;
-  assert.equal(ui.nodes.get('add-native').disabled,false);assert.equal(ui.domainRequests.length,8);
+  assert.equal(ui.field('ufs').disabled,false);assert.equal(ui.domainRequests.length,8);
 });
 
-test('FILTERS-UI-05: seleção de Não preserva false na consulta SRP',async()=>{
+test('FILTERS-UI-05: edição envia Não, ignora campos intocados e só pesquisa ao aplicar',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  ui.nodes.get('native-field').value='srp';await ui.nodes.get('native-field').fire('change');
-  ui.nodes.get('native-value').value='false';await ui.nodes.get('add-native').fire('click');await ui.nodes.get('apply-filters').fire('click');
+  await ui.editFilter('srp',false);assert.equal(ui.requests.length,1);assert.deepEqual(ui.state().pncp_filters,{});
+  await ui.nodes.get('apply-filters').fire('click');
   assert.deepEqual(ui.requests.at(-1).pncp_filters,{srp:false});assert.equal(ui.nodes.get('result-title').textContent,'32 contratações');
 });
 
-test('FILTERS-UI-06: margem singular e catálogo inativo usam controles de seleção',async()=>{
-  const ui=await interfaceFixture({config:{PNCP_VALIDATED_FILTERS:'tipos_margens_preferencia,naturezas_juridicas'}});await ui.nodes.get('filters-button').fire('click');
-  ui.nodes.get('native-field').value='tipos_margens_preferencia';await ui.nodes.get('native-field').fire('change');
-  assert.equal(ui.nodes.get('native-options').multiple,false);assert.equal(ui.nodes.has('native-value'),false);
-  ui.nodes.get('native-options').value='2';await ui.nodes.get('add-native').fire('click');assert.equal(ui.draft().pncp_filters.tipos_margens_preferencia,'2');
-  ui.nodes.get('native-field').value='naturezas_juridicas';await ui.nodes.get('native-field').fire('change');
-  const select=ui.nodes.get('native-options');assert.equal(select.multiple,true);assert.equal(select.children[0].value,'0000');assert.match(select.children[0].textContent,/inativa/);
+test('FILTERS-UI-06: enum tem opção neutra e catálogo inativo usa seleção múltipla',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  assert.equal(ui.field('tipos_margens_preferencia').multiple,false);assert.equal(ui.field('tipos_margens_preferencia').children[0].value,'');
+  await ui.editFilter('tipos_margens_preferencia','2');assert.equal(ui.draft().pncp_filters.tipos_margens_preferencia,'2');
+  const select=ui.field('naturezas_juridicas');assert.equal(select.multiple,true);assert.equal(select.children[0].value,'0000');assert.match(select.children[0].textContent,/inativa/);
   assert(ui.domainRequests.some(request=>request.field==='naturezas_juridicas'));
+  await ui.editFilter('tipos_margens_preferencia',undefined);assert.equal(ui.draft().pncp_filters.tipos_margens_preferencia,undefined);
 });
 
-test('FILTERS-UI-07: mudar normativo preserva amparos válidos e remove incompatíveis',async()=>{
+test('FILTERS-UI-07: mudar normativo atualiza opções e remove amparos incompatíveis sem afetar outros domínios',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  await ui.setFilter('amparos_legais',['1','19','98']);await ui.setFilter('normativos_base',['1']);
+  await ui.editFilter('amparos_legais',['1','19','98']);await ui.editFilter('normativos_base',['1']);
   assert.deepEqual(ui.draft().pncp_filters,{amparos_legais:['1','19'],normativos_base:['1']});
   assert.equal(ui.nodes.get('apply-filters').disabled,false);assert.equal(ui.nodes.get('legal-error').hidden,false);
   const request=ui.domainRequests.at(-1);assert.equal(request.field,'amparos_legais');assert.deepEqual(request.normatives,['1']);
+  assert(!ui.field('amparos_legais').children.some(o=>o.value==='98'));assert(ui.field('ufs').children.some(o=>o.value==='DF'));
   await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{amparos_legais:['1','19'],normativos_base:['1']});assert.equal(ui.nodes.get('result-title').textContent,'32 contratações');
 });
 
-test('FILTERS-UI-08: falha de reconciliação bloqueia aplicar e permite repetir o mesmo normativo',async()=>{
+test('FILTERS-UI-08: falha de reconciliação bloqueia aplicar e permite repetir ou limpar amparos',async()=>{
   let attempts=0;
   const ui=await interfaceFixture({domainHandler:async(payload,options,core)=>{
     if(payload.field==='amparos_legais' && attempts++===0)throw new Error('Indisponível');
     return core.domains(payload.type,payload.normatives,options.signal,null,payload.field);
   }});await ui.nodes.get('filters-button').fire('click');
-  await ui.setFilter('amparos_legais',['19','98']);await ui.setFilter('normativos_base',['1']);
+  await ui.editFilter('amparos_legais',['19','98']);await ui.editFilter('normativos_base',['1']);
   assert.equal(ui.nodes.get('apply-filters').disabled,true);const before=ui.requests.length;await ui.nodes.get('apply-filters').fire('click');assert.equal(ui.requests.length,before);
-  await ui.setFilter('normativos_base',['1']);assert.equal(ui.nodes.get('apply-filters').disabled,false);assert.deepEqual(ui.draft().pncp_filters.amparos_legais,['19']);
+  await ui.editFilter('normativos_base',['1']);assert.equal(ui.nodes.get('apply-filters').disabled,false);assert.deepEqual(ui.draft().pncp_filters.amparos_legais,['19']);
 });
 
 test('FILTERS-UI-09: resposta tardia de amparos não altera um novo rascunho',async()=>{
   let resolve;
   const ui=await interfaceFixture({domainHandler:async(payload,options,core)=>{
     if(payload.field==='amparos_legais' && payload.normatives?.[0]==='1')return new Promise(done=>{resolve=done;});
-    return (await core.domains('edital'));
-  }});await ui.nodes.get('filters-button').fire('click');await ui.setFilter('amparos_legais',['19','98']);
-  ui.nodes.get('native-field').value='amparos_legais';await ui.nodes.get('native-field').fire('change');
-  const pending=ui.setFilter('normativos_base',['1']);await settle();assert.equal(ui.nodes.get('apply-filters').disabled,true);assert.equal(ui.nodes.get('add-native').disabled,true);
-  await ui.nodes.get('add-native').fire('click');assert.equal(ui.nodes.get('apply-filters').disabled,true);
+    return core.domains(payload.type,payload.normatives,options.signal,null,payload.field);
+  }});await ui.nodes.get('filters-button').fire('click');await ui.editFilter('amparos_legais',['19','98']);
+  const pending=ui.editFilter('normativos_base',['1']);await settle();assert.equal(ui.nodes.get('apply-filters').disabled,true);assert.equal(ui.field('amparos_legais').disabled,true);
+  await ui.editFilter('amparos_legais',['19']);assert.equal(ui.nodes.get('apply-filters').disabled,true);
   ui.nodes.get('filters-dialog').close();await ui.nodes.get('filters-button').fire('click');
   resolve(({filters:{amparos_legais:[{id:'19',label:'Amparo'}]}}));await pending;
   assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.nodes.get('apply-filters').disabled,false);
@@ -635,86 +645,90 @@ test('FILTERS-UI-09: resposta tardia de amparos não altera um novo rascunho',as
 
 test('FILTERS-UI-10: sistemas de origem e modos de disputa usam múltiplos IDs por padrão',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  for(const [name,values]of [['fontes',['3','5']],['modos_disputa',['1','2']]]){
-    const option=ui.nodes.get('native-field').children.flatMap(g=>g.children).find(o=>o.value===name);
-    assert.equal(option.disabled,false);assert(!option.textContent.includes('pendente'));
-    ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');
-    const select=ui.nodes.get('native-options');assert.equal(select.multiple,true);
-    for(const option of select.children)option.selected=values.includes(option.value);
-    await ui.nodes.get('add-native').fire('click');
-  }
-  await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{fontes:['3','5'],modos_disputa:['1','2']});
-  assert.equal(ui.nodes.get('result-title').textContent,'43 contratações');
+  for(const [name,values]of [['fontes',['3','5']],['modos_disputa',['1','2']]]){assert.equal(ui.field(name).multiple,true);await ui.editFilter(name,values);}
+  await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{fontes:['3','5'],modos_disputa:['1','2']});assert.equal(ui.nodes.get('result-title').textContent,'43 contratações');
 });
 
-test('FILTERS-UI-11: condições documentais preservam Não ao editar e remover filtros',async()=>{
+test('FILTERS-UI-11: condições documentais preservam Não ao reabrir e permitem voltar a Sem restrição',async()=>{
   const ui=await interfaceFixture(),names=['indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','exigencia_conteudo_nacional'];
   await ui.nodes.get('filters-button').fire('click');
-  for(const name of names){
-    ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');
-    assert(ui.nodes.get('native-value-area').children.some(n=>n.textContent?.includes('Não informado não equivale a Não')));
-    ui.nodes.get('native-value').value='false';await ui.nodes.get('add-native').fire('click');
-    await ui.nodes.get('native-field').fire('change');assert.equal(ui.nodes.get('native-value').value,'false');
-  }
-  await ui.nodes.get('apply-filters').fire('click');assert(names.every(name=>ui.requests.at(-1).pncp_filters[name]===false));
-  assert.equal(ui.nodes.get('result-title').textContent,'16 contratações');
+  for(const name of names){assert.match(ui.nodes.get(`filter-help-${name}`).textContent,/Não informado não equivale a Não/);await ui.editFilter(name,false);}
+  await ui.nodes.get('apply-filters').fire('click');assert(names.every(name=>ui.requests.at(-1).pncp_filters[name]===false));assert.equal(ui.nodes.get('result-title').textContent,'16 contratações');
   assert(ui.nodes.get('native-chips').children.every(n=>n.textContent.endsWith(': Não')));
-  await ui.nodes.get('filters-button').fire('click');assert.equal(ui.nodes.get('native-value').value,'false');
-  for(const name of names)await ui.setFilter(name,undefined);
+  await ui.nodes.get('filters-button').fire('click');for(const name of names){assert.equal(ui.field(name).value,'false');await ui.editFilter(name,undefined);}
   await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{});assert.equal(ui.nodes.get('result-title').textContent,'64 contratações');
 });
 
-test('FILTERS-UI-12: domínio indisponível impede adicionar opções de origem',async()=>{
-  const ui=await interfaceFixture({domainHandler:async()=>({error:{message:'Origem indisponível'}})});
-  await ui.nodes.get('filters-button').fire('click');ui.nodes.get('native-field').value='fontes';await ui.nodes.get('native-field').fire('change');
-  assert.equal(ui.nodes.get('add-native').disabled,true);assert.equal(ui.nodes.get('domain-error').hidden,false);
-  await ui.nodes.get('add-native').fire('click');assert.deepEqual(ui.draft().pncp_filters,{});
+test('FILTERS-UI-12: domínio indisponível bloqueia só seus campos e permite tentar novamente',async()=>{
+  let failed=true;const ui=await interfaceFixture({domainHandler:async(payload,options,core)=>failed?{error:{message:'Origem indisponível'}}:core.domains(payload.type,payload.normatives,options.signal,null,payload.field)});
+  await ui.nodes.get('filters-button').fire('click');assert.equal(ui.field('fontes').disabled,true);assert.equal(ui.nodes.get('filter-error-fontes').hidden,false);
+  await ui.editFilter('fontes',['3']);assert.deepEqual(ui.draft().pncp_filters,{});
+  await ui.editFilter('srp',false);assert.deepEqual(ui.draft().pncp_filters,{srp:false});
+  failed=false;await ui.nodes.get('filter-error-fontes').children.at(-1).fire('click');assert.equal(ui.field('fontes').disabled,false);await ui.editFilter('fontes',['3']);
+  assert.deepEqual(ui.draft().pncp_filters,{srp:false,fontes:['3']});
 });
 
-test('FILTERS-UI-13: filtros de itens habilitados usam domínios e informam o alcance dos detalhes',async()=>{
+test('FILTERS-UI-13: filtros de itens usam domínios e informam o alcance dos detalhes',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  for(const [name,ids]of [['criterios_julgamento',['7']],['categorias_leilao',['1']],['beneficios',['1']]]){
-    ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');
-    assert(ui.nodes.get('native-value-area').children.some(n=>n.textContent?.includes('Os detalhes mostram todos os itens')));
-    const select=ui.nodes.get('native-options');assert.equal(select.multiple,true);for(const option of select.children)option.selected=ids.includes(option.value);
-    await ui.nodes.get('add-native').fire('click');
-  }
-  for(const name of ['possui_emenda_parlamentar','incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional']){
-    ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');ui.nodes.get('native-value').value='true';await ui.nodes.get('add-native').fire('click');
-  }
+  assert(ui.nodes.get('filter-groups').children.some(g=>g.children.some(n=>n.textContent?.includes('Os detalhes mostram todos os itens'))));
+  for(const [name,ids]of [['criterios_julgamento',['7']],['categorias_leilao',['1']],['beneficios',['1']]]){assert.equal(ui.field(name).multiple,true);await ui.editFilter(name,ids);}
+  for(const name of ['possui_emenda_parlamentar','incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional'])await ui.editFilter(name,true);
   await ui.nodes.get('apply-filters').fire('click');const filters=ui.requests.at(-1).pncp_filters;
-  assert.deepEqual(filters.criterios_julgamento,['7']);assert.deepEqual(filters.categorias_leilao,['1']);assert.deepEqual(filters.beneficios,['1']);
-  assert.equal(filters.possui_emenda_parlamentar,true);assert.equal(ui.nodes.get('result-title').textContent,'6 contratações');
+  assert.deepEqual(filters.criterios_julgamento,['7']);assert.deepEqual(filters.categorias_leilao,['1']);assert.deepEqual(filters.beneficios,['1']);assert.equal(filters.possui_emenda_parlamentar,true);assert.equal(ui.nodes.get('result-title').textContent,'6 contratações');
 });
 
 test('FILTERS-UI-14: Não é preservado ao editar condições de itens e emenda',async()=>{
   const ui=await interfaceFixture(),names=['possui_emenda_parlamentar','incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional'];
-  await ui.nodes.get('filters-button').fire('click');
-  for(const name of names){
-    ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');ui.nodes.get('native-value').value='false';await ui.nodes.get('add-native').fire('click');
-  }
+  await ui.nodes.get('filters-button').fire('click');for(const name of names)await ui.editFilter(name,false);
   await ui.nodes.get('apply-filters').fire('click');assert(names.every(name=>ui.requests.at(-1).pncp_filters[name]===false));assert.equal(ui.nodes.get('result-title').textContent,'16 contratações');
-  await ui.nodes.get('filters-button').fire('click');
-  for(const name of names){ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');assert.equal(ui.nodes.get('native-value').value,'false');}
+  await ui.nodes.get('filters-button').fire('click');for(const name of names)assert.equal(ui.field(name).value,'false');
 });
 
 test('FILTERS-UI-15: Não é preservado nos cinco booleanos restantes',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
   const names=['permite_adesao','indicador_subcontratacao','indicador_aplicacao_margem_preferencia','indicador_aplicacao_beneficio_me_epp','indicador_aplicacao_criterio_desempate'];
-  for(const name of names){ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');ui.nodes.get('native-value').value='false';await ui.nodes.get('add-native').fire('click');}
+  for(const name of names)await ui.editFilter(name,false);
   await ui.nodes.get('apply-filters').fire('click');assert(names.every(name=>ui.requests.at(-1).pncp_filters[name]===false));assert.equal(ui.nodes.get('result-title').textContent,'16 contratações');
-  await ui.nodes.get('filters-button').fire('click');for(const name of names){ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');assert.equal(ui.nodes.get('native-value').value,'false');}
+  await ui.nodes.get('filters-button').fire('click');for(const name of names)assert.equal(ui.field(name).value,'false');
 });
 
-test('FILTERS-UI-16: países, reserva, inteiro zero, percentual e data são enviados nos formatos exigidos',async()=>{
+test('FILTERS-UI-16: países, reserva, inteiro zero, percentual e data mantêm seus formatos',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  for(const [name,value]of [['paises_fornecedor','BRA'],['reservas_remanescentes','2']]){
-    ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');for(const option of ui.nodes.get('native-options').children)option.selected=option.value===value;await ui.nodes.get('add-native').fire('click');
-  }
-  for(const [name,value]of [['ordem_classificacao_min','0'],['resultado_percentual_desconto_min','0.00'],['data_homologacao_inicio','2026-09-01']]){
-    ui.nodes.get('native-field').value=name;await ui.nodes.get('native-field').fire('change');ui.nodes.get('native-value').value=value;await ui.nodes.get('add-native').fire('click');
-  }
+  for(const [name,value]of [['paises_fornecedor',['BRA']],['reservas_remanescentes',['2']],['ordem_classificacao_min','0'],['resultado_percentual_desconto_min','0.00'],['data_homologacao_inicio','2026-09-01']])await ui.editFilter(name,value);
   await ui.nodes.get('apply-filters').fire('click');const filters=ui.requests.at(-1).pncp_filters;assert.deepEqual(filters.paises_fornecedor,['BRA']);assert.deepEqual(filters.reservas_remanescentes,['2']);assert.equal(filters.ordem_classificacao_min,0);assert.equal(filters.resultado_percentual_desconto_min,'0.00');assert.equal(filters.data_homologacao_inicio,'2026-09-01');
+});
+
+test('FILTERS-UI-17: normativo atualiza amparos ainda sem seleção e reabrir preserva os outros domínios',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  await ui.editFilter('normativos_base',['1']);assert.equal(ui.field('amparos_legais').disabled,false);assert(!ui.field('amparos_legais').children.some(o=>o.value==='98'));
+  await ui.editFilter('ufs',['DF']);await ui.nodes.get('apply-filters').fire('click');const before=ui.domainRequests.length;
+  await ui.nodes.get('filters-button').fire('click');assert.equal(ui.domainRequests.length,before);assert(ui.field('ufs').children.some(o=>o.value==='GO'));assert(ui.field('modalidades').children.length>0);
+  assert.deepEqual(ui.draft().pncp_filters,{normativos_base:['1'],ufs:['DF']});
+});
+
+test('FILTERS-UI-18: campos com sugestões mantêm seleções independentes e permitem remover uma delas',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  const orgao=ui.nodes.get('filter-suggestions-orgaos').children.find(n=>n.tagName==='button'),fornecedor=ui.nodes.get('filter-suggestions-fornecedores').children.find(n=>n.tagName==='button');
+  await orgao.fire('click');const orgaos=ui.draft().pncp_filters.orgaos;await fornecedor.fire('click');await orgao.fire('click');
+  assert.deepEqual(ui.draft().pncp_filters.orgaos,orgaos);assert.equal(ui.draft().pncp_filters.fornecedores.length,1);
+  const suppliers=ui.draft().pncp_filters.fornecedores;
+  await ui.nodes.get('filter-selected-orgaos').children[0].fire('click');assert.equal(ui.draft().pncp_filters.orgaos,undefined);assert.deepEqual(ui.draft().pncp_filters.fornecedores,suppliers);assert.equal(ui.requests.length,1);
+  ui.nodes.get('filters-dialog').close();await ui.nodes.get('filters-button').fire('click');assert.deepEqual(ui.draft().pncp_filters,{});
+});
+
+test('FILTERS-UI-19: falha de amparos sem seleção permite pesquisar só pelo normativo e recuperar as opções',async()=>{
+  const ui=await interfaceFixture({domainHandler:(payload,options,core)=>payload.normatives?.length?Promise.reject(new Error('Indisponível')):core.domains(payload.type,payload.normatives,options.signal,null,payload.field)});
+  await ui.nodes.get('filters-button').fire('click');await ui.editFilter('normativos_base',['1']);assert.equal(ui.nodes.get('apply-filters').disabled,false);assert.equal(ui.field('amparos_legais').disabled,true);
+  await ui.editFilter('normativos_base',[]);assert.equal(ui.field('amparos_legais').disabled,false);assert.deepEqual(ui.draft().pncp_filters,{});
+});
+
+test('FILTERS-UI-20: limpar campos remove false, zero e listas sem pesquisar antes de aplicar',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  for(const [name,value]of [['srp',false],['ordem_classificacao_min',0],['ufs',['DF']]]) {
+    await ui.editFilter(name,value);const clear=ui.nodes.get(`filter-field-${name}`).children[0].children[1];assert.equal(clear.hidden,false);
+    await clear.fire('click');assert.equal(clear.hidden,true);assert.equal(ui.draft().pncp_filters[name],undefined);
+  }
+  assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.requests.length,1);await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{});
 });
 
 test('CONTRACTS-UI-01: trocar o tipo reinicia critérios, colunas e status e permite consultar e exportar contratos',async()=>{
@@ -722,10 +736,9 @@ test('CONTRACTS-UI-01: trocar o tipo reinicia critérios, colunas e status e per
   ui.nodes.get('document-type').value='contrato';await ui.nodes.get('document-type').fire('change');
   assert.equal(ui.state().document_type,'contrato');assert.deepEqual(ui.state().pncp_filters,{});assert.equal(ui.nodes.get('result-title').textContent,'32 contratos');assert(ui.tableColumns().some(c=>c.field==='valor_global'));assert(!ui.tableColumns().some(c=>c.field==='valor_total_estimado'));
   assert.deepEqual(ui.nodes.get('draft-status').children.map(o=>o.value),['todos','vigente','nao_vigente']);
-  const fields=ui.nodes.get('native-field').children.flatMap(g=>g.children);assert.equal(fields.find(o=>o.value==='tipos_contrato').disabled,false);assert.equal(fields.find(o=>o.value==='item_quantidade_min').disabled,true);
-  const domainsBefore=ui.domainRequests.length;await ui.nodes.get('filters-button').fire('click');ui.nodes.get('native-field').value='tipos_contrato';await ui.nodes.get('native-field').fire('change');assert.equal(ui.domainRequests.length,domainsBefore);assert(ui.domainRequests.some(request=>request.type==='contrato' && request.field===null));
-  for(const option of ui.nodes.get('native-options').children)option.selected=option.value==='1';await ui.nodes.get('add-native').fire('click');
-  ui.nodes.get('native-field').value='possui_nfe';await ui.nodes.get('native-field').fire('change');ui.nodes.get('native-value').value='true';await ui.nodes.get('add-native').fire('click');await ui.nodes.get('apply-filters').fire('click');assert.equal(ui.nodes.get('result-title').textContent,'8 contratos');
+  const domainsBefore=ui.domainRequests.length;await ui.nodes.get('filters-button').fire('click');assert(ui.field('tipos_contrato'));assert.equal(ui.field('item_quantidade_min'),undefined);assert.equal(ui.domainRequests.length,domainsBefore);assert(ui.domainRequests.some(request=>request.type==='contrato' && request.field===null));
+  await ui.editFilter('tipos_contrato',['1']);
+  await ui.editFilter('possui_nfe',true);await ui.nodes.get('apply-filters').fire('click');assert.equal(ui.nodes.get('result-title').textContent,'8 contratos');
   await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.at(-1).query.document_type,'contrato');assert.deepEqual(ui.exportRequests.at(-1).query.pncp_filters,{tipos_contrato:['1'],possui_nfe:true});
   await ui.nodes.get('clear-button').fire('click');assert.equal(ui.state().document_type,'contrato');assert.equal(ui.nodes.get('result-title').textContent,'32 contratos');
   ui.nodes.get('document-type').value='edital';await ui.nodes.get('document-type').fire('change');assert.equal(ui.nodes.get('result-title').textContent,'64 contratações');assert(ui.tableColumns().some(c=>c.field==='valor_total_estimado'));
@@ -750,8 +763,7 @@ test('ATAS-UI-01: trocar para atas ajusta status, colunas, filtros, contagem e C
   assert.equal(ui.state().document_type,'ata');assert.equal(ui.nodes.get('result-title').textContent,'24 atas');
   assert(ui.tableColumns().some(c=>c.field==='cancelado'));assert(!ui.tableColumns().some(c=>c.field==='valor_total_estimado'));
   assert.deepEqual(ui.nodes.get('draft-status').children.map(c=>c.value),['todos','vigente','nao_vigente']);
-  const fields=ui.nodes.get('native-field').children.flatMap(g=>g.children);assert.equal(fields.filter(f=>!f.disabled).length,16);assert.equal(fields.find(f=>f.value==='situacoes_item').disabled,true);
-  await ui.nodes.get('filters-button').fire('click');ui.nodes.get('draft-status').value='vigente';await ui.nodes.get('apply-filters').fire('click');assert.equal(ui.nodes.get('result-title').textContent,'12 atas');
+  await ui.nodes.get('filters-button').fire('click');assert.equal(ui.fieldNames().length,16);assert.equal(ui.field('situacoes_item'),undefined);ui.nodes.get('draft-status').value='vigente';await ui.nodes.get('apply-filters').fire('click');assert.equal(ui.nodes.get('result-title').textContent,'12 atas');
   await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.at(-1).query.document_type,'ata');assert.equal(ui.exportRequests.at(-1).query.status,'vigente');
   await ui.nodes.get('clear-button').fire('click');assert.equal(ui.state().document_type,'ata');assert.equal(ui.nodes.get('result-title').textContent,'24 atas');
 });

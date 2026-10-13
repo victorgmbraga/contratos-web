@@ -25,19 +25,22 @@ function waitQuery(predicate){
 }
 const check=name=>{checks.push(name);console.log('PASS '+name);};
 async function search(text) {await page.locator('#search').fill(text);await page.locator('#search-button').click();}
+const filter=name=>page.locator(`#filter-${name}`);
 async function addEveryFilter(type) {
   const catalog=schema(config);
-  const caps=catalog.capabilities.filter(c=>!c.reserved && c.documents.includes(type));
+  const caps=catalog.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.documents.includes(type));
   await page.locator('#filters-button').click();
+  assert.equal(await page.locator('#add-native, #native-field').count(),0);
+  assert.equal(await page.locator('.filter-field').count(),caps.length);
+  const visibleNames=await page.locator('.filter-field').evaluateAll(fields=>fields.map(field=>field.id.slice('filter-field-'.length)));
+  assert.deepEqual(visibleNames.sort(),caps.map(cap=>cap.name).sort());
   for(const cap of caps){
-    await page.locator('#native-field').selectOption(cap.name);
-    await page.waitForFunction(()=>!document.querySelector('#add-native').disabled);
+    const input=filter(cap.name);
     if(['list','enum'].includes(cap.type)){
-      if(cap.domain_kind==='suggest')await page.locator('#native-suggestions .suggestion').first().click();
-      else {const first=await page.locator('#native-options option').first().getAttribute('value');await page.locator('#native-options').selectOption(first);}
-    }else if(cap.type==='boolean')await page.locator('#native-value').selectOption('false');
-    else await page.locator('#native-value').fill(cap.type==='date'?'2026-09-01':cap.type==='integer'?'0':cap.name==='codigo_ibge'?'5300108':'0.00');
-    await page.locator('#add-native').click();
+      if(cap.domain_kind==='suggest'){await input.focus();await page.locator(`#filter-suggestions-${cap.name} .suggestion`).first().click();}
+      else {const first=await input.locator('option:not([value=""])').first().getAttribute('value');await input.selectOption(first);}
+    }else if(cap.type==='boolean')await input.selectOption('false');
+    else await input.fill(cap.type==='date'?'2026-09-01':cap.type==='integer'?'0':cap.name==='codigo_ibge'?'5300108':'0.00');
   }
   const request=waitQuery(input=>Object.keys(input.pncp_filters).length===caps.length);
   await page.locator('#apply-filters').click();const input=await request;assert.equal(input.document_type,type);assert.equal(Object.keys(input.pncp_filters).length,caps.length);
@@ -53,8 +56,24 @@ try {
   assert.deepEqual(initialDomains.filter(payload=>payload.field===null).map(payload=>payload.type),['edital','ata','contrato']);
   const storedOptions=await page.evaluate(prefix=>Object.keys(localStorage).filter(key=>key.startsWith(prefix)).map(key=>JSON.parse(localStorage.getItem(key))),FILTER_OPTIONS_PREFIX);
   for(const entry of storedOptions){assert.equal(entry.expires_at-entry.fetched_at,FILTER_OPTIONS_TTL);assert(!Object.hasOwn(entry.value,'raw'));}
-  for(let i=0;i<2;i++){await page.locator('#filters-button').click();await page.locator('#native-options').waitFor();await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();}
+  for(let i=0;i<2;i++){await page.locator('#filters-button').click();await filter('ufs').waitFor();await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();}
   assert.equal(initialDomains.length,8);check('Inicialização pré-carrega e persiste as opções dos três tipos; reabrir filtros não consulta a fonte');
+  await page.locator('#filters-button').click();
+  const beforeDraft=page.url();
+  const orgSuggestion=page.waitForEvent('service',{predicate:message=>message.method==='suggest' && message.payload.field==='orgaos'});
+  const unitSuggestion=page.waitForEvent('service',{predicate:message=>message.method==='suggest' && message.payload.field==='unidades'});
+  await filter('orgaos').fill('Ministério');await filter('unidades').fill('Unidade');
+  await Promise.all([orgSuggestion,unitSuggestion]);
+  await page.locator('#filter-suggestions-orgaos .suggestion').first().click();
+  await page.locator('#filter-suggestions-unidades .suggestion').first().click();
+  assert.equal(await page.locator('#filter-selected-orgaos .selected-option').count(),1);
+  assert.equal(await page.locator('#filter-selected-unidades .selected-option').count(),1);
+  await page.locator('#filter-selected-orgaos .selected-option').click();
+  assert.equal(await page.locator('#filter-selected-orgaos .selected-option').count(),0);
+  assert.equal(await page.locator('#filter-selected-unidades .selected-option').count(),1);
+  await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();assert.equal(page.url(),beforeDraft);
+  await page.locator('#filters-button').click();assert.equal(await page.locator('.selected-option').count(),0);await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
+  check('Sugestões simultâneas de órgão e unidade são independentes; cancelar descarta seleções sem alterar a URL');
   const cachedPage=await page.context().newPage(),cachedDomains=[];
   try {
     cachedPage.on('pageerror',error=>errors.push(error.message));
@@ -65,7 +84,7 @@ try {
     for(const [type,title] of [['edital','64 contratações'],['ata','24 atas'],['contrato','32 contratos']]){
       await cachedPage.locator('#document-type').selectOption(type);
       await cachedPage.waitForFunction(expected=>document.querySelector('#result-title').textContent===expected,title);
-      await cachedPage.locator('#filters-button').click();await cachedPage.locator('#native-options').waitFor();
+      await cachedPage.locator('#filters-button').click();await cachedPage.locator('#filter-ufs').waitFor();
       await cachedPage.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
     }
     assert.equal(cachedDomains.length,0);check('Nova página reutiliza localStorage para filtros de edital, ata e contrato');
@@ -97,7 +116,7 @@ try {
     await sharedPage.goForward();await sharedPage.waitForFunction(()=>document.querySelector('.tabulator-page.active')?.dataset.page==='1' && !document.querySelector('#refresh-button').disabled);assert.equal(await sharedPage.locator('#order').inputValue(),'-data');check('Voltar e Avançar restauram a página e a ordenação sem recarregar a aplicação');
     await sharedPage.locator('#document-type').selectOption('contrato');await sharedPage.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');
     assert.equal(new URL(sharedPage.url()).searchParams.get('tipos_documento'),'contrato');assert.equal(new URL(sharedPage.url()).searchParams.has('srp'),false);
-    await sharedPage.locator('#filters-button').click();await sharedPage.locator('#draft-status').selectOption('vigente');await sharedPage.locator('#native-field').selectOption('possui_nfe');await sharedPage.locator('#native-value').selectOption('false');await sharedPage.locator('#add-native').click();await sharedPage.locator('#apply-filters').click();
+    await sharedPage.locator('#filters-button').click();await sharedPage.locator('#draft-status').selectOption('vigente');await sharedPage.locator(`#filter-${'possui_nfe'}`).selectOption('false');await sharedPage.locator('#apply-filters').click();
     await sharedPage.waitForFunction(()=>!document.querySelector('#export-button').disabled);assert.equal(new URL(sharedPage.url()).searchParams.get('possui_nfe'),'false');assert.equal(new URL(sharedPage.url()).searchParams.get('status'),'vigente');
     const contractLink=sharedPage.url(),contractResult=await sharedPage.locator('#result-title').innerText();await sharedPage.reload();await sharedPage.waitForFunction(expected=>document.querySelector('#result-title').textContent===expected,contractResult);
     assert.equal(await sharedPage.locator('#document-type').inputValue(),'contrato');assert(await sharedPage.locator('.tabulator-col[tabulator-field="valor_global"]').isVisible());assert.equal(sharedQueries.at(-1).pncp_filters.possui_nfe,false);check('URL de contrato restaura status e filtro Não, com as colunas próprias');
@@ -207,36 +226,36 @@ try {
   await page.setViewportSize(previousViewport);check('Abas, listagens e links cabem no painel em telas menores');
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeTabs);
   const downloadPromise=page.waitForEvent('download');await page.locator('#export-button').click();const download=await downloadPromise;assert.match(download.suggestedFilename(),/^compras-demo-/);assert.equal(await page.locator('#export-dialog').count(),0);check('CSV baixado diretamente por nova coleta, sem confirmação');
-  await page.locator('#filters-button').click();await page.locator('#native-options').waitFor();await page.locator('#native-options').selectOption('GO');await page.locator('#add-native').click();await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='0 contratações');check('Filtro nativo UF aplicado no serviço');
+  await page.locator('#filters-button').click();await filter('ufs').selectOption('GO');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='0 contratações');check('Filtro nativo UF aplicado no serviço');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-  await page.locator('#filters-button').click();await page.locator('#native-field').selectOption('srp');await page.locator('#native-value').selectOption('false');await page.locator('#add-native').click();
+  await page.locator('#filters-button').click();await filter('srp').selectOption('false');
   const srpRequest=waitQuery(input=>input.pncp_filters.srp===false);
   await page.locator('#apply-filters').click();assert.equal((await srpRequest).pncp_filters.srp,false);
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratações');check('Filtro SRP envia false e exibe somente registros correspondentes');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();
   for(const [name,ids]of [['fontes',['3','5']],['modos_disputa',['1','2']]]){
-    await page.locator('#native-field').selectOption(name);await page.locator('#native-options').selectOption(ids);await page.locator('#add-native').click();
+    await filter(name).selectOption(ids);
   }
   const conditions=['indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','exigencia_conteudo_nacional'];
-  for(const name of conditions){await page.locator('#native-field').selectOption(name);await page.locator('#native-value').selectOption('false');await page.locator('#add-native').click();}
+  for(const name of conditions){await filter(name).selectOption('false');}
   const documentaryRequest=waitQuery(input=>input.pncp_filters.fontes?.length===2);
   await page.locator('#apply-filters').click();const documentaryFilters=(await documentaryRequest).pncp_filters;
   assert.deepEqual(documentaryFilters.fontes,['3','5']);assert.deepEqual(documentaryFilters.modos_disputa,['1','2']);assert(conditions.every(name=>documentaryFilters[name]===false));
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='11 contratações');check('Origem, modo de disputa e cinco condições documentais são aplicados juntos');
   await page.locator('#filters-button').click();
-  for(const name of conditions){await page.locator('#native-field').selectOption(name);assert.equal(await page.locator('#native-value').inputValue(),'false');}
+  for(const name of conditions){assert.equal(await filter(name).inputValue(),'false');}
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Editar filtros documentais preserva Não');
   const documentaryDownload=page.waitForEvent('download');await page.locator('#export-button').click();const exported=await documentaryDownload;
   const documentaryCsv=await readFile(await exported.path(),'utf8');assert.equal(documentaryCsv.split('\r\n').length,13);check('CSV usa os mesmos filtros documentais e exporta todas as onze contratações');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();
   for(const [name,ids]of [['criterios_julgamento',['7']],['categorias_leilao',['1']],['beneficios',['1']]]){
-    await page.locator('#native-field').selectOption(name);assert.match(await page.locator('#native-value-area').innerText(),/Os detalhes mostram todos os itens/);
-    await page.locator('#native-options').selectOption(ids);await page.locator('#add-native').click();
+    assert.match(await page.locator('#filter-groups').innerText(),/Os detalhes mostram todos os itens/);
+    await filter(name).selectOption(ids);
   }
   const itemConditions=['incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional','possui_emenda_parlamentar'];
-  for(const name of itemConditions){await page.locator('#native-field').selectOption(name);await page.locator('#native-value').selectOption('true');await page.locator('#add-native').click();}
+  for(const name of itemConditions){await filter(name).selectOption('true');}
   const itemRequest=waitQuery(input=>input.pncp_filters.beneficios?.includes('1'));
   await page.locator('#apply-filters').click();const itemFilters=(await itemRequest).pncp_filters;assert(itemConditions.every(name=>itemFilters[name]===true));assert.deepEqual(itemFilters.categorias_leilao,['1']);
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='6 contratações');check('Emenda e seis filtros de itens são aplicados juntos');
@@ -244,19 +263,19 @@ try {
   assert.match(await page.locator('.item-card').nth(1).innerText(),/Item complementar/);await page.locator('#details-dialog .close-dialog').click();check('Detalhes preservam os dois itens após a pesquisa filtrada');
   const itemDownload=page.waitForEvent('download');await page.locator('#export-button').click();const itemExport=await itemDownload;assert.equal((await readFile(await itemExport.path(),'utf8')).split('\r\n').length,8);check('CSV exporta seis contratações, sem multiplicar linhas pelos itens');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-  await page.locator('#filters-button').click();await page.locator('#native-field').selectOption('codigo_ibge');await page.locator('#native-value').fill('5300108');await page.locator('#add-native').click();
+  await page.locator('#filters-button').click();await filter('codigo_ibge').fill('5300108');
   const ibgeRequest=waitQuery(input=>input.pncp_filters.codigo_ibge==='5300108');
   await page.locator('#apply-filters').click();assert.equal((await ibgeRequest).pncp_filters.codigo_ibge,'5300108');check('Código IBGE preservado como texto na pesquisa');
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratações');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-  await page.locator('#filters-button').click();await page.locator('#native-field').selectOption('amparos_legais');await page.locator('#native-options').selectOption(['19','98']);await page.locator('#add-native').click();
-  await page.locator('#native-field').selectOption('normativos_base');await page.locator('#native-options').selectOption('1');await page.locator('#add-native').click();
+  await page.locator('#filters-button').click();await filter('amparos_legais').selectOption(['19','98']);
+  await filter('normativos_base').selectOption('1');
   await page.waitForFunction(()=>document.querySelector('#legal-error').textContent.includes('incompatíveis') && !document.querySelector('#apply-filters').disabled);
   const legalRequest=waitQuery(input=>input.pncp_filters.normativos_base?.includes('1'));
   await page.locator('#apply-filters').click();const legalFilters=(await legalRequest).pncp_filters;assert.deepEqual(legalFilters.amparos_legais,['19']);assert.deepEqual(legalFilters.normativos_base,['1']);check('Normativo reconcilia amparos legais e aplica os critérios válidos');
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='11 contratações');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-  await page.locator('#filters-button').click();await page.locator('#native-field').selectOption('anos');await page.locator('#native-options').waitFor();assert.equal(await page.locator('#native-options option').innerText(),'2026');await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Domínio de anos no formato real do PNCP');
+  await page.locator('#filters-button').click();await filter('anos').waitFor();assert.equal(await filter('anos').locator('option').innerText(),'2026');await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Domínio de anos no formato real do PNCP');
   assert.equal(await addEveryFilter('edital'),71);check('Todos os 71 filtros de contratações podem ser preenchidos e aplicados no navegador');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#document-type').selectOption('contrato');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');
@@ -283,7 +302,7 @@ try {
   await historyPrevious.click();await page.waitForFunction(()=>document.querySelector('#detail-panel-historico .item-pager span').textContent==='Página 2');assert.equal(await unknownHistory.locator('.related-card').count(),1);assert.equal(await historyNext.isEnabled(),true);
   await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);await page.setViewportSize({width:1440,height:1000});
   await page.locator('#details-dialog .close-dialog').click();check('Histórico de contrato com contagem divergente exibe total desconhecido e permite avançar até uma página vazia');
-  await page.locator('#filters-button').click();await page.locator('#native-field').selectOption('tipos_contrato');await page.locator('#native-options').selectOption('1');await page.locator('#add-native').click();await page.locator('#native-field').selectOption('possui_nfe');await page.locator('#native-value').selectOption('true');await page.locator('#add-native').click();await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
+  await page.locator('#filters-button').click();await filter('tipos_contrato').selectOption('1');await filter('possui_nfe').selectOption('true');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
   const contractDownload=page.waitForEvent('download');await page.locator('#export-button').click();const exportedContracts=await contractDownload,contractCsv=await readFile(await exportedContracts.path(),'utf8');assert.equal(contractCsv.split('\r\n').length,10);assert(contractCsv.split('\r\n')[0].includes('"valor_global"'));check('Filtros exclusivos de contratos e CSV de oito contratos usam os mesmos critérios');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');assert.equal(await addEveryFilter('contrato'),32);check('Todos os 32 filtros de contratos podem ser preenchidos e aplicados no navegador');
   assert.deepEqual(await page.locator('#document-type option').evaluateAll(nodes=>nodes.map(n=>n.textContent)),['Editais e Avisos de Contratações','Atas de Registro de Preços','Contratos']);
@@ -331,7 +350,17 @@ try {
     const tooltip=page.locator('#export-button-tooltip');await tooltip.waitFor({state:'visible'});
     const box=await tooltip.boundingBox();assert(box.x>=8 && box.x+box.width<=width-8,`Tooltip cortado em ${width}px`);
     await page.locator('#repository-link').focus();await page.locator('#repository-link-tooltip').waitFor({state:'visible'});
+    await page.locator('#filters-button').click();
+    const modalFit=await page.locator('#filters-dialog').evaluate(dialog=>{
+      const body=dialog.querySelector('.filters-body'),footer=dialog.querySelector('.dialog-footer'),rect=dialog.getBoundingClientRect(),top=footer.getBoundingClientRect().top,fields=dialog.querySelectorAll('.filter-field'),buttonsFit=[...footer.querySelectorAll('button')].every(button=>{const bounds=button.getBoundingClientRect();return bounds.left>=rect.left && bounds.right<=rect.right;});
+      body.scrollTop=body.scrollHeight;
+      return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,scrolls:body.scrollHeight>body.clientHeight,overflow:body.scrollWidth>body.clientWidth,footerFixed:top===footer.getBoundingClientRect().top,buttonsFit,lastBottom:fields[fields.length-1].getBoundingClientRect().bottom,footerTop:top};
+    });
+    assert(modalFit.left>=0 && modalFit.right<=width && modalFit.top>=0 && modalFit.bottom<=844);
+    assert(modalFit.scrolls && !modalFit.overflow && modalFit.footerFixed && modalFit.buttonsFit && modalFit.lastBottom<=modalFit.footerTop);
+    await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   }
+  check('Modal ampliado mantém rolagem interna e ações visíveis nas cinco larguras de tela');
   await page.setViewportSize({width:390,height:844});await page.locator('#filters-button').click();assert(await page.locator('#filters-dialog').isVisible());await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Cabeçalho em linha única com rolagem acessível e painéis sem overflow da página');
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.COMPRAS_QA_SCREENSHOT_DIR+'/mobile.png',fullPage:true});
   {assert.deepEqual(localApiRequests,[]);check('Distribuição estática executa todas as ações sem API local');}

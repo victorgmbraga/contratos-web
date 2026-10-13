@@ -39,8 +39,9 @@ function money(value) {
   return `${match[1]}R$ ${match[2].replace(/\B(?=(\d{3})+(?!\d))/g,'.')},${(match[3] || '').padEnd(2,'0')}`;
 }
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
-const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,selected:[],suggestAbort:null,suggestSeq:0,suggestTimer:null,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,exportAbort:null,exportSeq:0};
+const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,exportAbort:null,exportSeq:0};
 let filterOptionsCache;
+const filterFields=new Map();
 let urlMode='replace',urlError=null,tableReady=false;
 const toolbarButtonIds=['search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-button','cancel-export-button'];
 function syncQueryUrl(query) {
@@ -212,18 +213,7 @@ function execute() {
   return loadPage(1);
 }
 function defaultQuery(type=state.query?.document_type || 'edital') {return {api_version:'2.0',document_type:type,q:'',status:'todos',pncp_filters:{},order:'-data',page:1,size:TABLE_PAGE_SIZE};}
-function renderFilterOptions() {
-  const select=$('native-field'),current=select.value;select.replaceChildren();
-  for(const groupName of ['Contratação','Item','Resultado do item','Fornecedor','Contrato']) {
-    const group=el('optgroup');group.label=groupName==='Contrato' && state.query.document_type==='ata'?'Ata/Contrato':groupName==='Contratação' && state.query.document_type!=='edital'?'Documento':groupName;
-    for(const cap of state.schema.capabilities.filter(c=>!c.reserved && c.group===groupName)) {
-      const compatible=cap.documents.includes(state.query.document_type);
-      const option=el('option',`${cap.label || cap.name}${compatible?'':` · somente ${state.schema.document_types.filter(d=>d.enabled && cap.documents.includes(d.id)).map(d=>d.plural).join(' e ')}`}`);
-      option.value=cap.name;option.disabled=!compatible;option.title=cap.description;group.append(option);
-    }
-    if(group.children.length)select.append(group);
-  }
-  select.value=state.schema.capabilities.some(c=>c.name===current && c.documents.includes(state.query.document_type))?current:'ufs';
+function renderFilterStatuses() {
   const statuses=state.schema.statuses_by_document[state.query.document_type],statusNames={todos:'Todos',recebendo_proposta:'Recebendo propostas',propostas_encerradas:'Propostas encerradas',vigente:'Vigentes',nao_vigente:'Não vigentes'};
   $('draft-status').replaceChildren();for(const value of statuses){const option=el('option',statusNames[value] || value);option.value=value;$('draft-status').append(option);}
 }
@@ -244,8 +234,8 @@ function renderColumnChoices() {
 }
 function applyQuery(query) {
   const type=query.document_type,typeChanged=type!==state.query.document_type;
-  state.abort?.abort();state.exportAbort?.abort();state.detailAbort?.abort();state.domainAbort?.abort();state.suggestAbort?.abort();state.legalAbort?.abort();
-  state.seq++;state.detailSeq++;state.domainSeq++;state.suggestSeq++;state.legalSeq++;clearTimeout(state.suggestTimer);
+  state.abort?.abort();state.exportAbort?.abort();state.detailAbort?.abort();stopFilterEditors();state.legalAbort?.abort();
+  state.seq++;state.detailSeq++;state.domainSeq++;state.legalSeq++;
   $('filters-dialog').close();$('details-dialog').close();
   state.query=clone(query);state.domains=null;state.draft=null;urlError=null;
   $('search').value=query.q;
@@ -255,7 +245,7 @@ function applyQuery(query) {
     state.schema.columns=state.schema.columns_by_document[type];state.table.clearData();
     state.table.setColumns(tableColumnDefinitions());renderColumnChoices();
   }
-  renderFilterOptions();updateCriteria();
+  renderFilterStatuses();updateCriteria();
 }
 function changeDocumentType() {
   const type=$('document-type').value;if(type===state.query.document_type)return;
@@ -271,132 +261,186 @@ function restoreQueryUrl() {
     invalidQueryUrl(error);
   }
 }
-function renderDraftLists() {
-  const q=state.draft;
-  $('draft-publication-start').value=q.pncp_filters.data_publicacao_inicio || '';
-  $('draft-publication-end').value=q.pncp_filters.data_publicacao_fim || '';
-  $('native-filter-list').replaceChildren();
-  for(const [key,value]of Object.entries(q.pncp_filters)) {
-    const row=el('div',undefined,'active-filter');row.append(el('span',`${filterLabel(key)}: ${Array.isArray(value)?value.join(', '):typeof value==='boolean'?(value?'Sim':'Não'):String(value)}`));
-    const button=el('button','Remover','text-button');button.addEventListener('click',()=>setDraftFilter(key,undefined));row.append(button);$('native-filter-list').append(row);
-  }
+function stopFilterEditors() {
+  state.domainAbort?.abort();state.domainSeq++;
+  for(const editor of filterFields.values()){editor.suggestAbort?.abort();clearTimeout(editor.suggestTimer);editor.suggestSeq++;}
+}
+function currentEditor(editor) {
+  return editor.draft===state.draft && editor.seq===state.domainSeq && $('filters-dialog').open;
+}
+function syncFilterEditor(editor) {
+  if(!editor)return;
+  const value=state.draft.pncp_filters[editor.cap.name];
+  editor.clear.hidden=value===undefined;
+  if(editor.selected) {
+    editor.selected=(value || []).map(id=>editor.options?.find(o=>o.id===id) || editor.selected.find(o=>o.id===id) || {id,label:id});
+    renderSelectedOptions(editor);
+  } else if(editor.input.multiple) {
+    for(const option of editor.input.children)option.selected=(value || []).includes(option.value);
+  } else editor.input.value=value===undefined?'':String(value);
 }
 async function setDraftFilter(name,value) {
   const draft=state.draft,previous=JSON.stringify(draft.pncp_filters[name]);
   if(value===undefined)delete draft.pncp_filters[name];else draft.pncp_filters[name]=value;
-  renderDraftLists();
+  syncFilterEditor(filterFields.get(name));
   if(name==='amparos_legais') {
+    if(state.legalPending)return;
     state.legalAbort?.abort();state.legalSeq++;state.legalPending=false;state.legalError=false;$('apply-filters').disabled=false;$('legal-error').hidden=true;
     return;
   }
-  if(name!=='normativos_base' || (previous===JSON.stringify(value) && !state.legalError))return;
-  state.legalAbort?.abort();const seq=++state.legalSeq;
-  state.legalPending=false;state.legalError=false;$('apply-filters').disabled=false;$('legal-error').hidden=true;
-  if(draft.pncp_filters.amparos_legais?.length) {
-    const controller=new AbortController();state.legalAbort=controller;state.legalPending=true;$('apply-filters').disabled=true;
-    if($('native-field').value==='amparos_legais')$('add-native').disabled=true;
-    $('legal-error').textContent='Conferindo os amparos do normativo selecionado…';$('legal-error').hidden=false;
-    try {
-      const domains=await getDomains(controller.signal,'amparos_legais');
-      if(seq!==state.legalSeq || draft!==state.draft)return;
-      const options=domains.filters.amparos_legais;
-      if(!Array.isArray(options))throw new Error('O PNCP não forneceu os amparos deste normativo.');
-      const ids=new Set(options.map(o=>o.id)),before=draft.pncp_filters.amparos_legais;
-      const valid=before.filter(id=>ids.has(id));
-      if(valid.length)draft.pncp_filters.amparos_legais=valid;else delete draft.pncp_filters.amparos_legais;
-      renderDraftLists();
-      $('legal-error').hidden=valid.length===before.length;
-      $('legal-error').textContent='Amparos incompatíveis foram removidos. Confira a seleção antes de pesquisar.';
-    }catch(error){if(seq===state.legalSeq && error.name!=='AbortError'){
-      state.legalError=true;$('legal-error').textContent='Não foi possível conferir os amparos. Remova o filtro de amparo ou selecione novamente o normativo para tentar outra vez.';$('legal-error').hidden=false;
-    }}finally{if(seq===state.legalSeq){state.legalPending=false;$('apply-filters').disabled=state.legalError;}}
-  }
-  if(seq===state.legalSeq && $('native-field').value==='amparos_legais')await renderNativeValue();
+  if(name!=='normativos_base' || (previous===JSON.stringify(value) && !state.legalError && !filterFields.get('amparos_legais')?.input.disabled))return;
+  state.legalAbort?.abort();const seq=++state.legalSeq,controller=new AbortController();state.legalAbort=controller;
+  const editor=filterFields.get('amparos_legais');
+  state.legalPending=true;state.legalError=false;$('apply-filters').disabled=true;$('legal-error').hidden=true;
+  if(editor){editor.input.disabled=true;editor.loadSeq++;}
+  try {
+    const domains=await getDomains(controller.signal,'amparos_legais');
+    if(seq!==state.legalSeq || draft!==state.draft)return;
+    const options=domains.filters.amparos_legais;
+    if(!Array.isArray(options))throw new Error('O PNCP não forneceu os amparos deste normativo.');
+    const ids=new Set(options.map(o=>o.id)),before=draft.pncp_filters.amparos_legais || [];
+    const valid=before.filter(id=>ids.has(id));
+    if(valid.length)draft.pncp_filters.amparos_legais=valid;else delete draft.pncp_filters.amparos_legais;
+    if(editor)populateFilterOptions(editor,domains);
+    $('legal-error').hidden=valid.length===before.length;
+    $('legal-error').textContent='Amparos incompatíveis foram removidos. Confira a seleção antes de pesquisar.';
+  }catch(error){if(seq===state.legalSeq && error.name!=='AbortError'){
+    state.legalError=!!draft.pncp_filters.amparos_legais?.length;
+    $('legal-error').textContent='Não foi possível conferir os amparos. Remova o filtro de amparo ou selecione novamente o normativo para tentar outra vez.';$('legal-error').hidden=false;
+    if(editor)filterDomainError(editor,error);
+  }}finally{if(seq===state.legalSeq){state.legalPending=false;$('apply-filters').disabled=state.legalError;}}
 }
 async function openFilters(column=null) {
-  state.legalAbort?.abort();state.legalSeq++;state.legalPending=false;state.legalError=false;$('apply-filters').disabled=false;
+  stopFilterEditors();state.legalAbort?.abort();state.legalSeq++;state.legalPending=false;state.legalError=false;$('apply-filters').disabled=false;
   $('legal-error').hidden=true;
   state.draft=clone(state.query);state.draft.q=$('search').value;
+  renderFilterStatuses();
   $('draft-search').value=state.draft.q;$('draft-status').value=state.draft.status;
-  $('domain-error').hidden=true;renderDraftLists();openDialog('filters-dialog');
-  if(column?.domain){$('native-field').value=column.domain;}
-  else if(column?.native_range){$('native-field').value=column.native_range[0];}
-  await renderNativeValue();
-}
-async function getDomains(signal,field=$('native-field').value) {
-  return filterOptionsCache.get({type:state.draft?.document_type || state.query.document_type,normatives:state.draft?.pncp_filters.normativos_base,field:field || null},{signal});
-}
-async function renderNativeValue() {
-  state.domainAbort?.abort();state.suggestAbort?.abort();clearTimeout(state.suggestTimer);
-  const seq=++state.domainSeq;state.suggestSeq++;state.selected=[];
-  const cap=state.schema.capabilities.find(c=>c.name===$('native-field').value),area=$('native-value-area');area.replaceChildren();$('domain-error').hidden=true;$('add-native').disabled=false;
-  if(!cap)return;
-  const help=el('p',`${cap.group} · ${cap.description}`,'panel-note');area.append(help);
-  if(['Item','Resultado do item','Fornecedor'].includes(cap.group) && state.query.document_type==='edital')area.append(el('p','Este filtro seleciona contratações. Os detalhes mostram todos os itens, inclusive os que não correspondem ao filtro. Condições diferentes podem corresponder a itens ou resultados diferentes.','panel-note'));
-  if(cap.state!=='enabled' || !cap.documents.includes(state.query.document_type)){$('add-native').disabled=true;area.append(el('p','Filtro disponível em outro tipo de documento. Altere o tipo no cabeçalho.','panel-note'));return;}
-  if(cap.type==='list' || cap.type==='enum') {
-    $('add-native').disabled=true;
-    const controller=new AbortController();state.domainAbort=controller;
-    const label=el('label','Carregando opções do PNCP…');area.append(label);
-    try {
-      const domains=await getDomains(controller.signal,cap.name);if(seq!==state.domainSeq)return;state.domains=domains;
-      const warning=domains.warnings?.find(w=>w.domain===cap.domain);
-      if(warning){$('domain-error').textContent=warning.message;$('domain-error').hidden=false;}
-      label.textContent=cap.cardinality==='single'?'Selecione uma opção':'Selecione uma ou mais opções';
-      const large=domains.partial_domains?.some(name=>name===cap.name || name===cap.domain),options=domains.filters[cap.domain] || [];
-      if(large) {
-        label.textContent='Pesquisar opções (mínimo de 3 caracteres)';
-        const input=el('input');input.id='native-suggest';input.placeholder='Digite o nome para buscar no PNCP';input.autocomplete='off';label.append(input);
-        const selected=el('div',undefined,'selected-options');selected.id='selected-native';area.append(selected);
-        const suggestions=el('div',undefined,'suggestions');suggestions.id='native-suggestions';suggestions.setAttribute('aria-live','polite');area.append(suggestions);
-        showSuggestions(options.slice(0,20));
-        state.selected=(state.draft.pncp_filters[cap.name] || []).map(id=>options.find(o=>o.id===id) || {id,label:id});renderSelectedOptions();
-        input.addEventListener('input',()=>{
-          clearTimeout(state.suggestTimer);state.suggestAbort?.abort();const token=++state.suggestSeq;
-          $('domain-error').hidden=true;
-          if(input.value.trim().length<3){showSuggestions(options.slice(0,20));return;}
-          suggestions.replaceChildren(el('p','Consultando opções do PNCP…','panel-note'));
-          state.suggestTimer=setTimeout(async()=>{
-            const controller=new AbortController();state.suggestAbort=controller;
-            try{const result=await service.call('suggest',{type:state.draft.document_type,field:cap.name,q:input.value,size:20},{signal:controller.signal});if(seq===state.domainSeq && token===state.suggestSeq)showSuggestions(result.items);}
-            catch(error){if(error.name!=='AbortError' && seq===state.domainSeq && token===state.suggestSeq){suggestions.replaceChildren(el('p','Sugestões indisponíveis. Tente novamente.','panel-note'));$('domain-error').textContent=error.message;$('domain-error').hidden=false;}}
-          },450);
-        });
-      } else {
-        if(!options.length)throw new Error('O PNCP não forneceu opções para este domínio.');
-        const select=el('select');select.multiple=cap.cardinality==='multiple';select.id='native-options';select.setAttribute('aria-label','Opções do filtro PNCP');
-        const current=state.draft.pncp_filters[cap.name];
-        for(const option of options){const opt=el('option',option.label+(option.active===false?' (inativa)':''));opt.value=option.id;opt.selected=Array.isArray(current)?current.includes(option.id):current===option.id;select.append(opt);}label.append(select);
-      }
-      $('add-native').disabled=state.legalPending && cap.name==='amparos_legais';
-    }catch(error){if(seq===state.domainSeq && error.name!=='AbortError'){label.textContent='Opções indisponíveis.';$('domain-error').textContent=error.message;$('domain-error').hidden=false;}}
-  } else {
-    const label=el('label','Valor');let input;
-    if(cap.type==='boolean'){input=el('select');for(const [value,label]of [['true','Sim'],['false','Não']]){const o=el('option',label);o.value=value;input.append(o);}}
-    else {input=el('input');input.type=cap.type==='date'?'date':cap.type==='integer'?'number':'text';if(cap.type==='decimal')input.inputMode='decimal';if(cap.input_hint)input.placeholder=cap.input_hint;if(cap.name==='codigo_ibge'){input.inputMode='numeric';input.maxLength=7;}if(cap.type==='integer'){input.min='0';input.step='1';}}
-    input.id='native-value';label.append(input);area.append(label);
-    const current=state.draft.pncp_filters[cap.name];
-    if(current!==undefined)input.value=String(current);
-    if(cap.type==='boolean' && cap.input_hint)area.append(el('p',cap.input_hint,'panel-note'));
+  filterFields.clear();$('filter-groups').replaceChildren();
+  $('filters-title').textContent=`Filtros · ${documentName().label}`;
+  openDialog('filters-dialog');
+  const controller=new AbortController();state.domainAbort=controller;
+  const base=getDomains(controller.signal);base.catch(()=>{});
+  const loads=[];
+  for(const groupName of ['Contratação','Item','Resultado do item','Fornecedor','Contrato']) {
+    const caps=state.schema.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.group===groupName && c.documents.includes(state.draft.document_type));
+    if(!caps.length)continue;
+    const group=el('fieldset',undefined,'filter-group'),legend=el('legend',groupName==='Contratação' && state.draft.document_type!=='edital'?'Documento':groupName==='Contrato' && state.draft.document_type==='ata'?'Ata':groupName);
+    group.append(legend);
+    if(['Item','Resultado do item','Fornecedor'].includes(groupName) && state.draft.document_type==='edital')group.append(el('p','Estes filtros selecionam contratações. Os detalhes mostram todos os itens, inclusive os que não correspondem ao filtro. Condições diferentes podem corresponder a itens ou resultados diferentes.','panel-note'));
+    const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);
+    for(const cap of caps) {
+      const editor=createFilterEditor(cap);filterFields.set(cap.name,editor);grid.append(editor.area);
+      if(cap.domain)loads.push(loadFilterOptions(editor,controller.signal,cap.domain_source==='search' && !(cap.name==='amparos_legais' && state.draft.pncp_filters.normativos_base?.length)?base:undefined));
+    }
   }
+  $('filters-dialog').querySelector('.filters-body')?.scrollTo(0,0);
+  await Promise.all(loads);
+  const target=column?.domain || column?.native_range?.[0],editor=filterFields.get(target);
+  if(editor && currentEditor(editor)){editor.input.focus();editor.area.scrollIntoView({block:'center'});}
 }
-function showSuggestions(options) {
-  const list=$('native-suggestions');if(!list)return;list.replaceChildren();
-  if(!options.length)list.append(el('p','Nenhuma opção encontrada.','panel-note'));
-  for(const option of options){const button=el('button',option.label,'suggestion');button.type='button';button.addEventListener('click',()=>{if(!state.selected.some(o=>o.id===option.id))state.selected.push(option);renderSelectedOptions();});list.append(button);}
+async function getDomains(signal,field=null) {
+  return filterOptionsCache.get({type:state.draft?.document_type || state.query.document_type,...(field==='amparos_legais'?{normatives:state.draft?.pncp_filters.normativos_base}:{}),field},{signal});
 }
-function renderSelectedOptions() {
-  const area=$('selected-native');area.replaceChildren();
-  for(const option of state.selected){const button=el('button',option.label+' ×','selected-option');button.type='button';button.addEventListener('click',()=>{state.selected=state.selected.filter(o=>o.id!==option.id);renderSelectedOptions();});area.append(button);}
+function createFilterEditor(cap) {
+  const area=el('div',undefined,'filter-field');area.id=`filter-field-${cap.name}`;
+  const label=el('label',cap.label || cap.name),input=el(cap.domain || cap.type==='boolean'?'select':'input');
+  const heading=el('div',undefined,'filter-field-heading'),clear=el('button',undefined,'text-button filter-reset');clear.type='button';clear.hidden=true;clear.setAttribute('aria-label',`Limpar ${cap.label}`);
+  clear.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+  const help=el('p',cap.input_hint || cap.description,'filter-help');help.id=`filter-help-${cap.name}`;
+  const error=el('p',undefined,'inline-error');error.id=`filter-error-${cap.name}`;error.setAttribute('role','status');error.hidden=true;
+  const editor={cap,area,input,help,error,clear,draft:state.draft,seq:state.domainSeq,loadSeq:0,suggestSeq:0};
+  if(cap.domain_kind==='suggest') {
+    editor.input=el('input');editor.input.type='search';editor.input.placeholder='Digite ao menos 3 caracteres';editor.input.autocomplete='off';
+    editor.selected=[];
+  } else if(cap.domain) {
+    input.multiple=cap.cardinality==='multiple';if(input.multiple)input.size=4;
+    input.disabled=true;
+  } else if(cap.type==='boolean') {
+    for(const [value,text]of [['','Sem restrição'],['true','Sim'],['false','Não']]){const option=el('option',text);option.value=value;input.append(option);}
+  } else {
+    input.type=cap.type==='date'?'date':cap.type==='integer'?'number':'text';
+    if(cap.type==='decimal')input.inputMode='decimal';
+    if(cap.input_hint)input.placeholder=cap.input_hint;
+    if(cap.name==='codigo_ibge'){input.inputMode='numeric';input.maxLength=7;}
+    if(cap.type==='integer'){input.min='0';input.step='1';}
+  }
+  editor.input.id=`filter-${cap.name}`;editor.input.setAttribute('aria-describedby',help.id);label.setAttribute('for',editor.input.id);heading.append(label,clear);area.append(heading,editor.input,help);
+  clear.addEventListener('click',()=>setDraftFilter(cap.name,undefined));
+  if(editor.selected) {
+    const selected=el('div',undefined,'selected-options');selected.id=`filter-selected-${cap.name}`;editor.selectedArea=selected;
+    const suggestions=el('div',undefined,'suggestions');suggestions.id=`filter-suggestions-${cap.name}`;suggestions.setAttribute('aria-live','polite');suggestions.hidden=true;editor.suggestions=suggestions;
+    editor.input.setAttribute('aria-controls',suggestions.id);
+    area.append(selected,suggestions);
+    editor.input.addEventListener('focus',()=>{if(!editor.input.disabled){editor.suggestions.hidden=false;}});
+    editor.input.addEventListener('input',()=>searchFilterOptions(editor));
+    editor.input.disabled=true;
+  } else {
+    editor.input.addEventListener(cap.domain || cap.type==='boolean'?'change':'input',()=>editFilter(editor));
+  }
+  area.append(error);syncFilterEditor(editor);
+  return editor;
 }
-async function addNative() {
-  const cap=state.schema.capabilities.find(c=>c.name===$('native-field').value);let value;
-  if(!cap || cap.state!=='enabled' || !cap.documents.includes(state.draft.document_type) || $('add-native').disabled)return;
-  if(state.legalPending && cap.name==='amparos_legais')return;
-  if(cap.type==='list'){value=$('native-options')?[...$('native-options').selectedOptions].map(o=>o.value):state.selected.map(o=>o.id);if(!value.length)return;}
-  else if(cap.type==='enum'){value=$('native-options').value;if(!value)return;}
-  else {value=$('native-value').value;if(value==='')return;if(cap.type==='boolean')value=value==='true';if(cap.type==='integer')value=Number(value);}
+async function editFilter(editor) {
+  if(!currentEditor(editor) || editor.input.disabled)return;
+  const {cap,input}=editor;let value;
+  if(cap.type==='list')value=editor.selected?editor.selected.map(o=>o.id):[...input.selectedOptions].map(o=>o.value);
+  else value=input.value;
+  if(value==='' || Array.isArray(value) && !value.length)value=undefined;
+  else if(cap.type==='boolean')value=value==='true';
+  else if(cap.type==='integer')value=Number(value);
   await setDraftFilter(cap.name,value);
+}
+function populateFilterOptions(editor,domains) {
+  const {cap,input}=editor,options=domains.filters[cap.domain];
+  if(!Array.isArray(options) || (!options.length && cap.domain_kind!=='suggest'))throw new Error('O PNCP não forneceu opções para este domínio.');
+  state.domains={...domains,filters:{...state.domains?.filters,...domains.filters}};
+  editor.options=options;editor.error.hidden=true;
+  const warning=domains.warnings?.find(w=>w.domain===cap.domain);
+  if(warning){editor.error.textContent=warning.message;editor.error.hidden=false;}
+  if(editor.selected)showSuggestions(editor,options.slice(0,20));
+  else {
+    input.replaceChildren();
+    if(!input.multiple){const empty=el('option','Sem restrição');empty.value='';input.append(empty);}
+    for(const option of options){const opt=el('option',option.label+(option.active===false?' (inativa)':''));opt.value=option.id;input.append(opt);}
+  }
+  input.disabled=false;input.setAttribute('aria-busy','false');syncFilterEditor(editor);
+}
+function filterDomainError(editor,error) {
+  editor.input.disabled=true;editor.input.setAttribute('aria-busy','false');editor.error.replaceChildren(el('span',error.message+' '));editor.error.hidden=false;
+  const retry=el('button','Tentar novamente','text-button');retry.type='button';retry.addEventListener('click',()=>editor.cap.name==='amparos_legais'?setDraftFilter('normativos_base',state.draft.pncp_filters.normativos_base):loadFilterOptions(editor,state.domainAbort.signal));editor.error.append(retry);
+}
+async function loadFilterOptions(editor,signal,source) {
+  const token=++editor.loadSeq;editor.input.disabled=true;editor.input.setAttribute('aria-busy','true');
+  try {
+    const domains=await (source || getDomains(signal,editor.cap.name));
+    if(currentEditor(editor) && token===editor.loadSeq)populateFilterOptions(editor,domains);
+  }catch(error){if(error.name!=='AbortError' && currentEditor(editor) && token===editor.loadSeq)filterDomainError(editor,error);}
+}
+function searchFilterOptions(editor) {
+  clearTimeout(editor.suggestTimer);editor.suggestAbort?.abort();const token=++editor.suggestSeq;
+  editor.error.hidden=true;editor.suggestions.hidden=false;
+  const q=editor.input.value.trim();
+  if(q.length<3){showSuggestions(editor,(editor.options || []).slice(0,20));return;}
+  editor.suggestions.replaceChildren(el('p','Consultando opções do PNCP…','panel-note'));
+  editor.suggestTimer=setTimeout(async()=>{
+    const controller=new AbortController();editor.suggestAbort=controller;
+    try{const result=await service.call('suggest',{type:editor.draft.document_type,field:editor.cap.name,q,size:20},{signal:controller.signal});if(currentEditor(editor) && token===editor.suggestSeq)showSuggestions(editor,result.items);}
+    catch(error){if(error.name!=='AbortError' && currentEditor(editor) && token===editor.suggestSeq){editor.suggestions.replaceChildren(el('p','Sugestões indisponíveis. Tente novamente.','panel-note'));editor.error.textContent=error.message;editor.error.hidden=false;}}
+  },450);
+}
+function showSuggestions(editor,options) {
+  const list=editor.suggestions;list.replaceChildren();
+  if(!options.length)list.append(el('p','Nenhuma opção encontrada.','panel-note'));
+  for(const option of options){const button=el('button',option.label,'suggestion');button.type='button';button.addEventListener('click',async()=>{
+    if(!currentEditor(editor) || editor.input.disabled)return;
+    if(!editor.selected.some(o=>o.id===option.id))editor.selected.push(option);
+    await editFilter(editor);editor.suggestions.hidden=true;
+  });list.append(button);}
+}
+function renderSelectedOptions(editor) {
+  const area=editor.selectedArea;area.replaceChildren();
+  for(const option of editor.selected){const button=el('button',option.label+' ×','selected-option');button.type='button';button.setAttribute('aria-label',`Remover ${option.label} de ${editor.cap.label}`);button.addEventListener('click',async()=>{editor.selected=editor.selected.filter(o=>o.id!==option.id);await editFilter(editor);});area.append(button);}
 }
 function safeAnchor(label,value) {
   try{const url=new URL(value);if(!['https:','http:'].includes(url.protocol) || url.username || url.password)return null;const link=el('a',label);link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';return link;}catch{return null;}
@@ -637,8 +681,7 @@ async function init() {
   state.schema.columns=state.schema.columns_by_document[state.query.document_type];
   $('search').value=state.query.q;
   $('source-badge').hidden=!state.schema.demo;
-  renderFilterOptions();
-  $('native-field').value='ufs';
+  renderFilterStatuses();
   state.placeholder=el('div','Informe uma pesquisa e consulte as contratações do PNCP.');
   const resultInfo=$('result-info');
   state.table=new Tabulator('#results-table',{
@@ -666,10 +709,8 @@ async function init() {
   $('cancel-export-button').addEventListener('click',()=>{state.exportAbort?.abort();notice('Exportação cancelada.');});
   $('order').addEventListener('change',()=>{state.query.order=$('order').value;execute();});
   $('clear-button').addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();execute();});
-  $('native-field').addEventListener('change',renderNativeValue);$('add-native').addEventListener('click',addNative);
-  for(const [id,field]of [['draft-publication-start','data_publicacao_inicio'],['draft-publication-end','data_publicacao_fim']])$(id).addEventListener('input',()=>{const value=$(id).value;if(value)state.draft.pncp_filters[field]=value;else delete state.draft.pncp_filters[field];renderDraftLists();});
   $('apply-filters').addEventListener('click',()=>{if(state.legalPending || state.legalError)return;state.draft.q=$('draft-search').value;state.draft.status=$('draft-status').value;state.query=clone(state.draft);$('search').value=state.query.q;$('filters-dialog').close();updateCriteria();execute();});
-  $('filters-dialog').addEventListener('close',()=>{state.domainAbort?.abort();state.suggestAbort?.abort();state.legalAbort?.abort();clearTimeout(state.suggestTimer);state.domainSeq++;state.suggestSeq++;state.legalSeq++;});
+  $('filters-dialog').addEventListener('close',()=>{stopFilterEditors();state.legalAbort?.abort();state.legalSeq++;});
   $('details-dialog').addEventListener('close',()=>{state.detailAbort?.abort();state.detailSeq++;});
   $('export-button').addEventListener('click',exportCsv);
   for(const id of toolbarButtonIds)bindTooltip($(id),$(`${id}-tooltip`));
