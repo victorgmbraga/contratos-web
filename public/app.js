@@ -838,7 +838,7 @@ async function init() {
   document.addEventListener('scroll',event=>{
     const button=document.activeElement;
     // Ao focar uma ação em telas menores, o cabeçalho rola para torná-la visível.
-    if(event.target===$('header-content') && toolbarButtonIds.includes(button?.id)) {
+    if(event.target===$('header-content') && (toolbarButtonIds.includes(button?.id) || button?.id==='repository-link')) {
       const tooltip=$(`${button.id}-tooltip`),anchor=button.getBoundingClientRect();
       if(!tooltip.hidden && anchor.left>=0 && anchor.right<=window.innerWidth) {
         positionTooltip(button,tooltip);return;

@@ -15,7 +15,7 @@ A aplicação executa no navegador. Consultas, validação de filtros e geraçã
 5. Use **Selecionar colunas** para ajustar a tabela. Colunas com filtro exibem um ícone após o nome; seu menu oferece as ações de filtro e ordenação disponíveis.
 6. Use **Exportar CSV** para coletar todos os documentos dos últimos critérios concluídos, desde a primeira página. O arquivo inclui todas as colunas do tipo documental. A coleta mostra progresso e pode ser interrompida pelo X em um círculo (**Cancelar CSV**).
 
-O ícone do GitHub, no canto superior direito, abre o repositório em nova aba e permanece visível durante a rolagem horizontal do cabeçalho.
+O ícone do GitHub, ao final dos controles do cabeçalho, abre o repositório em nova aba. Em telas pequenas, acompanha a rolagem horizontal com os demais botões.
 
 ### Detalhes dos documentos
 

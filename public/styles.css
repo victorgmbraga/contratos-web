@@ -116,7 +116,7 @@ p{line-height:1.55}
 .tabulator .tabulator-footer .tabulator-page-size{font-size:.8125rem;padding:4px;border-color:var(--line);border-radius:4px}
 .tabulator .tabulator-footer .tabulator-page-counter{flex:1;min-width:0;text-align:left;white-space:normal}
 .tabulator .tabulator-footer .tabulator-paginator{display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:.8125rem;flex:0 0 auto}
-.repository-link{display:inline-flex;align-items:center;justify-content:center;align-self:flex-start;flex:0 0 36px;width:36px;height:36px;border:1px solid var(--blue);border-radius:6px;background:var(--blue);color:white;transition:background .12s,color .12s}
+.repository-link{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border:1px solid var(--blue);border-radius:6px;background:var(--blue);color:white;transition:background .12s,color .12s}
 .repository-link:hover{background:var(--blue-hover);border-color:var(--blue-hover);color:white;text-decoration:none}
 .repository-link svg{width:18px;height:18px;stroke-width:2}
 .tabulator-menu{border:1px solid #ccd9e7;border-radius:6px;box-shadow:0 5px 20px #173b6520;font-size:.875rem;max-width:300px}

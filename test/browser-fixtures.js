@@ -9,6 +9,10 @@ export async function uiDemoFetch(url,init) {
     return Response.json({items,total:10000});
   }
   if(u.searchParams.get('q')==='falha-ui')return new Response('<html>falha</html>',{headers:{'Content-Type':'text/html'}});
+  if(u.searchParams.get('q')==='cancelar-ui')await new Promise((_,reject)=>{
+    init.signal.throwIfAborted();
+    init.signal.addEventListener('abort',()=>reject(init.signal.reason),{once:true});
+  });
   if(u.searchParams.get('q')==='lenta-ui')await new Promise(resolve=>setTimeout(resolve,500));
   if(u.searchParams.get('q')==='janela-ui') {
     const size=Number(u.searchParams.get('tam_pagina')),page=Number(u.searchParams.get('pagina'));

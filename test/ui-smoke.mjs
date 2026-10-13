@@ -350,7 +350,7 @@ try {
   assert(await page.locator('#cancel-export-button').isVisible());await page.locator('#cancel-export-button').click();
   await page.waitForFunction(()=>!document.querySelector('#export-button').disabled);await page.waitForTimeout(600);
   assert.equal(cancelledDownloads,0);assert.match(await page.locator('#notice').innerText(),/Exportação cancelada/);page.off('download',observeDownload);check('Progresso e botão Cancelar CSV interrompem a coleta sem baixar arquivo parcial');
-  await search('lenta-ui');assert.equal(await page.locator('#search-button').isVisible(),false);assert(await page.locator('#cancel-button').isVisible());
+  await search('cancelar-ui');assert.equal(await page.locator('#search-button').isVisible(),false);assert(await page.locator('#cancel-button').isVisible());
   await page.locator('#cancel-button').click();await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Consulta cancelada'));
   assert(await page.locator('#search-button').isVisible());assert.equal(await page.locator('#cancel-button').isVisible(),false);check('Cancelar substitui Pesquisar durante o carregamento e restaura o botão ao cancelar');
   await search('lenta-ui');await page.locator('#search').fill('firewall');await page.locator('#search').press('Enter');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='6 contratações');await page.waitForTimeout(600);assert.equal(await page.locator('#result-title').innerText(),'6 contratações');check('Resposta antiga não substitui a consulta atual');
@@ -360,18 +360,24 @@ try {
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.COMPRAS_QA_SCREENSHOT_DIR+'/desktop.png',fullPage:true});
   for(const width of [320,390,768,1057,1440]) {
     await page.setViewportSize({width,height:844});await page.waitForTimeout(150);
+    await page.locator('#header-content').evaluate(node=>{node.scrollLeft=0;});
     const fit=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,centers:[...document.querySelectorAll('#app-header .brand,#app-header input,#app-header button,#app-header select,#source-badge,#repository-link')].filter(node=>node.getClientRects().length).map(node=>{const rect=node.getBoundingClientRect();return rect.top+rect.height/2;})}));
     assert(fit.scroll<=fit.width,`Overflow da página em ${width}px`);
     assert(Math.max(...fit.centers)-Math.min(...fit.centers)<=1,`Cabeçalho quebrou linha em ${width}px`);
     const repository=await page.locator('#repository-link').boundingBox();
     assert(repository.x>=0 && repository.y>=0 && repository.y<=20,`GitHub fora do canto superior em ${width}px`);
-    assert.equal(repository.x+repository.width,width-(width<=600?8:12),`GitHub fora do canto direito em ${width}px`);
+    assert.equal(await page.locator('#header-content #repository-link').count(),1);
     await page.locator('#export-button').evaluate(node=>node.blur());await page.locator('#export-button').focus();
     const focused=await page.locator('#export-button').boundingBox();assert(focused.x>=-.5 && focused.x+focused.width<=repository.x,`Exportar não ficou visível sem sobrepor o GitHub em ${width}px`);
-    assert.deepEqual(await page.locator('#repository-link').boundingBox(),repository,`GitHub se deslocou com a rolagem em ${width}px`);
+    assert(focused.x+focused.width<=width,`Exportar ficou fora da tela em ${width}px`);
+    const shifted=await page.locator('#repository-link').boundingBox(),scroll=await page.locator('#header-content').evaluate(node=>node.scrollLeft);
+    assert(Math.abs(shifted.x-(repository.x-scroll))<1,`GitHub não acompanhou a rolagem em ${width}px`);
+    assert(shifted.x>=focused.x+focused.width+4,`GitHub sobrepôs Exportar em ${width}px`);
     const tooltip=page.locator('#export-button-tooltip');await tooltip.waitFor({state:'visible'});
     const box=await tooltip.boundingBox();assert(box.x>=8 && box.x+box.width<=width-8,`Tooltip cortado em ${width}px`);
     await page.locator('#repository-link').focus();await page.locator('#repository-link-tooltip').waitFor({state:'visible'});
+    const visibleRepository=await page.locator('#repository-link').boundingBox();
+    assert(visibleRepository.x>=0 && visibleRepository.x+visibleRepository.width<=width,`GitHub não ficou acessível pelo teclado em ${width}px`);
     await page.locator('#filters-button').click();
     const bodyHeight=await page.locator('.filters-body').evaluate(body=>body.scrollHeight);
     await filter('modalidades').click();
