@@ -2,6 +2,7 @@ import { createFilterOptionsCache } from '../src/browser/filter-options-cache.js
 import { readQueryUrl, writeQueryUrl } from '../src/browser/query-url.js';
 import { readDetailUrl, writeDetailUrl, detailDocumentPath } from '../src/browser/detail-url.js';
 import { controlLink } from '../src/document-details.js';
+import { compareDecimal } from '../src/validation.js';
 
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,Tabulator=globalThis.Tabulator,optionsCacheSettings={}}={}) {
 const $ = id => document.getElementById(id);
@@ -438,7 +439,10 @@ function populateFilterOptions(editor,domains) {
   const {cap,input}=editor,options=domains.filters[cap.domain];
   if(!Array.isArray(options) || (!options.length && cap.domain_kind!=='suggest'))throw new Error('O PNCP não forneceu opções para este domínio.');
   state.domains={...domains,filters:{...state.domains?.filters,...domains.filters}};
-  editor.options=options;editor.error.hidden=true;
+  editor.options=cap.name==='anos'?[...options].sort((a,b)=>{
+    const x=/^-?\d+(?:\.\d+)?$/.test(a.id),y=/^-?\d+(?:\.\d+)?$/.test(b.id);
+    return x && y?compareDecimal(a.id,b.id):x?-1:y?1:a.label.localeCompare(b.label,'pt-BR');
+  }):options;editor.error.hidden=true;
   const warning=domains.warnings?.find(w=>w.domain===cap.domain);
   if(warning){editor.error.textContent=warning.message;editor.error.hidden=false;}
   if(editor.selected){editor.visibleOptions=null;if(openFilterEditor===editor)showSuggestions(editor,filterChoices(editor));}

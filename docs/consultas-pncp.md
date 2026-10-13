@@ -108,7 +108,7 @@ CNPJ exige 14 dígitos, ano exige quatro e sequenciais são inteiros positivos d
 | `beneficios` | Lista de IDs conferidos em `item_beneficios`; condição aplicável ao item, distinta de benefício aplicado no resultado |
 | `incentivo_produtivo_basico` | Booleano `true` ou `false` |
 | `aplicabilidade_margem_preferencia_normal`, `aplicabilidade_margem_preferencia_adicional` | Booleanos `true` ou `false` de aplicabilidade no item; não indicam que a preferência foi aplicada ao resultado |
-| `anos` | Lista de valores fornecidos no domínio de anos do PNCP, como `["2026", "20", "20260"]`, preservados como strings |
+| `anos` | Lista de valores fornecidos no domínio de anos do PNCP, como `["2026", "20", "20260"]`, preservados como strings; opções exibidas em ordem numérica crescente |
 | `data_publicacao_inicio`, `data_publicacao_fim` | Datas reais no formato `AAAA-MM-DD` |
 | `valor_total_estimado_min`, `valor_total_estimado_max` | Decimais não negativos como strings com ponto, por exemplo `"1000.50"` |
 | `valor_total_homologado_min`, `valor_total_homologado_max` | Mesmo formato decimal |

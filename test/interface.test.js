@@ -122,7 +122,7 @@ async function interfaceFixture(options={}) {
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
 test('FILTER-YEARS-UI-01: preserva anos fora de AAAA nas opções, seleções, busca, URL e cache dos três tipos',async()=>{
-  const storage=memoryStorage(),anos=['2026','20','20260','0002','0'];
+  const storage=memoryStorage(),anos=['2026','20','20260','0002','0'],ordenados=['0','0002','20','2026','20260'];
   const provider=async(url,init)=>{
     const response=await demoFetch(url,init);
     if(!new URL(url).pathname.endsWith('/filters'))return response;
@@ -132,14 +132,14 @@ test('FILTER-YEARS-UI-01: preserva anos fora de AAAA nas opções, seleções, b
   for(const type of ['edital','ata','contrato']){
     if(type!=='edital'){ui.nodes.get('document-type').value=type;await ui.nodes.get('document-type').fire('change');}
     await ui.nodes.get('filters-button').fire('click');
-    assert.deepEqual((await ui.options('anos')).map(button=>button.dataset.value),anos);
+    assert.deepEqual((await ui.options('anos')).map(button=>button.dataset.value),ordenados);
     await ui.editFilter('anos',anos.slice(1));await ui.nodes.get('apply-filters').fire('click');
     assert.deepEqual(ui.requests.at(-1).pncp_filters.anos,anos.slice(1));assert.equal(new URL(ui.browser.href()).searchParams.get('anos'),'20|20260|0002|0');
     await ui.nodes.get('filters-button').fire('click');assert.deepEqual(ui.draft().pncp_filters.anos,anos.slice(1));ui.nodes.get('filters-dialog').close();
   }
   const restored=await interfaceFixture({storage,itemFetcher:provider,href:ui.browser.href()});
   assert.equal(restored.domainRequests.length,0);assert.deepEqual(restored.requests[0].pncp_filters.anos,anos.slice(1));
-  await restored.nodes.get('filters-button').fire('click');assert.deepEqual((await restored.options('anos')).map(button=>button.dataset.value),anos);
+  await restored.nodes.get('filters-button').fire('click');assert.deepEqual((await restored.options('anos')).map(button=>button.dataset.value),ordenados);
 });
 
 test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho correspondem ao documento aberto',async()=>{
