@@ -5,7 +5,7 @@ import { demoFetch } from '../demo.js';
 
 export function browserSettings(input = {}) {
   const config = validateSettings(input);
-  for (const key of ['PNCP_SEARCH_BASE_URL', 'PNCP_DETAIL_BASE_URL']) {
+  for (const key of ['PNCP_SEARCH_BASE_URL', 'PNCP_DETAIL_BASE_URL', 'PNCP_CONSULTATION_BASE_URL']) {
     assert(config[key] === defaults[key], 'INVALID_CONFIG', `${key} deve usar a API pública do PNCP.`);
   }
   return config;

@@ -14,7 +14,7 @@ const ata = { type: 'ata', cnpj: '88585518000185', ano: '2026', sequencial_compr
 const contract = { type: 'contrato', cnpj: '10870883000144', ano: '2021', sequencial: '30' };
 samples.push({ name: 'Itens e quantidade', method: 'details', payload: { document: purchase, page: 1, size: 10 } });
 for (const document of [purchase, ata, contract]) {
-  if (document.type !== 'edital') samples.push({ name: 'Detalhe ' + document.type, method: 'documentDetails', payload: { document } });
+  samples.push({ name: 'Detalhe ' + document.type, method: 'documentDetails', payload: { document } });
   const resources = { edital: ['arquivos','atas','contratos','historico'], ata: ['partesenvolvidas','contratos','arquivos','historico'], contrato: ['empenhos','instrumentocobranca','termos','arquivos','historico'] }[document.type];
   for (const resource of resources) samples.push({ name: document.type + ' / ' + resource, method: 'documentRelated', payload: { document, resource, page: 1, size: 10 } });
 }

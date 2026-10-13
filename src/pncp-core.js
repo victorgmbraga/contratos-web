@@ -206,7 +206,8 @@ export class PncpClient {
   }
   async document(document,op) {
     assert(['edital','ata','contrato'].includes(document.type),'NOT_FOUND','Tipo de detalhe não disponível.',404);
-    const record=await this.get(nativeDocumentPath(document,this.config.PNCP_DETAIL_BASE_URL),op);
+    const base=document.type==='edital'?this.config.PNCP_CONSULTATION_BASE_URL:this.config.PNCP_DETAIL_BASE_URL;
+    const record=await this.get(nativeDocumentPath(document,base),op);
     const expected=`https://pncp.gov.br/app/${document.type==='ata'?'atas':document.type==='edital'?'editais':'contratos'}/${document.cnpj}/${document.ano}/${document.type==='ata'?`${BigInt(document.sequencial_compra)}/`:''}${BigInt(document.sequencial)}`;
     assert(record && typeof record==='object' && !Array.isArray(record) && controlLink(record.numeroControlePNCP)===expected,'INVALID_UPSTREAM','PNCP retornou detalhes de outro documento ou sem identidade válida.',502);
     return projectDocument(document.type,record);

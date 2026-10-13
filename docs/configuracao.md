@@ -28,7 +28,8 @@ O cache de opções da interface é independente do cache HTTP: usa `localStorag
 | --- | --- | --- |
 | `DEMO_MODE` | `false` | `true` ativa dados sintéticos; `false` consulta o PNCP |
 | `PNCP_SEARCH_BASE_URL` | `https://pncp.gov.br/api/search` | Base para pesquisa, filtros e sugestões |
-| `PNCP_DETAIL_BASE_URL` | `https://pncp.gov.br/api/pncp/v1` | Base para documentos, itens, arquivos e demais listagens dos detalhes |
+| `PNCP_DETAIL_BASE_URL` | `https://pncp.gov.br/api/pncp/v1` | Base para atas/contratos, itens, arquivos, catálogos e demais listagens dos detalhes |
+| `PNCP_CONSULTATION_BASE_URL` | `https://pncp.gov.br/api/consulta/v1` | Base para os campos documentais de editais, usados nos links diretos de detalhes |
 | `PNCP_VALIDATED_FILTERS` | `""` | Nomes de filtros cuja validação externa é declarada pelo operador, separados por vírgula |
 
 As bases devem ser as URLs públicas padrão do PNCP. Não são aceitos hosts alternativos, credenciais, query string ou fragmento.

@@ -2,7 +2,7 @@
 
 Este guia descreve `service.call(method, payload, {signal, onProgress})`, usado pela interface para comunicar-se com o Web Worker. A hospedagem entrega arquivos estáticos. Os formatos de critérios e dados usam `api_version: "2.0"`, com `edital`, `ata` e `contrato`.
 
-O Worker consulta `https://pncp.gov.br/api/search/` para pesquisa, filtros e sugestões e `https://pncp.gov.br/api/pncp/v1` para detalhes, listagens e catálogos. A [arquitetura](arquitetura.md) descreve a ponte e o [guia de configuração](configuracao.md) informa os limites públicos.
+O Worker consulta `https://pncp.gov.br/api/search/` para pesquisa, filtros e sugestões, `https://pncp.gov.br/api/consulta/v1` para os campos documentais de editais e `https://pncp.gov.br/api/pncp/v1` para os demais detalhes, listagens e catálogos. A [arquitetura](arquitetura.md) descreve a ponte e o [guia de configuração](configuracao.md) informa os limites públicos.
 
 | Método | Payload | Resultado |
 | --- | --- | --- |
@@ -246,17 +246,17 @@ A demonstração fornece arquivos, atas, contratos/empenhos e eventos fictícios
 
 `service.call("documentDetails", {document})` consulta os dados completos. Os identificadores são strings:
 
-| Tipo | `document` | Serviço externo relativo a `PNCP_DETAIL_BASE_URL` |
-| --- | --- | --- |
-| Edital | `{type: "edital", cnpj, ano, sequencial}` | `/orgaos/{cnpj}/compras/{ano}/{sequencial}` |
-| Ata | `{type: "ata", cnpj, ano, sequencial_compra, sequencial}` | `/orgaos/{cnpj}/compras/{anoCompra}/{sequencialCompra}/atas/{sequencialAta}` |
-| Contrato | `{type: "contrato", cnpj, ano, sequencial}` | `/orgaos/{cnpj}/contratos/{ano}/{sequencial}` |
+| Tipo | `document` | Base | Rota relativa |
+| --- | --- | --- | --- |
+| Edital | `{type: "edital", cnpj, ano, sequencial}` | `PNCP_CONSULTATION_BASE_URL` | `/orgaos/{cnpj}/compras/{ano}/{sequencial}` |
+| Ata | `{type: "ata", cnpj, ano, sequencial_compra, sequencial}` | `PNCP_DETAIL_BASE_URL` | `/orgaos/{cnpj}/compras/{anoCompra}/{sequencialCompra}/atas/{sequencialAta}` |
+| Contrato | `{type: "contrato", cnpj, ano, sequencial}` | `PNCP_DETAIL_BASE_URL` | `/orgaos/{cnpj}/contratos/{ano}/{sequencial}` |
 
 A pesquisa fornece `_document` com os identificadores originais e o tipo. Em atas, `numero_sequencial_compra_ata` identifica a compra e `numero_sequencial` identifica a ata; o ano da rota é o da compra. Quando a URL original de detalhamento é fornecida, seu ano tem precedência sobre `ano` da busca, após conferir CNPJ e os dois sequenciais. Uma URL conflitante torna a identidade indisponível. O ano da ata pode ser diferente. Em contratos, o sequencial é do contrato. `_purchase` é exclusivo de editais e não permite consultar itens com um sequencial de ata ou contrato.
 
 As respostas completas contêm `api_version`, `document_type`, `fields`, `objeto`, `titulo`, `link_sistema_origem`, `queried_at` e `upstream_requests`. Cada entrada de `fields` tem `field`, `title`, `type` e `value`; vínculos têm também `url`. Valores monetários são strings exatas, IDs preservam zeros e booleanos mantêm ausência distinta de `false`. Campos opcionais ausentes são omitidos. O controle PNCP precisa corresponder ao documento solicitado.
 
-Editais exibem os mesmos 12 campos da aba **Detalhes** de uma contratação. A consulta nativa de edital é necessária ao abrir um link direto sem a linha disponível na busca; abrir uma linha da tabela aproveita seus campos, sem essa chamada adicional. Sem a linha, `titulo` combina instrumento/tipo documental, número e ano informados pela fonte, com o controle PNCP como alternativa. Uma falha conserva a identificação do link e oferece nova tentativa.
+Editais exibem os mesmos 12 campos da aba **Detalhes** de uma contratação. A consulta nativa de edital é necessária ao abrir um link direto sem a linha disponível na busca; abrir uma linha da tabela aproveita seus campos, sem essa chamada adicional. Os campos de edital usam diretamente a API de consulta; itens, arquivos e demais listagens continuam usando a API PNCP. Sem a linha, `titulo` combina instrumento/tipo documental, número e ano informados pela fonte, com o controle PNCP como alternativa. Uma falha conserva a identificação do link e oferece nova tentativa.
 
 Nos detalhes de contratos, `emendaParlamentar` é booleano: `false` exibe **Não** e `true` exibe **Sim** no campo **Emenda parlamentar**. Ausência ou `null` omite o campo opcional, sem assumir **Não**.
 

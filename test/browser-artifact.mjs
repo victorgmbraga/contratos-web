@@ -4,6 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { createStaticServer } from './static-server.js';
 import { launchTestBrowser } from './browser-launch.js';
 import { assertBrowserLayout } from './browser-layout.js';
+import { demoFetch, demoDocument } from '../src/demo.js';
 const browser = await launchTestBrowser();
 const cors = http.createServer((req, res) => {
   if(req.url.startsWith('/allow'))res.setHeader('Access-Control-Allow-Origin','*');
@@ -31,6 +32,32 @@ try {
       await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
       assert.equal(await page.locator('#document-type').inputValue(),'contrato');assert.equal(await page.locator('#order').inputValue(),'data');assert.equal(new URL(page.url()).searchParams.get('possui_nfe'),'false');assert.equal(new URL(page.url()).hash,'#resultados');
       console.log('PASS Link compartilhado no build de produção preserva filtro Não, ordenação, demonstração e caminho em '+prefix);
+      const pncpRequests=[],nativeDetail=demoDocument('edital','1');
+      await page.context().route('**/browser-config.json',route=>route.fulfill({json:{DEMO_MODE:false,PNCP_REQUESTS_PER_SECOND:100000,PNCP_MAX_RETRIES:0}}));
+      await page.context().route('https://pncp.gov.br/**',async route=>{
+        const url=route.request().url();pncpRequests.push(url);
+        if(new URL(url).pathname==='/api/pncp/v1/orgaos/00000000000000/compras/2026/1') {
+          await route.fulfill({status:301,json:{status:'301',message:'Este endpoint foi movido para: https://pncp.gov.br/api/consulta/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}'}});
+        }else{
+          const response=await demoFetch(url);
+          await route.fulfill({status:response.status,headers:{...Object.fromEntries(response.headers),'Access-Control-Allow-Origin':'*'},body:await response.text()});
+        }
+      });
+      await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}?detalhe=edital/00000000000000/2026/1&aba=arquivos&ufs=GO`);
+      const waitDirect=()=>page.waitForFunction(()=>document.querySelector('#details-dialog').open && [...document.querySelectorAll('.detail-tab')].every(tab=>tab.dataset.state==='loaded') && !document.querySelector('#export-button').disabled);
+      await waitDirect();
+      assert.equal(await page.locator('#detail-tab-arquivos').getAttribute('aria-selected'),'true');
+      assert.equal(await page.locator('#detail-panel-detalhes dt').count(),12);
+      assert.equal(await page.locator('#details-kind').innerText(),'Edital nº 1/2026');
+      assert.equal(await page.locator('.detail-object').innerText(),nativeDetail.objetoCompra);
+      assert.equal(new URL(page.url()).searchParams.has('demo'),false);
+      assert.equal(pncpRequests.filter(url=>new URL(url).pathname==='/api/consulta/v1/orgaos/00000000000000/compras/2026/1').length,1);
+      assert(!pncpRequests.some(url=>new URL(url).pathname==='/api/pncp/v1/orgaos/00000000000000/compras/2026/1'));
+      assert(pncpRequests.some(url=>new URL(url).pathname==='/api/pncp/v1/orgaos/00000000000000/compras/2026/1/arquivos'));
+      await page.reload();await waitDirect();
+      assert.equal(await page.locator('#detail-tab-arquivos').getAttribute('aria-selected'),'true');assert.deepEqual(errors,[]);
+      await page.context().unroute('https://pncp.gov.br/**');await page.context().unroute('**/browser-config.json');
+      console.log('PASS Link direto no build de produção usa a API de consulta sem acessar a rota antiga com HTTP 301 em '+prefix);
       // Separate minimal origin: the application's CSP intentionally only permits PNCP.
       await page.goto(`http://127.0.0.1:${cors.address().port}/origin`);
       const result = await page.evaluate(async ({base}) => {

@@ -3,6 +3,7 @@ import { assert, checkKeys } from './errors.js';
 export const defaults = {
   PNCP_SEARCH_BASE_URL: 'https://pncp.gov.br/api/search',
   PNCP_DETAIL_BASE_URL: 'https://pncp.gov.br/api/pncp/v1',
+  PNCP_CONSULTATION_BASE_URL: 'https://pncp.gov.br/api/consulta/v1',
   PNCP_READ_TIMEOUT_SECONDS: 30,
   PNCP_OPERATION_TIMEOUT_SECONDS: 120, PNCP_MAX_RETRIES: 2,
   PNCP_MAX_CONCURRENT_REQUESTS: 2, PNCP_REQUESTS_PER_SECOND: 2,
@@ -24,7 +25,7 @@ export function validateSettings(input = {}) {
       if (key !== 'PNCP_REQUESTS_PER_SECOND') assert(Number.isInteger(value), 'INVALID_CONFIG', `${key} deve ser inteiro.`);
     }
   }
-  for (const key of ['PNCP_SEARCH_BASE_URL', 'PNCP_DETAIL_BASE_URL']) {
+  for (const key of ['PNCP_SEARCH_BASE_URL', 'PNCP_DETAIL_BASE_URL', 'PNCP_CONSULTATION_BASE_URL']) {
     let url; try { url = new URL(config[key]); } catch { assert(false, 'INVALID_CONFIG', `${key} inválida.`); }
     assert(url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash, 'INVALID_CONFIG', `${key} exige URL base HTTPS sem credenciais, query ou fragmento.`);
     config[key] = url.href.replace(/\/$/, '');

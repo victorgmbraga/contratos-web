@@ -7,7 +7,7 @@ import { browserSettings } from '../src/browser/client.js';
 import { defaults } from '../src/settings.js';
 import { operation, delay } from '../src/operation.js';
 import { service, document, fixture, json } from './helpers.js';
-import { demoFetch } from '../src/demo.js';
+import { demoFetch, demoDocument } from '../src/demo.js';
 
 const settings = extra => ({ PNCP_PAGE_SIZE: 10, PNCP_REQUESTS_PER_SECOND: 100000, PNCP_MAX_RETRIES: 0, ...extra });
 const purchase = { type: 'edital', cnpj: '00000000000000', ano: '2026', sequencial: '1' };
@@ -15,7 +15,7 @@ const contract = { ...purchase, type: 'contrato' };
 
 test('BROWSER-01: configuração pública rejeita segredos, hosts alternativos e limites inválidos', () => {
   assert.equal(browserSettings({}).DEMO_MODE, false);
-  for (const input of [{ HOST: 'localhost' }, { TOKEN: 'secret' }, { PNCP_SEARCH_BASE_URL: 'https://other.example' }, { PNCP_PAGE_SIZE: 1 }, { PNCP_MAX_EXPORT_DOCUMENTS: 10001 }, { DEMO_MODE: 'true' }, { PNCP_MAX_OPERATION_BYTES: 0 }]) assert.throws(() => browserSettings(input), e => ['INVALID_CONFIG','UNKNOWN_FIELD'].includes(e.code));
+  for (const input of [{ HOST: 'localhost' }, { TOKEN: 'secret' }, { PNCP_SEARCH_BASE_URL: 'https://other.example' }, { PNCP_CONSULTATION_BASE_URL: 'https://other.example/api/consulta/v1' }, { PNCP_CONSULTATION_BASE_URL: 'https://pncp.gov.br/api/pncp/v1' }, { PNCP_PAGE_SIZE: 1 }, { PNCP_MAX_EXPORT_DOCUMENTS: 10001 }, { DEMO_MODE: 'true' }, { PNCP_MAX_OPERATION_BYTES: 0 }]) assert.throws(() => browserSettings(input), e => ['INVALID_CONFIG','UNKNOWN_FIELD'].includes(e.code));
 });
 
 test('BROWSER-02: transporte usa GET simples e nunca presume HTTP em falha de fetch', async () => {
@@ -25,6 +25,22 @@ test('BROWSER-02: transporte usa GET simples e nunca presume HTTP em falha de fe
     await assert.rejects(runtime.run('1', 'execute', { query: {} }), e => e.code === 'PNCP_TRANSPORT_ERROR' && e.retryable && !Object.hasOwn(e.details, 'upstream_status'));
     assert.deepEqual({ mode: options.mode, credentials: options.credentials, cache: options.cache, redirect: options.redirect, headers: options.headers }, { mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error', headers: { Accept: 'application/json' } });
   } finally { await runtime.close(); }
+});
+
+test('BROWSER-19: edital usa a API de consulta mesmo quando a rota antiga retorna 301 sem Location',async()=>{
+  const requests=[],current=new URL('/api/consulta/v1/orgaos/00000000000000/compras/2026/1','https://pncp.gov.br').href;
+  const runtime=createRuntime(settings(),{fetcher:async(url,init)=>{
+    requests.push(url);assert.equal(init.redirect,'error');
+    return url===current?json(demoDocument('edital','1')):new Response(JSON.stringify({status:'301',message:'Este endpoint foi movido para: https://pncp.gov.br/api/consulta/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}'}),{status:301,headers:{'Content-Type':'application/json'}});
+  }});
+  try {
+    const result=await runtime.run('1','documentDetails',{document:purchase});
+    assert.equal(result.fields.length,12);assert.match(result.objeto,/firewall/);assert.equal(result.titulo,'Edital nº 1/2026');assert.deepEqual(requests,[current]);
+    for(const resource of ['arquivos','historico']) {
+      const fake=createRuntime(settings(),{fetcher:async url=>{assert(new URL(url).pathname.startsWith('/api/pncp/v1/'));return json(new URL(url).pathname.endsWith('/quantidade')?0:[]);}});
+      try{assert.equal((await fake.run(resource,'documentRelated',{document:purchase,resource,page:1,size:10})).total,0);}finally{await fake.close();}
+    }
+  }finally{await runtime.close();}
 });
 
 test('BROWSER-03: identidades, sugestões, paginação e método são validados antes da rede', async () => {

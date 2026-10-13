@@ -15,7 +15,7 @@ O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 - HTTP 204/404 nos recursos permitidos, histórico de contrato com total desconhecido, falhas de formato, transporte e contagem.
 - CSV, consistência entre páginas, limites de bytes/documentos, progresso e cancelamento.
 - Configuração pública, fila, tentativas, prazo de operação e comunicação com o Worker.
-- URL compartilhável da busca e dos detalhes, restauração dos controles, página, documento e aba, Voltar/Avançar e descarte de respostas atrasadas.
+- URL compartilhável da busca e dos detalhes, restauração dos controles, página, documento e aba, Voltar/Avançar e descarte de respostas atrasadas. Editais consultam a API de consulta, inclusive quando a rota anterior retorna HTTP 301 sem `Location`.
 - Pré-carga das opções, validade de quatro horas, compactação, armazenamento indisponível, deduplicação e amparos por normativo.
 - Modal com todos os filtros compatíveis, edição sem confirmação intermediária, campos sem restrição, cancelamento do rascunho, sugestões independentes e rolagem com ações visíveis.
 - Seleção múltipla por campos de busca, pesquisa local sem acentos, marcação e remoção, teclado e menus suspensos que acompanham a rolagem sem alterar a altura dos grupos.

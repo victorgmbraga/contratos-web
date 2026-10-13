@@ -131,7 +131,7 @@ export function demoFetch(url) {
   if(Object.hasOwn(catalogs,catalog))result=catalogs[catalog];
   else if(u.pathname.endsWith('/filters'))result={filters:{...filters,amparos_legais:p.has('normativos_base')?filters.amparos_legais.filter(o=>p.get('normativos_base').split('|').includes(o.normativo)):filters.amparos_legais}};
   else if(u.pathname.endsWith('/suggest'))result={items:(filters[domainAliases[p.get('campo')] || p.get('campo')] || []).filter(o=>String(o.nome ?? o.ano ?? o.id).toLowerCase().includes(p.get('q').toLowerCase()))};
-  else if(/^\/api\/pncp\/v1\/orgaos\/\d{14}\/compras\/\d{4}\/\d+$/.test(u.pathname)) {
+  else if(/^\/api\/consulta\/v1\/orgaos\/\d{14}\/compras\/\d{4}\/\d+$/.test(u.pathname)) {
     result=demoDocument('edital',u.pathname.split('/').at(-1));
     if(!result)return Promise.resolve(new Response(null,{status:404}));
   }
