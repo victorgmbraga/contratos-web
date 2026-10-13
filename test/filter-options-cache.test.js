@@ -140,3 +140,18 @@ test('OPTIONS-14: navegador sem compactação nativa mantém opções completas 
     const restored=fixture({storage});assert.deepEqual(await restored.cache.get({type:'contrato'}),value);assert.equal(restored.calls.length,0);
   } finally {globalThis.CompressionStream=original;}
 });
+
+test('OPTIONS-15: listas que omitiram anos são atualizadas uma vez, inclusive comprimidas, sem descartar outros caches',async()=>{
+  for(const compressed of [false,true]) {
+    const storage=memoryStorage(),warning={code:'INVALID_DOMAIN_OPTIONS',domain:'anos',omitted_options:2,message:'Anos omitidos.'};
+    const old=fixture({storage,handler:payload=>({filters:payload.field===null?{...(compressed?largeOptions().filters:{}),anos:[{id:'2026',label:'2026'}]}:{opcoes:[{id:'1',label:'Opção'}]},warnings:payload.field===null?[warning]:[]})});
+    await old.cache.preload();storage.setItem('user-preference','preservar');
+    const preserved=new Map([...storage.data].filter(([key])=>!key.includes('%22search%22')));
+    const value={filters:{anos:['2026','20','20260'].map(id=>({id,label:id}))},warnings:[]};
+    const updated=fixture({storage,now:()=>2000,handler:()=>value});await updated.cache.preload();
+    assert.deepEqual(updated.calls.map(payload=>payload.type),['edital','ata','contrato']);
+    for(const [key,text]of preserved)assert.equal(storage.getItem(key),text);
+    for(const type of ['edital','ata','contrato'])assert.deepEqual((await updated.cache.get({type,field:'anos'})).filters.anos,value.filters.anos);
+    const restored=fixture({storage,now:()=>3000});await restored.cache.preload();assert.equal(restored.calls.length,0);
+  }
+});

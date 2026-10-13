@@ -47,3 +47,10 @@ test('QUERY-URL-06: parâmetros externos não são enviados e filtros desabilita
   const disabled=structuredClone(definition);disabled.capabilities.find(cap=>cap.name==='ufs').state='unsupported_document';
   assert.throws(()=>readQueryUrl(base+'?ufs=SP',disabled),error=>error.code==='DOCUMENT_FILTER_UNAVAILABLE');
 });
+
+test('QUERY-URL-07: anos fornecidos pela fonte preservam formatos não AAAA e zeros na URL dos três tipos',()=>{
+  for(const type of ['edital','ata','contrato']){
+    const query=read('?tipos_documento='+type+'&anos=20%7C20260%7C0002%7C0');
+    assert.deepEqual(query.pncp_filters.anos,['20','20260','0002','0']);assert.deepEqual(readQueryUrl(writeQueryUrl(base,query,definition),definition),query);
+  }
+});

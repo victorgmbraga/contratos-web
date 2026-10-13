@@ -108,7 +108,7 @@ CNPJ exige 14 dígitos, ano exige quatro e sequenciais são inteiros positivos d
 | `beneficios` | Lista de IDs conferidos em `item_beneficios`; condição aplicável ao item, distinta de benefício aplicado no resultado |
 | `incentivo_produtivo_basico` | Booleano `true` ou `false` |
 | `aplicabilidade_margem_preferencia_normal`, `aplicabilidade_margem_preferencia_adicional` | Booleanos `true` ou `false` de aplicabilidade no item; não indicam que a preferência foi aplicada ao resultado |
-| `anos` | Lista de anos no formato `AAAA`, como `["2026"]` |
+| `anos` | Lista de valores fornecidos no domínio de anos do PNCP, como `["2026", "20", "20260"]`, preservados como strings |
 | `data_publicacao_inicio`, `data_publicacao_fim` | Datas reais no formato `AAAA-MM-DD` |
 | `valor_total_estimado_min`, `valor_total_estimado_max` | Decimais não negativos como strings com ponto, por exemplo `"1000.50"` |
 | `valor_total_homologado_min`, `valor_total_homologado_max` | Mesmo formato decimal |
@@ -183,7 +183,7 @@ Os campos documentais são definidos em [`src/schema.js`](../src/schema.js). Cad
 
 ## Domínios e sugestões
 
-`service.call("domains", {type, normatives, field})` aceita `type: "edital"`, `"ata"` ou `"contrato"`, `normatives` como lista de IDs e `field` com o nome de um filtro que possui domínio. Campos desconhecidos ou incompatíveis com o documento são rejeitados. Retorna `filters`, `warnings`, `raw`, `partial_domains`, `request_id` e `queried_at`. As opções são normalizadas para `{id, label}`. Opções de ano fora de `AAAA` são omitidas da lista normalizada com aviso; a resposta original fica em `raw`.
+`service.call("domains", {type, normatives, field})` aceita `type: "edital"`, `"ata"` ou `"contrato"`, `normatives` como lista de IDs e `field` com o nome de um filtro que possui domínio. Campos desconhecidos ou incompatíveis com o documento são rejeitados. Retorna `filters`, `warnings`, `raw`, `partial_domains`, `request_id` e `queried_at`. As opções são normalizadas para `{id, label}`. Anos são preservados como fornecidos pelo PNCP, inclusive fora do formato `AAAA`, e podem ser selecionados, compartilhados na URL e usados na pesquisa e no CSV. Os valores são enviados à fonte como strings, sem conversão para número ou preenchimento com zeros.
 
 Sem `field`, ou com um filtro da busca, a origem é `/api/search/filters`. Para os campos abaixo, apenas o catálogo solicitado é consultado:
 

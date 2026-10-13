@@ -87,6 +87,7 @@ export function createFilterOptionsCache(service, schema, { getStorage = () => g
       const time = now();
       assert(entry.version === 1 && Number.isSafeInteger(entry.fetched_at) && entry.fetched_at >= 0 && entry.fetched_at <= time && entry.expires_at === entry.fetched_at + FILTER_OPTIONS_TTL && time < entry.expires_at, 'EXPIRED_OPTIONS', 'Opções expiradas.');
       const value = await decodeValue(entry);
+      assert(!value.warnings.some(warning => warning.code === 'INVALID_DOMAIN_OPTIONS' && warning.domain === 'anos'), 'EXPIRED_OPTIONS', 'Atualize as opções de ano fornecidas pelo PNCP.');
       const normalized = { version: 1, fetched_at: entry.fetched_at, expires_at: entry.expires_at, value };
       // Upgrade large legacy entries without querying PNCP or extending their TTL.
       if (fromStorage && entry.encoding === undefined && JSON.stringify(value).length >= COMPRESSION_THRESHOLD) await persist(key, normalized);

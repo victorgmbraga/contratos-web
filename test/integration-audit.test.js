@@ -54,11 +54,16 @@ test('AUDIT-07: detalhes rejeitam situações conflitantes, catálogo ou descri�
 
 
 
-test('AUDIT-10: anos inválidos da fonte não viram opções que o próprio serviço rejeita', async () => {
-  const s=service([],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{anos:[{ano:'2026'},{ano:'20'},{ano:'20260'},{ano:null}]}}):null});
-  const result=await s.service.domains('edital',null);
-  assert.deepEqual(result.filters.anos,[{id:'2026',label:'2026'}]);
-  assert.equal(result.warnings[0].omitted_options,3);assert.equal(result.warnings[0].domain,'anos');
-  assert.equal(result.raw.anos.length,4);
-  assert.doesNotThrow(()=>validateQuery(query({pncp_filters:{anos:result.filters.anos.map(o=>o.id)}}),config()));
+test('AUDIT-10: anos fora de AAAA fornecidos pelo PNCP são selecionáveis e enviados intactos na busca e no CSV', async () => {
+  for(const type of ['edital','ata','contrato']) {
+    const s=service([],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{anos:[{ano:'2026'},{ano:'20'},{ano:20260},{ano:'0002'},{ano:0},{ano:null}]}}):null});
+    const result=await s.service.domains(type,null);
+    assert.deepEqual(result.filters.anos,['2026','20','20260','0002','0'].map(id=>({id,label:id})));assert.deepEqual(result.warnings,[]);assert.equal(result.raw.anos.length,6);
+    const input=query({document_type:type,pncp_filters:{anos:['20','20260','0002','0']}});
+    assert.doesNotThrow(()=>validateQuery(input,config()));
+    assert.equal((await s.service.execute(input)).total,0);assert.equal((await s.service.export(input)).metadata.exported_rows,0);
+    const requests=s.requests.filter(url=>url.pathname.endsWith('/search/'));assert.equal(requests.length,2);
+    for(const url of requests){assert.equal(url.searchParams.get('anos'),'20|20260|0002|0');assert.equal(url.searchParams.get('tipos_documento'),type);}
+    for(const anos of [[20],[''],['20|20260'],[false]])await assert.rejects(s.service.execute({...input,pncp_filters:{anos}}),error=>error.code==='INVALID_TYPE');
+  }
 });

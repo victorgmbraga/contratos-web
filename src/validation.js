@@ -48,7 +48,6 @@ export function validateFilters(filters, config, documentType='edital') {
       if (name === 'ufs') assert(value.every(v => ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].includes(v)), 'INVALID_DOMAIN', 'UF inválida.');
       if (name === 'esferas') assert(value.every(v => ['F','E','M','D','N'].includes(v)), 'INVALID_DOMAIN', 'Esfera inválida.');
       if (name === 'poderes') assert(value.every(v => ['E','L','J','N'].includes(v)), 'INVALID_DOMAIN', 'Poder inválido.');
-      if (name === 'anos') assert(value.every(v => /^\d{4}$/.test(v)), 'INVALID_DOMAIN', 'Ano inválido.');
       if(name==='paises_fornecedor')assert(value.every(v=>/^[A-Z]{3}$/.test(v)),'INVALID_DOMAIN','Países exigem IDs do catálogo PNCP, como BRA; não use códigos BCB.');
       else if (!['ufs', 'esferas', 'poderes', 'anos', 'unidades_medida'].includes(name)) assert(value.every(v => /^\d+$/.test(v)), 'INVALID_DOMAIN', `${name} exige IDs do domínio, não nomes ou códigos administrativos.`);
     } else if (cap.type === 'enum') {

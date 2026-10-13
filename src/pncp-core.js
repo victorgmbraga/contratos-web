@@ -28,7 +28,7 @@ export function normalizeOptions(value, domain = null) {
       return { id, label: scalarText(option.nome ?? option.name ?? option.label ?? option.text ?? option.descricao ?? option.title) ?? id };
     }
     const s = scalarText(option); return s === null ? null : { id: s, label: s };
-  }).filter(option => option && option.id !== null && option.id !== '' && (domain!=='anos' || /^\d{4}$/.test(option.id)));
+  }).filter(option => option && option.id !== null && option.id !== '');
 }
 export function normalizeCatalog(value) {
   assert(Array.isArray(value), 'INVALID_UPSTREAM', 'Catálogo PNCP não retornou uma lista.',502);
@@ -153,10 +153,7 @@ export class PncpClient {
     const result = await this.get(`${this.config.PNCP_SEARCH_BASE_URL}/filters?${params}`,op);
     assert(result?.filters && typeof result.filters === 'object' && !Array.isArray(result.filters), 'INVALID_UPSTREAM', 'PNCP não retornou o objeto filters.', 502);
     const filters=Object.fromEntries(Object.entries(result.filters).map(([k,v])=>[k,normalizeOptions(v,k)]));
-    const years=Array.isArray(result.filters.anos) ? result.filters.anos : result.filters.anos?.items;
-    const omitted=Array.isArray(years) ? years.length-filters.anos.length : 0;
-    const warnings=omitted>0 ? [{code:'INVALID_DOMAIN_OPTIONS',domain:'anos',omitted_options:omitted,message:`${omitted} opção(ões) de ano fornecida(s) pelo PNCP não atende(m) ao formato AAAA e foi(ram) omitida(s).`}] : [];
-    return { filters, warnings, raw: plain(result.filters), partial_domains: partialDomains };
+    return { filters, warnings: [], raw: plain(result.filters), partial_domains: partialDomains };
   }
   async suggest(type, field, q, size, op) {
     const params = new URLSearchParams({ tipos_documento:type, campo:field, q, tam_pagina:String(size) });
