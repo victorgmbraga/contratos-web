@@ -660,7 +660,7 @@ test('FILTERS-UI-10: sistemas de origem e modos de disputa usam múltiplos IDs p
   await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{fontes:['3','5'],modos_disputa:['1','2']});assert.equal(ui.nodes.get('result-title').textContent,'43 contratações');
 });
 
-test('FILTERS-UI-11: condições documentais preservam Não ao reabrir e permitem voltar a Sem restrição',async()=>{
+test('FILTERS-UI-11: condições documentais preservam Não ao reabrir e permitem voltar à opção neutra',async()=>{
   const ui=await interfaceFixture(),names=['indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','exigencia_conteudo_nacional'];
   await ui.nodes.get('filters-button').fire('click');
   for(const name of names){assert.match(ui.nodes.get(`filter-help-${name}`).textContent,/Não informado não equivale a Não/);await ui.editFilter(name,false);}

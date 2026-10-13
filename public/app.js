@@ -356,7 +356,7 @@ function createFilterEditor(cap) {
   } else if(cap.domain) {
     input.disabled=true;
   } else if(cap.type==='boolean') {
-    for(const [value,text]of [['','Sem restrição'],['true','Sim'],['false','Não']]){const option=el('option',text);option.value=value;input.append(option);}
+    for(const [value,text]of [['','—'],['true','Sim'],['false','Não']]){const option=el('option',text);option.value=value;input.append(option);}
   } else {
     input.type=cap.type==='date'?'date':cap.type==='integer'?'number':'text';
     if(cap.type==='decimal')input.inputMode='decimal';
@@ -403,7 +403,7 @@ function populateFilterOptions(editor,domains) {
   if(editor.selected){editor.visibleOptions=null;if(openFilterEditor===editor)showSuggestions(editor,filterChoices(editor));}
   else {
     input.replaceChildren();
-    const empty=el('option','Sem restrição');empty.value='';input.append(empty);
+    const empty=el('option','—');empty.value='';input.append(empty);
     for(const option of options){const opt=el('option',option.label+(option.active===false?' (inativa)':''));opt.value=option.id;input.append(opt);}
   }
   input.disabled=false;input.setAttribute('aria-busy','false');syncFilterEditor(editor);
