@@ -35,6 +35,14 @@ const ranges = {
   resultado_valor_total_homologado:'Valor total homologado do resultado',resultado_percentual_desconto:'Percentual de desconto',
   data_publicacao:'Publicação',data_homologacao:'Homologação do resultado',data_assinatura:'Assinatura',data_inicio_vigencia:'Início da vigência',
 };
+// User-facing help only for distinctions not explained by labels or placeholders.
+// Technical argument descriptions remain in pncp-arguments.json.
+const helpTexts = {
+  anos:'Ano do documento. Para filtrar pela data de publicação, use os campos Publicação.',
+  fontes_orcamentarias:'Origem dos recursos que financiam a contratação.',
+  amparos_legais:'As opções dependem do Normativo legal selecionado.',
+  unidades_medida:'Variações de grafia e abreviação são opções distintas.',
+};
 export function filterPresentation(name, documents) {
   const range=name.match(/^(.*)_(min|max|inicio|fim)$/);
   const suffix={min:'mínimo',max:'máximo',inicio:'a partir de',fim:'até'};
@@ -43,7 +51,6 @@ export function filterPresentation(name, documents) {
   const item=name.startsWith('item_') || ['tipos_item','situacoes_item','criterios_julgamento','categorias_leilao','beneficios','unidades_medida','incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional'].includes(name);
   const supplier=['fornecedores','municipios_fornecedor','paises_fornecedor','portes_fornecedor','naturezas_juridicas'].includes(name);
   const group=!documents.includes('edital')?'Contrato':supplier?'Fornecedor':result?'Resultado do item':item?'Item':'Contratação';
-  const documentaryBoolean=['srp','indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','possui_nfe','exigencia_conteudo_nacional','possui_emenda_parlamentar','permite_adesao','indicador_subcontratacao','indicador_aplicacao_margem_preferencia','indicador_aplicacao_beneficio_me_epp','indicador_aplicacao_criterio_desempate','incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional'].includes(name);
-  const input_hint=documentaryBoolean?'':name==='codigo_ibge'?'Ex.: 5300108':name.includes('percentual')?'Ex.: 5.25 (sem %)':name.includes('quantidade')?'Ex.: 10.5 (na unidade do item)':name.includes('valor')?'Ex.: 1000.50 (reais)':null;
-  return {label,group,input_hint};
+  const input_hint=name==='codigo_ibge'?'Ex.: 5300108':name.includes('percentual')?'Ex.: 5.25 (sem %)':name.includes('quantidade')?'Ex.: 10.5 (na unidade do item)':name.includes('valor')?'Ex.: 1000.50 (reais)':null;
+  return {label,group,input_hint,help_text:helpTexts[name] || ''};
 }

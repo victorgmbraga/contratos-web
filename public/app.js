@@ -327,7 +327,7 @@ async function openFilters(column=null) {
     if(!caps.length)continue;
     const group=el('fieldset',undefined,'filter-group'),legend=el('legend',groupName==='Contratação' && state.draft.document_type!=='edital'?'Documento':groupName==='Contrato' && state.draft.document_type==='ata'?'Ata':groupName);
     group.append(legend);
-    if(['Item','Resultado do item','Fornecedor'].includes(groupName) && state.draft.document_type==='edital')group.append(el('p','Estes filtros selecionam contratações. Os detalhes mostram todos os itens, inclusive os que não correspondem ao filtro. Condições diferentes podem corresponder a itens ou resultados diferentes.','panel-note'));
+    if(groupName==='Item' && state.draft.document_type==='edital')group.append(el('p','Filtros de itens, resultados e fornecedores selecionam contratações. Os detalhes mostram todos os itens, inclusive os que não correspondem ao filtro. Condições diferentes podem corresponder a itens ou resultados diferentes.','panel-note'));
     const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);
     for(const cap of caps) {
       const editor=createFilterEditor(cap);filterFields.set(cap.name,editor);grid.append(editor.area);
@@ -347,7 +347,7 @@ function createFilterEditor(cap) {
   const label=el('label',cap.label || cap.name),input=el(cap.domain || cap.type==='boolean'?'select':'input');
   const heading=el('div',undefined,'filter-field-heading'),clear=el('button',undefined,'text-button filter-reset');clear.type='button';clear.hidden=true;clear.setAttribute('aria-label',`Limpar ${cap.label}`);
   clear.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>';
-  const help=el('p',cap.input_hint ?? cap.description,'filter-help');help.id=`filter-help-${cap.name}`;help.hidden=!help.textContent;
+  const help=el('p',cap.help_text || '','filter-help');help.id=`filter-help-${cap.name}`;help.hidden=!help.textContent;
   const error=el('p',undefined,'inline-error');error.id=`filter-error-${cap.name}`;error.setAttribute('role','status');error.hidden=true;
   const editor={cap,area,input,help,error,clear,draft:state.draft,seq:state.domainSeq,loadSeq:0,suggestSeq:0};
   if(cap.domain && cap.cardinality==='multiple') {
