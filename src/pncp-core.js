@@ -205,9 +205,9 @@ export class PncpClient {
     return { data: data.map(record => projectRelated(resource, record, purchase)), total, total_pages: pages };
   }
   async document(document,op) {
-    assert(['ata','contrato'].includes(document.type),'NOT_FOUND','Tipo de detalhe não disponível.',404);
+    assert(['edital','ata','contrato'].includes(document.type),'NOT_FOUND','Tipo de detalhe não disponível.',404);
     const record=await this.get(nativeDocumentPath(document,this.config.PNCP_DETAIL_BASE_URL),op);
-    const expected=`https://pncp.gov.br/app/${document.type==='ata'?'atas':'contratos'}/${document.cnpj}/${document.ano}/${document.type==='ata'?`${BigInt(document.sequencial_compra)}/`:''}${BigInt(document.sequencial)}`;
+    const expected=`https://pncp.gov.br/app/${document.type==='ata'?'atas':document.type==='edital'?'editais':'contratos'}/${document.cnpj}/${document.ano}/${document.type==='ata'?`${BigInt(document.sequencial_compra)}/`:''}${BigInt(document.sequencial)}`;
     assert(record && typeof record==='object' && !Array.isArray(record) && controlLink(record.numeroControlePNCP)===expected,'INVALID_UPSTREAM','PNCP retornou detalhes de outro documento ou sem identidade válida.',502);
     return projectDocument(document.type,record);
   }

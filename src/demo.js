@@ -69,10 +69,11 @@ export const demoAtas=demoDocuments.slice(0,24).map((doc,i)=>({...doc,id:`demo-a
   title:`Ata de demonstração nº ${i+1}/2026`,numero:String(i+1),numero_sequencial:String(i%3+1),numero_sequencial_compra_ata:String(i+1),
   item_url:`/atas/00000000000000/2026/${i+1}/${i%3+1}`,data_assinatura:'2026-09-01',data_inicio_vigencia:'2026-09-01',data_fim_vigencia:i%2===0?'2027-09-01':'2026-09-30',cancelado:i%6===5,permite_adesao:itemCondition(i)}));
 export function demoDocument(type,sequence,ataSequence=null) {
-  const doc=(type==='ata'?demoAtas:demoContracts).find(d=>type==='ata'?d.numero_sequencial_compra_ata===sequence && d.numero_sequencial===ataSequence:d.numero_sequencial===sequence);
+  const doc=(type==='edital'?demoDocuments:type==='ata'?demoAtas:demoContracts).find(d=>type==='ata'?d.numero_sequencial_compra_ata===sequence && d.numero_sequencial===ataSequence:d.numero_sequencial===sequence);
   if(!doc)return null;
   const common={numeroControlePNCP:doc.numero_controle_pncp,orgaoEntidade:{cnpj:doc.orgao_cnpj,razaoSocial:doc.orgao_nome,esferaId:doc.esfera_id,poderId:doc.poder_id},unidadeOrgao:{codigoUnidade:doc.unidade_codigo,nomeUnidade:doc.unidade_nome,municipioNome:doc.municipio_nome,ufSigla:doc.uf},
     dataAssinatura:doc.data_assinatura,dataVigenciaInicio:doc.data_inicio_vigencia,dataVigenciaFim:doc.data_fim_vigencia,dataPublicacaoPncp:doc.data_publicacao_pncp,dataAtualizacao:doc.data_atualizacao_pncp,usuarioNome:'Sistema de demonstração',numeroControlePncpCompra:demoDocuments[Number(sequence)-1].numero_controle_pncp};
+  if(type==='edital')return {...common,numeroCompra:sequence,anoCompra:2026,tipoInstrumentoConvocatorioNome:'Edital',objetoCompra:doc.description,modalidadeNome:doc.modalidade_licitacao_nome,situacaoCompraNome:doc.situacao_nome,valorTotalEstimado:doc.valor_total_estimado,valorTotalHomologado:doc.valor_total_homologado};
   return type==='ata'?{...common,numeroAtaRegistroPreco:doc.numero,anoAta:2026,sequencialAta:ataSequence,objetoCompra:doc.description,modalidadeNome:doc.modalidade_licitacao_nome,cancelado:doc.cancelado,dataCancelamento:doc.cancelado?'2026-10-01':null,possibilidadeAdesao:doc.permite_adesao,informacaoComplementarCompra:'Registro de preços sintético.'}:
     {...common,numeroContratoEmpenho:sequence,anoContrato:2026,sequencialContrato:sequence,tipoContrato:{nome:doc.tipo_contrato_nome},objetoContrato:doc.description,processo:`DEMO-${sequence}/2026`,categoriaProcesso:{nome:'Serviços'},receita:false,nomeRazaoSocialFornecedor:doc.fornecedor_nome,niFornecedor:doc.fornecedor_ni,tipoPessoa:'PJ',valorInicial:doc.valor_global,valorGlobal:doc.valor_global,valorAcumulado:doc.valor_global,valorParcela:'100.0000',numeroParcelas:12,frutoAdesao:false,temRemanejamento:false,numeroRetificacao:0,informacaoComplementar:'Contrato sintético para demonstração.'};
 }
@@ -130,6 +131,10 @@ export function demoFetch(url) {
   if(Object.hasOwn(catalogs,catalog))result=catalogs[catalog];
   else if(u.pathname.endsWith('/filters'))result={filters:{...filters,amparos_legais:p.has('normativos_base')?filters.amparos_legais.filter(o=>p.get('normativos_base').split('|').includes(o.normativo)):filters.amparos_legais}};
   else if(u.pathname.endsWith('/suggest'))result={items:(filters[domainAliases[p.get('campo')] || p.get('campo')] || []).filter(o=>String(o.nome ?? o.ano ?? o.id).toLowerCase().includes(p.get('q').toLowerCase()))};
+  else if(/^\/api\/pncp\/v1\/orgaos\/\d{14}\/compras\/\d{4}\/\d+$/.test(u.pathname)) {
+    result=demoDocument('edital',u.pathname.split('/').at(-1));
+    if(!result)return Promise.resolve(new Response(null,{status:404}));
+  }
   else if(/^\/api\/pncp\/v1\/orgaos\/\d{14}\/(?:contratos\/\d{4}\/\d+|compras\/\d{4}\/\d+\/atas\/\d+)(?:\/.*)?$/.test(u.pathname)) {
     const m=u.pathname.match(/\/orgaos\/(\d{14})\/(contratos|compras)\/(\d{4})\/(\d+)(?:\/atas\/(\d+))?(?:\/(.*))?$/),[,cnpj,kind,ano,sequence,ataSequence,suffix]=m;
     const type=kind==='contratos'?'contrato':'ata',document={type,cnpj,ano,sequencial:ataSequence || sequence,...(type==='ata'?{sequencial_compra:sequence}:{})};

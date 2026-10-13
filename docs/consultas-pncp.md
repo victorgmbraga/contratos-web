@@ -12,7 +12,7 @@ O Worker consulta `https://pncp.gov.br/api/search/` para pesquisa, filtros e sug
 | `suggest` | `{type, field, q, size}` | Sugestões de IDs e rótulos |
 | `details` | `{document, page, size}` | Quantidade e página de itens de contratação |
 | `related` | `{document, resource, page, size}` | Listagem vinculada a uma contratação |
-| `documentDetails` | `{document}` | Campos completos de ata ou contrato |
+| `documentDetails` | `{document}` | Campos documentais de edital, ata ou contrato |
 | `documentRelated` | `{document, resource, page, size, pagination_mode?}` | Listagem dos detalhes de qualquer tipo documental |
 | `contractChild` | `{document, resource, sequence}` | Detalhes do registro filho de contrato |
 | `export` | `{query}` | Buffers CSV, nome, MIME e metadados compactos |
@@ -53,7 +53,7 @@ Os códigos são enviados exatamente como no PNCP, inclusive `valor`/`-valor` da
 
 ### URL compartilhável da interface
 
-Os parâmetros GET da página são lidos pela interface estática e convertidos no payload de `execute`:
+Os parâmetros GET da página são lidos pela interface estática. Os critérios de busca compõem o payload de `execute`; `detalhe` e `aba` controlam o painel de detalhes:
 
 | Parâmetro | Padrão | Formato |
 | --- | --- | --- |
@@ -63,12 +63,24 @@ Os parâmetros GET da página são lidos pela interface estática e convertidos 
 | `ordenacao` | `-data` | Código da tabela de ordenações, compatível com `tipos_documento`; relevância exige texto |
 | `pagina` | `1` | Inteiro de 1 a 100; a interface usa 100 registros por página |
 | Nome de filtro habilitado | Ausente | Tipo e compatibilidade publicados no catálogo |
+| `detalhe` | Ausente, painel fechado | `edital/{cnpj}/{ano}/{sequencial}`, `contrato/{cnpj}/{ano}/{sequencial}` ou `ata/{cnpj}/{anoCompra}/{sequencialCompra}/{sequencialAta}` |
+| `aba` | `detalhes`, quando há `detalhe` | Identificador de aba compatível com o documento selecionado |
 
 Listas aceitam `ufs=SP%7CDF` ou parâmetros repetidos como `ufs=SP&ufs=DF`; a URL gerada usa uma única lista separada por pipe e codificada uma vez. Booleanos exigem `true` ou `false`, inclusive quando o valor é Não. Inteiros preservam zero; decimais são strings com ponto, sem perda de precisão; IDs e código IBGE preservam zeros à esquerda. Datas usam `AAAA-MM-DD`. Controles e filtros de valor único não aceitam parâmetros repetidos. Filtros sem valor, tipos incompatíveis, datas inválidas e intervalos invertidos produzem aviso e impedem a pesquisa inicial. `q` aceita texto vazio.
 
-A inicialização e o recarregamento consultam diretamente a página indicada. Aplicar texto/filtros, trocar ordenação ou tipo começa na página 1; paginação atualiza `pagina`. A URL muda ao iniciar a consulta, inclusive quando ela falha ou é cancelada. Atualizar usa a página da última consulta concluída; repetir uma falha usa a página solicitada. Consultas idênticas não criam entradas duplicadas. Voltar/Avançar leem a URL, cancelam consultas anteriores, restauram controles/colunas e consultam o PNCP sem inserir outra entrada no histórico. Respostas tardias não alteram a URL nem os resultados atuais.
+A inicialização e o recarregamento consultam diretamente a página indicada. Aplicar texto/filtros, trocar ordenação ou tipo começa na página 1 e fecha os detalhes; paginação atualiza `pagina`. A URL muda ao iniciar a consulta, inclusive quando ela falha ou é cancelada. Atualizar usa a página da última consulta concluída; repetir uma falha usa a página solicitada. Consultas idênticas não criam entradas duplicadas. Voltar/Avançar leem a URL e restauram controles/colunas e o painel sem inserir outra entrada no histórico. A pesquisa só se repete quando seus critérios ou página mudam; respostas tardias não alteram a URL nem os resultados atuais.
 
 `tipos_documento`, `ordenacao` e `pagina` ficam explícitos na URL; texto vazio, status `todos` e filtros ausentes são omitidos. O caminho da hospedagem, o fragmento e parâmetros externos são preservados, incluindo `demo=1`; somente os controles e filtros reconhecidos tornam-se critérios do PNCP. A validação de pertencimento aos domínios continua no Worker. A URL compartilha critérios e página, sem garantir uma fotografia dos resultados da fonte.
+
+Abrir um documento escreve `detalhe` e `aba`; clicar em outra aba ou selecioná-la pelo teclado atualiza `aba`. Fechar o painel remove ambos os parâmetros. Um link direto carrega o documento e todas as primeiras páginas das listagens em segundo plano, independentemente dos resultados da busca. Se `tipos_documento` estiver ausente, a busca assume o tipo de `detalhe`; quando explícito, o tipo da busca é preservado. Um link sem `aba` abre **Detalhes**. Trocar de aba pelo histórico do navegador não repete consultas do documento já aberto.
+
+| Tipo selecionado em `detalhe` | Valores de `aba` |
+| --- | --- |
+| `edital` | `detalhes`, `itens`, `arquivos`, `atas`, `contratos`, `historico` |
+| `ata` | `detalhes`, `partesenvolvidas`, `contratos`, `arquivos`, `historico` |
+| `contrato` | `detalhes`, `empenhos`, `instrumentocobranca`, `termos`, `arquivos`, `historico` |
+
+CNPJ exige 14 dígitos, ano exige quatro e sequenciais são inteiros positivos de até 256 dígitos. Esses identificadores permanecem strings, sem arredondamento; CNPJ mantém zeros à esquerda e sequenciais são normalizados. Barras em `detalhe` são codificadas como `%2F` na URL gerada. Repetições de `detalhe`/`aba`, identificação incompleta, aba incompatível ou `aba` sem `detalhe` invalidam o link antes das consultas. O título usa a linha da busca quando disponível; em links sem essa linha, usa os dados nativos do documento.
 
 ### Filtros disponíveis
 
@@ -236,12 +248,15 @@ A demonstração fornece arquivos, atas, contratos/empenhos e eventos fictícios
 
 | Tipo | `document` | Serviço externo relativo a `PNCP_DETAIL_BASE_URL` |
 | --- | --- | --- |
+| Edital | `{type: "edital", cnpj, ano, sequencial}` | `/orgaos/{cnpj}/compras/{ano}/{sequencial}` |
 | Ata | `{type: "ata", cnpj, ano, sequencial_compra, sequencial}` | `/orgaos/{cnpj}/compras/{anoCompra}/{sequencialCompra}/atas/{sequencialAta}` |
 | Contrato | `{type: "contrato", cnpj, ano, sequencial}` | `/orgaos/{cnpj}/contratos/{ano}/{sequencial}` |
 
 A pesquisa fornece `_document` com os identificadores originais e o tipo. Em atas, `numero_sequencial_compra_ata` identifica a compra e `numero_sequencial` identifica a ata; o ano da rota é o da compra. Quando a URL original de detalhamento é fornecida, seu ano tem precedência sobre `ano` da busca, após conferir CNPJ e os dois sequenciais. Uma URL conflitante torna a identidade indisponível. O ano da ata pode ser diferente. Em contratos, o sequencial é do contrato. `_purchase` é exclusivo de editais e não permite consultar itens com um sequencial de ata ou contrato.
 
-As respostas completas contêm `api_version`, `document_type`, `fields`, `objeto`, `link_sistema_origem`, `queried_at` e `upstream_requests`. Cada entrada de `fields` tem `field`, `title`, `type` e `value`; vínculos têm também `url`. Valores monetários são strings exatas, IDs preservam zeros e booleanos mantêm ausência distinta de `false`. Campos opcionais ausentes são omitidos. O controle PNCP precisa corresponder ao documento solicitado.
+As respostas completas contêm `api_version`, `document_type`, `fields`, `objeto`, `titulo`, `link_sistema_origem`, `queried_at` e `upstream_requests`. Cada entrada de `fields` tem `field`, `title`, `type` e `value`; vínculos têm também `url`. Valores monetários são strings exatas, IDs preservam zeros e booleanos mantêm ausência distinta de `false`. Campos opcionais ausentes são omitidos. O controle PNCP precisa corresponder ao documento solicitado.
+
+Editais exibem os mesmos 12 campos da aba **Detalhes** de uma contratação. A consulta nativa de edital é necessária ao abrir um link direto sem a linha disponível na busca; abrir uma linha da tabela aproveita seus campos, sem essa chamada adicional. Sem a linha, `titulo` combina instrumento/tipo documental, número e ano informados pela fonte, com o controle PNCP como alternativa. Uma falha conserva a identificação do link e oferece nova tentativa.
 
 Nos detalhes de contratos, `emendaParlamentar` é booleano: `false` exibe **Não** e `true` exibe **Sim** no campo **Emenda parlamentar**. Ausência ou `null` omite o campo opcional, sem assumir **Não**.
 
@@ -268,7 +283,7 @@ Nesse modo, a interface envia `pagination_mode: "until_empty"` nas consultas seg
 
 Nas listas `empenhos` e `instrumentocobranca` de contratos, HTTP 404 retorna `data: []`, `total: 0`, `total_pages: 1`, `has_more: false` e `complete: true` na página 1. As abas exibem **Empenhos (0)** e **Instrumentos de cobrança (0)**, com mensagem de lista vazia e sem botão de nova tentativa. Páginas além da primeira são recusadas como `PAGE_OUT_OF_RANGE`. Outros erros HTTP, falhas de transporte e respostas inválidas continuam sendo erros; HTTP 404 em `contractChild` também continua sendo erro.
 
-O painel começa em **Detalhes** e carrega os dados completos e todas as primeiras páginas em segundo plano, com até duas requisições simultâneas. Atas têm abas **Detalhes**, **Partes envolvidas**, **Contratos**, **Arquivos** e **Histórico**; contratos têm **Detalhes**, **Empenhos**, **Instrumentos de cobrança**, **Termos**, **Arquivos** e **Histórico**. O contador de Detalhes corresponde aos campos exibidos; os demais correspondem aos totais das listagens. Cancelamento, teclado, paginação, erros e nova tentativa seguem o comportamento de contratações.
+O painel começa em **Detalhes**, ou na aba indicada pelo link, e carrega os dados completos e todas as primeiras páginas em segundo plano, com até duas requisições simultâneas. Atas têm abas **Detalhes**, **Partes envolvidas**, **Contratos**, **Arquivos** e **Histórico**; contratos têm **Detalhes**, **Empenhos**, **Instrumentos de cobrança**, **Termos**, **Arquivos** e **Histórico**. O contador de Detalhes corresponde aos campos exibidos; os demais correspondem aos totais das listagens. Cancelamento, teclado, paginação, erros e nova tentativa seguem o comportamento de contratações.
 
 Em contratos, `service.call("contractChild", {document, resource, sequence})` consulta o filho escolhido, com `sequence` como string numérica positiva: `empenhos` e `instrumentocobranca` retornam `fields`; `termos` consulta o sufixo externo `/termos/{sequencialRegistro}/arquivos` e retorna `files`, no formato dos arquivos. Esses dados carregam ao abrir **Ver detalhes** ou **Arquivos do termo** na lista. Não há exposição de JSON bruto no painel.
 

@@ -41,7 +41,7 @@ A tabela mantém a ordem, os resultados e o total do PNCP. A janela de navegaç�
 
 As ordenações acompanham o tipo de documento: editais oferecem controle PNCP e valor estimado; atas, maior/menor valor; contratos, número da contratação, controle PNCP, início da vigência e valor global. Todos oferecem mais recentes, mais antigas e relevância, que exige texto. Veja os [códigos das ordenações](docs/consultas-pncp.md#ordenações-por-tipo-de-documento).
 
-## Compartilhar uma busca
+## Compartilhar uma busca ou um documento
 
 Copie a URL da barra de endereços depois de pesquisar, aplicar filtros ou mudar de página. O link contém busca, filtros aplicados, tipo documental, ordenação e página. Abrir o link, recarregar ou usar **Voltar/Avançar** restaura esses critérios.
 
@@ -50,6 +50,14 @@ https://contratos-web.net.br/?tipos_documento=contrato&q=reforma&status=vigente&
 ```
 
 Os parâmetros usam os nomes do PNCP. Listas usam `|` codificado como `%7C`, por exemplo `ufs=SP%7CDF`; booleanos usam `true`/`false`. Alterações no painel de filtros só entram na URL ao aplicar. Um link inválido exibe um aviso e permite corrigir ou limpar os critérios. Veja o [formato completo dos parâmetros](docs/consultas-pncp.md#url-compartilhável-da-interface).
+
+Ao abrir um item e selecionar uma aba, a URL também inclui `detalhe` e `aba`. Copie esse endereço para compartilhar o painel de um edital, ata ou contrato. O link abre diretamente o documento e a aba indicada, mesmo que o item não apareça na página atual da busca:
+
+```text
+https://contratos-web.net.br/?tipos_documento=contrato&detalhe=contrato/87711503000153/2025/50&aba=historico
+```
+
+Fechar o painel remove esses dois parâmetros e mantém a busca. **Voltar/Avançar** restaura a abertura, o fechamento e a aba selecionada; aplicar uma nova busca fecha o painel.
 
 ## Executar localmente
 

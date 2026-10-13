@@ -1,5 +1,7 @@
 import { createFilterOptionsCache } from '../src/browser/filter-options-cache.js';
 import { readQueryUrl, writeQueryUrl } from '../src/browser/query-url.js';
+import { readDetailUrl, writeDetailUrl, detailDocumentPath } from '../src/browser/detail-url.js';
+import { controlLink } from '../src/document-details.js';
 
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,Tabulator=globalThis.Tabulator,optionsCacheSettings={}}={}) {
 const $ = id => document.getElementById(id);
@@ -39,17 +41,49 @@ function money(value) {
   return `${match[1]}R$ ${match[2].replace(/\B(?=(\d{3})+(?!\d))/g,'.')},${(match[3] || '').padEnd(2,'0')}`;
 }
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
-const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,exportAbort:null,exportSeq:0};
+const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,detailSelection:null,detailDoc:null,detailActivate:null,exportAbort:null,exportSeq:0};
 let filterOptionsCache;
 const filterFields=new Map();
 let openFilterEditor=null;
-let urlMode='replace',urlError=null,tableReady=false;
+let urlMode='replace',urlError=null,tableReady=false,queryRequested=false;
 const toolbarButtonIds=['search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-button','cancel-export-button'];
 function syncQueryUrl(query) {
   const mode=urlMode;urlMode='push';
   if(!window.location?.href || !window.history)return;
-  const href=writeQueryUrl(window.location.href,query,state.schema);
+  const href=writeDetailUrl(writeQueryUrl(window.location.href,query,state.schema),state.detailSelection);
   if(href!==window.location.href)window.history[mode==='replace'?'replaceState':'pushState'](null,'',href);
+}
+function syncDetailUrl(mode='push') {
+  if(!window.location?.href || !window.history)return;
+  const href=writeDetailUrl(window.location.href,state.detailSelection);
+  if(href!==window.location.href)window.history[mode==='replace'?'replaceState':'pushState'](null,'',href);
+}
+function readLocationState() {
+  const href=new URL(window.location.href),selection=readDetailUrl(href.href);
+  if(selection && !href.searchParams.has('tipos_documento'))href.searchParams.set('tipos_documento',selection.document.type);
+  return {query:readQueryUrl(href.href,state.schema,TABLE_PAGE_SIZE),selection};
+}
+function closeDetails(sync=true) {
+  const previous=state.detailSelection;
+  state.detailAbort?.abort();state.detailSeq++;state.detailSelection=null;state.detailDoc=null;state.detailActivate=null;
+  if($('details-dialog').open)$('details-dialog').close();
+  if(sync && previous)syncDetailUrl();
+}
+function sameDocument(left,right) {
+  return !!left && !!right && detailDocumentPath(left)===detailDocumentPath(right);
+}
+function directDetailRow(document) {
+  const {type,cnpj,ano,sequencial,sequencial_compra}=document;
+  const control=cnpj+'-'+(type==='contrato'?'2':'1')+'-'+String(type==='ata'?sequencial_compra:sequencial).padStart(6,'0')+'/'+ano+(type==='ata'?'-'+sequencial.padStart(6,'0'):'');
+  return {tipo_documento:type,titulo:control,numero_controle_pncp:control,orgao_cnpj:cnpj,url_pncp:controlLink(control),_document:document,_purchase:type==='edital'?{cnpj,ano,sequencial}:null,_detail_from_url:true};
+}
+function restoreDetailSelection(selection) {
+  if(!selection){closeDetails(false);return Promise.resolve();}
+  if($('details-dialog').open && sameDocument(state.detailSelection?.document,selection.document)) {
+    state.detailActivate(selection.tab);return Promise.resolve();
+  }
+  const row=state.lastResult?.data.find(doc=>sameDocument(detailIdentity(doc),selection.document)) || directDetailRow(selection.document);
+  return openDetails(row,{tab:selection.tab,sync:false});
 }
 function invalidQueryUrl(error) {
   urlError=error;status('error');$('retry-button').hidden=true;$('clear-button').hidden=false;
@@ -183,6 +217,7 @@ function renderResult(result,query) {
 }
 async function requestTable(url,config,params) {
   if(!state.query)return {data:[],last_page:1,last_row:0};
+  queryRequested=true;
   const query=clone(state.query);
   query.page=Number(params.page || 1);query.size=TABLE_PAGE_SIZE;
   state.query.page=query.page;urlError=null;
@@ -207,6 +242,7 @@ function loadPage(page,mode='push') {
   return state.table.setPage(page).catch(()=>{});
 }
 function execute() {
+  closeDetails(false);
   state.query.q=$('search').value;state.query.order=$('order').value;
   if(state.query.order==='relevancia' && !state.query.q.trim())state.query.order='-data';
   urlError=null;
@@ -233,11 +269,11 @@ function renderColumnChoices() {
     input.addEventListener('change',()=>{input.checked?state.table.showColumn(column.field):state.table.hideColumn(column.field);});label.append(input,document.createTextNode(column.title));$('column-list').append(label);
   }
 }
-function applyQuery(query) {
+function applyQuery(query,{preserveDetails=false}={}) {
   const type=query.document_type,typeChanged=type!==state.query.document_type;
-  state.abort?.abort();state.exportAbort?.abort();state.detailAbort?.abort();stopFilterEditors();state.legalAbort?.abort();
-  state.seq++;state.detailSeq++;state.domainSeq++;state.legalSeq++;
-  $('filters-dialog').close();$('details-dialog').close();
+  state.abort?.abort();state.exportAbort?.abort();stopFilterEditors();state.legalAbort?.abort();
+  state.seq++;state.domainSeq++;state.legalSeq++;
+  $('filters-dialog').close();if(!preserveDetails)closeDetails(false);
   state.query=clone(query);state.domains=null;state.draft=null;urlError=null;
   $('search').value=query.q;
   if(typeChanged) {
@@ -252,13 +288,18 @@ function changeDocumentType() {
   const type=$('document-type').value;if(type===state.query.document_type)return;
   applyQuery(defaultQuery(type));return execute();
 }
-function restoreQueryUrl() {
+async function restoreQueryUrl() {
   if(!tableReady)return;
   try {
-    const query=readQueryUrl(window.location.href,state.schema,TABLE_PAGE_SIZE);
-    applyQuery(query);return loadPage(query.page,'replace');
+    const {query,selection}=readLocationState();
+    const changed=!queryRequested || writeQueryUrl('https://query.invalid/',query,state.schema)!==writeQueryUrl('https://query.invalid/',state.query,state.schema);
+    if(changed)applyQuery(query,{preserveDetails:true});
+    const details=restoreDetailSelection(selection);
+    const results=changed?loadPage(query.page,'replace'):Promise.resolve();
+    if(!changed)syncDetailUrl('replace');
+    await Promise.all([results,details]);
   } catch(error) {
-    state.abort?.abort();state.exportAbort?.abort();state.seq++;state.exportSeq++;state.exportAbort=null;
+    closeDetails(false);state.abort?.abort();state.exportAbort?.abort();state.seq++;state.exportSeq++;state.exportAbort=null;
     invalidQueryUrl(error);
   }
 }
@@ -615,20 +656,22 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
   } else {status.textContent='A fonte não forneceu CNPJ, ano e sequencial originais suficientes para consultar esta listagem.';updateCount(null,'unavailable');}
   return {section,load:()=>detailIdentity(doc)?load(1):Promise.resolve()};
 }
-async function openDetails(doc) {
+async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   state.detailAbort?.abort();state.detailSeq++;const token=state.detailSeq;
   const detailController=new AbortController();state.detailAbort=detailController;
+  const identity=detailIdentity(doc);state.detailDoc=doc;state.detailSelection=identity?{document:identity,tab}:null;
   const schedule=detailScheduler(),loads=[],tabs=[];
   const content=$('details-content');content.replaceChildren();
-  content.append(el('p',doc.objeto_compra ?? 'Objeto não informado.','detail-object'));
+  content.append(el('p',doc.objeto_compra ?? (doc._detail_from_url?'Carregando detalhes do documento…':'Objeto não informado.'),'detail-object'));
   const kind=doc.tipo_documento,names=documentName(kind);
   $('details-kind').textContent=doc.titulo ?? '—';
   $('details-dialog').setAttribute('aria-label',`Detalhes: ${names.singular}`);
   const links=$('details-links');links.replaceChildren();
   for(const [label,url]of [['Abrir no PNCP',doc.url_pncp],['Sistema de origem',doc.link_sistema_origem]]){const link=safeAnchor(label,url);if(link)links.append(link);}
   const nav=el('div',undefined,'detail-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label',`Seções: ${names.singular}`);content.append(nav);
-  function activate(index,focus=false) {
+  function activate(index,focus=false,write=true) {
     tabs.forEach((tab,i)=>{tab.button.setAttribute('aria-selected',String(i===index));tab.button.tabIndex=i===index?0:-1;tab.panel.hidden=i!==index;});
+    if(state.detailSelection){state.detailSelection.tab=tabs[index].button.dataset.resource;if(write)syncDetailUrl();}
     if(focus){tabs[index].button.focus();tabs[index].button.scrollIntoView({block:'nearest',inline:'nearest'});}
   }
   function addTab(resource,title,panel) {
@@ -657,7 +700,7 @@ async function openDetails(doc) {
   const detailPanel=el('section',undefined,'detail-information');
   let grid=appendFields(detailPanel,fields,'detail-grid');
   const updateDetails=addTab('detalhes','Detalhes',detailPanel);updateDetails(fields.length,'loaded');
-  if(kind!=='edital'){
+  if(kind!=='edital' || doc._detail_from_url){
     const detailStatus=el('p','Preparando consulta dos detalhes…','items-status'),retryDetails=el('button','Tentar novamente','button small');retryDetails.hidden=true;detailStatus.setAttribute('role','status');detailPanel.append(detailStatus,retryDetails);
     async function loadDetails(){
       retryDetails.hidden=true;detailPanel.setAttribute('aria-busy','true');
@@ -665,10 +708,11 @@ async function openDetails(doc) {
         const data=await schedule(async()=>{detailStatus.textContent='Consultando detalhes no PNCP…';return service.call('documentDetails',{document:detailIdentity(doc)},{signal:detailController.signal});},detailController.signal);
         if(token!==state.detailSeq)return;
         const holder=el('div');grid=appendFields(holder,data.fields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);
-        updateDetails(data.fields.length,'loaded');if(data.objeto)content.children[0].textContent=data.objeto;
+        updateDetails(data.fields.length,'loaded');if(data.objeto)content.children[0].textContent=data.objeto;else if(doc._detail_from_url)content.children[0].textContent='Objeto não informado.';
+        if(doc._detail_from_url){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=indexed?.titulo || data.titulo || doc.titulo;}
         if(data.link_sistema_origem && !doc.link_sistema_origem){const link=safeAnchor('Sistema de origem',data.link_sistema_origem);if(link)links.append(link);}
         detailStatus.textContent=`Consulta às ${time(data.queried_at)}.`;
-      }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){detailStatus.textContent=`${error.message} Os dados disponíveis na busca permanecem visíveis.`;retryDetails.hidden=false;updateDetails(null,'error');}}
+      }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)content.children[0].textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');}}
       finally{if(token===state.detailSeq)detailPanel.setAttribute('aria-busy','false');}
     }
     if(detailIdentity(doc)){retryDetails.addEventListener('click',loadDetails);loads.push(loadDetails);updateDetails(null,'loading');}
@@ -717,7 +761,8 @@ async function openDetails(doc) {
     updateCount=addTab(resource,title,related.section);if(!detailIdentity(doc))updateCount(null,'unavailable');
     loads.push(related.load);
   }
-  activate(0);openDialog('details-dialog');
+  state.detailActivate=resource=>activate(Math.max(0,tabs.findIndex(tab=>tab.button.dataset.resource===resource)),false,false);
+  state.detailActivate(tab);openDialog('details-dialog');if(sync)syncDetailUrl();
   await Promise.all(loads.map(load=>load()));
 }
 async function exportCsv() {
@@ -741,7 +786,7 @@ async function init() {
   filterOptionsCache=createFilterOptionsCache(service,state.schema,{getStorage:()=>window.localStorage,...optionsCacheSettings});
   state.optionsReady=filterOptionsCache.preload();
   state.query=defaultQuery();
-  try {if(window.location?.href)state.query=readQueryUrl(window.location.href,state.schema,TABLE_PAGE_SIZE);}
+  try {if(window.location?.href)state.query=readLocationState().query;}
   catch(error){urlError=error;}
   state.schema.columns=state.schema.columns_by_document[state.query.document_type];
   $('search').value=state.query.q;
@@ -779,7 +824,7 @@ async function init() {
   document.addEventListener('pointerdown',event=>{if(openFilterEditor && event.target!==openFilterEditor.input && !openFilterEditor.suggestions.contains(event.target))closeFilterDropdown();});
   $('filters-dialog').querySelector('.filters-body')?.addEventListener('scroll',positionFilterDropdown);
   window.addEventListener('resize',closeFilterDropdown);
-  $('details-dialog').addEventListener('close',()=>{state.detailAbort?.abort();state.detailSeq++;});
+  $('details-dialog').addEventListener('close',()=>{if(!$('details-dialog').open)closeDetails();});
   $('export-button').addEventListener('click',exportCsv);
   for(const id of toolbarButtonIds)bindTooltip($(id),$(`${id}-tooltip`));
   bindTooltip($('repository-link'),$('repository-link-tooltip'));

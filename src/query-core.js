@@ -100,7 +100,7 @@ export class QueryService {
     }finally{op.finish();}
   }
   async documentDetails(document,signal,requestId) {
-    validateDocument(document,['ata','contrato']);
+    validateDocument(document);
     const op=operation(this.config,signal,requestId);
     try{return {api_version:'2.0',document_type:document.type,...await this.client.document(document,op),queried_at:new Date().toISOString(),upstream_requests:op.requests};}finally{op.finish();}
   }

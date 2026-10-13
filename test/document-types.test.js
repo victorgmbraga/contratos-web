@@ -169,3 +169,11 @@ test('DOCUMENTS-18: modo sem total é exclusivo de históricos de contrato e val
   for(const [d,resource,mode]of [[contract,'historico','inválido'],[contract,'historico',null],[contract,'arquivos','until_empty'],[ata,'historico','until_empty'],[{...contract,type:'edital'},'historico','until_empty']])await assert.rejects(f.service.documentRelated(d,resource,1,10,undefined,undefined,mode),e=>e.code==='INVALID_PAGINATION');
   assert.equal(f.requests.length,0);
 });
+test('DOCUMENTS-19: detalhe completo de edital usa identidade nativa, título e os doze campos com decimais exatos',async()=>{
+  const purchase={type:'edital',cnpj:'01234567000189',ano:'2025',sequencial:'57'};
+  const rawText='{"numeroControlePNCP":"01234567000189-1-000057/2025","numeroCompra":"0057/2025","anoCompra":2025,"tipoInstrumentoConvocatorioNome":"Edital","objetoCompra":"Obra de demonstração","valorTotalEstimado":9007199254740993.12345,"valorTotalHomologado":0.0000,"orgaoEntidade":{"cnpj":"01234567000189","razaoSocial":"Órgão"},"unidadeOrgao":{"nomeUnidade":"Unidade","municipioNome":"Município","ufSigla":"DF"},"modalidadeNome":"Pregão","situacaoCompraNome":"Divulgada no PNCP"}',raw=parse(rawText);
+  const f=fixture(()=>new Response(rawText,{headers:{'Content-Type':'application/json'}})),result=await f.service.documentDetails(purchase);
+  assert.equal(f.requests[0].pathname,'/api/pncp/v1/orgaos/01234567000189/compras/2025/57');assert.equal(result.fields.length,12);assert.equal(result.titulo,'Edital nº 0057/2025');assert.equal(result.objeto,'Obra de demonstração');
+  assert.equal(result.fields.find(field=>field.field==='valorTotalEstimado').value,'9007199254740993.12345');assert.equal(result.fields.find(field=>field.field==='valorTotalHomologado').value,'0.0000');
+  await assert.rejects(fixture(()=>json({...raw,numeroControlePNCP:'01234567000189-1-000058/2025'})).service.documentDetails(purchase),error=>error.code==='INVALID_UPSTREAM');
+});

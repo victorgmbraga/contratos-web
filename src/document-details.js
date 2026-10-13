@@ -17,6 +17,7 @@ const field=(path,title,type='text',required=false)=>({path,title,type,required}
 const organizationFields=[field('numeroControlePNCP','Controle PNCP','text',true),field('orgaoEntidade.razaoSocial','Órgão','text',true),field('orgaoEntidade.cnpj','CNPJ do órgão','text',true),field('unidadeOrgao.nomeUnidade','Unidade','text',true),field('unidadeOrgao.codigoUnidade','Código da unidade'),field('unidadeOrgao.ufSigla','UF','text',true),field('unidadeOrgao.municipioNome','Município','text',true),field('orgaoEntidade.esferaId','Esfera'),field('orgaoEntidade.poderId','Poder'),field('orgaoSubRogado.razaoSocial','Órgão sub-rogado'),field('orgaoSubRogado.cnpj','CNPJ do órgão sub-rogado'),field('unidadeSubRogada.nomeUnidade','Unidade sub-rogada'),field('unidadeSubRogada.codigoUnidade','Código da unidade sub-rogada'),field('unidadeSubRogada.municipioNome','Município da unidade sub-rogada'),field('unidadeSubRogada.ufSigla','UF da unidade sub-rogada')];
 const dates=[field('dataAssinatura','Assinatura','date',true),field('dataVigenciaInicio','Início da vigência','date',true),field('dataVigenciaFim','Fim da vigência','date',true),field('dataPublicacaoPncp','Publicação','date',true),field('dataAtualizacao','Atualização','date',true),field('usuarioNome','Sistema publicador')];
 const definitions={
+  edital:[...organizationFields.filter(f=>['numeroControlePNCP','orgaoEntidade.razaoSocial','orgaoEntidade.cnpj','unidadeOrgao.nomeUnidade','unidadeOrgao.ufSigla','unidadeOrgao.municipioNome'].includes(f.path)),field('modalidadeNome','Modalidade','text',true),field('situacaoCompraNome','Situação','text',true),field('dataPublicacaoPncp','Publicação','date',true),field('dataAtualizacao','Atualização','date',true),field('valorTotalEstimado','Valor estimado','decimal',true),field('valorTotalHomologado','Valor homologado','decimal',true)],
   partesenvolvidas:[field('tipoParteEnvolvida.nome','Tipo','text',true),field('orgao.nome','Órgão','text',true),field('orgao.cnpj','CNPJ do órgão','text',true),field('unidade.nomeUnidade','Unidade','text',true),field('unidade.codigo','Código da unidade','text',true),field('unidade.localidade.nomeMunicipio','Município','text',true),field('unidade.localidade.uf','UF','text',true),field('dataInclusao','Inclusão','datetime',true)],
   ata:[...organizationFields,field('numeroAtaRegistroPreco','Número da ata','text',true),field('anoAta','Ano da ata'),field('modalidadeNome','Modalidade','text',true),...dates,field('cancelado','Cancelada','boolean',true),field('dataCancelamento','Cancelamento','date'),field('possibilidadeAdesao','Permite adesão','boolean',true),field('numeroControlePncpCompra','Contratação de origem','control'),field('informacaoComplementarCompra','Informações complementares')],
   contrato:[...organizationFields,field('numeroContratoEmpenho','Número do contrato/empenho','text',true),field('anoContrato','Ano do contrato'),field('tipoContrato.nome','Tipo de contrato','text',true),field('processo','Processo'),field('categoriaProcesso.nome','Categoria do processo'),field('receita','Receita','boolean'),...dates,
@@ -51,7 +52,11 @@ export function recordFields(kind,record) {
   });
 }
 export function projectDocument(type,record) {
-  const object=type==='ata'?record?.objetoCompra:record?.objetoContrato;
+  const fields=recordFields(type,record);
+  const object=type==='contrato'?record?.objetoContrato:record?.objetoCompra;
   assert(object==null || typeof object==='string','INVALID_UPSTREAM','Objeto do documento inválido no PNCP.',502);
-  return {fields:recordFields(type,record),objeto:scalarText(object),link_sistema_origem:safeLink(record.linkSistemaOrigem)};
+  const number=scalarText(type==='edital'?record.numeroCompra:type==='ata'?record.numeroAtaRegistroPreco:record.numeroContratoEmpenho),year=scalarText(type==='edital'?record.anoCompra:type==='ata'?record.anoAta:record.anoContrato);
+  const kind=type==='edital'?scalarText(record.tipoInstrumentoConvocatorioNome) || 'Edital':type==='ata'?'Ata de Registro de Preços':/empenho/i.test(record.tipoContrato?.nome || '')?'Empenho':'Contrato';
+  const titulo=number?`${kind} nº ${number}${year && !number.endsWith('/'+year)?'/'+year:''}`:scalarText(record.numeroControlePNCP);
+  return {fields,objeto:scalarText(object),titulo,link_sistema_origem:safeLink(record.linkSistemaOrigem)};
 }

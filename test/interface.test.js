@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as tick } from 'node:timers/promises';
 import { schema } from '../src/schema.js';
-import { demoFetch,demoContracts,demoAtas } from '../src/demo.js';
+import { demoFetch,demoContracts,demoAtas,demoDocuments } from '../src/demo.js';
 import { PncpClient } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
 import { config, service, document, query, memoryStorage } from './helpers.js';
@@ -90,7 +90,7 @@ async function interfaceFixture(options={}) {
   await uiCore.ready;
   if(options.waitOptions!==false)await uiCore.state.optionsReady;
   await settle();assert.equal(nodes.get('startup-error').hidden,true);
-  const buildTable=async()=>{uiCore.state.table.handlers.tableBuilt();await Promise.allSettled(pending);await settle();};
+  const buildTable=async()=>{const boot=uiCore.state.table.handlers.tableBuilt();await Promise.allSettled([...pending,boot]);await settle();};
   if(!options.deferTableBuilt)await buildTable();
   const state=()=>structuredClone(uiCore.state.query);
   const openDocument=doc=>uiCore.state.table.handlers.rowClick({}, {getData:()=>doc});
@@ -304,7 +304,7 @@ test('QUERY-URL-UI-01: link inicial restaura contrato, texto, filtros, status, o
   await ui.nodes.get('filters-button').fire('click');assert.equal(ui.nodes.get('draft-status').value,'vigente');assert.equal(ui.draft().pncp_filters.possui_nfe,false);
 });
 
-test('QUERY-URL-UI-02: alterações aplicadas e páginas atualizam a URL, rascunhos e detalhes preservam o link',async()=>{
+test('QUERY-URL-UI-02: alterações aplicadas, páginas e detalhes atualizam a URL; rascunhos preservam o link',async()=>{
   const source=service(Array.from({length:164},(_,i)=>document(i+1)));
   const ui=await interfaceFixture({queryHandler:input=>source.service.execute(input)}),params=()=>new URL(ui.browser.href()).searchParams;
   ui.nodes.get('search').value='Obras + reparos & manutenção';await ui.nodes.get('search-form').fire('submit');assert.equal(params().get('q'),'Obras + reparos & manutenção');assert.equal(params().get('pagina'),'1');
@@ -312,7 +312,7 @@ test('QUERY-URL-UI-02: alterações aplicadas e páginas atualizam a URL, rascun
   const unchanged=ui.browser.href();await ui.nodes.get('filters-button').fire('click');await ui.setFilter('srp',false);assert.equal(ui.browser.href(),unchanged);ui.nodes.get('filters-dialog').close();assert.equal(ui.browser.href(),unchanged);
   await ui.nodes.get('filters-button').fire('click');await ui.setFilter('srp',false);await ui.nodes.get('apply-filters').fire('click');assert.equal(params().get('srp'),'false');assert.equal(params().get('pagina'),'1');
   ui.nodes.get('order').value='data';await ui.nodes.get('order').fire('change');assert.equal(params().get('ordenacao'),'data');
-  const beforeDetails=ui.browser.href();await ui.openDocument(project(document(1)));assert.equal(ui.browser.href(),beforeDetails);
+  await ui.openDocument(project(document(1)));assert.equal(params().get('detalhe'),'edital/00000000000000/2026/1');assert.equal(params().get('aba'),'detalhes');
   await ui.nodes.get('clear-button').fire('click');assert.equal(params().has('q'),false);assert.equal(params().has('srp'),false);assert.equal(params().get('ordenacao'),'-data');assert.equal(params().get('pagina'),'1');
 });
 
@@ -900,4 +900,63 @@ test('DOCUMENTS-UI-04: falha em arquivos de termo fica visível e uma nova tenta
   await ui.openDocument(project(demoContracts[0]));const card=ui.nodes.get('detail-panel-termos').children[3].children[0],button=card.children[2],extra=card.children[3];
   await button.fire('click');assert.equal(extra.hidden,false);assert.equal(button.getAttribute('aria-expanded'),'true');assert.match(extra.children[0].textContent,/PNCP/);assert.equal(button.textContent,'Tentar novamente');
   failed=false;await button.fire('click');assert.equal(extra.hidden,false);assert.equal(extra.children.length,2);assert.equal(ui.childRequests.length,2);assert.equal(ui.relatedRequests.length,5);
+});
+test('DETAIL-LINK-UI-01: links diretos dos três tipos restauram documento e aba mesmo com busca vazia',async()=>{
+  for(const [type,path,tab]of [['edital','edital/00000000000000/2026/1','itens'],['ata','ata/00000000000000/2026/3/3','partesenvolvidas'],['contrato','contrato/00000000000000/2026/1','historico']]) {
+    const ui=await interfaceFixture({href:'https://example.test/contratos-web/?demo=1&utm_source=teste&detalhe='+path+'&aba='+tab+'#resultados',queryHandler:async(input,options,core)=>({...await core.execute(input,options.signal),data:[],total:0,last_page:1,last_row:0})});
+    assert.equal(ui.state().document_type,type);assert.equal(ui.requests.length,1);assert.equal(ui.nodes.get('details-dialog').open,true);assert.equal(ui.nodes.get('detail-tab-'+tab).getAttribute('aria-selected'),'true');
+    assert.equal(ui.documentRequests.length,1);assert.equal(ui.documentRequests[0].document.type,type);assert.equal(ui.relatedRequests.length,type==='contrato'?5:4);assert.equal(ui.itemRequests.length,type==='edital'?1:0);
+    assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'loaded');assert(!ui.nodes.get('details-kind').textContent.includes('00000000000000'));
+    const url=new URL(ui.browser.href());assert.equal(url.searchParams.get('detalhe'),path);assert.equal(url.searchParams.get('aba'),tab);assert.equal(url.searchParams.get('tipos_documento'),type);assert.equal(url.searchParams.get('utm_source'),'teste');assert.equal(url.hash,'#resultados');assert.equal(ui.browser.entries.length,1);
+  }
+});
+
+test('DETAIL-LINK-UI-02: abrir, trocar abas e fechar sincroniza parâmetros sem repetir a busca no histórico',async()=>{
+  const ui=await interfaceFixture({href:'https://example.test/contratos-web/?demo=1&ufs=DF#resultados'}),search=ui.browser.href();
+  await ui.openDocument(project(demoDocuments[0]));const opened=ui.browser.href();assert.equal(new URL(opened).searchParams.get('aba'),'detalhes');
+  await ui.nodes.get('detail-tab-arquivos').fire('click');const files=ui.browser.href();
+  await ui.nodes.get('detail-tab-arquivos').fire('keydown',{key:'End'});assert.equal(new URL(ui.browser.href()).searchParams.get('aba'),'historico');
+  const requests=ui.requests.length,items=ui.itemRequests.length,related=ui.relatedRequests.length,length=ui.browser.entries.length;
+  await ui.browser.back();assert.equal(ui.browser.href(),files);assert.equal(ui.nodes.get('detail-tab-arquivos').getAttribute('aria-selected'),'true');
+  await ui.browser.back();assert.equal(ui.browser.href(),opened);assert.equal(ui.nodes.get('detail-tab-detalhes').getAttribute('aria-selected'),'true');
+  await ui.browser.back();assert.equal(ui.browser.href(),search);assert.equal(ui.nodes.get('details-dialog').open,false);assert.equal(ui.requests.length,requests);assert.equal(ui.itemRequests.length,items);assert.equal(ui.relatedRequests.length,related);
+  await ui.browser.forward();assert.equal(ui.browser.href(),opened);assert.equal(ui.nodes.get('details-dialog').open,true);await ui.browser.forward();assert.equal(ui.browser.href(),files);assert.equal(ui.nodes.get('detail-tab-arquivos').getAttribute('aria-selected'),'true');assert.equal(ui.browser.entries.length,length);assert.equal(ui.requests.length,requests);
+  ui.nodes.get('details-dialog').close();const closed=new URL(ui.browser.href());assert.equal(closed.searchParams.has('detalhe'),false);assert.equal(closed.searchParams.has('aba'),false);assert.equal(closed.searchParams.get('ufs'),'DF');assert.equal(closed.hash,'#resultados');
+  await ui.browser.back();assert.equal(ui.nodes.get('details-dialog').open,true);assert.equal(ui.nodes.get('detail-tab-arquivos').getAttribute('aria-selected'),'true');
+});
+
+test('DETAIL-LINK-UI-03: nova busca fecha detalhes e não transporta o documento para os próximos critérios',async()=>{
+  const ui=await interfaceFixture();await ui.openDocument(project(demoDocuments[0]));await ui.nodes.get('detail-tab-itens').fire('click');
+  ui.nodes.get('document-type').value='contrato';await ui.nodes.get('document-type').fire('change');
+  assert.equal(ui.nodes.get('details-dialog').open,false);const url=new URL(ui.browser.href());assert.equal(url.searchParams.has('detalhe'),false);assert.equal(url.searchParams.has('aba'),false);assert.equal(ui.state().document_type,'contrato');
+  await ui.browser.back();assert.equal(ui.state().document_type,'edital');assert.equal(ui.nodes.get('details-dialog').open,true);assert.equal(ui.nodes.get('detail-tab-itens').getAttribute('aria-selected'),'true');
+});
+
+test('DETAIL-LINK-UI-04: link inválido não consulta detalhes e pode ser corrigido ao limpar os critérios',async()=>{
+  for(const parameters of ['aba=itens','detalhe=edital/123/2026/1','detalhe=contrato/00000000000000/2026/1&aba=itens','detalhe=ata/00000000000000/2026/1']) {
+    const ui=await interfaceFixture({href:'https://example.test/?'+parameters});assert.equal(ui.requests.length,0);assert.equal(ui.documentRequests.length,0);assert.equal(ui.nodes.get('details-dialog').open,false);assert.match(ui.nodes.get('notice').textContent,/Parâmetros inválidos na URL/);
+    await ui.nodes.get('clear-button').fire('click');assert.equal(ui.requests.length,1);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);assert.equal(new URL(ui.browser.href()).searchParams.has('aba'),false);
+  }
+});
+
+test('DETAIL-LINK-UI-05: falha da busca não impede carregar o documento identificado no link',async()=>{
+  const ui=await interfaceFixture({href:'https://example.test/?detalhe=contrato/00000000000000/2026/1&aba=arquivos',queryHandler:()=>Promise.reject(new Error('Pesquisa indisponível'))});
+  assert.equal(ui.nodes.get('details-dialog').open,true);assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'loaded');assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (12)');assert.match(ui.nodes.get('notice').textContent,/Pesquisa indisponível/);
+});
+
+test('DETAIL-LINK-UI-06: navegar para outro documento cancela a carga antiga e ignora sua resposta',async()=>{
+  let finish,signal;
+  const ui=await interfaceFixture({deferTableBuilt:true,href:'https://example.test/?detalhe=contrato/00000000000000/2026/1&aba=arquivos',documentHandler:(payload,options,core)=>{
+    if(payload.document.type==='contrato'){signal=options.signal;return new Promise(resolve=>{finish=()=>resolve({fields:[{title:'Antigo',value:'Antigo'}],objeto:'Objeto antigo',titulo:'Título antigo'});});}
+    return core.documentDetails(payload.document,options.signal);
+  }});
+  const opening=ui.buildTable();await settle();assert.equal(ui.nodes.get('details-dialog').open,true);
+  await ui.browser.visit('https://example.test/?detalhe=ata/00000000000000/2026/3/3&aba=historico');assert.equal(signal.aborted,true);
+  const title=ui.nodes.get('details-kind').textContent;finish();await opening;assert.equal(ui.nodes.get('details-kind').textContent,title);assert.equal(ui.nodes.get('detail-tab-historico').getAttribute('aria-selected'),'true');assert.equal(new URL(ui.browser.href()).searchParams.get('detalhe'),'ata/00000000000000/2026/3/3');
+});
+
+test('DETAIL-LINK-UI-07: fechar durante a carga remove a seleção e impede reabertura por resposta atrasada',async()=>{
+  let finish,signal;const ui=await interfaceFixture({deferTableBuilt:true,href:'https://example.test/?detalhe=contrato/00000000000000/2026/1',documentHandler:(payload,options)=>{signal=options.signal;return new Promise(resolve=>{finish=()=>resolve({fields:[],objeto:'Antigo',titulo:'Antigo'});});}});
+  const opening=ui.buildTable();await settle();ui.nodes.get('details-dialog').close();assert.equal(signal.aborted,true);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);
+  finish();await opening;assert.equal(ui.nodes.get('details-dialog').open,false);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);
 });

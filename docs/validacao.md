@@ -15,7 +15,7 @@ O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 - HTTP 204/404 nos recursos permitidos, histórico de contrato com total desconhecido, falhas de formato, transporte e contagem.
 - CSV, consistência entre páginas, limites de bytes/documentos, progresso e cancelamento.
 - Configuração pública, fila, tentativas, prazo de operação e comunicação com o Worker.
-- URL compartilhável, restauração dos controles e da página, Voltar/Avançar e descarte de respostas atrasadas.
+- URL compartilhável da busca e dos detalhes, restauração dos controles, página, documento e aba, Voltar/Avançar e descarte de respostas atrasadas.
 - Pré-carga das opções, validade de quatro horas, compactação, armazenamento indisponível, deduplicação e amparos por normativo.
 - Modal com todos os filtros compatíveis, edição sem confirmação intermediária, campos sem restrição, cancelamento do rascunho, sugestões independentes e rolagem com ações visíveis.
 - Seleção múltipla por campos de busca, pesquisa local sem acentos, marcação e remoção, teclado e menus suspensos que acompanham a rolagem sem alterar a altura dos grupos.
@@ -43,7 +43,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Etapa | Cobertura |
 | --- | --- |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
-| Interface | Filtros, três tipos, links de busca, histórico do navegador, paginação, painéis, CSV, cancelamento, teclado e responsividade |
+| Interface | Filtros, três tipos, links de busca e documento/aba, histórico do navegador, paginação, painéis, CSV, cancelamento, teclado e responsividade |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), em 1440, 1068 e 390 pixels |
@@ -73,7 +73,7 @@ npm run build
 npm run preview
 ```
 
-Abra `http://localhost:8000/?demo=1`. Confira a troca dos três tipos, aplicação de filtros, compartilhamento/recarregamento da URL, detalhes, paginação e CSV. O ícone do GitHub deve ficar no canto superior direito, permanecer visível durante a rolagem horizontal do cabeçalho e abrir o repositório em nova aba.
+Abra `http://localhost:8000/?demo=1`. Confira a troca dos três tipos, aplicação de filtros, compartilhamento/recarregamento da URL, detalhes, paginação e CSV. Abra um documento, escolha uma aba e copie a URL em outra janela: documento e aba devem ser restaurados, inclusive quando o item não aparece nos resultados. Confira também fechamento e Voltar/Avançar, sem repetir a busca ao trocar apenas a aba. O ícone do GitHub deve ficar no canto superior direito, permanecer visível durante a rolagem horizontal do cabeçalho e abrir o repositório em nova aba.
 
 A demonstração contém 64 contratações, 24 atas e 32 contratos. Todos os filtros têm simulação, mas os status de vigência usam a data fixa `2026-10-07`; a simulação de relevância e recebimento de propostas não reproduz integralmente a fonte. Os links dos registros fictícios são ilustrativos.
 
