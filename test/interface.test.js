@@ -25,9 +25,9 @@ async function interfaceFixture(options={}) {
     get selectedOptions(){return this.children.filter(n=>n.selected);}
     click(){if(this.tagName==='a')downloads.push({href:this.href,filename:this.download});}remove(){}
     addEventListener(name,fn){(this.listeners[name]??=[]).push(fn);}
-    async fire(name,extra={}){for(const fn of this.listeners[name] || [])await fn({target:this,preventDefault(){},...extra});await settle();await Promise.allSettled(pending);await settle();}
+    async fire(name,extra={}){for(const fn of this.listeners[name] || [])await fn({target:this,preventDefault(){},stopPropagation(){},...extra});await settle();await Promise.allSettled(pending);await settle();}
     focus(){dom.activeElement=this;}scrollIntoView(){}
-    setAttribute(name,value){(this.attributes??={})[name]=String(value);}getAttribute(name){return this.attributes?.[name] ?? null;}querySelectorAll(){return [];}querySelector(){return null;}showModal(){this.open=true;}
+    setAttribute(name,value){(this.attributes??={})[name]=String(value);}getAttribute(name){return this.attributes?.[name] ?? null;}removeAttribute(name){delete this.attributes?.[name];}querySelectorAll(){return [];}querySelector(){return null;}showModal(){this.open=true;}
     close(){this.open=false;for(const fn of this.listeners.close || [])fn();}
   }
   const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
@@ -55,7 +55,7 @@ async function interfaceFixture(options={}) {
         domainRequests.push(payload);
         result=options.domainHandler?await options.domainHandler(payload,callOptions,core):await core.domains(payload.type,payload.normatives,callOptions.signal,null,payload.field);break;
       case 'suggest':
-        suggestRequests.push(payload);result=await core.suggest(payload.type,payload.field,payload.q,payload.size,callOptions.signal);break;
+        suggestRequests.push(payload);result=options.suggestHandler?await options.suggestHandler(payload,callOptions,core):await core.suggest(payload.type,payload.field,payload.q,payload.size,callOptions.signal);break;
       case 'details':
         itemRequests.push(payload);
         if(detailFailures-->0)throw Object.assign(new Error('Falha temporária dos itens.'),{code:'PNCP_HTTP_ERROR'});
@@ -101,13 +101,23 @@ async function interfaceFixture(options={}) {
   const setFilter=(name,value)=>uiCore.setDraftFilter(name,value);
   const field=name=>nodes.get(`filter-${name}`);
   const fieldNames=()=>all.filter(node=>nodes.get(node.id)===node && node.className==='filter-field').map(node=>node.id.slice('filter-field-'.length));
+  const choices=async name=>{
+    const input=field(name);input.focus();await input.fire('focus');
+    return nodes.get(`filter-suggestions-${name}`).children.filter(node=>node.tagName==='button');
+  };
   const editFilter=async(name,value)=>{
     const input=field(name),cap=schema(cfg).capabilities.find(c=>c.name===name);
-    if(input.multiple)for(const option of input.children)option.selected=(value || []).includes(option.value);
-    else input.value=value===undefined?'':String(value);
-    await input.fire(cap.domain || cap.type==='boolean'?'change':'input');
+    if(input.disabled)return;
+    if(cap.cardinality==='multiple' && cap.domain) {
+      const desired=value || [];
+      if(!desired.length){await nodes.get(`filter-field-${name}`).children[0].children[1].fire('click');return;}
+      for(const button of await choices(name))if(button.getAttribute('aria-selected')==='true' && !desired.includes(button.dataset.value))await button.fire('click');
+      for(const id of desired){const button=(await choices(name)).find(button=>button.dataset.value===id);assert(button,`Opção ${id} ausente em ${name}`);if(button.getAttribute('aria-selected')!=='true')await button.fire('click');}
+    } else {
+      input.value=value===undefined?'':String(value);await input.fire(cap.domain || cap.type==='boolean'?'change':'input');
+    }
   };
-  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,editFilter,openDocument,tableColumns,request,footer,buildTable,optionsReady:uiCore.state.optionsReady,browser};
+  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,tableColumns,request,footer,buildTable,optionsReady:uiCore.state.optionsReady,browser};
 }
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
@@ -551,7 +561,7 @@ test('FILTERS-UI-04: mostra todos os filtros compatíveis, agrupados, sem seleto
   assert.deepEqual(ui.fieldNames(),groups.flatMap(g=>g.children.at(-1).children.map(f=>f.id.slice('filter-field-'.length))));
   assert.deepEqual([...ui.fieldNames()].sort(),caps.map(c=>c.name).sort());
   assert.equal(ui.fieldNames().length,71);assert.equal(ui.field('tipos_contrato'),undefined);assert.equal(ui.nodes.has('add-native'),false);assert.equal(ui.nodes.has('native-field'),false);
-  for(const cap of caps){const input=ui.field(cap.name);assert.equal(input.disabled || false,false);if(!input.multiple)assert.equal(input.value,'');}
+  for(const cap of caps){const input=ui.field(cap.name);assert.equal(input.disabled || false,false);assert.equal(input.value,'');if(cap.cardinality==='multiple')assert.equal(input.tagName,'input');}
   assert.deepEqual(ui.draft().pncp_filters,{});
 });
 
@@ -560,7 +570,7 @@ test('FILTER-OPTIONS-UI-01: inicializa todas as listas e reabrir filtros dos tr�
   assert.deepEqual(ui.domainRequests.filter(request=>request.field===null).map(request=>request.type),['edital','ata','contrato']);
   for(const type of ['edital','ata','contrato']){
     if(type!=='edital'){ui.nodes.get('document-type').value=type;await ui.nodes.get('document-type').fire('change');}
-    for(let i=0;i<2;i++){await ui.nodes.get('filters-button').fire('click');assert.equal(ui.field('ufs').disabled,false);assert(ui.field('ufs').children.length>0);ui.nodes.get('filters-dialog').close();}
+    for(let i=0;i<2;i++){await ui.nodes.get('filters-button').fire('click');assert.equal(ui.field('ufs').disabled,false);assert((await ui.options('ufs')).length>0);ui.nodes.get('filters-dialog').close();}
   }
   assert.equal(ui.domainRequests.length,8);
 });
@@ -602,9 +612,9 @@ test('FILTERS-UI-05: edição envia Não, ignora campos intocados e só pesquisa
 
 test('FILTERS-UI-06: enum tem opção neutra e catálogo inativo usa seleção múltipla',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  assert.equal(ui.field('tipos_margens_preferencia').multiple,false);assert.equal(ui.field('tipos_margens_preferencia').children[0].value,'');
+  assert.equal(ui.field('tipos_margens_preferencia').tagName,'select');assert.equal(ui.field('tipos_margens_preferencia').children[0].value,'');
   await ui.editFilter('tipos_margens_preferencia','2');assert.equal(ui.draft().pncp_filters.tipos_margens_preferencia,'2');
-  const select=ui.field('naturezas_juridicas');assert.equal(select.multiple,true);assert.equal(select.children[0].value,'0000');assert.match(select.children[0].textContent,/inativa/);
+  assert.equal(ui.field('naturezas_juridicas').getAttribute('role'),'combobox');const choices=await ui.options('naturezas_juridicas');assert.equal(choices[0].dataset.value,'0000');assert.match(choices[0].getAttribute('aria-label'),/inativa/);
   assert(ui.domainRequests.some(request=>request.field==='naturezas_juridicas'));
   await ui.editFilter('tipos_margens_preferencia',undefined);assert.equal(ui.draft().pncp_filters.tipos_margens_preferencia,undefined);
 });
@@ -615,11 +625,11 @@ test('FILTERS-UI-07: mudar normativo atualiza opções e remove amparos incompat
   assert.deepEqual(ui.draft().pncp_filters,{amparos_legais:['1','19'],normativos_base:['1']});
   assert.equal(ui.nodes.get('apply-filters').disabled,false);assert.equal(ui.nodes.get('legal-error').hidden,false);
   const request=ui.domainRequests.at(-1);assert.equal(request.field,'amparos_legais');assert.deepEqual(request.normatives,['1']);
-  assert(!ui.field('amparos_legais').children.some(o=>o.value==='98'));assert(ui.field('ufs').children.some(o=>o.value==='DF'));
+  assert(!(await ui.options('amparos_legais')).some(o=>o.dataset.value==='98'));assert((await ui.options('ufs')).some(o=>o.dataset.value==='DF'));
   await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{amparos_legais:['1','19'],normativos_base:['1']});assert.equal(ui.nodes.get('result-title').textContent,'32 contratações');
 });
 
-test('FILTERS-UI-08: falha de reconciliação bloqueia aplicar e permite repetir ou limpar amparos',async()=>{
+test('FILTERS-UI-08: falha de reconciliação bloqueia aplicar e permite tentar novamente',async()=>{
   let attempts=0;
   const ui=await interfaceFixture({domainHandler:async(payload,options,core)=>{
     if(payload.field==='amparos_legais' && attempts++===0)throw new Error('Indisponível');
@@ -627,7 +637,7 @@ test('FILTERS-UI-08: falha de reconciliação bloqueia aplicar e permite repetir
   }});await ui.nodes.get('filters-button').fire('click');
   await ui.editFilter('amparos_legais',['19','98']);await ui.editFilter('normativos_base',['1']);
   assert.equal(ui.nodes.get('apply-filters').disabled,true);const before=ui.requests.length;await ui.nodes.get('apply-filters').fire('click');assert.equal(ui.requests.length,before);
-  await ui.editFilter('normativos_base',['1']);assert.equal(ui.nodes.get('apply-filters').disabled,false);assert.deepEqual(ui.draft().pncp_filters.amparos_legais,['19']);
+  await ui.nodes.get('filter-error-amparos_legais').children.at(-1).fire('click');assert.equal(ui.nodes.get('apply-filters').disabled,false);assert.deepEqual(ui.draft().pncp_filters.amparos_legais,['19']);
 });
 
 test('FILTERS-UI-09: resposta tardia de amparos não altera um novo rascunho',async()=>{
@@ -636,7 +646,8 @@ test('FILTERS-UI-09: resposta tardia de amparos não altera um novo rascunho',as
     if(payload.field==='amparos_legais' && payload.normatives?.[0]==='1')return new Promise(done=>{resolve=done;});
     return core.domains(payload.type,payload.normatives,options.signal,null,payload.field);
   }});await ui.nodes.get('filters-button').fire('click');await ui.editFilter('amparos_legais',['19','98']);
-  const pending=ui.editFilter('normativos_base',['1']);await settle();assert.equal(ui.nodes.get('apply-filters').disabled,true);assert.equal(ui.field('amparos_legais').disabled,true);
+  const normative=(await ui.options('normativos_base')).find(button=>button.dataset.value==='1');
+  const pending=normative.fire('click');await settle();assert.equal(ui.nodes.get('apply-filters').disabled,true);assert.equal(ui.field('amparos_legais').disabled,true);
   await ui.editFilter('amparos_legais',['19']);assert.equal(ui.nodes.get('apply-filters').disabled,true);
   ui.nodes.get('filters-dialog').close();await ui.nodes.get('filters-button').fire('click');
   resolve(({filters:{amparos_legais:[{id:'19',label:'Amparo'}]}}));await pending;
@@ -645,7 +656,7 @@ test('FILTERS-UI-09: resposta tardia de amparos não altera um novo rascunho',as
 
 test('FILTERS-UI-10: sistemas de origem e modos de disputa usam múltiplos IDs por padrão',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  for(const [name,values]of [['fontes',['3','5']],['modos_disputa',['1','2']]]){assert.equal(ui.field(name).multiple,true);await ui.editFilter(name,values);}
+  for(const [name,values]of [['fontes',['3','5']],['modos_disputa',['1','2']]]){assert.equal(ui.field(name).getAttribute('role'),'combobox');await ui.editFilter(name,values);}
   await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{fontes:['3','5'],modos_disputa:['1','2']});assert.equal(ui.nodes.get('result-title').textContent,'43 contratações');
 });
 
@@ -671,7 +682,7 @@ test('FILTERS-UI-12: domínio indisponível bloqueia só seus campos e permite t
 test('FILTERS-UI-13: filtros de itens usam domínios e informam o alcance dos detalhes',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
   assert(ui.nodes.get('filter-groups').children.some(g=>g.children.some(n=>n.textContent?.includes('Os detalhes mostram todos os itens'))));
-  for(const [name,ids]of [['criterios_julgamento',['7']],['categorias_leilao',['1']],['beneficios',['1']]]){assert.equal(ui.field(name).multiple,true);await ui.editFilter(name,ids);}
+  for(const [name,ids]of [['criterios_julgamento',['7']],['categorias_leilao',['1']],['beneficios',['1']]]){assert.equal(ui.field(name).getAttribute('role'),'combobox');await ui.editFilter(name,ids);}
   for(const name of ['possui_emenda_parlamentar','incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional'])await ui.editFilter(name,true);
   await ui.nodes.get('apply-filters').fire('click');const filters=ui.requests.at(-1).pncp_filters;
   assert.deepEqual(filters.criterios_julgamento,['7']);assert.deepEqual(filters.categorias_leilao,['1']);assert.deepEqual(filters.beneficios,['1']);assert.equal(filters.possui_emenda_parlamentar,true);assert.equal(ui.nodes.get('result-title').textContent,'6 contratações');
@@ -700,16 +711,16 @@ test('FILTERS-UI-16: países, reserva, inteiro zero, percentual e data mantêm s
 
 test('FILTERS-UI-17: normativo atualiza amparos ainda sem seleção e reabrir preserva os outros domínios',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  await ui.editFilter('normativos_base',['1']);assert.equal(ui.field('amparos_legais').disabled,false);assert(!ui.field('amparos_legais').children.some(o=>o.value==='98'));
+  await ui.editFilter('normativos_base',['1']);assert.equal(ui.field('amparos_legais').disabled,false);assert(!(await ui.options('amparos_legais')).some(o=>o.dataset.value==='98'));
   await ui.editFilter('ufs',['DF']);await ui.nodes.get('apply-filters').fire('click');const before=ui.domainRequests.length;
-  await ui.nodes.get('filters-button').fire('click');assert.equal(ui.domainRequests.length,before);assert(ui.field('ufs').children.some(o=>o.value==='GO'));assert(ui.field('modalidades').children.length>0);
+  await ui.nodes.get('filters-button').fire('click');assert.equal(ui.domainRequests.length,before);assert((await ui.options('ufs')).some(o=>o.dataset.value==='GO'));assert((await ui.options('modalidades')).length>0);
   assert.deepEqual(ui.draft().pncp_filters,{normativos_base:['1'],ufs:['DF']});
 });
 
 test('FILTERS-UI-18: campos com sugestões mantêm seleções independentes e permitem remover uma delas',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  const orgao=ui.nodes.get('filter-suggestions-orgaos').children.find(n=>n.tagName==='button'),fornecedor=ui.nodes.get('filter-suggestions-fornecedores').children.find(n=>n.tagName==='button');
-  await orgao.fire('click');const orgaos=ui.draft().pncp_filters.orgaos;await fornecedor.fire('click');await orgao.fire('click');
+  const orgao=(await ui.options('orgaos'))[0],fornecedor=(await ui.options('fornecedores'))[0];
+  await orgao.fire('click');const orgaos=ui.draft().pncp_filters.orgaos;await fornecedor.fire('click');
   assert.deepEqual(ui.draft().pncp_filters.orgaos,orgaos);assert.equal(ui.draft().pncp_filters.fornecedores.length,1);
   const suppliers=ui.draft().pncp_filters.fornecedores;
   await ui.nodes.get('filter-selected-orgaos').children[0].fire('click');assert.equal(ui.draft().pncp_filters.orgaos,undefined);assert.deepEqual(ui.draft().pncp_filters.fornecedores,suppliers);assert.equal(ui.requests.length,1);
@@ -729,6 +740,30 @@ test('FILTERS-UI-20: limpar campos remove false, zero e listas sem pesquisar ant
     await clear.fire('click');assert.equal(clear.hidden,true);assert.equal(ui.draft().pncp_filters[name],undefined);
   }
   assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.requests.length,1);await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests.at(-1).pncp_filters,{});
+});
+
+test('FILTERS-UI-21: múltiplos usam busca local sem acentos, alternam opções e preservam a consulta',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  const input=ui.field('modalidades'),popup=ui.nodes.get('filter-suggestions-modalidades');
+  assert.equal(input.tagName,'input');assert.equal(input.getAttribute('role'),'combobox');assert.equal(popup.getAttribute('aria-multiselectable'),'true');
+  input.focus();await input.fire('focus');input.value='eletronico';await input.fire('input');
+  const choices=popup.children.filter(node=>node.tagName==='button');assert.equal(choices.length,1);assert.match(choices[0].getAttribute('aria-label'),/Eletrônico/);
+  assert.equal(ui.suggestRequests.length,0);assert.deepEqual(ui.draft().pncp_filters,{});
+  await input.fire('keydown',{key:'ArrowDown'});await input.fire('keydown',{key:'Enter'});
+  assert.deepEqual(ui.draft().pncp_filters.modalidades,[choices[0].dataset.value]);assert.equal(choices[0].getAttribute('aria-selected'),'true');
+  await input.fire('keydown',{key:'Enter'});assert.equal(ui.draft().pncp_filters.modalidades,undefined);
+  await input.fire('keydown',{key:'Escape'});assert.equal(input.getAttribute('aria-expanded'),'false');assert.equal(ui.nodes.get('filters-dialog').open,true);assert.equal(ui.requests.length,1);
+});
+
+test('FILTERS-UI-22: refocar uma busca remota pendente preserva o carregamento e aguarda as novas opções',async()=>{
+  let started,finish;const called=new Promise(resolve=>{started=resolve;});
+  const ui=await interfaceFixture({suggestHandler:()=>new Promise(resolve=>{finish=resolve;started();})});
+  await ui.nodes.get('filters-button').fire('click');const input=ui.field('orgaos'),popup=ui.nodes.get('filter-suggestions-orgaos');
+  input.focus();await input.fire('focus');input.value='novo órgão';await input.fire('input');await called;
+  await input.fire('blur');await input.fire('focus');assert.equal(input.getAttribute('aria-expanded'),'true');assert.equal(popup.children.filter(node=>node.tagName==='button').length,0);assert.match(popup.children[0].textContent,/Consultando opções/);
+  await input.fire('click');assert.equal(popup.children.filter(node=>node.tagName==='button').length,0);
+  finish({items:[{id:'77',label:'Novo órgão'}]});await settle();const option=popup.children.find(node=>node.tagName==='button');assert.equal(option.dataset.value,'77');
+  await option.fire('click');assert.deepEqual(ui.draft().pncp_filters.orgaos,['77']);assert.equal(ui.requests.length,1);
 });
 
 test('CONTRACTS-UI-01: trocar o tipo reinicia critérios, colunas e status e permite consultar e exportar contratos',async()=>{

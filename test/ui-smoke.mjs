@@ -26,18 +26,24 @@ function waitQuery(predicate){
 const check=name=>{checks.push(name);console.log('PASS '+name);};
 async function search(text) {await page.locator('#search').fill(text);await page.locator('#search-button').click();}
 const filter=name=>page.locator(`#filter-${name}`);
+async function selectFilterOptions(name,values) {
+  for(const value of Array.isArray(values)?values:[values]) {
+    await filter(name).click();
+    await page.locator(`#filter-suggestions-${name} .suggestion[data-value=${JSON.stringify(value)}]`).click();
+  }
+}
 async function addEveryFilter(type) {
   const catalog=schema(config);
   const caps=catalog.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.documents.includes(type));
   await page.locator('#filters-button').click();
-  assert.equal(await page.locator('#add-native, #native-field').count(),0);
+  assert.equal(await page.locator('#add-native, #native-field, #filters-dialog select[multiple]').count(),0);
   assert.equal(await page.locator('.filter-field').count(),caps.length);
   const visibleNames=await page.locator('.filter-field').evaluateAll(fields=>fields.map(field=>field.id.slice('filter-field-'.length)));
   assert.deepEqual(visibleNames.sort(),caps.map(cap=>cap.name).sort());
   for(const cap of caps){
     const input=filter(cap.name);
     if(['list','enum'].includes(cap.type)){
-      if(cap.domain_kind==='suggest'){await input.focus();await page.locator(`#filter-suggestions-${cap.name} .suggestion`).first().click();}
+      if(cap.cardinality==='multiple'){await input.click();await page.locator(`#filter-suggestions-${cap.name} .suggestion`).first().click();}
       else {const first=await input.locator('option:not([value=""])').first().getAttribute('value');await input.selectOption(first);}
     }else if(cap.type==='boolean')await input.selectOption('false');
     else await input.fill(cap.type==='date'?'2026-09-01':cap.type==='integer'?'0':cap.name==='codigo_ibge'?'5300108':'0.00');
@@ -59,13 +65,29 @@ try {
   for(let i=0;i<2;i++){await page.locator('#filters-button').click();await filter('ufs').waitFor();await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();}
   assert.equal(initialDomains.length,8);check('Inicialização pré-carrega e persiste as opções dos três tipos; reabrir filtros não consulta a fonte');
   await page.locator('#filters-button').click();
+  const closedSuggestions=[],observeClosed=message=>{if(message.method==='suggest')closedSuggestions.push(message.payload);};page.on('service',observeClosed);
+  const unchangedQuery=page.url();
+  await filter('modalidades').fill('eletronico');
+  assert.equal(await page.locator('#filter-suggestions-modalidades .suggestion').count(),1);
+  await filter('modalidades').press('ArrowDown');await filter('modalidades').press('Enter');
+  assert.equal(await page.locator('#filter-selected-modalidades .selected-option').count(),1);
+  assert.equal(await page.locator('#filter-suggestions-modalidades .suggestion').getAttribute('aria-selected'),'true');
+  await filter('modalidades').press('Enter');assert.equal(await page.locator('#filter-selected-modalidades .selected-option').count(),0);
+  await filter('modalidades').press('Escape');assert.equal(await filter('modalidades').getAttribute('aria-expanded'),'false');assert(await page.locator('#filters-dialog').isVisible());
+  await filter('modalidades').fill('');
+  for(const option of await page.locator('#filter-suggestions-modalidades .suggestion').all())await option.click();
+  assert.equal(await page.locator('#filter-selected-modalidades .selected-option').count(),2);assert.equal(page.url(),unchangedQuery);assert.deepEqual(closedSuggestions,[]);page.off('service',observeClosed);
+  await page.locator('#filters-title').click();assert.equal(await filter('modalidades').getAttribute('aria-expanded'),'false');
+  await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
+  check('Filtros múltiplos usam busca local sem acentos, escolhas por teclado e marcações independentes; Escape fecha apenas as opções');
+  await page.locator('#filters-button').click();
   const beforeDraft=page.url();
   const orgSuggestion=page.waitForEvent('service',{predicate:message=>message.method==='suggest' && message.payload.field==='orgaos'});
   const unitSuggestion=page.waitForEvent('service',{predicate:message=>message.method==='suggest' && message.payload.field==='unidades'});
   await filter('orgaos').fill('Ministério');await filter('unidades').fill('Unidade');
   await Promise.all([orgSuggestion,unitSuggestion]);
-  await page.locator('#filter-suggestions-orgaos .suggestion').first().click();
-  await page.locator('#filter-suggestions-unidades .suggestion').first().click();
+  await filter('orgaos').click();await page.locator('#filter-suggestions-orgaos .suggestion').first().click();
+  await filter('unidades').click();await page.locator('#filter-suggestions-unidades .suggestion').first().click();
   assert.equal(await page.locator('#filter-selected-orgaos .selected-option').count(),1);
   assert.equal(await page.locator('#filter-selected-unidades .selected-option').count(),1);
   await page.locator('#filter-selected-orgaos .selected-option').click();
@@ -226,7 +248,7 @@ try {
   await page.setViewportSize(previousViewport);check('Abas, listagens e links cabem no painel em telas menores');
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeTabs);
   const downloadPromise=page.waitForEvent('download');await page.locator('#export-button').click();const download=await downloadPromise;assert.match(download.suggestedFilename(),/^compras-demo-/);assert.equal(await page.locator('#export-dialog').count(),0);check('CSV baixado diretamente por nova coleta, sem confirmação');
-  await page.locator('#filters-button').click();await filter('ufs').selectOption('GO');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='0 contratações');check('Filtro nativo UF aplicado no serviço');
+  await page.locator('#filters-button').click();await selectFilterOptions('ufs','GO');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='0 contratações');check('Filtro nativo UF aplicado no serviço');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();await filter('srp').selectOption('false');
   const srpRequest=waitQuery(input=>input.pncp_filters.srp===false);
@@ -235,7 +257,7 @@ try {
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();
   for(const [name,ids]of [['fontes',['3','5']],['modos_disputa',['1','2']]]){
-    await filter(name).selectOption(ids);
+    await selectFilterOptions(name,ids);
   }
   const conditions=['indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','exigencia_conteudo_nacional'];
   for(const name of conditions){await filter(name).selectOption('false');}
@@ -252,7 +274,7 @@ try {
   await page.locator('#filters-button').click();
   for(const [name,ids]of [['criterios_julgamento',['7']],['categorias_leilao',['1']],['beneficios',['1']]]){
     assert.match(await page.locator('#filter-groups').innerText(),/Os detalhes mostram todos os itens/);
-    await filter(name).selectOption(ids);
+    await selectFilterOptions(name,ids);
   }
   const itemConditions=['incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional','possui_emenda_parlamentar'];
   for(const name of itemConditions){await filter(name).selectOption('true');}
@@ -268,14 +290,14 @@ try {
   await page.locator('#apply-filters').click();assert.equal((await ibgeRequest).pncp_filters.codigo_ibge,'5300108');check('Código IBGE preservado como texto na pesquisa');
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratações');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-  await page.locator('#filters-button').click();await filter('amparos_legais').selectOption(['19','98']);
-  await filter('normativos_base').selectOption('1');
+  await page.locator('#filters-button').click();await selectFilterOptions('amparos_legais',['19','98']);
+  await selectFilterOptions('normativos_base','1');
   await page.waitForFunction(()=>document.querySelector('#legal-error').textContent.includes('incompatíveis') && !document.querySelector('#apply-filters').disabled);
   const legalRequest=waitQuery(input=>input.pncp_filters.normativos_base?.includes('1'));
   await page.locator('#apply-filters').click();const legalFilters=(await legalRequest).pncp_filters;assert.deepEqual(legalFilters.amparos_legais,['19']);assert.deepEqual(legalFilters.normativos_base,['1']);check('Normativo reconcilia amparos legais e aplica os critérios válidos');
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='11 contratações');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-  await page.locator('#filters-button').click();await filter('anos').waitFor();assert.equal(await filter('anos').locator('option').innerText(),'2026');await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Domínio de anos no formato real do PNCP');
+  await page.locator('#filters-button').click();await filter('anos').click();assert.equal(await page.locator('#filter-suggestions-anos .suggestion').innerText(),'2026');await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Domínio de anos no formato real do PNCP');
   assert.equal(await addEveryFilter('edital'),71);check('Todos os 71 filtros de contratações podem ser preenchidos e aplicados no navegador');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#document-type').selectOption('contrato');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');
@@ -302,7 +324,7 @@ try {
   await historyPrevious.click();await page.waitForFunction(()=>document.querySelector('#detail-panel-historico .item-pager span').textContent==='Página 2');assert.equal(await unknownHistory.locator('.related-card').count(),1);assert.equal(await historyNext.isEnabled(),true);
   await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);await page.setViewportSize({width:1440,height:1000});
   await page.locator('#details-dialog .close-dialog').click();check('Histórico de contrato com contagem divergente exibe total desconhecido e permite avançar até uma página vazia');
-  await page.locator('#filters-button').click();await filter('tipos_contrato').selectOption('1');await filter('possui_nfe').selectOption('true');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
+  await page.locator('#filters-button').click();await selectFilterOptions('tipos_contrato','1');await filter('possui_nfe').selectOption('true');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
   const contractDownload=page.waitForEvent('download');await page.locator('#export-button').click();const exportedContracts=await contractDownload,contractCsv=await readFile(await exportedContracts.path(),'utf8');assert.equal(contractCsv.split('\r\n').length,10);assert(contractCsv.split('\r\n')[0].includes('"valor_global"'));check('Filtros exclusivos de contratos e CSV de oito contratos usam os mesmos critérios');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');assert.equal(await addEveryFilter('contrato'),32);check('Todos os 32 filtros de contratos podem ser preenchidos e aplicados no navegador');
   assert.deepEqual(await page.locator('#document-type option').evaluateAll(nodes=>nodes.map(n=>n.textContent)),['Editais e Avisos de Contratações','Atas de Registro de Preços','Contratos']);
@@ -351,6 +373,20 @@ try {
     const box=await tooltip.boundingBox();assert(box.x>=8 && box.x+box.width<=width-8,`Tooltip cortado em ${width}px`);
     await page.locator('#repository-link').focus();await page.locator('#repository-link-tooltip').waitFor({state:'visible'});
     await page.locator('#filters-button').click();
+    const bodyHeight=await page.locator('.filters-body').evaluate(body=>body.scrollHeight);
+    await filter('modalidades').click();
+    const checkDropdown=async()=>{
+      const geometry=await page.evaluate(()=>{
+        const input=document.querySelector('#filter-modalidades').getBoundingClientRect(),popup=document.querySelector('#filter-suggestions-modalidades'),bounds=popup.getBoundingClientRect();
+        return {left:input.left,bottom:input.bottom,width:input.width,popupLeft:bounds.left,popupTop:bounds.top,popupWidth:bounds.width,popupBottom:bounds.bottom,visible:popup.contains(document.elementFromPoint(bounds.left+bounds.width/2,bounds.bottom-3))};
+      });
+      assert.equal(geometry.popupLeft,geometry.left);assert.equal(geometry.popupTop,geometry.bottom+4);assert.equal(geometry.popupWidth,geometry.width);assert(geometry.popupBottom<=844 && geometry.visible);
+    };
+    await checkDropdown();assert.equal(await page.locator('.filters-body').evaluate(body=>body.scrollHeight),bodyHeight);
+    await page.locator('.filters-body').evaluate(body=>body.scrollTop+=24);
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await checkDropdown();
+    if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/filter-dropdown-${width}.png`});
     const modalFit=await page.locator('#filters-dialog').evaluate(dialog=>{
       const body=dialog.querySelector('.filters-body'),footer=dialog.querySelector('.dialog-footer'),rect=dialog.getBoundingClientRect(),top=footer.getBoundingClientRect().top,fields=dialog.querySelectorAll('.filter-field'),buttonsFit=[...footer.querySelectorAll('button')].every(button=>{const bounds=button.getBoundingClientRect();return bounds.left>=rect.left && bounds.right<=rect.right;});
       body.scrollTop=body.scrollHeight;

@@ -33,6 +33,8 @@ Quando o PNCP informa uma contagem incompatível com os eventos do histórico de
 
 O catálogo contém 80 filtros: 71 aplicáveis a contratações, 16 a atas e 32 a contratos. Há filtros compartilhados entre tipos. Órgãos, unidades e fornecedores usam os IDs fornecidos pelo PNCP. Informação ausente é distinta de **Não**, zero ou lista vazia.
 
+Filtros com múltiplas opções usam campos de busca com menus suspensos logo abaixo do campo. Clique nas opções para marcar ou desmarcar e use o X das etiquetas para removê-las. Listas completas são filtradas localmente; catálogos parciais, como órgãos e unidades, buscam no PNCP a partir de três caracteres. As setas percorrem as opções, Enter alterna a escolha e Escape fecha o menu.
+
 As opções dos três tipos são carregadas na inicialização e armazenadas no `localStorage` por quatro horas. Listas grandes são compactadas; se o armazenamento estiver indisponível, o cache funciona em memória. Amparos dependentes de normativos carregam sob demanda. Sugestões por texto e consultas de documentos acessam novamente a fonte.
 
 A tabela mantém a ordem, os resultados e o total do PNCP. A janela de navegação alcança até 10.000 documentos; refine a pesquisa para acessar conjuntos maiores. O CSV exige que o total caiba no limite de exportação configurado. Filtros de itens selecionam contratações, enquanto os detalhes exibem todos os itens. Os dados podem mudar entre consultas.
