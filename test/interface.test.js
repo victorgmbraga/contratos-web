@@ -663,7 +663,7 @@ test('FILTERS-UI-10: sistemas de origem e modos de disputa usam múltiplos IDs p
 test('FILTERS-UI-11: condições documentais preservam Não ao reabrir e permitem voltar à opção neutra',async()=>{
   const ui=await interfaceFixture(),names=['indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','exigencia_conteudo_nacional'];
   await ui.nodes.get('filters-button').fire('click');
-  for(const name of names){assert.match(ui.nodes.get(`filter-help-${name}`).textContent,/Não informado não equivale a Não/);await ui.editFilter(name,false);}
+  for(const name of names){assert.equal(ui.nodes.get(`filter-help-${name}`).hidden,true);assert.equal(ui.field(name).getAttribute('aria-describedby'),null);await ui.editFilter(name,false);}
   await ui.nodes.get('apply-filters').fire('click');assert(names.every(name=>ui.requests.at(-1).pncp_filters[name]===false));assert.equal(ui.nodes.get('result-title').textContent,'16 contratações');
   assert(ui.nodes.get('native-chips').children.every(n=>n.textContent.endsWith(': Não')));
   await ui.nodes.get('filters-button').fire('click');for(const name of names){assert.equal(ui.field(name).value,'false');await ui.editFilter(name,undefined);}

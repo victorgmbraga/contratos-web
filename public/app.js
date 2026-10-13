@@ -347,7 +347,7 @@ function createFilterEditor(cap) {
   const label=el('label',cap.label || cap.name),input=el(cap.domain || cap.type==='boolean'?'select':'input');
   const heading=el('div',undefined,'filter-field-heading'),clear=el('button',undefined,'text-button filter-reset');clear.type='button';clear.hidden=true;clear.setAttribute('aria-label',`Limpar ${cap.label}`);
   clear.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>';
-  const help=el('p',cap.input_hint || cap.description,'filter-help');help.id=`filter-help-${cap.name}`;
+  const help=el('p',cap.input_hint ?? cap.description,'filter-help');help.id=`filter-help-${cap.name}`;help.hidden=!help.textContent;
   const error=el('p',undefined,'inline-error');error.id=`filter-error-${cap.name}`;error.setAttribute('role','status');error.hidden=true;
   const editor={cap,area,input,help,error,clear,draft:state.draft,seq:state.domainSeq,loadSeq:0,suggestSeq:0};
   if(cap.domain && cap.cardinality==='multiple') {
@@ -364,7 +364,7 @@ function createFilterEditor(cap) {
     if(cap.name==='codigo_ibge'){input.inputMode='numeric';input.maxLength=7;}
     if(cap.type==='integer'){input.min='0';input.step='1';}
   }
-  editor.input.id=`filter-${cap.name}`;editor.input.setAttribute('aria-describedby',help.id);label.setAttribute('for',editor.input.id);heading.append(label,clear);area.append(heading,editor.input,help);
+  editor.input.id=`filter-${cap.name}`;if(!help.hidden)editor.input.setAttribute('aria-describedby',help.id);label.setAttribute('for',editor.input.id);heading.append(label,clear);area.append(heading,editor.input,help);
   clear.addEventListener('click',()=>setDraftFilter(cap.name,undefined));
   if(editor.selected) {
     const selected=el('div',undefined,'selected-options');selected.id=`filter-selected-${cap.name}`;editor.selectedArea=selected;
