@@ -144,13 +144,16 @@ dialog::backdrop{background:#122b4655;backdrop-filter:blur(2px)}
 .filter-group legend{padding:0 10px 0 0;font-size:.9375rem;font-weight:700;color:var(--navy)}
 .filter-group>.panel-note{margin:0 0 14px;font-size:.8125rem}
 .filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 18px}
-.filter-field{min-width:0}
+.filter-field{--filter-placeholder:#757575;min-width:0}
 .filter-field-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;min-height:28px}
 .filter-field-heading label{cursor:pointer}
 .filter-reset{width:24px;height:24px;flex-shrink:0;padding:3px;border-radius:4px}
 .filter-reset svg{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
 .filter-field label{margin-bottom:6px;font-weight:500}
 .filter-field input,.filter-field select{width:100%;font-weight:400}
+.filter-field input::placeholder{color:var(--filter-placeholder);opacity:1}
+.filter-field select option{color:#263f58}
+.filter-field select:has(option[value=""]:checked),.filter-field select option[value=""]{color:var(--filter-placeholder)}
 .filter-field>input,.filter-field>select{margin-bottom:6px}
 .filter-help{margin:0;font-size:.75rem;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
 .filter-field .inline-error{margin:8px 0;font-size:.75rem}
