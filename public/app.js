@@ -436,7 +436,9 @@ async function editFilter(editor) {
   await setDraftFilter(cap.name,value);
 }
 function populateFilterOptions(editor,domains) {
-  const {cap,input}=editor,options=domains.filters[cap.domain];
+  const {cap,input}=editor;
+  // Suggest-only domains may be absent from /filters; typing still queries /suggest.
+  const options=domains.filters[cap.domain] === undefined && cap.domain_kind==='suggest'?[]:domains.filters[cap.domain];
   if(!Array.isArray(options) || (!options.length && cap.domain_kind!=='suggest'))throw new Error('O PNCP não forneceu opções para este domínio.');
   state.domains={...domains,filters:{...state.domains?.filters,...domains.filters}};
   editor.options=cap.name==='anos'?[...options].sort((a,b)=>{

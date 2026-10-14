@@ -211,7 +211,7 @@ Ao alterar normativos, a interface obtém os amparos do cache específico do tip
 | `q` | Texto entre 3 e 128 caracteres |
 | `size` | Obrigatório: inteiro de 1 a 20; a interface envia `20` |
 
-A resposta contém `items` com pares `{id, label}`, `request_id` e `queried_at`. Listas de domínios podem ser parciais; o retorno de sugestões depende da fonte.
+A resposta contém `items` com pares `{id, label}`, `request_id` e `queried_at`. Listas de domínios podem ser parciais; o retorno de sugestões depende da fonte. Campos com sugestões, como Município do fornecedor, permanecem disponíveis mesmo quando não constam das opções iniciais de `/filters`, inclusive nas listas em cache. Ao digitar ao menos três caracteres, a interface consulta `/api/search/suggest` com `tipos_documento`, `campo`, `q` e `tam_pagina`.
 
 ## Itens de uma contratação
 

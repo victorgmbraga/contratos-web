@@ -776,6 +776,49 @@ test('FILTERS-UI-21: múltiplos usam busca local sem acentos, alternam opções 
   await input.fire('keydown',{key:'Escape'});assert.equal(input.getAttribute('aria-expanded'),'false');assert.equal(ui.nodes.get('filters-dialog').open,true);assert.equal(ui.requests.length,1);
 });
 
+test('FILTERS-UI-23: município do fornecedor ausente da lista inicial permite sugestões, aplicação e cache', {timeout:10000},async()=>{
+  const storage=memoryStorage(),suggestUrls=[];
+  let suggested;
+  const called=new Promise(resolve=>{suggested=resolve;});
+  const provider=async(url,init)=>{
+    const parsed=new URL(url);
+    if(parsed.pathname.endsWith('/suggest')){
+      suggestUrls.push(parsed);
+      suggested();
+      return Response.json({items:[{id:5300108,nome:'Brasília - DF'}]});
+    }
+    const response=await demoFetch(url,init);
+    if(!parsed.pathname.endsWith('/filters'))return response;
+    const data=await response.json();
+    delete data.filters.municipios_fornecedor;
+    delete data.filters.modalidades;
+    return Response.json(data);
+  };
+  const ui=await interfaceFixture({storage,itemFetcher:provider});
+  await ui.nodes.get('filters-button').fire('click');
+  const input=ui.field('municipios_fornecedor');
+  assert.equal(input.disabled,false);
+  assert.equal(ui.nodes.get('filter-error-municipios_fornecedor').hidden,true);
+  assert.equal(ui.field('modalidades').disabled,true);
+  assert.match(ui.nodes.get('filter-error-modalidades').children[0].textContent,/O PNCP não forneceu opções/);
+  await ui.options('municipios_fornecedor');
+  input.value='Br';await input.fire('input');assert.equal(ui.suggestRequests.length,0);
+  input.value='Brasília';await input.fire('input');await called;await settle();
+  const url=suggestUrls[0];
+  assert.equal(url.origin,'https://pncp.gov.br');assert.equal(url.pathname,'/api/search/suggest');
+  assert.deepEqual(Object.fromEntries(url.searchParams),{tipos_documento:'edital',campo:'municipios_fornecedor',q:'Brasília',tam_pagina:'20'});
+  const option=(await ui.options('municipios_fornecedor'))[0];
+  assert.equal(option.dataset.value,'5300108');assert.equal(option.getAttribute('aria-label'),'Brasília - DF');
+  await option.fire('click');await ui.nodes.get('apply-filters').fire('click');
+  assert.deepEqual(ui.requests.at(-1).pncp_filters.municipios_fornecedor,['5300108']);
+  assert.equal(new URL(ui.browser.href()).searchParams.get('municipios_fornecedor'),'5300108');
+  const restored=await interfaceFixture({storage,itemFetcher:provider,href:ui.browser.href()});
+  assert.equal(restored.domainRequests.length,0);
+  await restored.nodes.get('filters-button').fire('click');
+  assert.equal(restored.field('municipios_fornecedor').disabled,false);
+  assert.deepEqual(restored.draft().pncp_filters.municipios_fornecedor,['5300108']);
+});
+
 test('FILTERS-UI-22: refocar uma busca remota pendente preserva o carregamento e aguarda as novas opções',async()=>{
   let started,finish;const called=new Promise(resolve=>{started=resolve;});
   const ui=await interfaceFixture({suggestHandler:()=>new Promise(resolve=>{finish=resolve;started();})});
