@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parse } from 'lossless-json';
+import { parseExactJson as parse } from '../src/exact-json.js';
 import { project, safeLink, itemSituation } from '../src/adapter.js';
 import { validateQuery } from '../src/validation.js';
 import { config, document, query, service, json } from './helpers.js';

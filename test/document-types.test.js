@@ -1,7 +1,7 @@
 import { csvBytes } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parse} from 'lossless-json';
+import {parseExactJson as parse} from '../src/exact-json.js';
 import {schema,capabilities,columnsFor} from '../src/schema.js';
 import {project,documentIdentity} from '../src/adapter.js';
 import {recordFields,projectDocument,controlLink,nativeDocumentPath} from '../src/document-details.js';
