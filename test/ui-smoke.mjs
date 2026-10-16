@@ -67,9 +67,16 @@ try {
   for(const [type,title] of [['edital','64 contratações'],['ata','24 atas'],['contrato','32 contratos']]) {
     await page.locator('#document-type').selectOption(type);
     await page.waitForFunction(expected=>document.querySelector('#result-title').textContent===expected,title);
-    await page.getByRole('button',{name:'Filtrar UF',exact:true}).click();
-    await page.getByRole('menuitem',{name:'Filtrar por esta coluna',exact:true}).press('Enter');
+    const ufButton=page.getByRole('button',{name:'Filtrar UF',exact:true});
+    assert.equal(await ufButton.getAttribute('aria-haspopup'),null);assert.equal(await ufButton.getAttribute('title'),null);
+    await ufButton.hover();
+    const tooltip=page.locator('#'+await ufButton.getAttribute('aria-describedby'));
+    await tooltip.waitFor({state:'visible'});assert.equal(await tooltip.innerText(),'Filtrar por esta coluna');
+    assert.equal(await page.getByRole('menu').count(),0);
+    assert.equal(await page.locator('#filters-dialog').isVisible(),false);
+    await ufButton.press('Enter');
     await page.waitForFunction(()=>document.activeElement?.id==='filter-ufs');
+    assert.equal(await tooltip.isVisible(),false);
     await page.locator('#filter-suggestions-ufs .suggestion[data-value="DF"]').click();
     let applied=waitQuery(query=>query.document_type===type && query.pncp_filters.ufs?.[0]==='DF');
     await page.locator('#apply-filters').click();await applied;
@@ -88,7 +95,7 @@ try {
   }
   await page.locator('#document-type').selectOption('edital');
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-  check('Filtrar por esta coluna direciona ao campo e aplica opções e intervalos nos três tipos, por clique e teclado');
+  check('Ícone filtra diretamente com tooltip nos três tipos; publicação conserva menu de filtros e ordenação');
   await page.locator('#filters-button').click();
   const closedSuggestions=[],observeClosed=message=>{if(message.method==='suggest')closedSuggestions.push(message.payload);};page.on('service',observeClosed);
   const unchangedQuery=page.url();

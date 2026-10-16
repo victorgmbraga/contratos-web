@@ -3,6 +3,8 @@ export function paginationPages(page, lastPage) {
   return Array.from({length:count}, (_, index) => first + index);
 }
 
+let tableSerial = 0;
+
 export function createResultsTable({container, columns = [], renderCell, footerContent, placeholder,
   paginationIcons = {}, menuIcon = '', onPageChange, onOpenDocument, onColumnAction}) {
   const document = container.ownerDocument, window = document.defaultView;
@@ -23,12 +25,25 @@ export function createResultsTable({container, columns = [], renderCell, footerC
   const empty = node('div','results-placeholder'), emptyText = placeholder || node('div',null,'Nenhum registro encontrado.');
   empty.append(emptyText); scroll.append(table, empty);
   const footer = node('div','results-footer'), footerInner = node('div','results-footer-contents');
+  const filterTooltip = node('div','tooltip results-filter-tooltip','Filtrar por esta coluna');
+  filterTooltip.id = `results-filter-tooltip-${++tableSerial}`;
+  filterTooltip.setAttribute('role','tooltip'); filterTooltip.hidden = true; document.body.append(filterTooltip);
   const counter = node('div','results-page-counter'), paginator = node('nav','results-paginator');
   paginator.setAttribute('aria-label','Paginação dos resultados');
   if (footerContent) counter.append(footerContent);
   footerInner.append(counter, paginator); footer.append(footerInner);
   container.classList.add('results-table'); container.replaceChildren(scroll, footer);
 
+  function hideFilterTooltip() { filterTooltip.hidden = true; }
+  function showFilterTooltip(button) {
+    if (busy || destroyed || menu) return;
+    document.querySelectorAll('[role="tooltip"]').forEach(tooltip=>{tooltip.hidden = true;});
+    filterTooltip.hidden = false;
+    const anchor = button.getBoundingClientRect(), box = filterTooltip.getBoundingClientRect(), gap = 8;
+    const above = anchor.top - box.height - gap;
+    filterTooltip.style.left = `${Math.max(gap,Math.min(anchor.left + (anchor.width - box.width) / 2,window.innerWidth - box.width - gap))}px`;
+    filterTooltip.style.top = `${Math.max(gap,above >= gap ? above : Math.min(anchor.bottom + gap,window.innerHeight - box.height - gap))}px`;
+  }
   function closeMenu(restoreFocus = false) {
     if (!menu) return;
     const previous = menu; menu = null;
@@ -121,11 +136,16 @@ export function createResultsTable({container, columns = [], renderCell, footerC
   document.addEventListener('pointercancel',event=>{if(event.pointerId === gesture?.id)finishGesture(true);},{signal});
   document.addEventListener('keydown',event=>{if(event.key === 'Escape' && gesture){event.preventDefault();finishGesture(true);}},{signal});
   window.addEventListener('blur',()=>finishGesture(true),{signal});
-  window.addEventListener('resize',()=>{finishGesture(true);closeMovedMenu();},{signal});
+  window.addEventListener('resize',()=>{finishGesture(true);closeMovedMenu();hideFilterTooltip();},{signal});
   document.addEventListener('pointerdown',event=>{
+    hideFilterTooltip();
     if (menu && !menu.root.contains(event.target) && !menu.button.contains(event.target)) closeMenu();
   },{signal});
-  document.addEventListener('scroll',event=>{if(menu && !menu.root.contains(event.target))closeMovedMenu();},{signal,capture:true});
+  document.addEventListener('scroll',event=>{hideFilterTooltip();if(menu && !menu.root.contains(event.target))closeMovedMenu();},{signal,capture:true});
+  document.addEventListener('keydown',event=>{if(event.key === 'Escape')hideFilterTooltip();},{signal});
+  for (const eventName of ['focusin','pointerover']) document.addEventListener(eventName,event=>{
+    if (event.target.closest?.('[aria-describedby]')?.getAttribute('aria-describedby') !== filterTooltip.id) hideFilterTooltip();
+  },{signal});
   const resizeObserver = new window.ResizeObserver(closeMovedMenu); resizeObserver.observe(container);
 
   function renderRows() {
@@ -188,7 +208,7 @@ export function createResultsTable({container, columns = [], renderCell, footerC
   }
   function rebuild() {
     if (destroyed) return;
-    finishGesture(true); closeMenu();
+    finishGesture(true); closeMenu(); hideFilterTooltip();
     rowViews = []; body.replaceChildren();
     const visible = fields.filter(column=>column.visible), headerRow = node('tr');
     colgroup.replaceChildren();
@@ -209,8 +229,18 @@ export function createResultsTable({container, columns = [], renderCell, footerC
       title.append(label);
       if (column.filterable) {
         const button = node('button','results-header-menu'); button.type = 'button'; button.innerHTML = menuIcon;
-        button.setAttribute('aria-label',`Filtrar ${column.title}`); button.setAttribute('aria-haspopup','menu'); button.setAttribute('aria-expanded','false');
-        button.addEventListener('click',()=>openMenu(column,button)); title.append(button);
+        button.setAttribute('aria-label',`Filtrar ${column.title}`);
+        if (column.native_order) {
+          button.setAttribute('aria-haspopup','menu'); button.setAttribute('aria-expanded','false');
+          button.addEventListener('click',()=>{hideFilterTooltip();openMenu(column,button);});
+        } else {
+          button.setAttribute('aria-describedby',filterTooltip.id);
+          button.addEventListener('mouseenter',()=>showFilterTooltip(button));
+          button.addEventListener('focus',()=>showFilterTooltip(button));
+          button.addEventListener('mouseleave',hideFilterTooltip); button.addEventListener('blur',hideFilterTooltip);
+          button.addEventListener('click',()=>{hideFilterTooltip();if(!busy && !destroyed)onColumnAction?.(column.field,'filter');});
+        }
+        title.append(button);
       }
       content.append(title); th.append(content);
       const handle = node('span','results-col-resize'); handle.tabIndex = 0;
@@ -243,13 +273,14 @@ export function createResultsTable({container, columns = [], renderCell, footerC
     setStatus(status) {
       if (destroyed) return;
       busy = status === 'loading'; container.setAttribute('aria-busy',String(busy)); container.inert = busy;
-      if (busy) { finishGesture(true); closeMenu(); } renderPagination();
+      if (busy) { finishGesture(true); closeMenu(); hideFilterTooltip(); } renderPagination();
     },
     clear() { rows = []; page = 1; lastPage = 1; renderRows(); renderPagination(); },
     getColumns() { return fields.map(column=>({...column})); },
     destroy() {
       if (destroyed) return;
       finishGesture(true); closeMenu(); destroyed = true; lifetime.abort(); resizeObserver.disconnect();
+      filterTooltip.remove();
       if (footerContent && originalFooterParent?.isConnected) originalFooterParent.append(footerContent);
       container.replaceChildren(); container.classList.remove('results-table'); container.inert = false;
       fields = []; rows = []; rowViews = [];

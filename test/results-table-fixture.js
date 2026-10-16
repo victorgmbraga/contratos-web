@@ -1,6 +1,6 @@
 import {createResultsTable} from '../public/results-table.js';
 const rows=Array.from({length:100},(_,index)=>({titulo:`Documento ${index+1}`,objeto:'Objeto longo '.repeat(20),orgao:'<img src=x onerror="window.injected=true">'}));
-const columns=[{field:'titulo',title:'Título',width:260},{field:'objeto',title:'Objeto',width:280},{field:'orgao',title:'Órgão',width:260,filterable:true,native_order:{asc:'orgao',desc:'-orgao'}}];
+const columns=[{field:'titulo',title:'Título',width:260},{field:'objeto',title:'Objeto',width:280,filterable:true},{field:'orgao',title:'Órgão',width:260,filterable:true,native_order:{asc:'orgao',desc:'-orgao'}}];
 const calls={pages:[],opened:[],versions:[],actions:[]};
 const instance=createResultsTable({container:document.getElementById('results-table'),columns,footerContent:document.getElementById('counter'),
   menuIcon:'<svg class="header-filter-icon" aria-hidden="true"></svg>',

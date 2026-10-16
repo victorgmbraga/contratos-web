@@ -34,6 +34,19 @@ try {
   await page.getByRole('button',{name:'Filtrar Órgão',exact:true}).click();await page.keyboard.press('End');
   assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Ordenar decrescente');
   await page.keyboard.press('Escape');assert.equal(await page.getByRole('menu').count(),0);
+  const filterButton=page.getByRole('button',{name:'Filtrar Objeto',exact:true});
+  assert.equal(await filterButton.getAttribute('aria-haspopup'),null);assert.equal(await filterButton.getAttribute('title'),null);
+  const tooltip=page.locator('#'+await filterButton.getAttribute('aria-describedby'));
+  await filterButton.hover();await tooltip.waitFor({state:'visible'});
+  assert.equal(await tooltip.innerText(),'Filtrar por esta coluna');assert.equal(await page.getByRole('menu').count(),0);
+  assert.deepEqual(await tooltip.evaluate(node=>{const style=getComputedStyle(node);return {background:style.backgroundColor,color:style.color,border:style.borderColor};}),{background:'rgb(255, 255, 255)',color:'rgb(19, 61, 104)',border:'rgb(220, 228, 237)'});
+  await filterButton.click();assert.equal(await tooltip.isVisible(),false);
+  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.actions),[['orgao','asc'],['objeto','filter']]);
+  await page.getByRole('button',{name:'Mover coluna Título',exact:true}).focus();
+  await filterButton.focus();await tooltip.waitFor({state:'visible'});
+  await filterButton.press('Escape');assert.equal(await tooltip.isVisible(),false);
+  await filterButton.press('Enter');
+  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.actions),[['orgao','asc'],['objeto','filter'],['objeto','filter']]);
   const handle=page.getByRole('separator',{name:'Largura da coluna Título'});
   await handle.focus();await handle.press('ArrowRight');assert.equal(await handle.getAttribute('aria-valuenow'),'270');
   await handle.press('Home');assert.equal(await handle.getAttribute('aria-valuenow'),'85');
@@ -60,6 +73,7 @@ try {
   assert.equal(await page.locator('.results-row').count(),0);
   await page.evaluate(()=>tableFixture.instance.clear());assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'1');
   await page.evaluate(()=>tableFixture.instance.destroy());assert.equal(await page.locator('#results-table>*').count(),0);
+  assert.equal(await page.locator('.results-filter-tooltip').count(),0);
   assert.deepEqual(errors,[]);
   console.log('PASS Tabela própria: 100 linhas, números de página, menus, teclado, resize, arraste, visibilidade, rolagem, estados e destruição');
 } finally {await browser.close();await app.close();}
