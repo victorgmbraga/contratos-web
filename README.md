@@ -96,5 +96,6 @@ O [workflow do GitHub Pages](.github/workflows/static-pages.yml) executa testes,
 - [Serviço do navegador, filtros e consultas ao PNCP](docs/consultas-pncp.md)
 - [Testes e validação](docs/validacao.md)
 - [Hospedagem estática](docs/hospedagem-estatica.md)
+- [Plano de substituição do Tabulator e do lossless-json](docs/plano-substituicao-dependencias.md)
 
 As licenças das dependências e dos ícones estão em [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
