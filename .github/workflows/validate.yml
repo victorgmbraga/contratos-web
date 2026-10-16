@@ -1,0 +1,30 @@
+name: Validar aplicação estática
+on:
+  push:
+    branches:
+      - refactor/substituir-tabulator-lossless-json
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium firefox
+      - run: npm run test:browser
+      - run: npm run test:browser
+        env:
+          COMPRAS_QA_BROWSER: firefox
