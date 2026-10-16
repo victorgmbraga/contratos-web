@@ -6,6 +6,8 @@ Pesquisa de editais e avisos de contratações, atas de registro de preços e co
 
 A aplicação executa no navegador. Consultas, validação de filtros e geração de CSV usam um Web Worker; a hospedagem serve arquivos estáticos. O navegador precisa de acesso à internet e de respostas do PNCP com CORS válido.
 
+A tabela e a leitura de JSON com precisão numérica são módulos do próprio projeto. Não há dependências de produção; Vite e Playwright são usados no desenvolvimento, no build e nos testes.
+
 ## Usar a aplicação
 
 1. Escolha **Editais e Avisos de Contratações**, **Atas de Registro de Preços** ou **Contratos**. Digite a busca e use o botão com ícone de lupa. Sem critérios na URL, a aplicação pesquisa contratações sem filtros.
@@ -16,6 +18,8 @@ A aplicação executa no navegador. Consultas, validação de filtros e geraçã
 6. Use **Exportar CSV** para coletar todos os documentos dos últimos critérios concluídos, desde a primeira página. O arquivo inclui todas as colunas do tipo documental. A coleta mostra progresso e pode ser interrompida pelo X em um círculo (**Cancelar CSV**).
 
 O ícone do GitHub, ao final dos controles do cabeçalho, abre o repositório em nova aba. Em telas pequenas, acompanha a rolagem horizontal com os demais botões.
+
+As colunas podem ser redimensionadas pela borda direita ou movimentadas pelo título. Pelo teclado, foque o título e use **Alt + ←/→** para mover; no controle de largura, use **←/→** ou **Home** para a largura mínima. O título de cada registro também permite abrir os detalhes pelo teclado.
 
 ### Detalhes dos documentos
 
@@ -96,6 +100,5 @@ O [workflow do GitHub Pages](.github/workflows/static-pages.yml) executa testes,
 - [Serviço do navegador, filtros e consultas ao PNCP](docs/consultas-pncp.md)
 - [Testes e validação](docs/validacao.md)
 - [Hospedagem estática](docs/hospedagem-estatica.md)
-- [Plano de substituição do Tabulator e do lossless-json](docs/plano-substituicao-dependencias.md)
 
 As licenças das dependências e dos ícones estão em [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
