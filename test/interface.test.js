@@ -434,6 +434,21 @@ test('TABLE-FOOTER-02: intervalo usa os dados da página curta e apresenta zero 
   assert.equal(ui.nodes.get('window-warning').hidden,true);
 });
 
+test('TABLE-FOOTER-03: trocar tipo e navegar no histórico reexibe rodapé, inclusive sem resultados',async()=>{
+  for(const empty of [false,true]) {
+    const source=service([]),ui=await interfaceFixture(empty?{queryHandler:input=>source.service.execute(input)}:{});
+    for(const [type,total,label] of [['ata',24,'atas'],['contrato',32,'contratos'],['edital',64,'contratações']]) {
+      ui.nodes.get('document-type').value=type;await ui.nodes.get('document-type').fire('change');
+      assert.equal(ui.nodes.get('result-title').textContent,`${empty?0:total} ${label}`);
+      assert.equal(ui.nodes.get('result-info').hidden,false,`${type}, empty=${empty}`);
+      assert.equal(ui.nodes.get('result-range').hidden,false);
+      assert.match(ui.nodes.get('result-meta').textContent,/consulta às.*chamada\(s\)/);
+    }
+    await ui.browser.back();
+    assert.equal(ui.state().document_type,'contrato');assert.equal(ui.nodes.get('result-info').hidden,false);
+  }
+});
+
 test('TABLE-LOADER-01: consulta, atualização e paginação mostram loader; sucesso, falha e cancelamento o removem',async()=>{
   const source=service(Array.from({length:164},(_,i)=>document(i+1))),waiting=[];
   const ui=await interfaceFixture({deferTableReady:true,queryHandler:(input,{signal})=>new Promise((resolve,reject)=>{

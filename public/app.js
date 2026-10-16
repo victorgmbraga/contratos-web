@@ -194,6 +194,7 @@ function columnAction(field,action) {
 }
 function renderResult(result,query) {
   state.lastQuery=clone(query);state.lastResult=result;
+  $('result-info').hidden=false;
   state.placeholder.textContent=result.data.length?'Informe uma pesquisa e consulte os documentos do PNCP.':`Nenhum registro encontrado em ${documentName(query.document_type).label}.`;
   const first=result.data.length?(result.page-1)*result.size+1:0;
   const last=result.data.length?first+result.data.length-1:0;

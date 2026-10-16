@@ -25,8 +25,12 @@ try {
     try {
       await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}?demo=1`);
       await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-      await page.locator('#document-type').selectOption('ata'); await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');
-      await page.locator('#document-type').selectOption('contrato'); await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');
+      for(const [type,title] of [['ata','24 atas'],['contrato','32 contratos'],['edital','64 contratações']]) {
+        await page.locator('#document-type').selectOption(type);
+        await page.waitForFunction(title=>document.querySelector('#result-title').textContent===title,title);
+        assert.equal(await page.locator('#result-info').isVisible(),true,`Rodapé de ${type} em ${prefix}`);
+        assert.match(await page.locator('#result-info').innerText(),/Exibindo 1-\d+ de/);
+      }
       assert.deepEqual(api,[]); assert.deepEqual(errors,[]);
       console.log('PASS Artefato de produção, assets e Worker em '+prefix);
       await assertBrowserLayout(browser, `http://127.0.0.1:${app.server.address().port}${prefix}?demo=1`);
