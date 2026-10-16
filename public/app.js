@@ -357,7 +357,7 @@ async function openFilters(column=null) {
   openDialog('filters-dialog');
   const controller=new AbortController();state.domainAbort=controller;
   const base=getDomains(controller.signal);base.catch(()=>{});
-  const loads=[];
+  const loads=[],target=column?.domain || column?.native_range?.[0];
   for(const groupName of ['Contratação','Item','Resultado do item','Fornecedor','Contrato']) {
     const caps=state.schema.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.group===groupName && c.documents.includes(state.draft.document_type));
     if(!caps.length)continue;
@@ -367,13 +367,19 @@ async function openFilters(column=null) {
     const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);
     for(const cap of caps) {
       const editor=createFilterEditor(cap);filterFields.set(cap.name,editor);grid.append(editor.area);
-      if(cap.domain)loads.push(loadFilterOptions(editor,controller.signal,cap.domain_source==='search' && !(cap.name==='amparos_legais' && state.draft.pncp_filters.normativos_base?.length)?base:undefined));
+      if(cap.domain)loads.push(loadFilterOptions(editor,controller.signal,cap.domain_source==='search' && !(cap.name==='amparos_legais' && state.draft.pncp_filters.normativos_base?.length)?base:undefined).then(()=>{
+        if(cap.name===target && currentEditor(editor) && !editor.input.disabled && document.activeElement===editor.area)editor.input.focus({preventScroll:true});
+      }));
     }
   }
   $('filters-dialog').querySelector('.filters-body')?.scrollTo(0,0);
+  const editor=filterFields.get(target);
+  if(editor && currentEditor(editor)) {
+    editor.area.scrollIntoView({block:'center'});
+    if(editor.input.disabled){editor.area.tabIndex=-1;editor.area.focus({preventScroll:true});}
+    else editor.input.focus({preventScroll:true});
+  }
   await Promise.all(loads);
-  const target=column?.domain || column?.native_range?.[0],editor=filterFields.get(target);
-  if(editor && currentEditor(editor)){editor.input.focus();editor.area.scrollIntoView({block:'center'});}
 }
 async function getDomains(signal,field=null) {
   return filterOptionsCache.get({type:state.draft?.document_type || state.query.document_type,...(field==='amparos_legais'?{normatives:state.draft?.pncp_filters.normativos_base}:{}),field},{signal});

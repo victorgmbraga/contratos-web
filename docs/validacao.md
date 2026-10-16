@@ -18,6 +18,7 @@ O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 - URL compartilhável da busca e dos detalhes, restauração dos controles, página, documento e aba, Voltar/Avançar e descarte de respostas atrasadas. Editais consultam a API de consulta, inclusive quando a rota anterior retorna HTTP 301 sem `Location`.
 - Pré-carga das opções, validade de quatro horas, compactação, armazenamento indisponível, deduplicação e amparos por normativo.
 - Modal com todos os filtros compatíveis, edição sem confirmação intermediária, campos sem restrição, cancelamento do rascunho, sugestões independentes e rolagem com ações visíveis.
+- Ação “Filtrar por esta coluna” nos três tipos, com opções e intervalos, direcionamento independente de listas lentas e preservação do foco escolhido pelo usuário.
 - Seleção múltipla por campos de busca, pesquisa local sem acentos, marcação e remoção, teclado e menus suspensos que acompanham a rolagem sem alterar a altura dos grupos.
 - Parser exato com corpus independente de tokens/erros, números extensos, zeros finais, notação científica, Unicode, chaves repetidas/especiais e estruturas profundas. As fixtures usam JSON textual para não arredondar os dados antes do teste.
 - Paginação da tabela e preservação das linhas e da página confirmadas quando outra consulta falha.

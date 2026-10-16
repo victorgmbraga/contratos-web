@@ -100,6 +100,8 @@ async function interfaceFixture(options={}) {
   if(!options.deferTableReady)await startTable();
   const state=()=>structuredClone(uiCore.state.query);
   const openDocument=doc=>uiCore.state.table.options.onOpenDocument(doc);
+  const columnAction=(field,action)=>uiCore.state.table.options.onColumnAction(field,action);
+  const focusedField=()=>dom.activeElement?.id;
   const tableColumns=()=>uiCore.state.table.getColumns();
   const request=params=>uiCore.loadResultsPage(params.page);
   const footer=()=>uiCore.state.table.options.footerContent;
@@ -124,7 +126,7 @@ async function interfaceFixture(options={}) {
     }
   };
   const renderedPage=()=>({page:uiCore.state.table.page,ids:uiCore.state.table.rows.map(row=>row.id)});
-  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,tableColumns,request,footer,startTable,renderedPage,optionsReady:uiCore.state.optionsReady,browser};
+  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,footer,startTable,renderedPage,optionsReady:uiCore.state.optionsReady,browser};
 }
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
@@ -243,6 +245,65 @@ test('HEADER-UI-03: botão de menu do cabeçalho aparece somente em colunas filt
   const columns=Object.fromEntries(ui.tableColumns().map(column=>[column.field,column]));
   for(const field of ['titulo','objeto_compra','data_atualizacao_pncp','orgao_cnpj','tem_resultado'])assert.equal(columns[field].filterable,false,field);
   for(const field of ['orgao_nome','uf','data_publicacao_pncp','valor_total_estimado'])assert.equal(columns[field].filterable,true,field);
+});
+
+test('HEADER-UI-04: filtrar por coluna abre o campo correspondente nos três tipos sem pesquisar antes de aplicar',async()=>{
+  const ui=await interfaceFixture();
+  for(const type of ['edital','ata','contrato']) {
+    if(type!=='edital'){ui.nodes.get('document-type').value=type;await ui.nodes.get('document-type').fire('change');}
+    const before=ui.requests.length,href=ui.browser.href();
+    for(const column of ui.tableColumns().filter(column=>column.filterable)) {
+      await ui.columnAction(column.field,'filter');
+      assert.equal(ui.nodes.get('filters-dialog').open,true);
+      assert.equal(ui.focusedField(),`filter-${column.domain || column.native_range[0]}`,`${type}: ${column.field}`);
+      assert.equal(ui.requests.length,before);assert.equal(ui.browser.href(),href);
+      ui.nodes.get('filters-dialog').close();
+    }
+  }
+});
+
+test('HEADER-UI-05: intervalo da coluna recebe foco sem aguardar listas de opções',async()=>{
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  const ui=await interfaceFixture({waitOptions:false,domainHandler:async(payload,options,core)=>{
+    await gate;return core.domains(payload.type,payload.normatives,options.signal,null,payload.field);
+  }});
+  const opening=ui.columnAction('data_publicacao_pncp','filter');
+  try {
+    await settle();
+    assert.equal(ui.focusedField(),'filter-data_publicacao_inicio');
+    assert(!ui.field('data_publicacao_inicio').disabled);
+    assert.equal(ui.field('ufs').disabled,true);
+  } finally {release();await opening;await ui.optionsReady;}
+});
+
+test('HEADER-UI-06: campo da coluna é focado quando suas opções chegam, sem aguardar outros catálogos',async()=>{
+  let release,blocked;const gate=new Promise(resolve=>{release=resolve;}),loading=new Promise(resolve=>{blocked=resolve;});
+  const ui=await interfaceFixture({waitOptions:false,domainHandler:async(payload,options,core)=>{
+    if(payload.field!==null){blocked();await gate;}
+    return core.domains(payload.type,payload.normatives,options.signal,null,payload.field);
+  }});
+  await loading;
+  const opening=ui.columnAction('orgao_nome','filter');
+  try {
+    await settle();
+    assert.equal(ui.field('orgaos').disabled,false);
+    assert.equal(ui.focusedField(),'filter-orgaos');
+    assert(ui.fieldNames().some(name=>ui.field(name).disabled));
+  } finally {release();await opening;await ui.optionsReady;}
+});
+
+test('HEADER-UI-07: opções atrasadas não roubam o foco de outro campo',async()=>{
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  const ui=await interfaceFixture({waitOptions:false,domainHandler:async(payload,options,core)=>{
+    await gate;return core.domains(payload.type,payload.normatives,options.signal,null,payload.field);
+  }});
+  const opening=ui.columnAction('orgao_nome','filter');
+  try {
+    await settle();assert.equal(ui.focusedField(),'filter-field-orgaos');
+    ui.field('data_publicacao_inicio').focus();
+    release();await opening;await ui.optionsReady;
+    assert.equal(ui.focusedField(),'filter-data_publicacao_inicio');
+  } finally {release();await opening;await ui.optionsReady;}
 });
 
 test('ORDER-UI-01: seletor acompanha o tipo, preserva a ordenação do link e restaura o padrão ao trocar de documento',async()=>{

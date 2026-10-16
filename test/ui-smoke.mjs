@@ -64,6 +64,31 @@ try {
   for(const entry of storedOptions){assert.equal(entry.expires_at-entry.fetched_at,FILTER_OPTIONS_TTL);assert(!Object.hasOwn(entry.value,'raw'));}
   for(let i=0;i<2;i++){await page.locator('#filters-button').click();await filter('ufs').waitFor();await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();}
   assert.equal(initialDomains.length,8);check('Inicialização pré-carrega e persiste as opções dos três tipos; reabrir filtros não consulta a fonte');
+  for(const [type,title] of [['edital','64 contratações'],['ata','24 atas'],['contrato','32 contratos']]) {
+    await page.locator('#document-type').selectOption(type);
+    await page.waitForFunction(expected=>document.querySelector('#result-title').textContent===expected,title);
+    await page.getByRole('button',{name:'Filtrar UF',exact:true}).click();
+    await page.getByRole('menuitem',{name:'Filtrar por esta coluna',exact:true}).press('Enter');
+    await page.waitForFunction(()=>document.activeElement?.id==='filter-ufs');
+    await page.locator('#filter-suggestions-ufs .suggestion[data-value="DF"]').click();
+    let applied=waitQuery(query=>query.document_type===type && query.pncp_filters.ufs?.[0]==='DF');
+    await page.locator('#apply-filters').click();await applied;
+    await page.waitForFunction(()=>!document.querySelector('#export-button').disabled);
+    assert.equal(new URL(page.url()).searchParams.get('ufs'),'DF');
+    await page.getByRole('button',{name:'Filtrar Publicação',exact:true}).click();
+    await page.getByRole('menuitem',{name:'Filtrar por esta coluna',exact:true}).click();
+    await page.waitForFunction(()=>document.activeElement?.id==='filter-data_publicacao_inicio');
+    await filter('data_publicacao_inicio').fill('2026-01-01');
+    applied=waitQuery(query=>query.document_type===type && query.pncp_filters.data_publicacao_inicio==='2026-01-01' && query.pncp_filters.ufs?.[0]==='DF');
+    await page.locator('#apply-filters').click();await applied;
+    await page.waitForFunction(()=>!document.querySelector('#export-button').disabled);
+    assert.equal(new URL(page.url()).searchParams.get('data_publicacao_inicio'),'2026-01-01');
+    await page.locator('#clear-button').click();
+    await page.waitForFunction(expected=>document.querySelector('#result-title').textContent===expected,title);
+  }
+  await page.locator('#document-type').selectOption('edital');
+  await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
+  check('Filtrar por esta coluna direciona ao campo e aplica opções e intervalos nos três tipos, por clique e teclado');
   await page.locator('#filters-button').click();
   const closedSuggestions=[],observeClosed=message=>{if(message.method==='suggest')closedSuggestions.push(message.payload);};page.on('service',observeClosed);
   const unchangedQuery=page.url();
