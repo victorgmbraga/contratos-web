@@ -4,10 +4,10 @@ const baseline=JSON.parse(await readFile(new URL('./layout-baseline.json',import
 const normalizeFonts=styles=>Object.fromEntries(Object.entries(styles).map(([selector,style])=>[selector,{...style,fontFamily:style.fontFamily.replace(/["']/g,'')}]));
 
 async function snapshot(page) {
-  await page.locator('.tabulator-row').first().waitFor();
+  await page.locator('.results-row').first().waitFor();
   return page.evaluate(async () => {
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const selectors = ['#app-header', '.search-field', '#search-button', '#results-table', '.tabulator-header', '.tabulator-col', '.tabulator-col-content', '.tabulator-col-title', '.tabulator-row', '.tabulator-row-even', '.tabulator-cell', '.tabulator-footer', '.tabulator-footer-contents', '.tabulator-page-counter', '.tabulator-paginator', '.tabulator-page', '.tabulator-page.active'];
+    const selectors = ['#app-header', '.search-field', '#search-button', '#results-table', '.results-header', '.results-col', '.results-col-content', '.results-col-title', '.results-row', '.results-row-even', '.results-cell', '.results-footer', '.results-footer-contents', '.results-page-counter', '.results-paginator', '.results-page', '.results-page.active'];
     const properties = ['backgroundColor', 'color', 'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'borderTopColor', 'borderTopWidth', 'borderBottomColor', 'borderBottomWidth', 'borderRightColor', 'borderRightWidth', 'borderRadius', 'display', 'gap', 'minHeight'];
     return Object.fromEntries(selectors.map(selector => {
       const node = document.querySelector(selector), style = getComputedStyle(node);
@@ -31,7 +31,11 @@ export async function assertBrowserLayout(browser, url) {
         await page.setViewportSize(viewport);
         const expected=Object.fromEntries(Object.entries(baseline.styles).map(([selector,style])=>[selector,{...style,...baseline.viewport_overrides[viewport.width][selector]}]));
         // Browsers serialize quoted family names differently in computed CSS.
-        assert.deepEqual(normalizeFonts(await snapshot(page)), normalizeFonts(expected), `Layout ${type} em ${viewport.width}px difere da referência visual`);
+        const actual=normalizeFonts(await snapshot(page)),reference=normalizeFonts(expected),differences=[];
+        for(const [selector,properties] of Object.entries(reference))for(const [property,value] of Object.entries(properties)) {
+          if(actual[selector][property]!==value)differences.push({selector,property,expected:value,actual:actual[selector][property]});
+        }
+        assert.deepEqual(differences,[], `Layout ${type} em ${viewport.width}px difere da referência visual`);
       }
     }
     console.log('PASS Layout estático preserva cores, espaçamento e tipografia: três tipos e três tamanhos de tela');

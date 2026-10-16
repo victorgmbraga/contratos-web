@@ -4,7 +4,7 @@ O Contratos Web é uma aplicação estática. Um Web Worker por aba valida entra
 
 ```mermaid
 flowchart LR
-    Static[Hospedagem estática HTTPS] --> UI[Interface e Tabulator]
+    Static[Hospedagem estática HTTPS] --> UI[Interface e tabela semântica]
     UI <-->|Mensagens por operação| Worker[Worker por aba]
     Worker --> Core[Núcleo de consultas e validações]
     Core --> Native[fetch do navegador]
@@ -23,6 +23,7 @@ flowchart LR
 | [`src/validation.js`](../src/validation.js) | Consultas, filtros, domínios, sugestões, identidades e paginação; valida antes da rede no Worker |
 | [`src/schema.js`](../src/schema.js), [`src/pncp-arguments.json`](../src/pncp-arguments.json) e [`src/filter-domains.js`](../src/filter-domains.js) | Colunas, 80 filtros, compatibilidade documental, domínios e apresentação |
 | [`src/pncp-core.js`](../src/pncp-core.js) | Serialização, fila, ritmo, tentativas, leitura incremental, normalização e caminhos PNCP |
+| [`src/exact-json.js`](../src/exact-json.js) | Parser JSON com pilha explícita, validação da gramática e representação exata dos números |
 | [`src/query-core.js`](../src/query-core.js) | Pesquisa, validação de domínios, metadados, detalhes e coleta por páginas |
 | [`src/csv.js`](../src/csv.js) | Codificação UTF-8 com BOM, CRLF, escape e orçamento por byte |
 | [`src/adapter.js`](../src/adapter.js), [`src/related.js`](../src/related.js), [`src/document-details.js`](../src/document-details.js) | Projeções, precisão, identidades e links seguros para os três tipos e registros filhos |
@@ -32,13 +33,14 @@ flowchart LR
 | [`src/browser/filter-options-cache.js`](../src/browser/filter-options-cache.js) | Pré-carregamento dos domínios dos três tipos, cache local com validade de 4 horas, deduplicação e opções dependentes de normativos |
 | [`src/browser/query-url.js`](../src/browser/query-url.js) | Leitura e escrita de parâmetros GET, conversão de filtros tipados e validação compartilhada de links de pesquisa |
 | [`src/browser/detail-url.js`](../src/browser/detail-url.js) | Identidade documental e aba nos parâmetros GET, com validação por tipo de documento |
-| [`public/app.js`](../public/app.js) | Interface inicializada com serviço injetado; DOM, Tabulator, histórico da URL, painéis e download |
-| [`public/browser-entry.js`](../public/browser-entry.js) | Bibliotecas locais, configuração pública e inicialização da distribuição estática |
+| [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, DOM, histórico da URL, painéis e download |
+| [`public/results-table.js`](../public/results-table.js), [`results-table.css`](../public/results-table.css) | Tabela semântica, paginação, menus, visibilidade, ordem e largura de colunas |
+| [`public/browser-entry.js`](../public/browser-entry.js) | Configuração pública e inicialização da distribuição estática |
 | [`src/demo.js`](../src/demo.js) | Fonte fictícia escolhida explicitamente |
 | [`vite.config.js`](../vite.config.js) | Aplicação e diagnóstico, Worker ES module, assets relativos, CSP e saída `dist-browser/` |
 | [`test/`](../test/) | Núcleo, DOM, runtime/RPC, layout e build estático no navegador |
 
-Vite e Playwright são ferramentas de desenvolvimento. Tabulator e `lossless-json` são incluídos nos bundles; não há CDN, imports de pacote pendentes ou polyfills de Node.js em produção estática.
+Vite e Playwright são ferramentas de desenvolvimento. A aplicação não tem dependências de produção, CDN, imports de pacote pendentes ou polyfills de Node.js na distribuição estática.
 
 ## Serviço e fluxo de dados
 
@@ -46,7 +48,9 @@ A interface usa `service.call(method, payload, {signal, onProgress})`. A ponte d
 
 Os métodos são `schema`, `execute`, `domains`, `suggest`, `details`, `related`, `documentDetails`, `documentRelated`, `contractChild` e `export`. Métodos e campos desconhecidos são rejeitados. Se o Worker falhar, todas as promessas pendentes são rejeitadas; a próxima chamada inicializa um novo Worker. O descarte da página encerra o Worker. Fechar um painel cancela suas operações sem encerrar as demais.
 
-A inicialização obtém o esquema e configura colunas e filtros. O Worker valida os critérios e domínios fechados antes de consultar a fonte. Cada troca de página faz nova chamada. A fila compartilha concorrência e ritmo entre pesquisa, domínios, painéis e CSV. O leitor contabiliza bytes, decodifica o corpo com `TextDecoder` e interpreta JSON com `lossless-json`. A pesquisa confere tipo documental, total e quantidade de registros antes da projeção.
+A inicialização obtém o esquema e configura colunas e filtros. O Worker valida os critérios e domínios fechados antes de consultar a fonte. Cada troca de página faz nova chamada. A fila compartilha concorrência e ritmo entre pesquisa, domínios, painéis e CSV. O leitor contabiliza bytes, decodifica o corpo com `TextDecoder` e interpreta JSON com `parseExactJson`. A pesquisa confere tipo documental, total e quantidade de registros antes da projeção.
+
+O parser preserva o token numérico em `ExactJsonNumber`, sem conversão intermediária para ponto flutuante. Objetos e arrays usam uma pilha explícita; strings têm seus escapes decodificados pelo `JSON.parse` nativo. Chaves repetidas com valores equivalentes são aceitas e conflitos produzem erro. Propriedades como `__proto__` são tratadas como dados. A marca do tipo numérico é interna e não pode ser simulada por um objeto do JSON. `scalarText` e `decimalText` preservam dígitos e casas decimais; `plain` normaliza iterativamente os dados e converte somente inteiros seguros para números. Instâncias internas não atravessam o RPC. Configuração e cache já normalizados continuam usando `JSON.parse`.
 
 Após receber o esquema, a interface inicia em segundo plano os três domínios de busca, os quatro catálogos auxiliares compartilhados e a enumeração de referência. A pré-carga é sequencial e não espera para inicializar a tabela. O painel reutiliza essas listas, deduplicando chamadas pendentes; fechar os filtros cancela a espera daquele leitor, sem interromper o carregamento compartilhado. Sugestões por texto e a conferência de domínios fechados antes da pesquisa/CSV continuam consultando a fonte.
 
@@ -62,7 +66,19 @@ Antes da primeira consulta, a interface lê a URL e configura tipo documental, c
 
 `detalhe` contém tipo, CNPJ, ano e sequencial nativos; atas também incluem o sequencial da compra. `aba` identifica uma seção compatível com esse tipo. A restauração reutiliza uma linha disponível ou cria uma identificação provisória e consulta `documentDetails`, inclusive para editais. Os campos de edital usam `/api/consulta/v1`; atas, contratos e listagens usam `/api/pncp/v1`. O painel e a busca carregam independentemente: o documento não precisa constar nos resultados, e uma falha da busca não impede seus detalhes. Fechar, trocar o documento ou iniciar nova busca cancela as operações do painel; respostas antigas não mudam a seleção atual.
 
-A paginação remota usa `setPage` para abrir diretamente a página do link. O seletor de ordenação usa `orders_by_document` e `order_labels` do esquema; o Worker e a leitura da URL validam a mesma compatibilidade. O seletor e os menus de colunas enviam critérios nativos ao PNCP; `headerSort: false` desabilita a ordenação própria do Tabulator. Novos critérios reiniciam a página. Atualizar consulta a página da última pesquisa concluída; repetir uma falha usa a página que falhou.
+A paginação remota usa `loadResultsPage` para abrir diretamente a página do link. O seletor de ordenação usa `orders_by_document` e `order_labels` do esquema; o Worker e a leitura da URL validam a mesma compatibilidade. O seletor e os menus de colunas enviam critérios nativos ao PNCP, sem ordenação ou filtragem local. Novos critérios reiniciam a página. Atualizar consulta a página da última pesquisa concluída; repetir uma falha usa a página que falhou.
+
+## Tabela de resultados
+
+`createResultsTable` recebe colunas do esquema, o renderizador de células, o conteúdo do rodapé e callbacks de navegação, abertura de documentos e ações de coluna. A aplicação concentra as requisições, os abortos e a confirmação de resultados. `renderPage` aplica somente respostas atuais e concluídas; falhas e cancelamentos conservam linhas, metadados e página confirmados, enquanto a URL e a repetição identificam a consulta que falhou.
+
+O componente usa `table`, `thead`, `tbody` e `colgroup`. Renderiza até 100 linhas da página e somente colunas visíveis, sem virtualização. O cabeçalho permanece fixo na rolagem vertical; rodapé e paginação ficam fora da área rolável. A paginação usa `last_page` do serviço e até quatro páginas numeradas. O total real e o aviso da janela de 10.000 documentos pertencem ao rodapé da aplicação.
+
+Linhas cujos valores visíveis não mudaram são reaproveitadas nas atualizações. A referência ao registro completo é atualizada mesmo nesse caso, para que a abertura de detalhes use os dados mais recentes. Alterações na definição das colunas invalidam essa renderização.
+
+Visibilidade, ordem e larguras são mantidas em memória no tipo documental atual. Ao trocar o tipo, as definições padrão do esquema são reaplicadas. Pointer Events permitem mover e redimensionar colunas; Alt + setas move o título focado, e as setas/Home ajustam o controle de largura, com mínimo de 85 px. Menus têm foco, teclado, fechamento com Escape/clique externo e posição limitada ao viewport. O título do registro tem uma ação focável de detalhes, além do clique na linha. Seleção de texto e controles internos não ativam a linha. Conteúdo do PNCP é montado como texto e nós DOM.
+
+`setStatus` sinaliza carregamento e bloqueia interações; `clear` limpa os registros ao trocar o tipo. `destroy` encerra gestos, menus, listeners e observadores quando a página é descartada. A retomada pelo cache de navegação preserva o componente e o Worker.
 
 ## Painéis dos documentos
 

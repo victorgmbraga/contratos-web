@@ -1,0 +1,260 @@
+export function paginationPages(page, lastPage) {
+  const count = Math.min(4, lastPage), first = Math.max(1, Math.min(page - 1, lastPage - count + 1));
+  return Array.from({length:count}, (_, index) => first + index);
+}
+
+export function createResultsTable({container, columns = [], renderCell, footerContent, placeholder,
+  paginationIcons = {}, menuIcon = '', onPageChange, onOpenDocument, onColumnAction}) {
+  const document = container.ownerDocument, window = document.defaultView;
+  const lifetime = new window.AbortController(), {signal} = lifetime;
+  let fields = [], rows = [], page = 1, lastPage = 1, busy = false, destroyed = false, menu = null, gesture = null, paginationFocus = null;
+  let rowViews = [];
+  const originalFooterParent = footerContent?.parentNode;
+  const node = (tag, className, text) => {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = text;
+    return element;
+  };
+  const scroll = node('div','results-scroll'), table = node('table','results-grid');
+  table.setAttribute('aria-label','Resultados da pesquisa');
+  const colgroup = node('colgroup'), head = node('thead','results-header'), body = node('tbody');
+  table.append(colgroup, head, body);
+  const empty = node('div','results-placeholder'), emptyText = placeholder || node('div',null,'Nenhum registro encontrado.');
+  empty.append(emptyText); scroll.append(table, empty);
+  const footer = node('div','results-footer'), footerInner = node('div','results-footer-contents');
+  const counter = node('div','results-page-counter'), paginator = node('nav','results-paginator');
+  paginator.setAttribute('aria-label','Paginação dos resultados');
+  if (footerContent) counter.append(footerContent);
+  footerInner.append(counter, paginator); footer.append(footerInner);
+  container.classList.add('results-table'); container.replaceChildren(scroll, footer);
+
+  function closeMenu(restoreFocus = false) {
+    if (!menu) return;
+    const previous = menu; menu = null;
+    previous.root.remove(); previous.button.setAttribute('aria-expanded','false');
+    if (restoreFocus && previous.button.isConnected) previous.button.focus({preventScroll:true});
+  }
+  function closeMovedMenu() {
+    if (!menu) return;
+    const anchor = menu.button.getBoundingClientRect();
+    if (!menu.button.isConnected || menu.width !== window.innerWidth || menu.height !== window.innerHeight ||
+      ['left','right','top','bottom'].some(key=>anchor[key] !== menu.anchor[key])) closeMenu();
+  }
+  function openMenu(column, button) {
+    if (busy || destroyed) return;
+    if (menu?.button === button) { closeMenu(true); return; }
+    closeMenu();
+    const root = node('div','results-menu'); root.setAttribute('role','menu'); root.setAttribute('aria-label',`Ações de ${column.title}`);
+    const actions = [{label:'Filtrar por esta coluna',action:'filter'}];
+    if (column.native_order) actions.push({label:'Ordenar crescente',action:'asc'},{label:'Ordenar decrescente',action:'desc'});
+    for (const entry of actions) {
+      const action = node('button','results-menu-item',entry.label); action.type = 'button'; action.setAttribute('role','menuitem');
+      action.addEventListener('click',()=>{ closeMenu(true); onColumnAction?.(column.field,entry.action); }); root.append(action);
+    }
+    document.body.append(root); button.setAttribute('aria-expanded','true');
+    const anchor = button.getBoundingClientRect(), bounds = root.getBoundingClientRect();
+    menu = {root, button, anchor, width:window.innerWidth, height:window.innerHeight};
+    root.style.left = `${Math.max(8,Math.min(anchor.left,window.innerWidth - bounds.width - 8))}px`;
+    root.style.top = `${Math.max(8,anchor.bottom + bounds.height + 8 <= window.innerHeight ? anchor.bottom + 4 : anchor.top - bounds.height - 4)}px`;
+    root.querySelector('button')?.focus();
+    root.addEventListener('keydown',event=>{
+      const buttons = [...root.querySelectorAll('button')], index = buttons.indexOf(document.activeElement);
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeMenu(true); }
+      else if (event.key === 'Tab') closeMenu();
+      else if (['ArrowDown','ArrowUp','Home','End'].includes(event.key)) {
+        event.preventDefault();
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+        buttons[next].focus();
+      }
+    });
+  }
+  function finishGesture(cancel = false) {
+    if (!gesture) return;
+    const previous = gesture; gesture = null;
+    container.classList.remove('results-dragging');
+    head.querySelectorAll('[data-drop-target]').forEach(element=>element.removeAttribute('data-drop-target'));
+    try { previous.element.releasePointerCapture(previous.id); } catch { /* Pointer already released. */ }
+    if (cancel && previous.resize) resizeColumn(previous.field,previous.width);
+    if (!cancel && !previous.resize && previous.moved && previous.target) {
+      moveColumn(previous.field,fields.findIndex(column=>column.field === previous.target));
+    }
+  }
+  function resizeColumn(field, width) {
+    const column = fields.find(column=>column.field === field);
+    if (!column) return;
+    column.width = Math.max(column.minWidth,Math.round(width));
+    const index = fields.filter(column=>column.visible).indexOf(column);
+    if (index < 0) return;
+    colgroup.children[index].style.width = `${column.width}px`;
+    head.querySelectorAll('.results-col-resize')[index].setAttribute('aria-valuenow',String(column.width));
+    table.style.width = `${fields.filter(column=>column.visible).reduce((sum,column)=>sum+column.width,0)}px`;
+  }
+  function moveColumn(field, targetIndex) {
+    const index = fields.findIndex(column=>column.field === field);
+    if (index < 0 || targetIndex < 0 || targetIndex >= fields.length || index === targetIndex) return;
+    const [column] = fields.splice(index,1); fields.splice(targetIndex,0,column);
+    rebuild();
+    [...head.querySelectorAll('.results-col-label')].find(element=>element.dataset.field === field)?.focus({preventScroll:true});
+  }
+  function startGesture(event, column, resize) {
+    if (busy || destroyed || event.button !== 0) return;
+    finishGesture(true); closeMenu();
+    gesture = {id:event.pointerId, field:column.field, element:event.currentTarget, x:event.clientX, width:column.width, resize, moved:false};
+    event.currentTarget.setPointerCapture(event.pointerId);
+    if (resize) event.preventDefault();
+  }
+  document.addEventListener('pointermove',event=>{
+    if (!gesture || event.pointerId !== gesture.id) return;
+    const delta = event.clientX - gesture.x;
+    if (!gesture.moved && Math.abs(delta) < 5) return;
+    gesture.moved = true; container.classList.add('results-dragging');
+    if (gesture.resize) resizeColumn(gesture.field,gesture.width + delta);
+    else {
+      const target = document.elementFromPoint(event.clientX,event.clientY)?.closest('.results-col');
+      head.querySelectorAll('[data-drop-target]').forEach(element=>element.removeAttribute('data-drop-target'));
+      gesture.target = target && head.contains(target) ? target.dataset.field : null;
+      if (gesture.target) target.dataset.dropTarget = 'true';
+    }
+  },{signal});
+  document.addEventListener('pointerup',event=>{if(event.pointerId === gesture?.id)finishGesture();},{signal});
+  document.addEventListener('pointercancel',event=>{if(event.pointerId === gesture?.id)finishGesture(true);},{signal});
+  document.addEventListener('keydown',event=>{if(event.key === 'Escape' && gesture){event.preventDefault();finishGesture(true);}},{signal});
+  window.addEventListener('blur',()=>finishGesture(true),{signal});
+  window.addEventListener('resize',()=>{finishGesture(true);closeMovedMenu();},{signal});
+  document.addEventListener('pointerdown',event=>{
+    if (menu && !menu.root.contains(event.target) && !menu.button.contains(event.target)) closeMenu();
+  },{signal});
+  document.addEventListener('scroll',event=>{if(menu && !menu.root.contains(event.target))closeMovedMenu();},{signal,capture:true});
+  const resizeObserver = new window.ResizeObserver(closeMovedMenu); resizeObserver.observe(container);
+
+  function renderRows() {
+    const visible = fields.filter(column=>column.visible), nextViews = [];
+    for (const [index,row] of (visible.length ? rows : []).entries()) {
+      const previous = rowViews[index];
+      if (previous && visible.every(column=>Object.is(previous.row[column.field],row[column.field]))) {
+        previous.row = row; nextViews.push(previous); continue;
+      }
+      const tr = node('tr',`results-row${index % 2 ? ' results-row-even' : ''}`);
+      const view = {element:tr,row};
+      for (const column of visible) {
+        const td = node('td','results-cell'); td.dataset.field = column.field;
+        const content = renderCell ? renderCell(row[column.field],column) : node('span',null,row[column.field] ?? '—');
+        if (column.field === 'titulo') {
+          const button = node('button','results-open'); button.type = 'button';
+          button.setAttribute('aria-label',`Ver detalhes: ${row[column.field] || 'documento'}`); button.append(content);
+          button.addEventListener('click',()=>onOpenDocument?.(view.row)); td.append(button);
+        } else td.append(content);
+        tr.append(td);
+      }
+      tr.addEventListener('click',event=>{
+        if (busy || event.target.closest('button,a,input,select') || window.getSelection()?.toString()) return;
+        onOpenDocument?.(view.row);
+      });
+      nextViews.push(view);
+    }
+    if (nextViews.length !== rowViews.length || nextViews.some((view,index)=>view !== rowViews[index])) {
+      const fragment = document.createDocumentFragment();
+      for (const view of nextViews) fragment.append(view.element);
+      body.replaceChildren(fragment);
+    }
+    rowViews = nextViews; empty.hidden = rows.length > 0 && visible.length > 0;
+    if (!visible.length && rows.length) { empty.replaceChildren(node('div',null,'Selecione ao menos uma coluna.')); }
+    else empty.replaceChildren(emptyText);
+  }
+  function renderPagination() {
+    const focused = document.activeElement?.closest('.results-page')?.dataset.page;
+    if (focused) paginationFocus = focused;
+    paginator.replaceChildren();
+    const add = (action,label,target,disabled,icon) => {
+      const button = node('button','results-page'); button.type = 'button'; button.dataset.page = String(action);
+      button.title = label; button.setAttribute('aria-label',label); button.disabled = busy || disabled;
+      if (icon) button.innerHTML = icon; else button.textContent = String(action);
+      if (action === page) { button.classList.add('active'); button.setAttribute('aria-current','page'); }
+      button.addEventListener('click',()=>{if (!busy) Promise.resolve(onPageChange?.(target)).catch(()=>{});});
+      return button;
+    };
+    paginator.append(add('first','Primeira página',1,page <= 1,paginationIcons.first),add('prev','Página anterior',page-1,page <= 1,paginationIcons.prev));
+    const numbered = node('span','results-pages');
+    for (const number of paginationPages(page,lastPage)) numbered.append(add(number,`Página ${number}`,number,false));
+    paginator.append(numbered,add('next','Próxima página',page+1,page >= lastPage,paginationIcons.next),add('last','Última página',lastPage,page >= lastPage,paginationIcons.last));
+    if (!busy && paginationFocus) {
+      if (focused || document.activeElement === document.body) {
+        const buttons = [...paginator.querySelectorAll('button')];
+        (buttons.find(button=>button.dataset.page === paginationFocus && !button.disabled) || buttons.find(button=>button.getAttribute('aria-current') === 'page'))?.focus({preventScroll:true});
+      }
+      paginationFocus = null;
+    }
+  }
+  function rebuild() {
+    if (destroyed) return;
+    finishGesture(true); closeMenu();
+    rowViews = []; body.replaceChildren();
+    const visible = fields.filter(column=>column.visible), headerRow = node('tr');
+    colgroup.replaceChildren();
+    for (const column of visible) {
+      const col = node('col'); col.style.width = `${column.width}px`; colgroup.append(col);
+      const th = node('th','results-col'); th.scope = 'col'; th.dataset.field = column.field;
+      const content = node('div','results-col-content'), title = node('div','results-col-title');
+      const label = node('span','results-col-label',column.title); label.tabIndex = 0; label.dataset.field = column.field;
+      label.setAttribute('role','button'); label.setAttribute('aria-label',`Mover coluna ${column.title}`);
+      label.title = `${column.title} · Alt + ←/→ para mover`;
+      label.addEventListener('pointerdown',event=>startGesture(event,column,false));
+      label.addEventListener('keydown',event=>{
+        if (event.altKey && ['ArrowLeft','ArrowRight'].includes(event.key)) {
+          event.preventDefault(); const index = visible.indexOf(column) + (event.key === 'ArrowLeft' ? -1 : 1);
+          if (visible[index]) moveColumn(column.field,fields.indexOf(visible[index]));
+        }
+      });
+      title.append(label);
+      if (column.filterable) {
+        const button = node('button','results-header-menu'); button.type = 'button'; button.innerHTML = menuIcon;
+        button.setAttribute('aria-label',`Filtrar ${column.title}`); button.setAttribute('aria-haspopup','menu'); button.setAttribute('aria-expanded','false');
+        button.addEventListener('click',()=>openMenu(column,button)); title.append(button);
+      }
+      content.append(title); th.append(content);
+      const handle = node('span','results-col-resize'); handle.tabIndex = 0;
+      handle.setAttribute('role','separator'); handle.setAttribute('aria-label',`Largura da coluna ${column.title}`);
+      handle.setAttribute('aria-orientation','vertical'); handle.setAttribute('aria-valuemin',String(column.minWidth)); handle.setAttribute('aria-valuenow',String(column.width));
+      handle.addEventListener('pointerdown',event=>startGesture(event,column,true));
+      handle.addEventListener('keydown',event=>{
+        if (['ArrowLeft','ArrowRight','Home'].includes(event.key)) {
+          event.preventDefault(); resizeColumn(column.field,event.key === 'Home' ? column.minWidth : column.width + (event.key === 'ArrowLeft' ? -10 : 10));
+        }
+      });
+      th.append(handle); headerRow.append(th);
+    }
+    head.replaceChildren(headerRow); table.style.width = `${visible.reduce((sum,column)=>sum+column.width,0)}px`;
+    table.hidden = visible.length === 0; renderRows();
+  }
+  const api = {
+    setColumns(columns) {
+      fields = columns.map(column=>({...column,visible:column.visible !== false,minWidth:Math.max(85,column.minWidth || 85),width:Math.max(85,column.minWidth || 85,column.width || 180)}));
+      rebuild();
+    },
+    setColumnVisibility(field, visible) {
+      const column = fields.find(column=>column.field === field); if (column) { column.visible = !!visible; rebuild(); }
+    },
+    renderPage({rows:nextRows, page:nextPage, lastPage:nextLastPage}) {
+      if (destroyed) return;
+      rows = nextRows; page = nextPage; lastPage = nextLastPage;
+      renderRows(); renderPagination(); scroll.scrollTop = 0;
+    },
+    setStatus(status) {
+      if (destroyed) return;
+      busy = status === 'loading'; container.setAttribute('aria-busy',String(busy)); container.inert = busy;
+      if (busy) { finishGesture(true); closeMenu(); } renderPagination();
+    },
+    clear() { rows = []; page = 1; lastPage = 1; renderRows(); renderPagination(); },
+    getColumns() { return fields.map(column=>({...column})); },
+    destroy() {
+      if (destroyed) return;
+      finishGesture(true); closeMenu(); destroyed = true; lifetime.abort(); resizeObserver.disconnect();
+      if (footerContent && originalFooterParent?.isConnected) originalFooterParent.append(footerContent);
+      container.replaceChildren(); container.classList.remove('results-table'); container.inert = false;
+      fields = []; rows = []; rowViews = [];
+    },
+  };
+  api.setColumns(columns); api.setStatus('idle');
+  return api;
+}

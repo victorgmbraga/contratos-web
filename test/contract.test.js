@@ -4,7 +4,7 @@ import { schema } from '../src/schema.js';
 import { validateQuery } from '../src/validation.js';
 import { serializeSearch, operation } from '../src/pncp-core.js';
 import { project, safeLink } from '../src/adapter.js';
-import { parse } from 'lossless-json';
+import { parseExactJson as parse } from '../src/exact-json.js';
 import { config,document,service,query,json } from './helpers.js';
 
 test('LIVE-01/OLD-01: esquema contém apenas recursos de consulta PNCP',()=>{

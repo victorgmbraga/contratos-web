@@ -19,6 +19,8 @@ O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 - Pré-carga das opções, validade de quatro horas, compactação, armazenamento indisponível, deduplicação e amparos por normativo.
 - Modal com todos os filtros compatíveis, edição sem confirmação intermediária, campos sem restrição, cancelamento do rascunho, sugestões independentes e rolagem com ações visíveis.
 - Seleção múltipla por campos de busca, pesquisa local sem acentos, marcação e remoção, teclado e menus suspensos que acompanham a rolagem sem alterar a altura dos grupos.
+- Parser exato com corpus independente de tokens/erros, números extensos, zeros finais, notação científica, Unicode, chaves repetidas/especiais e estruturas profundas. As fixtures usam JSON textual para não arredondar os dados antes do teste.
+- Paginação da tabela e preservação das linhas e da página confirmadas quando outra consulta falha.
 
 [`test/interface.test.js`](../test/interface.test.js) usa um DOM mínimo e o serviço tipado para verificar os fluxos da interface. Os testes usam fontes controladas; a renderização é verificada no navegador.
 
@@ -42,6 +44,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 
 | Etapa | Cobertura |
 | --- | --- |
+| Componente de tabela | Cem linhas, conteúdo tratado como texto, paginação, foco, menus, teclado, redimensionamento, movimentação, visibilidade, cabeçalho fixo e destruição |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
 | Interface | Filtros, três tipos, links de busca e documento/aba, histórico do navegador, paginação, painéis, CSV, cancelamento, teclado e responsividade |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
@@ -52,6 +55,21 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Bundles | Ausência de dependências de Node, variáveis do processo e fixtures de teste em produção |
 
 Esses ensaios servem arquivos estáticos e verificam a ausência de chamadas a uma API da hospedagem. A fonte de grande volume e os casos de falha são sintéticos. O teste de CORS usa requisições entre origens locais; a integração com o PNCP é verificada separadamente.
+
+O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results-table.browser.mjs). A referência visual mantém cores, fontes e espaçamentos; os papéis de display nativos da tabela e as bordas por célula representam sua estrutura semântica. Os testes de navegação utilizam identificadores da aplicação e papéis acessíveis.
+
+O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pushes da branch de refatoração e pull requests para `main` com instalação reproduzível, testes e suites de Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. O workflow de publicação permanece separado.
+
+### Medir tamanho e renderização
+
+Após o build de produção e o build de testes gerados pela suíte:
+
+```sh
+node test/measure-build.mjs
+node test/table-benchmark.mjs
+```
+
+O primeiro comando informa bytes brutos e gzip por asset e totais de JavaScript/CSS. O segundo mede atualização de 100 registros com todas as colunas, até dois frames após a consulta, descarta o aquecimento e informa sete amostras, mediana e quantidade de nós DOM. Compare execuções no mesmo navegador, máquina e condições de carga. O teste de exportação informa separadamente o custo da coleta de 10.000 documentos; esse conjunto não é montado na tabela.
 
 ### Opções do runner
 

@@ -1,4 +1,4 @@
-import { parse } from 'lossless-json';
+import { parseExactJson as parse } from './exact-json.js';
 import { AppError, assert, fail } from './errors.js';
 import { scalarText, plain, itemSituation } from './adapter.js';
 import { domainAliases, catalogDomains, referenceDomains, partialDomains } from './filter-domains.js';

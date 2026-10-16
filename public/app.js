@@ -3,8 +3,9 @@ import { readQueryUrl, writeQueryUrl } from '../src/browser/query-url.js';
 import { readDetailUrl, writeDetailUrl, detailDocumentPath } from '../src/browser/detail-url.js';
 import { controlLink } from '../src/document-details.js';
 import { compareDecimal } from '../src/validation.js';
+import { createResultsTable } from './results-table.js';
 
-export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,Tabulator=globalThis.Tabulator,optionsCacheSettings={}}={}) {
+export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
 const $ = id => document.getElementById(id);
 const el = (tag, text, className) => { const node=document.createElement(tag); if(text!==undefined)node.textContent=text; if(className)node.className=className; return node; };
 const clone = value => structuredClone(value);
@@ -135,6 +136,7 @@ function status(value,query=state.query) {
   if(busy)hideTooltips();
   $('table-loader').hidden=!busy;
   $('results-table').setAttribute('aria-busy',String(busy));$('results-table').inert=busy;
+  state.table?.setStatus(value);
   if(busy) {
     const label=documentName(query.document_type).plural;
     $('table-loader-title').textContent=query.page>1?`Carregando página ${fmtInt(query.page)}`:state.lastResult?`Atualizando ${label}`:`Carregando ${label}`;
@@ -170,9 +172,7 @@ function updateCriteria() {
     $('native-chips').append(el('span',`${filterLabel(key)}: ${label}`,'filter-chip'));
   }
 }
-function colFormatter(column) {
-  return cell=>{
-    const value=cell.getValue();
+function renderCell(value,column) {
     const node=el('span',value===null || value===undefined?'—':column.type==='date'?date(value):column.type==='decimal'?money(value):column.type==='boolean'?(value?'Sim':'Não'):String(value));
     if(column.field==='objeto_compra'){node.className='object-text';node.title=value ?? '';}
     if(column.type==='decimal')node.className='money-cell';
@@ -183,20 +183,14 @@ function colFormatter(column) {
       node.title=label || 'Situação não informada';
     }
     return node;
-  };
 }
-function columnMenu(event,column) {
-  const definition=state.schema.columns.find(c=>c.field===column.getField());
-  const entries=[];
-  if(definition.domain || definition.native_range)entries.push({label:'Filtrar por esta coluna',action:()=>openFilters(definition)});
-  else entries.push({label:'Filtro não habilitado para este tipo',disabled:true});
-  if(definition.native_order) {
-    for(const dir of ['asc','desc'])entries.push({label:`Ordenar ${dir==='asc'?'crescente':'decrescente'}`,action:()=>{
-      state.query.order=definition.native_order[dir];
-      updateCriteria();execute();
-    }});
-  }
-  return entries;
+function columnAction(field,action) {
+  const definition=state.schema.columns.find(column=>column.field===field);
+  if(!definition)return;
+  if(action==='filter' && (definition.domain || definition.native_range))return openFilters(definition);
+  if(!definition.native_order?.[action])return;
+  state.query.order=definition.native_order[action];
+  updateCriteria();return execute();
 }
 function renderResult(result,query) {
   state.lastQuery=clone(query);state.lastResult=result;
@@ -214,13 +208,14 @@ function renderResult(result,query) {
   hideWindowTooltip();
   const warnings=result.warnings.filter(w=>w.code!=='WINDOW_LIMITED');
   notice(warnings.map(w=>w.message).join('\n'),warnings.length?'warning':'');
+  state.table.renderPage({rows:result.data,page:result.page,pageSize:result.size,lastPage:result.last_page});
   status(result.data.length?'success':'empty');
 }
-async function requestTable(url,config,params) {
+async function loadResultsPage(targetPage) {
   if(!state.query)return {data:[],last_page:1,last_row:0};
   queryRequested=true;
   const query=clone(state.query);
-  query.page=Number(params.page || 1);query.size=TABLE_PAGE_SIZE;
+  query.page=Number(targetPage || 1);query.size=TABLE_PAGE_SIZE;
   state.query.page=query.page;urlError=null;
   state.abort?.abort();state.exportAbort?.abort();state.exportSeq++;state.exportAbort=null;
   const seq=++state.seq;const controller=new AbortController();state.abort=controller;status('loading',query);
@@ -240,7 +235,7 @@ async function requestTable(url,config,params) {
 }
 function loadPage(page,mode='push') {
   state.query.page=page;urlMode=mode;
-  return state.table.setPage(page).catch(()=>{});
+  return loadResultsPage(page).catch(()=>{});
 }
 function execute() {
   closeDetails(false);
@@ -258,16 +253,14 @@ function renderFilterStatuses() {
 function tableColumnDefinitions() {
   const columns=state.schema.columns;
   return [columns.find(c=>c.field==='titulo'),...columns.filter(c=>c.field!=='titulo')].map(column=>{
-    const definition={title:column.title,field:column.field,width:column.width || 180,minWidth:85,visible:!!column.visible,formatter:colFormatter(column),variableHeight:column.field==='objeto_compra',headerSort:false,tooltip:false};
-    if(column.domain || column.native_range){definition.headerMenu=columnMenu;definition.headerMenuIcon=filterHeaderIcon;}
-    return definition;
+    return {...column,width:column.width || 180,minWidth:85,visible:!!column.visible,filterable:!!(column.domain || column.native_range)};
   });
 }
 function renderColumnChoices() {
   $('column-list').replaceChildren();
   for(const column of state.schema.columns) {
     const label=el('label',undefined,'checkbox-label'),input=el('input');input.type='checkbox';input.checked=!!column.visible;
-    input.addEventListener('change',()=>{input.checked?state.table.showColumn(column.field):state.table.hideColumn(column.field);});label.append(input,document.createTextNode(column.title));$('column-list').append(label);
+    input.addEventListener('change',()=>state.table.setColumnVisibility(column.field,input.checked));label.append(input,document.createTextNode(column.title));$('column-list').append(label);
   }
 }
 function applyQuery(query,{preserveDetails=false}={}) {
@@ -280,7 +273,7 @@ function applyQuery(query,{preserveDetails=false}={}) {
   if(typeChanged) {
     state.lastQuery=null;state.lastResult=null;
     $('result-info').hidden=true;$('result-title').textContent='Resultados';$('window-warning').hidden=true;hideWindowTooltip();
-    state.schema.columns=state.schema.columns_by_document[type];state.table.clearData();
+    state.schema.columns=state.schema.columns_by_document[type];state.table.clear();
     state.table.setColumns(tableColumnDefinitions());renderColumnChoices();
   }
   renderFilterStatuses();updateCriteria();
@@ -800,20 +793,16 @@ async function init() {
   renderFilterStatuses();
   state.placeholder=el('div','Informe uma pesquisa e consulte as contratações do PNCP.');
   const resultInfo=$('result-info');
-  state.table=new Tabulator('#results-table',{
-    height:'100%',layout:'fitDataFill',nestedFieldSeparator:false,movableColumns:true,
-    pagination:true,paginationMode:'remote',paginationSize:TABLE_PAGE_SIZE,paginationInitialPage:state.query.page,paginationSizeSelector:false,paginationButtonCount:4,
-    paginationCounter:()=>{resultInfo.hidden=false;return resultInfo;},
-    sortMode:'remote',filterMode:'remote',ajaxURL:'pncp-query',ajaxRequestFunc:requestTable,dataLoader:false,data:[],
-    placeholder:state.placeholder,
-    locale:'pt-br',langs:{'pt-br':{pagination:{page_size:'Linhas',page_title:'Página',first:paginationIcons.first,first_title:'Primeira página',last:paginationIcons.last,last_title:'Última página',prev:paginationIcons.prev,prev_title:'Página anterior',next:paginationIcons.next,next_title:'Próxima página',counter:{showing:'Exibindo',of:'de',rows:'contratações',pages:'páginas'}}}},
-    columns:tableColumnDefinitions(),
+  state.table=tableFactory({
+    container:$('results-table'),columns:tableColumnDefinitions(),renderCell,footerContent:resultInfo,
+    placeholder:state.placeholder,paginationIcons,menuIcon:filterHeaderIcon,
+    onPageChange:page=>loadPage(page),onOpenDocument:doc=>openDetails(doc),onColumnAction:columnAction,
   });
-  state.table.on('rowClick',(event,row)=>openDetails(row.getData()));
+  resultInfo.hidden=false;
   renderColumnChoices();
   $('document-type').addEventListener('change',changeDocumentType);
   $('app-header').addEventListener('focusin',event=>event.target.scrollIntoView({block:'nearest',inline:'nearest'}));
-  $('search-form').addEventListener('submit',event=>{event.preventDefault();execute();});
+  $('search-form').addEventListener('submit',event=>{event.preventDefault();return execute();});
   $('filters-button').addEventListener('click',()=>openFilters());$('columns-button').addEventListener('click',()=>openDialog('columns-dialog'));
   $('refresh-button').addEventListener('click',async()=>{
     if(!state.lastQuery)return;
@@ -823,9 +812,9 @@ async function init() {
   $('retry-button').addEventListener('click',()=>loadPage(state.query.page));
   $('cancel-button').addEventListener('click',()=>{state.abort?.abort();});
   $('cancel-export-button').addEventListener('click',()=>{state.exportAbort?.abort();notice('Exportação cancelada.');});
-  $('order').addEventListener('change',()=>{state.query.order=$('order').value;execute();});
-  $('clear-button').addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();execute();});
-  $('apply-filters').addEventListener('click',()=>{if(state.legalPending || state.legalError)return;state.draft.q=$('draft-search').value;state.draft.status=$('draft-status').value;state.query=clone(state.draft);$('search').value=state.query.q;$('filters-dialog').close();updateCriteria();execute();});
+  $('order').addEventListener('change',()=>{state.query.order=$('order').value;return execute();});
+  $('clear-button').addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();return execute();});
+  $('apply-filters').addEventListener('click',()=>{if(state.legalPending || state.legalError)return;state.draft.q=$('draft-search').value;state.draft.status=$('draft-status').value;state.query=clone(state.draft);$('search').value=state.query.q;$('filters-dialog').close();updateCriteria();return execute();});
   $('filters-dialog').addEventListener('close',()=>{stopFilterEditors();state.legalAbort?.abort();state.legalSeq++;});
   document.addEventListener('pointerdown',event=>{if(openFilterEditor && event.target!==openFilterEditor.input && !openFilterEditor.suggestions.contains(event.target))closeFilterDropdown();});
   $('filters-dialog').querySelector('.filters-body')?.addEventListener('scroll',positionFilterDropdown);
@@ -840,7 +829,7 @@ async function init() {
   $('window-warning').addEventListener('blur',hideWindowTooltip);
   window.addEventListener('resize',hideTooltips);
   window.addEventListener('popstate',restoreQueryUrl);
-  window.addEventListener('pagehide',event=>{if(!event.persisted)filterOptionsCache.close();});
+  window.addEventListener('pagehide',event=>{if(!event.persisted){filterOptionsCache.close();state.table.destroy();}});
   document.addEventListener('scroll',event=>{
     const button=document.activeElement;
     // Ao focar uma ação em telas menores, o cabeçalho rola para torná-la visível.
@@ -853,11 +842,12 @@ async function init() {
     hideTooltips();
   },true);
   updateCriteria();status('idle');
-  state.table.on('tableBuilt',()=>{
+  state.started=Promise.resolve(state.table.ready).then(()=>{
     tableReady=true;if(window.location?.href)return restoreQueryUrl();if(urlError)invalidQueryUrl(urlError);else return loadPage(state.query.page,'replace');
   });
+  state.started.catch(error=>notice(`Falha ao iniciar a pesquisa: ${error.message}.`,'error'));
 }
 const ready=init().catch(error=>{$('startup-error').hidden=false;$('startup-error').textContent=`Não foi possível iniciar a interface: ${error.message}. Recarregue a página.`;notice('Falha ao carregar o esquema da aplicação.','error');});
 
-return {ready,state,requestTable,setDraftFilter};
+return {ready,state,loadResultsPage,setDraftFilter};
 }

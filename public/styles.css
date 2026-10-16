@@ -84,19 +84,6 @@ p{line-height:1.55}
 @keyframes table-loader-spin{to{transform:rotate(360deg)}}
 #results-table{height:100%;border:0;border-radius:0;font-size:.875rem;background:white}
 /* Erros de consulta são exibidos na notificação acima da tabela. */
-#results-table .tabulator-alert:has(.tabulator-alert-state-error){display:none}
-.tabulator .tabulator-header{background:#eff4fa;border-color:#d5e0eb;color:#3a536d;font-weight:600}
-.tabulator .tabulator-header .tabulator-col{background:#eff4fa;border-right:1px solid #dbe4ee}
-.tabulator .tabulator-header .tabulator-col .tabulator-col-content{padding:7px 8px}
-.tabulator .tabulator-header .tabulator-col .tabulator-col-title{display:flex;align-items:center;gap:5px;padding-right:5px;line-height:1.4}
-.tabulator .tabulator-header .tabulator-col .tabulator-header-popup-button{order:2;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0;color:var(--blue)}
-.tabulator .tabulator-header .tabulator-col .tabulator-header-popup-button:hover{color:var(--blue-hover)}
-.tabulator .tabulator-header .tabulator-col .tabulator-header-popup-button .header-filter-icon{width:14px;height:14px;stroke-width:2}
-.tabulator-row{background:white;border-bottom:1px solid #e9eef4;min-height:42px;color:#364c64}
-.tabulator-row.tabulator-row-even{background:#fbfcfe}
-.tabulator-row:hover{background:#eff7fd!important;cursor:pointer}
-.tabulator-row .tabulator-cell{border-right:1px solid #edf1f6;padding:7px 8px;line-height:1.4;font-size:.8125rem;vertical-align:middle}
-.tabulator-row .tabulator-cell[data-field="objeto_compra"]{color:#1a4168;font-weight:500}
 .object-text{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .money-cell{font-variant-numeric:tabular-nums;font-weight:550}
 .status-cell{display:inline-block;font-size:.8125rem;border-radius:4px;padding:2px 7px;background:#edf0f4;color:#526174}
@@ -105,23 +92,9 @@ p{line-height:1.55}
 .status-cell--anulada{background:#f1eafa;color:#694098}
 .status-cell--suspensa{background:#fff3d6;color:#805910}
 .status-cell--unknown{background:#edf0f4;color:#526174}
-.tabulator .tabulator-footer{border-top:1px solid var(--line);background:white;color:#566b80;padding:6px 9px}
-.tabulator .tabulator-footer .tabulator-page{display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;height:32px;margin:0;border:1px solid #ccd7e3;background:white;border-radius:4px;padding:4px;color:var(--blue);font-size:.8125rem;line-height:1;transition:background .12s,border-color .12s,color .12s}
-.tabulator .tabulator-footer .tabulator-pages{display:flex;align-items:center;gap:4px;margin:0}
-.tabulator .tabulator-footer .pagination-icon{width:18px;height:18px;stroke-width:2}
-.tabulator .tabulator-footer .tabulator-page.active{background:var(--blue);color:white;border-color:var(--blue)}
-.tabulator .tabulator-footer .tabulator-page:not(:disabled):hover{background:var(--blue-soft);border-color:#c7d5e4;color:var(--blue-hover)}
-.tabulator .tabulator-footer .tabulator-page.active:not(:disabled):hover{background:var(--blue-hover);border-color:var(--blue-hover);color:white}
-.tabulator .tabulator-footer .tabulator-page:disabled,.tabulator .tabulator-footer .tabulator-page:disabled:hover{background:#f2f5f9;border-color:var(--line);color:var(--muted);opacity:.45;cursor:not-allowed}
-.tabulator .tabulator-footer .tabulator-page-size{font-size:.8125rem;padding:4px;border-color:var(--line);border-radius:4px}
-.tabulator .tabulator-footer .tabulator-page-counter{flex:1;min-width:0;text-align:left;white-space:normal}
-.tabulator .tabulator-footer .tabulator-paginator{display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:.8125rem;flex:0 0 auto}
 .repository-link{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border:1px solid var(--blue);border-radius:6px;background:var(--blue);color:white;transition:background .12s,color .12s}
 .repository-link:hover{background:var(--blue-hover);border-color:var(--blue-hover);color:white;text-decoration:none}
 .repository-link svg{width:18px;height:18px;stroke-width:2}
-.tabulator-menu{border:1px solid #ccd9e7;border-radius:6px;box-shadow:0 5px 20px #173b6520;font-size:.875rem;max-width:300px}
-.tabulator-menu .tabulator-menu-item{padding:9px 12px}
-.tabulator .tabulator-placeholder .tabulator-placeholder-contents{font-size:1rem;color:#76889b;font-weight:400;max-width:90%;white-space:normal;line-height:1.65}
 .notice{font-size:.8125rem;line-height:1.4;margin:6px 9px;padding:7px 9px;background:#f0f7ff;color:#264d74;border:1px solid #d3e2f0;border-radius:5px;white-space:pre-line;max-height:min(112px,20dvh);overflow:auto;flex-shrink:0}
 .notice.error{background:#fff3f1;color:#8f3b32;border-color:#eac7c0}
 .notice.warning{background:#fffaeb;color:#7c6028;border-color:#e9d8b6}
@@ -239,15 +212,8 @@ dialog select[multiple]{min-height:155px}
 /* The table receives the remaining viewport height; its scrollbars stay inside. */
 .criteria-row .order-label,.criteria-row .text-button{flex-shrink:0}
 .criteria-row .text-button{font-size:.8125rem}
-.tabulator .tabulator-footer .tabulator-footer-contents{padding:0;gap:8px}
 
 
-@media(max-width:700px){
-
-  .tabulator .tabulator-footer .tabulator-footer-contents{flex-wrap:wrap}
-  .tabulator .tabulator-footer .tabulator-page-counter{flex-basis:100%}
-  .tabulator .tabulator-footer .tabulator-paginator{flex-basis:100%}
-}
 @media(max-width:600px){
   .item-values{grid-template-columns:1fr}
   .topbar{--header-gap:5px;padding:8px}
@@ -274,7 +240,7 @@ dialog select[multiple]{min-height:155px}
   .result-count{flex-basis:100%}
   .notice{margin:5px 7px;font-size:.75rem}
   .modal{padding:18px;max-height:94dvh}
-  .filters-modal>.dialog-footer{gap:8px}
+  .filters-modal>.dialog-footer{gap:8px;flex-wrap:wrap}
   .filters-modal>.dialog-footer .button{padding:10px 12px;font-size:.8125rem}
   .two-col{grid-template-columns:minmax(0,1fr);gap:0}
   .column-list{grid-template-columns:1fr 1fr}
@@ -288,9 +254,4 @@ dialog select[multiple]{min-height:155px}
   .detail-tab{padding:10px 9px;font-size:.75rem}
   .detail-grid{gap:15px}
   .dialog-header h2{font-size:1.1rem}
-  .tabulator .tabulator-footer{padding:6px}
-  .tabulator .tabulator-footer .tabulator-footer-contents{flex-wrap:wrap;gap:4px}
-  .tabulator .tabulator-footer .tabulator-paginator{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;white-space:normal;gap:4px;font-size:.75rem;min-width:0;flex-basis:100%}
-  .tabulator .tabulator-footer .tabulator-page{flex-basis:30px;width:30px;height:30px;font-size:.75rem}
-  .tabulator .tabulator-footer .tabulator-page-size{max-width:64px}
 }

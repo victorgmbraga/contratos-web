@@ -1,4 +1,3 @@
-import { TabulatorFull } from 'tabulator-tables';
 import './browser-styles.css';
 import { createApplicationUI } from './app.js';
 import { createWorkerService } from '../src/browser/service.js';
@@ -14,4 +13,4 @@ const ready = (async () => {
   window.addEventListener('pagehide', event => { if (!event.persisted) worker.close(); });
   return worker;
 })();
-createApplicationUI(service, { Tabulator: TabulatorFull });
+createApplicationUI(service);

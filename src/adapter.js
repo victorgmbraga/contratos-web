@@ -1,8 +1,34 @@
-import { isLosslessNumber } from 'lossless-json';
+import { isExactJsonNumber } from './exact-json.js';
 import { assert, fail } from './errors.js';
 
-export const scalarText = value => value === null || value === undefined ? null : isLosslessNumber(value) ? value.toString() : typeof value === 'string' || typeof value === 'number' ? String(value) : null;
-export const plain = value => isLosslessNumber(value) ? (/^-?\d+$/.test(value.toString()) && Number.isSafeInteger(Number(value.toString())) ? Number(value.toString()) : value.toString()) : Array.isArray(value) ? value.map(plain) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k,v])=>[k,plain(v)])) : value;
+export const scalarText = value => value === null || value === undefined ? null : isExactJsonNumber(value) ? value.toString() : typeof value === 'string' || typeof value === 'number' ? String(value) : null;
+export function plain(value) {
+  const leaf = item => {
+    if (!isExactJsonNumber(item)) return item;
+    const text = item.toString();
+    return /^-?\d+$/.test(text) && Number.isSafeInteger(Number(text)) ? Number(text) : text;
+  };
+  const root = leaf(value);
+  if (root === null || typeof root !== 'object') return root;
+  const output = Array.isArray(root) ? [] : {}, pending = [[root, output]];
+  const seen = new WeakMap([[root, output]]);
+  while (pending.length) {
+    const [source, target] = pending.pop();
+    for (const [key, item] of Object.entries(source)) {
+      let normalized = leaf(item);
+      if (normalized !== null && typeof normalized === 'object') {
+        const previous = seen.get(normalized);
+        if (previous) normalized = previous;
+        else {
+          const child = Array.isArray(normalized) ? [] : {};
+          seen.set(normalized, child); pending.push([normalized, child]); normalized = child;
+        }
+      }
+      Object.defineProperty(target, key, { value: normalized, enumerable: true, writable: true, configurable: true });
+    }
+  }
+  return output;
+}
 export function decimalText(value) {
   if(value!==null && value!==undefined && scalarText(value)===null)fail('INVALID_UPSTREAM','Campo monetário com tipo incompatível no PNCP.',502);
   const s = scalarText(value);

@@ -54,7 +54,7 @@ async function addEveryFilter(type) {
 }
 try {
   await page.goto(`http://127.0.0.1:${app.server.address().port}`,{waitUntil:'load'});
-  await page.waitForFunction(()=>document.querySelector('.tabulator'));
+  await page.waitForFunction(()=>document.querySelector('.results-table'));
   assert.match(await page.locator('#source-badge').innerText(),/dados fictícios/);check('Demonstração marcada e interface disponível');
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');check('Pesquisa inicial sem filtros executada automaticamente');
   await page.waitForFunction(prefix=>Object.keys(localStorage).filter(key=>key.startsWith(prefix)).length===8,FILTER_OPTIONS_PREFIX);
@@ -128,20 +128,20 @@ try {
     await sharedPage.addInitScript(()=>{const NativeWorker=window.Worker;window.Worker=class extends NativeWorker {postMessage(message,...args){window.__observeSharedQuery(message);return super.postMessage(message,...args);}};});
     const sharedBase=`http://127.0.0.1:${app.server.address().port}/`;
     await sharedPage.goto(sharedBase+'?demo=1&tipos_documento=edital&q=pagina-ui&ordenacao=data&pagina=2&ufs=SP%7CDF&srp=false&ordem_classificacao_min=0&item_quantidade_min=0.00#resultados');
-    const waitSecond=()=>sharedPage.waitForFunction(()=>document.querySelector('.tabulator-page.active')?.dataset.page==='2' && /101\s*[-–]\s*164/.test(document.querySelector('.tabulator-page-counter')?.textContent || '') && !document.querySelector('#refresh-button').disabled);
+    const waitSecond=()=>sharedPage.waitForFunction(()=>document.querySelector('.results-page.active')?.dataset.page==='2' && /101\s*[-–]\s*164/.test(document.querySelector('.results-page-counter')?.textContent || '') && !document.querySelector('#refresh-button').disabled);
     await waitSecond();assert.equal(sharedQueries.length,1);assert.equal(sharedQueries[0].page,2);assert.equal(sharedQueries[0].order,'data');assert.deepEqual(sharedQueries[0].pncp_filters,{ufs:['SP','DF'],srp:false,ordem_classificacao_min:0,item_quantidade_min:'0.00'});
     assert.equal(await sharedPage.locator('#search').inputValue(),'pagina-ui');assert.equal(new URL(sharedPage.url()).hash,'#resultados');check('Link compartilhado restaura critérios tipados e abre diretamente a segunda página');
     const sharedLink=sharedPage.url();await sharedPage.reload();await waitSecond();assert.equal(sharedQueries.length,2);assert.equal(sharedPage.url(),sharedLink);check('Recarregar mantém busca, filtros, ordenação e página da URL');
-    await sharedPage.locator('#order').selectOption('-data');await sharedPage.waitForFunction(()=>document.querySelector('.tabulator-page.active')?.dataset.page==='1' && !document.querySelector('#refresh-button').disabled);
+    await sharedPage.locator('#order').selectOption('-data');await sharedPage.waitForFunction(()=>document.querySelector('.results-page.active')?.dataset.page==='1' && !document.querySelector('#refresh-button').disabled);
     assert.equal(new URL(sharedPage.url()).searchParams.get('pagina'),'1');
     await sharedPage.goBack();await waitSecond();assert.equal(await sharedPage.locator('#order').inputValue(),'data');assert.equal(sharedPage.url(),sharedLink);
-    await sharedPage.goForward();await sharedPage.waitForFunction(()=>document.querySelector('.tabulator-page.active')?.dataset.page==='1' && !document.querySelector('#refresh-button').disabled);assert.equal(await sharedPage.locator('#order').inputValue(),'-data');check('Voltar e Avançar restauram a página e a ordenação sem recarregar a aplicação');
+    await sharedPage.goForward();await sharedPage.waitForFunction(()=>document.querySelector('.results-page.active')?.dataset.page==='1' && !document.querySelector('#refresh-button').disabled);assert.equal(await sharedPage.locator('#order').inputValue(),'-data');check('Voltar e Avançar restauram a página e a ordenação sem recarregar a aplicação');
     await sharedPage.locator('#document-type').selectOption('contrato');await sharedPage.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');
     assert.equal(new URL(sharedPage.url()).searchParams.get('tipos_documento'),'contrato');assert.equal(new URL(sharedPage.url()).searchParams.has('srp'),false);
     await sharedPage.locator('#filters-button').click();await sharedPage.locator('#draft-status').selectOption('vigente');await sharedPage.locator(`#filter-${'possui_nfe'}`).selectOption('false');await sharedPage.locator('#apply-filters').click();
     await sharedPage.waitForFunction(()=>!document.querySelector('#export-button').disabled);assert.equal(new URL(sharedPage.url()).searchParams.get('possui_nfe'),'false');assert.equal(new URL(sharedPage.url()).searchParams.get('status'),'vigente');
     const contractLink=sharedPage.url(),contractResult=await sharedPage.locator('#result-title').innerText();await sharedPage.reload();await sharedPage.waitForFunction(expected=>document.querySelector('#result-title').textContent===expected,contractResult);
-    assert.equal(await sharedPage.locator('#document-type').inputValue(),'contrato');assert(await sharedPage.locator('.tabulator-col[tabulator-field="valor_global"]').isVisible());assert.equal(sharedQueries.at(-1).pncp_filters.possui_nfe,false);check('URL de contrato restaura status e filtro Não, com as colunas próprias');
+    assert.equal(await sharedPage.locator('#document-type').inputValue(),'contrato');assert(await sharedPage.locator('.results-col[data-field="valor_global"]').isVisible());assert.equal(sharedQueries.at(-1).pncp_filters.possui_nfe,false);check('URL de contrato restaura status e filtro Não, com as colunas próprias');
     await sharedPage.locator('#document-type').selectOption('ata');await sharedPage.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');assert.equal(new URL(sharedPage.url()).searchParams.get('tipos_documento'),'ata');
     await sharedPage.goBack();await sharedPage.waitForFunction(expected=>document.querySelector('#result-title').textContent===expected,contractResult);assert.equal(sharedPage.url(),contractLink);
     await sharedPage.goForward();await sharedPage.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');await sharedPage.reload();await sharedPage.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');check('Links e histórico também restauram atas e alternam corretamente entre tipos');
@@ -176,10 +176,10 @@ try {
     await orderedPage.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Ordenação não disponível'));
     assert.equal(await orderedPage.evaluate(()=>window.__orderRequests.length),0);check('Link com ordenação incompatível é rejeitado antes de consultar o PNCP');
   } finally {await orderedPage.close();}
-  assert.equal(await page.locator('.tabulator-page-size').count(),0);check('Seletor de linhas removido');
+  assert.equal(await page.locator('.results-page-size').count(),0);check('Seletor de linhas removido');
   assert.equal(await page.locator('#app-header .header-toolbar .criteria-row').count(),1);
   for(const id of ['order','clear-button','cancel-button','retry-button','refresh-button','columns-button','export-button','repository-link'])assert.equal(await page.locator(`#app-header #${id}`).count(),1);
-  assert.equal(await page.locator('.tabulator-footer .repository-link').count(),0);
+  assert.equal(await page.locator('.results-footer .repository-link').count(),0);
   for(const [id,label,accessibleLabel=label] of [['search-button','Pesquisar'],['filters-button','Filtros'],['refresh-button','Atualizar resultados'],['columns-button','Selecionar colunas'],['export-button','Exportar CSV'],['repository-link','Repositório no GitHub','Repositório do Contratos Web no GitHub (abre em nova aba)']]){
     const button=page.locator(`#${id}`),tooltip=page.locator(`#${id}-tooltip`);
     assert.equal(await button.getAttribute('aria-label'),accessibleLabel);assert.equal(await button.getAttribute('title'),null);assert.equal(await button.locator('svg').count(),1);assert.equal(await button.locator('span:not(.count-badge)').count(),0);
@@ -194,39 +194,39 @@ try {
   }
   check('Ações do cabeçalho e link do GitHub usam tooltips neutros com mouse, foco e Escape');
   assert.equal(await page.locator('.result-toolbar').count(),0);
-  assert.equal(await page.locator('.tabulator-footer .result-info').count(),1);
-  const popupFields=await page.locator('.tabulator-header-popup-button').evaluateAll(buttons=>buttons.map(button=>button.closest('.tabulator-col')?.getAttribute('tabulator-field')));
+  assert.equal(await page.locator('.results-footer .result-info').count(),1);
+  const popupFields=await page.locator('.results-header-menu').evaluateAll(buttons=>buttons.map(button=>button.closest('.results-col')?.getAttribute('data-field')));
   assert(!popupFields.includes('titulo'));assert(!popupFields.includes('objeto_compra'));assert(!popupFields.includes('data_atualizacao_pncp'));assert(popupFields.includes('orgao_nome'));
-  assert.equal(await page.locator('.tabulator-header-popup-button .header-filter-icon').count(),popupFields.length);
+  assert.equal(await page.locator('.results-header-menu .header-filter-icon').count(),popupFields.length);
   for(const field of ['orgao_nome','uf','data_publicacao_pncp']){
-    const title=page.locator(`.tabulator-col[tabulator-field="${field}"] .tabulator-col-title`);
-    assert.equal(await title.locator('.tabulator-header-popup-button').evaluate(node=>node===node.parentElement.lastElementChild),true);
+    const title=page.locator(`.results-col[data-field="${field}"] .results-col-title`);
+    assert.equal(await title.locator('.results-header-menu').evaluate(node=>node===node.parentElement.lastElementChild),true);
   }
   assert.equal(await page.locator('.source-footer').count(),0);check('Ordenação e ações no cabeçalho, informações no rodapé da tabela');
   await search('janela-ui');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='4.143.240 contratações');
-  assert.match(await page.locator('.tabulator-page-counter').innerText(),/Exibindo 1-100 de\s+4\.143\.240 contratações/);
+  assert.match(await page.locator('.results-page-counter').innerText(),/Exibindo 1-100 de\s+4\.143\.240 contratações/);
   assert.equal(await page.locator('#notice').isVisible(),false);assert(await page.locator('#window-warning').isVisible());
   await page.locator('#window-warning').hover();await page.locator('#window-warning-tooltip').waitFor({state:'visible'});
   assert.match(await page.locator('#window-warning-tooltip').innerText(),/janela acessível é de 10000 documentos/);
   check('Total real e limite em tooltip');
   for(const [action,label]of [['first','Primeira página'],['prev','Página anterior'],['next','Próxima página'],['last','Última página']]) {
-    const button=page.locator(`.tabulator-page[data-page="${action}"]`);
+    const button=page.locator(`.results-page[data-page="${action}"]`);
     assert.equal(await button.locator('svg.pagination-icon').count(),1);
     assert.equal(await button.getAttribute('aria-label'),label);assert.equal(await button.getAttribute('title'),label);
   }
   check('Todos os botões de navegação usam ícones SVG com rótulos acessíveis');
   await search('pagina-ui');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='164 contratações');
   assert.equal(await page.locator('#window-warning').isVisible(),false);
-  // Tabulator virtualizes rows; the page counter represents the full page.
-  await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.tabulator-page-counter')?.textContent || ''));check('Consulta nativa e primeira página de 100 documentos');
-  await page.locator('.tabulator-page[data-page="last"]').click();await page.waitForFunction(()=>/101\s*[-–]\s*164\s+de\s+164/.test(document.querySelector('.tabulator-page-counter')?.textContent || ''));check('Ícone de última página abre a segunda página com 64 documentos');
-  await page.locator('#refresh-button').click();await page.waitForFunction(()=>!document.querySelector('#refresh-button').disabled);assert.equal(await page.locator('.tabulator-page.active').getAttribute('data-page'),'2');assert.match(await page.locator('.tabulator-page-counter').innerText(),/101\s*[-–]\s*164/);check('Atualizar mantém a segunda página');
-  await page.locator('.tabulator-page[data-page="first"]').click();await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.tabulator-page-counter')?.textContent || ''));check('Ícone de primeira página retorna ao início');
-  await page.locator('.tabulator-page[data-page="next"]').click();await page.waitForFunction(()=>/101\s*[-–]\s*164\s+de\s+164/.test(document.querySelector('.tabulator-page-counter')?.textContent || ''));check('Ícone de próxima página avança');
-  await page.locator('.tabulator-page[data-page="prev"]').click();await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.tabulator-page-counter')?.textContent || ''));check('Ícone de página anterior retorna');
-  await search('firewall');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='6 contratações');assert.equal(await page.locator('.tabulator-page.active').getAttribute('data-page'),'1');check('Novos critérios voltam à página 1');
+  // The component renders only the current remote page.
+  await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Consulta nativa e primeira página de 100 documentos');
+  await page.locator('.results-page[data-page="last"]').click();await page.waitForFunction(()=>/101\s*[-–]\s*164\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Ícone de última página abre a segunda página com 64 documentos');
+  await page.locator('#refresh-button').click();await page.waitForFunction(()=>!document.querySelector('#refresh-button').disabled);assert.equal(await page.locator('.results-page.active').getAttribute('data-page'),'2');assert.match(await page.locator('.results-page-counter').innerText(),/101\s*[-–]\s*164/);check('Atualizar mantém a segunda página');
+  await page.locator('.results-page[data-page="first"]').click();await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Ícone de primeira página retorna ao início');
+  await page.locator('.results-page[data-page="next"]').click();await page.waitForFunction(()=>/101\s*[-–]\s*164\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Ícone de próxima página avança');
+  await page.locator('.results-page[data-page="prev"]').click();await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Ícone de página anterior retorna');
+  await search('firewall');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='6 contratações');assert.equal(await page.locator('.results-page.active').getAttribute('data-page'),'1');check('Novos critérios voltam à página 1');
   const tabRequests=[];const observeTabs=request=>{if(['details','documentRelated'].includes(request.method) && request.payload.document.type==='edital')tabRequests.push(request);};page.on(serviceEvent,observeTabs);
-  await page.locator('.tabulator-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});assert.equal(await page.locator('#detail-tab-detalhes').getAttribute('aria-selected'),'true');assert.equal(await page.locator('#detail-panel-detalhes dt').count(),12);check('Detalhes abre com seis abas e os doze campos solicitados');
+  await page.locator('.results-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});assert.equal(await page.locator('#detail-tab-detalhes').getAttribute('aria-selected'),'true');assert.equal(await page.locator('#detail-panel-detalhes dt').count(),12);check('Detalhes abre com seis abas e os doze campos solicitados');
   await page.waitForFunction(()=>[...document.querySelectorAll('.detail-tab')].every(button=>button.dataset.state==='loaded'));assert.equal(tabRequests.length,5);check('Cinco listagens carregam em background antes da troca de abas');
   assert.equal(await page.locator('#details-content .detail-links').count(),0);assert.equal(await page.locator('.details-actions #details-links a').count(),1);assert.equal(Math.round((await page.locator('#details-dialog').boundingBox()).width),888);check('Links junto ao botão de fechar e painel ampliado em 20%');
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/details-tabs-desktop.png`});
@@ -281,7 +281,7 @@ try {
   const itemRequest=waitQuery(input=>input.pncp_filters.beneficios?.includes('1'));
   await page.locator('#apply-filters').click();const itemFilters=(await itemRequest).pncp_filters;assert(itemConditions.every(name=>itemFilters[name]===true));assert.deepEqual(itemFilters.categorias_leilao,['1']);
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='6 contratações');check('Emenda e seis filtros de itens são aplicados juntos');
-  await page.locator('.tabulator-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});await page.locator('#detail-tab-itens').click();await page.waitForFunction(()=>document.querySelectorAll('.item-card').length===2);
+  await page.locator('.results-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});await page.locator('#detail-tab-itens').click();await page.waitForFunction(()=>document.querySelectorAll('.item-card').length===2);
   assert.match(await page.locator('.item-card').nth(1).innerText(),/Item complementar/);await page.locator('#details-dialog .close-dialog').click();check('Detalhes preservam os dois itens após a pesquisa filtrada');
   const itemDownload=page.waitForEvent('download');await page.locator('#export-button').click();const itemExport=await itemDownload;assert.equal((await readFile(await itemExport.path(),'utf8')).split('\r\n').length,8);check('CSV exporta seis contratações, sem multiplicar linhas pelos itens');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
@@ -301,11 +301,11 @@ try {
   assert.equal(await addEveryFilter('edital'),71);check('Todos os 71 filtros de contratações podem ser preenchidos e aplicados no navegador');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#document-type').selectOption('contrato');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');
-  assert(await page.locator('.tabulator-col[tabulator-field="valor_global"]').isVisible());assert.equal(await page.locator('.tabulator-col[tabulator-field="valor_total_estimado"]').count(),0);check('Troca para contratos consulta a fonte e apresenta as colunas próprias');
+  assert(await page.locator('.results-col[data-field="valor_global"]').isVisible());assert.equal(await page.locator('.results-col[data-field="valor_total_estimado"]').count(),0);check('Troca para contratos consulta a fonte e apresenta as colunas próprias');
   await page.locator('#filters-button').click();await page.locator('#draft-status').selectOption('vigente');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='16 contratos');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');check('Status Vigentes usa o domínio temporal de contratos e limpar mantém o tipo');
   const detailRequests=[];const observe=r=>{if(r.method==='details')detailRequests.push(r);};page.on(serviceEvent,observe);
-  await page.locator('.tabulator-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});
+  await page.locator('.results-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});
   await page.waitForFunction(()=>[...document.querySelectorAll('.detail-tab')].every(button=>button.dataset.state==='loaded'));
   assert.equal(await page.locator('#detail-panel-detalhes dt').count(),34);assert.match(await page.locator('#details-content').innerText(),/Valor inicial/);assert.equal(await page.locator('.items-section').count(),0);assert.equal(detailRequests.length,0);check('Contrato carrega os dados nativos e cinco listas sem confundir seu sequencial com a compra');
   for(const resource of ['empenhos','instrumentocobranca','termos']){
@@ -316,7 +316,7 @@ try {
   }
   await page.locator('#detail-tab-detalhes').click();if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/contract-details-desktop.png`});
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observe);
-  await page.locator('.tabulator-row').filter({hasText:'Contrato de demonstração nº 2/2026'}).click();await page.waitForFunction(()=>document.querySelector('#detail-tab-historico')?.textContent==='Histórico (?)');await page.locator('#detail-tab-historico').click();
+  await page.locator('.results-row').filter({hasText:'Contrato de demonstração nº 2/2026'}).click();await page.waitForFunction(()=>document.querySelector('#detail-tab-historico')?.textContent==='Histórico (?)');await page.locator('#detail-tab-historico').click();
   const unknownHistory=page.locator('#detail-panel-historico'),historyNext=unknownHistory.getByRole('button',{name:'Próxima página de Histórico'}),historyPrevious=unknownHistory.getByRole('button',{name:'Página anterior de Histórico'});
   assert.equal(await unknownHistory.locator('.related-card').count(),2);assert.match(await unknownHistory.locator('.items-status').innerText(),/Quantidade desconhecida/);assert.equal(await unknownHistory.locator('.item-pager span').innerText(),'Página 1');
   await historyNext.click();await page.waitForFunction(()=>document.querySelector('#detail-panel-historico .item-pager span').textContent==='Página 2');assert.equal(await unknownHistory.locator('.related-card').count(),1);assert.equal(await historyNext.isEnabled(),true);
@@ -329,9 +329,9 @@ try {
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');assert.equal(await addEveryFilter('contrato'),32);check('Todos os 32 filtros de contratos podem ser preenchidos e aplicados no navegador');
   assert.deepEqual(await page.locator('#document-type option').evaluateAll(nodes=>nodes.map(n=>n.textContent)),['Editais e Avisos de Contratações','Atas de Registro de Preços','Contratos']);
   await page.locator('#document-type').selectOption('ata');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');
-  assert(await page.locator('.tabulator-col[tabulator-field="cancelado"]').isVisible());assert.equal(await page.locator('.tabulator-col[tabulator-field="valor_global"]').count(),0);check('Os três tipos oficiais estão disponíveis e atas apresentam colunas próprias');
+  assert(await page.locator('.results-col[data-field="cancelado"]').isVisible());assert.equal(await page.locator('.results-col[data-field="valor_global"]').count(),0);check('Os três tipos oficiais estão disponíveis e atas apresentam colunas próprias');
   const ataRequests=[];const observeAta=r=>{if(['documentDetails','documentRelated'].includes(r.method) && r.payload.document.type==='ata')ataRequests.push(r);};page.on(serviceEvent,observeAta);
-  await page.locator('.tabulator-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});await page.waitForFunction(()=>[...document.querySelectorAll('.detail-tab')].every(button=>button.dataset.state==='loaded'));
+  await page.locator('.results-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});await page.waitForFunction(()=>[...document.querySelectorAll('.detail-tab')].every(button=>button.dataset.state==='loaded'));
   assert.equal(ataRequests.length,5);assert.equal(await page.locator('#detail-panel-detalhes dt').count(),22);assert.match(await page.locator('#detail-panel-detalhes').innerText(),/Número da ata/);assert.equal(await page.locator('#detail-tab-itens').count(),0);assert.equal(await page.locator('#detail-tab-termos').count(),0);check('Ata carrega seus dados completos e quatro listas em background');
   await page.locator('#detail-tab-partesenvolvidas').click();assert.match(await page.locator('#detail-panel-partesenvolvidas').innerText(),/Gerenciadora/);await page.locator('#detail-tab-contratos').click();assert.match(await page.locator('#detail-panel-contratos').innerText(),/Valor global/);assert.equal(ataRequests.length,5);check('Partes envolvidas e contratos vinculados da ata aparecem sem repetir consultas');
   await page.locator('#detail-tab-detalhes').click();const ataOrigin=page.locator('#detail-panel-detalhes a').first();assert.match(await ataOrigin.getAttribute('href'),/\/app\/editais\//);assert.equal(await ataOrigin.getAttribute('rel'),'noopener noreferrer');
@@ -342,7 +342,7 @@ try {
   const ataDownload=page.waitForEvent('download');await page.locator('#export-button').click();const exportedAtas=await ataDownload,ataCsv=await readFile(await exportedAtas.path(),'utf8');assert.equal(ataCsv.split('\r\n').length,14);assert(ataCsv.split('\r\n')[0].includes('"cancelado"'));assert(!ataCsv.split('\r\n')[0].includes('"valor_global"'));check('Vigência e CSV de atas conservam os mesmos critérios e colunas');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');assert.equal(await addEveryFilter('ata'),16);check('Todos os 16 filtros de atas podem ser preenchidos e aplicados no navegador');
   await page.locator('#document-type').selectOption('edital');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');check('Voltar a contratações restaura colunas e critérios do tipo escolhido');
-  await page.locator('#columns-button').click();const checkbox=page.locator('#column-list label').filter({hasText:'CNPJ do órgão'}).locator('input');await checkbox.check();await page.locator('#columns-dialog .close-dialog').click();assert(await page.locator('.tabulator-col[tabulator-field="orgao_cnpj"]').isVisible());check('Seleção de colunas');
+  await page.locator('#columns-button').click();const checkbox=page.locator('#column-list label').filter({hasText:'CNPJ do órgão'}).locator('input');await checkbox.check();await page.locator('#columns-dialog .close-dialog').click();assert(await page.locator('.results-col[data-field="orgao_cnpj"]').isVisible());check('Seleção de colunas');
   await search('csv-lenta-ui');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='164 contratações');
   let cancelledDownloads=0;const observeDownload=()=>cancelledDownloads++;page.on('download',observeDownload);
   await page.locator('#export-button').click();
@@ -399,7 +399,7 @@ try {
       return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,scrolls:body.scrollHeight>body.clientHeight,overflow:body.scrollWidth>body.clientWidth,footerFixed:top===footer.getBoundingClientRect().top,buttonsFit,lastBottom:fields[fields.length-1].getBoundingClientRect().bottom,footerTop:top};
     });
     assert(modalFit.left>=0 && modalFit.right<=width && modalFit.top>=0 && modalFit.bottom<=844);
-    assert(modalFit.scrolls && !modalFit.overflow && modalFit.footerFixed && modalFit.buttonsFit && modalFit.lastBottom<=modalFit.footerTop);
+    assert(modalFit.scrolls && !modalFit.overflow && modalFit.footerFixed && modalFit.buttonsFit && modalFit.lastBottom<=modalFit.footerTop,JSON.stringify({width,...modalFit}));
     await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   }
   check('Modal ampliado mantém rolagem interna e ações visíveis nas cinco larguras de tela');
