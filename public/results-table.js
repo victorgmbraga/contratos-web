@@ -8,6 +8,7 @@ export function createResultsTable({container, columns = [], renderCell, footerC
   const document = container.ownerDocument, window = document.defaultView;
   const lifetime = new window.AbortController(), {signal} = lifetime;
   let fields = [], rows = [], page = 1, lastPage = 1, busy = false, destroyed = false, menu = null, gesture = null, paginationFocus = null;
+  let rowViews = [];
   const originalFooterParent = footerContent?.parentNode;
   const node = (tag, className, text) => {
     const element = document.createElement(tag);
@@ -34,6 +35,12 @@ export function createResultsTable({container, columns = [], renderCell, footerC
     previous.root.remove(); previous.button.setAttribute('aria-expanded','false');
     if (restoreFocus && previous.button.isConnected) previous.button.focus({preventScroll:true});
   }
+  function closeMovedMenu() {
+    if (!menu) return;
+    const anchor = menu.button.getBoundingClientRect();
+    if (!menu.button.isConnected || menu.width !== window.innerWidth || menu.height !== window.innerHeight ||
+      ['left','right','top','bottom'].some(key=>anchor[key] !== menu.anchor[key])) closeMenu();
+  }
   function openMenu(column, button) {
     if (busy || destroyed) return;
     if (menu?.button === button) { closeMenu(true); return; }
@@ -45,8 +52,9 @@ export function createResultsTable({container, columns = [], renderCell, footerC
       const action = node('button','results-menu-item',entry.label); action.type = 'button'; action.setAttribute('role','menuitem');
       action.addEventListener('click',()=>{ closeMenu(true); onColumnAction?.(column.field,entry.action); }); root.append(action);
     }
-    document.body.append(root); menu = {root, button}; button.setAttribute('aria-expanded','true');
+    document.body.append(root); button.setAttribute('aria-expanded','true');
     const anchor = button.getBoundingClientRect(), bounds = root.getBoundingClientRect();
+    menu = {root, button, anchor, width:window.innerWidth, height:window.innerHeight};
     root.style.left = `${Math.max(8,Math.min(anchor.left,window.innerWidth - bounds.width - 8))}px`;
     root.style.top = `${Math.max(8,anchor.bottom + bounds.height + 8 <= window.innerHeight ? anchor.bottom + 4 : anchor.top - bounds.height - 4)}px`;
     root.querySelector('button')?.focus();
@@ -113,34 +121,44 @@ export function createResultsTable({container, columns = [], renderCell, footerC
   document.addEventListener('pointercancel',event=>{if(event.pointerId === gesture?.id)finishGesture(true);},{signal});
   document.addEventListener('keydown',event=>{if(event.key === 'Escape' && gesture){event.preventDefault();finishGesture(true);}},{signal});
   window.addEventListener('blur',()=>finishGesture(true),{signal});
-  window.addEventListener('resize',()=>{finishGesture(true);closeMenu();},{signal});
+  window.addEventListener('resize',()=>{finishGesture(true);closeMovedMenu();},{signal});
   document.addEventListener('pointerdown',event=>{
     if (menu && !menu.root.contains(event.target) && !menu.button.contains(event.target)) closeMenu();
   },{signal});
-  document.addEventListener('scroll',event=>{if(menu && !menu.root.contains(event.target))closeMenu();},{signal,capture:true});
-  const resizeObserver = new window.ResizeObserver(()=>closeMenu()); resizeObserver.observe(container);
+  document.addEventListener('scroll',event=>{if(menu && !menu.root.contains(event.target))closeMovedMenu();},{signal,capture:true});
+  const resizeObserver = new window.ResizeObserver(closeMovedMenu); resizeObserver.observe(container);
 
   function renderRows() {
-    const visible = fields.filter(column=>column.visible), fragment = document.createDocumentFragment();
+    const visible = fields.filter(column=>column.visible), nextViews = [];
     for (const [index,row] of (visible.length ? rows : []).entries()) {
+      const previous = rowViews[index];
+      if (previous && visible.every(column=>Object.is(previous.row[column.field],row[column.field]))) {
+        previous.row = row; nextViews.push(previous); continue;
+      }
       const tr = node('tr',`results-row${index % 2 ? ' results-row-even' : ''}`);
+      const view = {element:tr,row};
       for (const column of visible) {
         const td = node('td','results-cell'); td.dataset.field = column.field;
         const content = renderCell ? renderCell(row[column.field],column) : node('span',null,row[column.field] ?? '—');
         if (column.field === 'titulo') {
           const button = node('button','results-open'); button.type = 'button';
           button.setAttribute('aria-label',`Ver detalhes: ${row[column.field] || 'documento'}`); button.append(content);
-          button.addEventListener('click',()=>onOpenDocument?.(row)); td.append(button);
+          button.addEventListener('click',()=>onOpenDocument?.(view.row)); td.append(button);
         } else td.append(content);
         tr.append(td);
       }
       tr.addEventListener('click',event=>{
         if (busy || event.target.closest('button,a,input,select') || window.getSelection()?.toString()) return;
-        onOpenDocument?.(row);
+        onOpenDocument?.(view.row);
       });
-      fragment.append(tr);
+      nextViews.push(view);
     }
-    body.replaceChildren(fragment); empty.hidden = rows.length > 0 && visible.length > 0;
+    if (nextViews.length !== rowViews.length || nextViews.some((view,index)=>view !== rowViews[index])) {
+      const fragment = document.createDocumentFragment();
+      for (const view of nextViews) fragment.append(view.element);
+      body.replaceChildren(fragment);
+    }
+    rowViews = nextViews; empty.hidden = rows.length > 0 && visible.length > 0;
     if (!visible.length && rows.length) { empty.replaceChildren(node('div',null,'Selecione ao menos uma coluna.')); }
     else empty.replaceChildren(emptyText);
   }
@@ -171,6 +189,7 @@ export function createResultsTable({container, columns = [], renderCell, footerC
   function rebuild() {
     if (destroyed) return;
     finishGesture(true); closeMenu();
+    rowViews = []; body.replaceChildren();
     const visible = fields.filter(column=>column.visible), headerRow = node('tr');
     colgroup.replaceChildren();
     for (const column of visible) {
@@ -233,6 +252,7 @@ export function createResultsTable({container, columns = [], renderCell, footerC
       finishGesture(true); closeMenu(); destroyed = true; lifetime.abort(); resizeObserver.disconnect();
       if (footerContent && originalFooterParent?.isConnected) originalFooterParent.append(footerContent);
       container.replaceChildren(); container.classList.remove('results-table'); container.inert = false;
+      fields = []; rows = []; rowViews = [];
     },
   };
   api.setColumns(columns); api.setStatus('idle');

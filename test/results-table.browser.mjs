@@ -14,11 +14,20 @@ try {
   assert.equal(await page.evaluate(()=>window.injected),undefined);
   await page.getByRole('button',{name:'Ver detalhes: Documento 1',exact:true}).press('Enter');
   assert.deepEqual(await page.evaluate(()=>tableFixture.calls.opened),['Documento 1']);
+  assert.equal(await page.evaluate(()=>{
+    const previous=document.querySelector('.results-row');
+    tableFixture.instance.renderPage({rows:tableFixture.rows.map(row=>({...row,version:2})),page:1,lastPage:100});
+    return document.querySelector('.results-row')===previous;
+  }),true);
+  await page.getByRole('button',{name:'Ver detalhes: Documento 1',exact:true}).press('Enter');
+  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.versions),[1,2]);
   await page.getByRole('button',{name:'Página 2',exact:true}).click();
   assert.deepEqual(await page.evaluate(()=>tableFixture.calls.pages),[2]);
   assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'2');
   assert.equal(await page.evaluate(()=>document.activeElement.dataset.page),'2');
   await page.getByRole('button',{name:'Filtrar Órgão',exact:true}).click();
+  await page.evaluate(()=>document.querySelector('.results-scroll').dispatchEvent(new Event('scroll')));
+  assert.equal(await page.getByRole('menu').count(),1);
   await page.getByRole('menuitem',{name:'Ordenar crescente'}).press('Enter');
   assert.deepEqual(await page.evaluate(()=>tableFixture.calls.actions),[['orgao','asc']]);
   assert.equal(await page.getByRole('button',{name:'Filtrar Órgão',exact:true}).evaluate(element=>element===document.activeElement),true);
@@ -48,6 +57,7 @@ try {
   await page.keyboard.press('Escape');
   await page.evaluate(()=>{for(const column of tableFixture.columns)tableFixture.instance.setColumnVisibility(column.field,false);});
   assert(await page.getByText('Selecione ao menos uma coluna.').isVisible());
+  assert.equal(await page.locator('.results-row').count(),0);
   await page.evaluate(()=>tableFixture.instance.clear());assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'1');
   await page.evaluate(()=>tableFixture.instance.destroy());assert.equal(await page.locator('#results-table>*').count(),0);
   assert.deepEqual(errors,[]);
