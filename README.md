@@ -2,8 +2,6 @@
 
 Pesquisa de editais e avisos de contratações, atas de registro de preços e contratos públicos nas APIs do Portal Nacional de Contratações Públicas (PNCP).
 
-[Acessar a aplicação](https://contratos-web.net.br/) · [Repositório no GitHub](https://github.com/victorgmbraga/contratos-web)
-
 A aplicação executa no navegador. Consultas, validação de filtros e geração de CSV usam um Web Worker; a hospedagem serve arquivos estáticos. O navegador precisa de acesso à internet e de respostas do PNCP com CORS válido.
 
 A tabela e a leitura de JSON com precisão numérica são módulos do próprio projeto. Não há dependências de produção; Vite e Playwright são usados no desenvolvimento, no build e nos testes.
