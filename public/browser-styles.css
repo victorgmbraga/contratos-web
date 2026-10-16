@@ -1,4 +1,4 @@
-/* Load the library first and the application's layout overrides last.
+/* Load the table first and the application's layout overrides last.
    A single CSS entry also preserves this order in multi-page static builds. */
-@import 'tabulator-tables/dist/css/tabulator.min.css';
+@import './results-table.css';
 @import './styles.css';

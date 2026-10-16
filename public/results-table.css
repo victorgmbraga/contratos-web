@@ -1,11 +1,11 @@
 .results-table{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .results-scroll{flex:1;min-height:0;overflow:auto;position:relative;overscroll-behavior:contain}
 .results-grid{table-layout:fixed;min-width:100%;border-spacing:0;border-collapse:separate;font:inherit;text-align:left}
-.results-header{position:sticky;top:0;z-index:1;background:#eff4fa;border-bottom:1px solid #d5e0eb;color:#3a536d;font-weight:600;min-height:0}
+.results-header{position:sticky;top:0;z-index:1;background:#eff4fa;border-color:#d5e0eb;border-bottom:1px solid #d5e0eb;color:#3a536d;font-weight:600;min-height:0}
 .results-col{position:relative;background:#eff4fa;border-right:1px solid #dbe4ee;padding:0;font-weight:600;min-height:0;vertical-align:top}
 .results-col-content{padding:7px 8px}
 .results-col-title{display:flex;align-items:center;gap:5px;padding-right:5px;line-height:1.4;min-height:0}
-.results-col-label{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:grab;touch-action:pan-y}
+.results-col-label{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:grab;touch-action:pan-y}
 .results-header-menu{order:2;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0;border:0;background:transparent;color:var(--blue);font:inherit}
 .results-header-menu:hover{color:var(--blue-hover)}
 .results-header-menu .header-filter-icon{width:14px;height:14px;stroke-width:2}
@@ -18,7 +18,7 @@
 .results-row:hover{background:#eff7fd;cursor:pointer}
 .results-cell{border-right:1px solid #edf1f6;border-bottom:1px solid #e9eef4;padding:7px 8px;line-height:1.4;font-size:.8125rem;vertical-align:top;min-height:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .results-cell>span:not(.object-text){display:block;overflow:hidden;text-overflow:ellipsis}
-.results-cell[data-field="objeto_compra"]{color:#1a4168;font-weight:500}
+.results-cell>.status-cell{display:inline-block}
 .results-open{border:0;padding:0;background:transparent;color:inherit;font:inherit;text-align:left;max-width:100%;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .results-open>span{display:block;overflow:hidden;text-overflow:ellipsis}
 .results-open:hover{text-decoration:underline}

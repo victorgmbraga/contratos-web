@@ -16,9 +16,6 @@
     "preview": "vite preview",
     "test:browser": "node test/browser-smoke.mjs"
   },
-  "dependencies": {
-    "tabulator-tables": "6.6.1"
-  },
   "devDependencies": {
     "playwright": "1.64.1",
     "vite": "8.3.4"

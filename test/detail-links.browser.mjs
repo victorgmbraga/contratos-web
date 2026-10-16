@@ -36,7 +36,7 @@ try {
     assert.equal(calls('details'),type==='edital'?1:0);
     assert.match(await page.locator('#details-kind').innerText(),/nº 1\/2026/);
     assert.match(await page.locator('.detail-object').innerText(),/firewall/);
-    assert.equal(await page.locator('.tabulator-row').filter({hasText:'nº 1/2026'}).count(),0);
+    assert.equal(await page.locator('.results-row').filter({hasText:'nº 1/2026'}).count(),0);
     assert.match(await page.locator('#details-links a').first().getAttribute('href'),new RegExp(`/app/${type==='edital'?'editais':type==='ata'?'atas':'contratos'}/00000000000000/2026/1`));
 
     const shared=page.url();await page.reload();await waitLoaded();await waitTab(tab);
@@ -63,7 +63,7 @@ try {
   await waitLoaded();await waitTab('detalhes');
   await page.locator('#details-dialog .close-dialog').click();
   await page.waitForFunction(()=>!new URL(location.href).searchParams.has('detalhe'));
-  const row=page.locator('.tabulator-row').filter({hasText:'Contrato de demonstração nº 1/2026'});
+  const row=page.locator('.results-row').filter({hasText:'Contrato de demonstração nº 1/2026'});
   await row.click();await waitLoaded();
   assert.equal(new URL(page.url()).searchParams.get('detalhe'),'contrato/00000000000000/2026/1');
   assert.equal(await page.locator('#details-kind').innerText(),'Contrato de demonstração nº 1/2026');

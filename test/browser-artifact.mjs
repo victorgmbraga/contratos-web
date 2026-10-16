@@ -5,6 +5,8 @@ import { createStaticServer } from './static-server.js';
 import { launchTestBrowser } from './browser-launch.js';
 import { assertBrowserLayout } from './browser-layout.js';
 import { demoFetch, demoDocument } from '../src/demo.js';
+const manifest=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
+assert.deepEqual(Object.keys(manifest.dependencies || {}),[], 'O artefato deve permanecer sem dependências de produção.');
 const browser = await launchTestBrowser();
 const cors = http.createServer((req, res) => {
   if(req.url.startsWith('/allow'))res.setHeader('Access-Control-Allow-Origin','*');

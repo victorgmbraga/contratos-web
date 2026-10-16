@@ -11,7 +11,7 @@ import { config, service, document, query, memoryStorage } from './helpers.js';
 import { FILTER_OPTIONS_TTL } from '../src/browser/filter-options-cache.js';
 import { project } from '../src/adapter.js';
 
-// Execute the actual app handlers with a minimal DOM and Tabulator adapter.
+// Execute the actual app handlers with a minimal DOM and injected results view.
 // These tests verify query state and requests, not browser rendering.
 async function interfaceFixture(options={}) {
   const nodes=new Map(),all=[],pending=[],downloads=[];
@@ -74,10 +74,16 @@ async function interfaceFixture(options={}) {
     if(result?.error)throw Object.assign(new Error(result.error.message),result.error);
     return method==='export'?{mime:'text/csv; charset=utf-8',filename:'compras-demo.csv',...result}:result;
   }};
-  class Table {
-    constructor(selector,options){this.options=options;this.size=options.paginationSize;this.handlers={};}on(name,fn){this.handlers[name]=fn;}clearSort(){}getPageSize(){return this.size;}
-    setData(url,params){const task=this.options.ajaxRequestFunc(url,{},params);pending.push(task);return task;}setPage(page){return this.setData('query',{page,size:this.size});}redraw(){}clearData(){}setColumns(columns){this.options.columns=columns;}
-  }
+  let finishReady;
+  const tableFactory=options=>({options,columns:options.columns,rows:[],page:1,lastPage:1,
+    ready:new Promise(resolve=>{finishReady=resolve;}),
+    setStatus(status){this.status=status;},
+    renderPage({rows,page,lastPage}){this.rows=rows;this.page=page;this.lastPage=lastPage;},
+    clear(){this.rows=[];this.page=1;this.lastPage=1;},
+    setColumns(columns){this.columns=columns;},
+    setColumnVisibility(field,visible){this.columns.find(column=>column.field===field).visible=visible;},
+    getColumns(){return this.columns;},destroy(){},
+  });
   const entries=[options.href ?? 'https://example.test/contratos-web/'],windowListeners={};let historyIndex=0;
   const view={localStorage:options.storage,location:{get href(){return entries[historyIndex];}},addEventListener(name,fn){(windowListeners[name]??=[]).push(fn);},history:{
     get length(){return entries.length;},
@@ -86,17 +92,17 @@ async function interfaceFixture(options={}) {
   }};
   const dispatchHistory=async()=>{for(const fn of windowListeners.popstate || [])await fn({type:'popstate'});await settle();await Promise.allSettled(pending);await settle();};
   const browser={view,entries,href:()=>view.location.href,async back(){if(historyIndex>0){historyIndex--;await dispatchHistory();}},async forward(){if(historyIndex<entries.length-1){historyIndex++;await dispatchHistory();}},async visit(href){view.history.pushState(null,'',href);await dispatchHistory();}};
-  const uiCore=createApplicationUI(service,{document:dom,window:view,Tabulator:Table,optionsCacheSettings:options.cacheSettings});
+  const uiCore=createApplicationUI(service,{document:dom,window:view,tableFactory,optionsCacheSettings:options.cacheSettings});
   await uiCore.ready;
   if(options.waitOptions!==false)await uiCore.state.optionsReady;
   await settle();assert.equal(nodes.get('startup-error').hidden,true);
-  const buildTable=async()=>{const boot=uiCore.state.table.handlers.tableBuilt();await Promise.allSettled([...pending,boot]);await settle();};
-  if(!options.deferTableBuilt)await buildTable();
+  const startTable=async()=>{finishReady();await uiCore.state.started;await settle();};
+  if(!options.deferTableReady)await startTable();
   const state=()=>structuredClone(uiCore.state.query);
-  const openDocument=doc=>uiCore.state.table.handlers.rowClick({}, {getData:()=>doc});
-  const tableColumns=()=>uiCore.state.table.options.columns;
-  const request=params=>uiCore.requestTable('query',{},params);
-  const footer=()=>uiCore.state.table.options.paginationCounter();
+  const openDocument=doc=>uiCore.state.table.options.onOpenDocument(doc);
+  const tableColumns=()=>uiCore.state.table.getColumns();
+  const request=params=>uiCore.loadResultsPage(params.page);
+  const footer=()=>uiCore.state.table.options.footerContent;
   const draft=()=>structuredClone(uiCore.state.draft);
   const setFilter=(name,value)=>uiCore.setDraftFilter(name,value);
   const field=name=>nodes.get(`filter-${name}`);
@@ -117,7 +123,8 @@ async function interfaceFixture(options={}) {
       input.value=value===undefined?'':String(value);await input.fire(cap.domain || cap.type==='boolean'?'change':'input');
     }
   };
-  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,tableColumns,request,footer,buildTable,optionsReady:uiCore.state.optionsReady,browser};
+  const renderedPage=()=>({page:uiCore.state.table.page,ids:uiCore.state.table.rows.map(row=>row.id)});
+  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,tableColumns,request,footer,startTable,renderedPage,optionsReady:uiCore.state.optionsReady,browser};
 }
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
@@ -234,9 +241,8 @@ test('HEADER-UI-02: busca, filtros e ações usam somente ícones com nomes aces
 test('HEADER-UI-03: botão de menu do cabeçalho aparece somente em colunas filtráveis',async()=>{
   const ui=await interfaceFixture();
   const columns=Object.fromEntries(ui.tableColumns().map(column=>[column.field,column]));
-  for(const field of ['titulo','objeto_compra','data_atualizacao_pncp','orgao_cnpj','tem_resultado'])assert.equal('headerMenu' in columns[field],false,field);
-  for(const field of ['orgao_nome','uf','data_publicacao_pncp','valor_total_estimado'])assert.equal(typeof columns[field].headerMenu,'function',field);
-  for(const field of ['orgao_nome','uf','data_publicacao_pncp','valor_total_estimado'])assert.match(columns[field].headerMenuIcon,/header-filter-icon/);
+  for(const field of ['titulo','objeto_compra','data_atualizacao_pncp','orgao_cnpj','tem_resultado'])assert.equal(columns[field].filterable,false,field);
+  for(const field of ['orgao_nome','uf','data_publicacao_pncp','valor_total_estimado'])assert.equal(columns[field].filterable,true,field);
 });
 
 test('ORDER-UI-01: seletor acompanha o tipo, preserva a ordenação do link e restaura o padrão ao trocar de documento',async()=>{
@@ -380,9 +386,9 @@ test('QUERY-URL-UI-06: navegar no histórico cancela a busca pendente e resposta
 });
 
 test('QUERY-URL-UI-07: navegação durante a inicialização utiliza a URL atual na primeira consulta',async()=>{
-  const ui=await interfaceFixture({deferTableBuilt:true,href:'https://example.test/?q=antigo'});
+  const ui=await interfaceFixture({deferTableReady:true,href:'https://example.test/?q=antigo'});
   await ui.browser.visit('https://example.test/?tipos_documento=ata&ordenacao=data&pagina=1');assert.equal(ui.requests.length,0);
-  await ui.buildTable();assert.equal(ui.requests.length,1);assert.equal(ui.requests[0].document_type,'ata');assert.equal(ui.requests[0].q,'');assert.equal(ui.requests[0].order,'data');assert.equal(ui.nodes.get('result-title').textContent,'24 atas');
+  await ui.startTable();assert.equal(ui.requests.length,1);assert.equal(ui.requests[0].document_type,'ata');assert.equal(ui.requests[0].q,'');assert.equal(ui.requests[0].order,'data');assert.equal(ui.nodes.get('result-title').textContent,'24 atas');
 });
 
 test('TABLE-FOOTER-01: total real no rodapé, aviso de janela no marcador e demais avisos acima da tabela',async()=>{
@@ -430,7 +436,7 @@ test('TABLE-FOOTER-02: intervalo usa os dados da página curta e apresenta zero 
 
 test('TABLE-LOADER-01: consulta, atualização e paginação mostram loader; sucesso, falha e cancelamento o removem',async()=>{
   const source=service(Array.from({length:164},(_,i)=>document(i+1))),waiting=[];
-  const ui=await interfaceFixture({deferTableBuilt:true,queryHandler:(input,{signal})=>new Promise((resolve,reject)=>{
+  const ui=await interfaceFixture({deferTableReady:true,queryHandler:(input,{signal})=>new Promise((resolve,reject)=>{
     const abort=()=>reject(new DOMException('Consulta cancelada.','AbortError'));
     signal.addEventListener('abort',abort,{once:true});
     waiting.push({finish:async()=>{signal.removeEventListener('abort',abort);resolve((await source.service.execute(input)));},fail:()=>{signal.removeEventListener('abort',abort);resolve(({error:{code:'PNCP_UNAVAILABLE',message:'PNCP indisponível.'}}));}});
@@ -438,7 +444,7 @@ test('TABLE-LOADER-01: consulta, atualização e paginação mostram loader; suc
   const loader=ui.nodes.get('table-loader'),table=ui.nodes.get('results-table'),title=ui.nodes.get('table-loader-title');
   const busy=value=>{assert.equal(loader.hidden,!value);assert.equal(table.inert,value);assert.equal(table.getAttribute('aria-busy'),String(value));assert.equal(ui.nodes.get('search-button').hidden,value);assert.equal(ui.nodes.get('cancel-button').hidden,!value);};
   busy(false);
-  const initial=ui.buildTable();await settle();busy(true);assert.equal(title.textContent,'Carregando contratações');assert.equal(ui.nodes.get('cancel-button').hidden,false);
+  const initial=ui.startTable();await settle();busy(true);assert.equal(title.textContent,'Carregando contratações');assert.equal(ui.nodes.get('cancel-button').hidden,false);
   await waiting[0].finish();await initial;busy(false);
   const refresh=ui.nodes.get('refresh-button').fire('click');await settle();busy(true);assert.equal(title.textContent,'Atualizando contratações');
   await waiting[1].finish();await refresh;busy(false);
@@ -452,7 +458,7 @@ test('TABLE-LOADER-01: consulta, atualização e paginação mostram loader; suc
 
 test('TABLE-LOADER-02: resposta antiga não oculta o loader da consulta mais recente',async()=>{
   const source=service([document(1)]),waiting=[];
-  const ui=await interfaceFixture({deferTableBuilt:true,queryHandler:input=>new Promise(resolve=>{
+  const ui=await interfaceFixture({deferTableReady:true,queryHandler:input=>new Promise(resolve=>{
     // Simula uma fonte que entrega a resposta mesmo depois do cancelamento.
     waiting.push(async()=>resolve((await source.service.execute(input))));
   })});
@@ -1010,17 +1016,26 @@ test('DETAIL-LINK-UI-05: falha da busca não impede carregar o documento identif
 
 test('DETAIL-LINK-UI-06: navegar para outro documento cancela a carga antiga e ignora sua resposta',async()=>{
   let finish,signal;
-  const ui=await interfaceFixture({deferTableBuilt:true,href:'https://example.test/?detalhe=contrato/00000000000000/2026/1&aba=arquivos',documentHandler:(payload,options,core)=>{
+  const ui=await interfaceFixture({deferTableReady:true,href:'https://example.test/?detalhe=contrato/00000000000000/2026/1&aba=arquivos',documentHandler:(payload,options,core)=>{
     if(payload.document.type==='contrato'){signal=options.signal;return new Promise(resolve=>{finish=()=>resolve({fields:[{title:'Antigo',value:'Antigo'}],objeto:'Objeto antigo',titulo:'Título antigo'});});}
     return core.documentDetails(payload.document,options.signal);
   }});
-  const opening=ui.buildTable();await settle();assert.equal(ui.nodes.get('details-dialog').open,true);
+  const opening=ui.startTable();await settle();assert.equal(ui.nodes.get('details-dialog').open,true);
   await ui.browser.visit('https://example.test/?detalhe=ata/00000000000000/2026/3/3&aba=historico');assert.equal(signal.aborted,true);
   const title=ui.nodes.get('details-kind').textContent;finish();await opening;assert.equal(ui.nodes.get('details-kind').textContent,title);assert.equal(ui.nodes.get('detail-tab-historico').getAttribute('aria-selected'),'true');assert.equal(new URL(ui.browser.href()).searchParams.get('detalhe'),'ata/00000000000000/2026/3/3');
 });
 
 test('DETAIL-LINK-UI-07: fechar durante a carga remove a seleção e impede reabertura por resposta atrasada',async()=>{
-  let finish,signal;const ui=await interfaceFixture({deferTableBuilt:true,href:'https://example.test/?detalhe=contrato/00000000000000/2026/1',documentHandler:(payload,options)=>{signal=options.signal;return new Promise(resolve=>{finish=()=>resolve({fields:[],objeto:'Antigo',titulo:'Antigo'});});}});
-  const opening=ui.buildTable();await settle();ui.nodes.get('details-dialog').close();assert.equal(signal.aborted,true);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);
+  let finish,signal;const ui=await interfaceFixture({deferTableReady:true,href:'https://example.test/?detalhe=contrato/00000000000000/2026/1',documentHandler:(payload,options)=>{signal=options.signal;return new Promise(resolve=>{finish=()=>resolve({fields:[],objeto:'Antigo',titulo:'Antigo'});});}});
+  const opening=ui.startTable();await settle();ui.nodes.get('details-dialog').close();assert.equal(signal.aborted,true);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);
   finish();await opening;assert.equal(ui.nodes.get('details-dialog').open,false);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);
+});
+
+test('TABLE-STATE-01: falha de outra página preserva linhas e página confirmadas na view',async()=>{
+  let failed=false;
+  const ui=await interfaceFixture({queryHandler:(input,options,core)=>failed?Promise.reject(new Error('Fonte indisponível')):core.execute(input,options.signal)});
+  const confirmed=ui.renderedPage();failed=true;
+  await assert.rejects(ui.request({page:2}),/Fonte indisponível/);
+  assert.deepEqual(ui.renderedPage(),confirmed);assert.equal(ui.state().page,2);
+  assert.equal(ui.nodes.get('table-loader').hidden,true);assert.equal(ui.nodes.get('results-table').inert,false);
 });
