@@ -41,7 +41,7 @@ try {
   for(const [type,title] of [['edital','64 contratações'],['ata','24 atas'],['contrato','32 contratos']]) {
     await page.locator('#document-type').selectOption(type);
     await page.waitForFunction(title=>document.querySelector('#result-title').textContent===title,title);
-    await contrast(['.brand','.results-col','.results-cell','.results-page','.results-page.active','#search-button','#repository-link','#result-title','#result-meta','#document-type']);
+    await contrast(['.brand','.results-col','.results-cell','.results-page','.results-page.active','#search-button','#repository-link','#result-title','#document-type']);
     assert.equal(await page.locator('.results-row').first().evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(23, 35, 49)');
     await page.locator('#filters-button').click();await page.locator('#filter-ufs:not(:disabled)').waitFor();
     await contrast(['#filters-title','.filters-body .panel-note','#draft-status','.filter-field label','#apply-filters']);

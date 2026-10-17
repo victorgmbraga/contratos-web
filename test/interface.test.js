@@ -503,7 +503,7 @@ test('TABLE-FOOTER-03: trocar tipo e navegar no histórico reexibe rodapé, incl
       assert.equal(ui.nodes.get('result-title').textContent,`${empty?0:total} ${label}`);
       assert.equal(ui.nodes.get('result-info').hidden,false,`${type}, empty=${empty}`);
       assert.equal(ui.nodes.get('result-range').hidden,false);
-      assert.match(ui.nodes.get('result-meta').textContent,/consulta às.*chamada\(s\)/);
+      assert.equal(ui.nodes.has('result-meta'),false);
     }
     await ui.browser.back();
     assert.equal(ui.state().document_type,'contrato');assert.equal(ui.nodes.get('result-info').hidden,false);

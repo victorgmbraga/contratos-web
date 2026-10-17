@@ -200,9 +200,6 @@ function renderResult(result,query) {
   const last=result.data.length?first+result.data.length-1:0;
   $('result-range').textContent=`Exibindo ${fmtInt(first)}-${fmtInt(last)} de `;$('result-range').hidden=false;
   $('result-title').textContent=`${fmtInt(result.total)} ${documentName(query.document_type)[result.total===1?'singular':'plural']}`;
-  const source=result.demo?'Demonstração': 'PNCP';
-  $('result-meta').textContent=`· ${source} · consulta às ${time(result.finished_at)} · ${(result.elapsed_ms/1000).toFixed(1).replace('.',',')} s · ${result.upstream_requests} chamada(s)`;
-  $('result-meta').title=$('result-meta').textContent;
   const windowWarning=result.warnings.find(w=>w.code==='WINDOW_LIMITED');
   $('window-warning').hidden=!windowWarning;
   $('window-warning-tooltip').textContent=windowWarning?.message || '';

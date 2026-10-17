@@ -11,8 +11,6 @@ async function snapshot(page) {
     const properties = ['backgroundColor', 'color', 'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'borderTopColor', 'borderTopWidth', 'borderBottomColor', 'borderBottomWidth', 'borderRightColor', 'borderRightWidth', 'borderRadius', 'display', 'gap', 'minHeight'];
     return Object.fromEntries(selectors.map(selector => {
       const node = document.querySelector(selector), style = getComputedStyle(node);
-      // Metadata text includes independently measured durations, so compare its
-      // typography/padding rather than its intrinsic text width.
       return [selector, { ...Object.fromEntries(properties.map(key => [key, style[key]])) }];
     }));
   });
