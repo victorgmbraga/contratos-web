@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {createStaticServer} from './static-server.js';
 import {launchTestBrowser} from './browser-launch.js';
 import {THEME_STORAGE_KEY} from '../public/theme.js';
@@ -52,7 +54,7 @@ try {
     assert.equal(await page.locator('#details-dialog').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(23, 35, 49)');
     await page.locator('.detail-tab').nth(1).click();
     await contrast(['.detail-tab[aria-selected="true"]']);
-    if(type==='contrato')await page.screenshot({path:'/tmp/contratos-dark-details.png'});
+    if(type==='contrato')await page.screenshot({path:join(tmpdir(),'contratos-dark-details.png')});
     await page.locator('#details-dialog .close-dialog').click();
   }
   await page.locator('#columns-button').click();await contrast(['#columns-dialog h2','#column-list label']);
@@ -73,7 +75,7 @@ try {
   await page.setViewportSize({width:390,height:844});await page.locator('#theme-button').focus();
   const bounds=await page.locator('#theme-button').boundingBox();assert(bounds.x>=0 && bounds.x+bounds.width<=390);
   assert.equal(await page.locator('#theme-button').evaluate(node=>node.closest('#header-content')!==null),true);
-  await page.screenshot({path:'/tmp/contratos-dark-mobile.png'});
+  await page.screenshot({path:join(tmpdir(),'contratos-dark-mobile.png')});
   await page.goto(new URL('pncp-diagnostic.html',url).href);assert.equal(await theme(),'dark');await contrast(['h1','p','a']);
   assert.deepEqual(errors,[]);
   console.log('PASS Temas: sistema, alternância, persistência, sincronização entre abas, contraste, três tipos, modais, detalhes, avisos e tela pequena');
