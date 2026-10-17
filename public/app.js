@@ -48,7 +48,7 @@ let filterOptionsCache;
 const filterFields=new Map();
 let openFilterEditor=null;
 let urlMode='replace',urlError=null,tableReady=false,queryRequested=false;
-const toolbarButtonIds=['search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-button','cancel-export-button'];
+const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-button','cancel-export-button'];
 function syncQueryUrl(query) {
   const mode=urlMode;urlMode='push';
   if(!window.location?.href || !window.history)return;

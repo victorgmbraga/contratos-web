@@ -17,6 +17,8 @@ A tabela e a leitura de JSON com precisão numérica são módulos do próprio p
 
 O ícone do GitHub, ao final dos controles do cabeçalho, abre o repositório em nova aba. Em telas pequenas, acompanha a rolagem horizontal com os demais botões.
 
+O botão de sol/lua, junto ao GitHub, alterna entre os modos claro e escuro. No primeiro acesso, o tema acompanha a preferência do sistema. A escolha fica salva no navegador e é sincronizada entre abas; se o armazenamento estiver bloqueado, a alternância continua funcionando na página aberta.
+
 As colunas podem ser redimensionadas pela borda direita ou movimentadas pelo título. Pelo teclado, foque o título e use **Alt + ←/→** para mover; no controle de largura, use **←/→** ou **Home** para a largura mínima. O título de cada registro também permite abrir os detalhes pelo teclado.
 
 ### Detalhes dos documentos

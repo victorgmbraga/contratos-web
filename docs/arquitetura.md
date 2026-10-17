@@ -36,6 +36,7 @@ flowchart LR
 | [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, DOM, histórico da URL, painéis e download |
 | [`public/results-table.js`](../public/results-table.js), [`results-table.css`](../public/results-table.css) | Tabela semântica, paginação, menus, visibilidade, ordem e largura de colunas |
 | [`public/browser-entry.js`](../public/browser-entry.js) | Configuração pública e inicialização da distribuição estática |
+| [`public/theme.js`](../public/theme.js), [`theme.css`](../public/theme.css) | Preferência de tema, integração com o sistema, sincronização entre abas e paleta escura |
 | [`src/demo.js`](../src/demo.js) | Fonte fictícia escolhida explicitamente |
 | [`vite.config.js`](../vite.config.js) | Aplicação e diagnóstico, Worker ES module, assets relativos, CSP e saída `dist-browser/` |
 | [`test/`](../test/) | Núcleo, DOM, runtime/RPC, layout e build estático no navegador |
@@ -67,6 +68,12 @@ Antes da primeira consulta, a interface lê a URL e configura tipo documental, c
 `detalhe` contém tipo, CNPJ, ano e sequencial nativos; atas também incluem o sequencial da compra. `aba` identifica uma seção compatível com esse tipo. A restauração reutiliza uma linha disponível ou cria uma identificação provisória e consulta `documentDetails`, inclusive para editais. Os campos de edital usam `/api/consulta/v1`; atas, contratos e listagens usam `/api/pncp/v1`. O painel e a busca carregam independentemente: o documento não precisa constar nos resultados, e uma falha da busca não impede seus detalhes. Fechar, trocar o documento ou iniciar nova busca cancela as operações do painel; respostas antigas não mudam a seleção atual.
 
 A paginação remota usa `loadResultsPage` para abrir diretamente a página do link. O seletor de ordenação usa `orders_by_document` e `order_labels` do esquema; o Worker e a leitura da URL validam a mesma compatibilidade. O seletor e os menus de colunas enviam critérios nativos ao PNCP, sem ordenação ou filtragem local. Novos critérios reiniciam a página. Atualizar consulta a página da última pesquisa concluída; repetir uma falha usa a página que falhou.
+
+## Temas
+
+O tema é aplicado por `theme.js`, carregado antes da inicialização das consultas. Sem preferência explícita, `prefers-color-scheme` define o tema e suas mudanças são acompanhadas. O botão de sol/lua salva `light` ou `dark` na chave `contratos-web:theme` do `localStorage`; a escolha prevalece sobre o sistema e eventos `storage` a sincronizam entre abas. Armazenamento indisponível não impede alternar o tema na página. A página de diagnóstico reutiliza a preferência.
+
+`data-theme` no elemento raiz seleciona as cores semânticas de `theme.css` e `color-scheme` adapta os controles nativos e barras de rolagem. Os estilos da aplicação e da tabela mantêm os valores originais como alternativas do tema claro. Botões preenchidos têm cores próprias para conservar o contraste dos ícones brancos. O build preserva `blocking="render"` no módulo de entrada para aplicar o tema antes da primeira pintura nos navegadores que suportam esse atributo.
 
 ## Tabela de resultados
 

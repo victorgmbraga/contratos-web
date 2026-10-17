@@ -19,6 +19,7 @@ O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 - Pré-carga das opções, validade de quatro horas, compactação, armazenamento indisponível, deduplicação e amparos por normativo.
 - Modal com todos os filtros compatíveis, edição sem confirmação intermediária, campos sem restrição, cancelamento do rascunho, sugestões independentes e rolagem com ações visíveis.
 - Ícones de coluna com filtragem direta e tooltip neutro nos três tipos, menus preservados nas colunas com ordenação, opções e intervalos, direcionamento independente de listas lentas e preservação do foco escolhido pelo usuário.
+- Temas claro/escuro, preferência do sistema, persistência, sincronização entre abas, armazenamento bloqueado, contraste dos textos e controle acessível no cabeçalho.
 - Seleção múltipla por campos de busca, pesquisa local sem acentos, marcação e remoção, teclado e menus suspensos que acompanham a rolagem sem alterar a altura dos grupos.
 - Parser exato com corpus independente de tokens/erros, números extensos, zeros finais, notação científica, Unicode, chaves repetidas/especiais e estruturas profundas. As fixtures usam JSON textual para não arredondar os dados antes do teste.
 - Paginação da tabela e preservação das linhas e da página confirmadas quando outra consulta falha.
@@ -48,6 +49,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Componente de tabela | Cem linhas, conteúdo tratado como texto, paginação, foco, menus, teclado, redimensionamento, movimentação, visibilidade, cabeçalho fixo e destruição |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
 | Interface | Filtros, três tipos, links de busca e documento/aba, histórico do navegador, paginação, painéis, CSV, cancelamento, teclado e responsividade |
+| Temas | Alternância, restauração, sincronização, contraste mínimo de 4,5:1 nos textos verificados, filtros, detalhes, avisos, carregamento e tela pequena |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), em 1440, 1068 e 390 pixels |

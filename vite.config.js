@@ -44,6 +44,11 @@ export default defineConfig(({ mode }) => {
         this.emitFile({ type: 'asset', fileName: 'THIRD_PARTY_LICENSES.md', source: await readFile(new URL('./THIRD_PARTY_LICENSES.md', import.meta.url), 'utf8') });
         this.emitFile({ type: 'asset', fileName: '_headers', source: '/*\n' + Object.entries(headers).map(([name, value]) => `  ${name}: ${value}\n`).join('') + '  Cache-Control: no-cache\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n' });
       },
+    }, {
+      name: 'theme-before-paint',
+      transformIndexHtml: { order: 'post', handler(html) {
+        return html.replaceAll('<script type="module" crossorigin', '<script type="module" blocking="render" crossorigin');
+      } },
     }],
   };
 });

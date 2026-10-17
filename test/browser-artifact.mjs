@@ -32,6 +32,11 @@ try {
         assert.match(await page.locator('#result-info').innerText(),/Exibindo 1-\d+ de/);
       }
       assert.deepEqual(api,[]); assert.deepEqual(errors,[]);
+      await page.locator('#theme-button').click();
+      assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
+      await page.reload();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
+      assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
+      await page.locator('#theme-button').click();
       console.log('PASS Artefato de produção, assets e Worker em '+prefix);
       await assertBrowserLayout(browser, `http://127.0.0.1:${app.server.address().port}${prefix}?demo=1`);
       await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}?demo=1&tipos_documento=contrato&possui_nfe=false&ordenacao=data&pagina=1#resultados`);
