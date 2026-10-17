@@ -275,7 +275,12 @@ try {
   }
   const fileLink=page.locator('.related-section[data-resource="arquivos"] .related-card a').first();assert.equal(await fileLink.getAttribute('target'),'_blank');assert.equal(await fileLink.getAttribute('rel'),'noopener noreferrer');assert.match(await fileLink.getAttribute('href'),/^https:\/\/pncp.gov.br\//);
   await page.locator('#detail-tab-detalhes').click();const previousViewport=page.viewportSize();
-  for(const width of [320,390,768]){await page.setViewportSize({width,height:844});assert.equal(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);await page.locator('#detail-tab-historico').click();assert(await page.locator('#detail-panel-historico').isVisible());await page.locator('#detail-tab-detalhes').click();}
+  for(const width of [320,390,768]){
+    await page.setViewportSize({width,height:844});assert.equal(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);
+    if(width<=700)await page.locator('#details-section').selectOption('historico');else await page.locator('#detail-tab-historico').click();
+    assert(await page.locator('#detail-panel-historico').isVisible());
+    if(width<=700)await page.locator('#details-section').selectOption('detalhes');else await page.locator('#detail-tab-detalhes').click();
+  }
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/details-tabs-mobile.png`});
   await page.setViewportSize(previousViewport);check('Abas, listagens e links cabem no painel em telas menores');
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeTabs);
@@ -395,6 +400,17 @@ try {
     await page.locator('#header-content').evaluate(node=>{node.scrollLeft=0;});
     const fit=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,centers:[...document.querySelectorAll('#app-header .brand,#app-header input,#app-header button,#app-header select,#source-badge,#repository-link')].filter(node=>node.getClientRects().length).map(node=>{const rect=node.getBoundingClientRect();return rect.top+rect.height/2;})}));
     assert(fit.scroll<=fit.width,`Overflow da página em ${width}px`);
+    if(width<=700){
+      assert.equal(await page.locator('#header-content').evaluate(node=>node.scrollWidth<=node.clientWidth),true);
+      for(const id of ['search','search-button','filters-button','document-type','order']){
+        const bounds=await page.locator(`#${id}`).boundingBox();assert(bounds.x>=0 && bounds.x+bounds.width<=width,`${id} fora da tela em ${width}px`);
+      }
+      await page.locator('#more-actions-button').click();
+      assert.equal(await page.locator('#more-actions #repository-link').count(),1);
+      await page.locator('#repository-link').focus();
+      const bounds=await page.locator('#repository-link').boundingBox();assert(bounds.x>=0 && bounds.x+bounds.width<=width,`GitHub inacessível em ${width}px`);
+      await page.keyboard.press('Escape');
+    }else{
     assert(Math.max(...fit.centers)-Math.min(...fit.centers)<=1,`Cabeçalho quebrou linha em ${width}px`);
     const repository=await page.locator('#repository-link').boundingBox();
     assert(repository.x>=0 && repository.y>=0 && repository.y<=20,`GitHub fora do canto superior em ${width}px`);
@@ -410,6 +426,7 @@ try {
     await page.locator('#repository-link').focus();await page.locator('#repository-link-tooltip').waitFor({state:'visible'});
     const visibleRepository=await page.locator('#repository-link').boundingBox();
     assert(visibleRepository.x>=0 && visibleRepository.x+visibleRepository.width<=width,`GitHub não ficou acessível pelo teclado em ${width}px`);
+    }
     await page.locator('#filters-button').click();
     const bodyHeight=await page.locator('.filters-body').evaluate(body=>body.scrollHeight);
     await filter('modalidades').click();
@@ -435,7 +452,7 @@ try {
     await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   }
   check('Modal ampliado mantém rolagem interna e ações visíveis nas cinco larguras de tela');
-  await page.setViewportSize({width:390,height:844});await page.locator('#filters-button').click();assert(await page.locator('#filters-dialog').isVisible());await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Cabeçalho em linha única com rolagem acessível e painéis sem overflow da página');
+  await page.setViewportSize({width:390,height:844});await page.locator('#filters-button').click();assert(await page.locator('#filters-dialog').isVisible());await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Cabeçalho responsivo mantém busca e filtros visíveis e painéis sem overflow da página');
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.COMPRAS_QA_SCREENSHOT_DIR+'/mobile.png',fullPage:true});
   {assert.deepEqual(localApiRequests,[]);check('Distribuição estática executa todas as ações sem API local');}
   assert.deepEqual(errors,[]);check('Sem erros JavaScript não tratados');

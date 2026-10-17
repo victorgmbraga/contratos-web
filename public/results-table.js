@@ -5,7 +5,7 @@ export function paginationPages(page, lastPage) {
 
 let tableSerial = 0;
 
-export function createResultsTable({container, columns = [], renderCell, footerContent, placeholder,
+export function createResultsTable({container, columns = [], renderCell, renderCard, footerContent, placeholder,
   paginationIcons = {}, menuIcon = '', onPageChange, onOpenDocument, onColumnAction}) {
   const document = container.ownerDocument, window = document.defaultView;
   const lifetime = new window.AbortController(), {signal} = lifetime;
@@ -18,12 +18,14 @@ export function createResultsTable({container, columns = [], renderCell, footerC
     if (text !== undefined) element.textContent = text;
     return element;
   };
-  const scroll = node('div','results-scroll'), table = node('table','results-grid');
+  const scroll = node('div','results-scroll'), table = node('table','results-grid'), cards = node('div','results-cards');
+  cards.setAttribute('role','list'); cards.setAttribute('aria-label','Resultados da pesquisa em cartões');
+  if (renderCard) {container.classList.add('results-has-cards');container.dataset.mobileView = 'cards';}
   table.setAttribute('aria-label','Resultados da pesquisa');
   const colgroup = node('colgroup'), head = node('thead','results-header'), body = node('tbody');
   table.append(colgroup, head, body);
   const empty = node('div','results-placeholder'), emptyText = placeholder || node('div',null,'Nenhum registro encontrado.');
-  empty.append(emptyText); scroll.append(table, empty);
+  empty.append(emptyText); scroll.append(table, cards, empty);
   const footer = node('div','results-footer'), footerInner = node('div','results-footer-contents');
   const filterTooltip = node('div','tooltip results-filter-tooltip','Filtrar por esta coluna');
   filterTooltip.id = `results-filter-tooltip-${++tableSerial}`;
@@ -181,9 +183,23 @@ export function createResultsTable({container, columns = [], renderCell, footerC
     rowViews = nextViews; empty.hidden = rows.length > 0 && visible.length > 0;
     if (!visible.length && rows.length) { empty.replaceChildren(node('div',null,'Selecione ao menos uma coluna.')); }
     else empty.replaceChildren(emptyText);
+    if (renderCard) {
+      cards.replaceChildren(...rows.map(row=>{
+        const card = node('article','result-card');card.setAttribute('role','listitem');
+        card.append(renderCard(row));
+        card.addEventListener('click',event=>{
+          if (busy || event.target.closest('button,a,input,select') || window.getSelection()?.toString()) return;
+          onOpenDocument?.(row);
+        });
+        const open = card.querySelector('.result-card-open');
+        open?.addEventListener('click',()=>{if(!busy)onOpenDocument?.(row);});
+        return card;
+      }));
+      container.dataset.hasRows = String(rows.length > 0);
+    }
   }
   function renderPagination() {
-    const focused = document.activeElement?.closest('.results-page')?.dataset.page;
+    const focused = document.activeElement?.closest('[data-page]')?.dataset.page;
     if (focused) paginationFocus = focused;
     paginator.replaceChildren();
     const add = (action,label,target,disabled,icon) => {
@@ -197,11 +213,22 @@ export function createResultsTable({container, columns = [], renderCell, footerC
     paginator.append(add('first','Primeira página',1,page <= 1,paginationIcons.first),add('prev','Página anterior',page-1,page <= 1,paginationIcons.prev));
     const numbered = node('span','results-pages');
     for (const number of paginationPages(page,lastPage)) numbered.append(add(number,`Página ${number}`,number,false));
-    paginator.append(numbered,add('next','Próxima página',page+1,page >= lastPage,paginationIcons.next),add('last','Última página',lastPage,page >= lastPage,paginationIcons.last));
+    const jump = node('form','results-page-jump'), label = node('label',null,'Página '), input = node('input');
+    input.type = 'number';input.inputMode = 'numeric';input.min = '1';input.max = String(lastPage);input.value = String(page);input.required = true;
+    input.setAttribute('aria-label','Número da página');input.dataset.page = 'jump';input.disabled = busy;
+    label.append(input,document.createTextNode(` de ${lastPage}`));
+    const go = node('button','results-page','Ir');go.type = 'submit';go.setAttribute('aria-label','Ir para a página');go.disabled = busy;go.dataset.page = 'go';
+    jump.append(label,go);
+    jump.addEventListener('submit',event=>{
+      event.preventDefault();const target = Number(input.value);
+      if (!busy && Number.isSafeInteger(target) && target >= 1 && target <= lastPage && target !== page) Promise.resolve(onPageChange?.(target)).catch(()=>{});
+    });
+    paginator.append(numbered,jump,add('next','Próxima página',page+1,page >= lastPage,paginationIcons.next),add('last','Última página',lastPage,page >= lastPage,paginationIcons.last));
     if (!busy && paginationFocus) {
       if (focused || document.activeElement === document.body) {
-        const buttons = [...paginator.querySelectorAll('button')];
-        (buttons.find(button=>button.dataset.page === paginationFocus && !button.disabled) || buttons.find(button=>button.getAttribute('aria-current') === 'page'))?.focus({preventScroll:true});
+        const controls = [...paginator.querySelectorAll('[data-page]')];
+        const available = button=>!button.disabled && button.getClientRects().length > 0;
+        (controls.find(button=>button.dataset.page === paginationFocus && available(button)) || controls.find(button=>button.getAttribute('aria-current') === 'page' && available(button)) || controls.find(button=>button.dataset.page === 'jump' && available(button)))?.focus({preventScroll:true});
       }
       paginationFocus = null;
     }
@@ -277,12 +304,18 @@ export function createResultsTable({container, columns = [], renderCell, footerC
     },
     clear() { rows = []; page = 1; lastPage = 1; renderRows(); renderPagination(); },
     getColumns() { return fields.map(column=>({...column})); },
+    setMobileView(view) {
+      if (!renderCard || !['cards','table'].includes(view) || destroyed) return;
+      container.dataset.mobileView = view;scroll.scrollTop = 0;scroll.scrollLeft = 0;
+      hideFilterTooltip();closeMenu();
+    },
     destroy() {
       if (destroyed) return;
       finishGesture(true); closeMenu(); destroyed = true; lifetime.abort(); resizeObserver.disconnect();
       filterTooltip.remove();
       if (footerContent && originalFooterParent?.isConnected) originalFooterParent.append(footerContent);
-      container.replaceChildren(); container.classList.remove('results-table'); container.inert = false;
+      container.replaceChildren(); container.classList.remove('results-table','results-has-cards'); container.inert = false;
+      delete container.dataset.mobileView;delete container.dataset.hasRows;
       fields = []; rows = []; rowViews = [];
     },
   };

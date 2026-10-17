@@ -34,7 +34,8 @@ flowchart LR
 | [`src/browser/query-url.js`](../src/browser/query-url.js) | Leitura e escrita de parâmetros GET, conversão de filtros tipados e validação compartilhada de links de pesquisa |
 | [`src/browser/detail-url.js`](../src/browser/detail-url.js) | Identidade documental e aba nos parâmetros GET, com validação por tipo de documento |
 | [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, DOM, histórico da URL, painéis e download |
-| [`public/results-table.js`](../public/results-table.js), [`results-table.css`](../public/results-table.css) | Tabela semântica, paginação, menus, visibilidade, ordem e largura de colunas |
+| [`public/results-table.js`](../public/results-table.js), [`results-table.css`](../public/results-table.css) | Tabela semântica, cartões móveis, paginação, menus, visibilidade, ordem e largura de colunas |
+| [`public/mobile-layout.js`](../public/mobile-layout.js), [`mobile.css`](../public/mobile.css) | Cabeçalho móvel, ações em popover, adaptação ao viewport visível, áreas seguras e painéis responsivos |
 | [`public/browser-entry.js`](../public/browser-entry.js) | Configuração pública e inicialização da distribuição estática |
 | [`public/theme.js`](../public/theme.js), [`theme.css`](../public/theme.css) | Preferência de tema, integração com o sistema, sincronização entre abas e paleta escura |
 | [`src/demo.js`](../src/demo.js) | Fonte fictícia escolhida explicitamente |
@@ -56,6 +57,8 @@ O parser preserva o token numérico em `ExactJsonNumber`, sem conversão interme
 Após receber o esquema, a interface inicia em segundo plano os três domínios de busca, os quatro catálogos auxiliares compartilhados e a enumeração de referência. A pré-carga é sequencial e não espera para inicializar a tabela. O painel reutiliza essas listas, deduplicando chamadas pendentes; fechar os filtros cancela a espera daquele leitor, sem interromper o carregamento compartilhado. Sugestões por texto e a conferência de domínios fechados antes da pesquisa/CSV continuam consultando a fonte.
 
 O modal de filtros renderiza todos os campos habilitados e compatíveis com o tipo documental, agrupados por assunto. Cabeçalho e ações permanecem visíveis enquanto o conteúdo rola. Cada alteração atualiza somente o rascunho; **Aplicar e pesquisar** copia os critérios para a consulta, e cancelar os descarta. Booleanos e enumerações possuem o placeholder **Selecionar**, com valor vazio. Campos vazios e listas sem seleção removem critérios, preservando `false` e zero quando informados. Domínios parciais possuem seleção e sugestões independentes por campo, com descarte de respostas antigas. Alterar normativos atualiza os amparos mesmo quando ainda não há amparo selecionado.
+
+Em até 700 px, o modal ocupa o viewport visível e oferece um seletor de atalhos para os grupos compatíveis com o documento. O atalho rola e foca o grupo sem recolher campos nem aplicar o rascunho. Os controles principais têm área de toque de pelo menos 44 px e os campos de texto usam 16 px. `visualViewport` acompanha a altura disponível e o deslocamento causados pelo teclado, sem redimensionar a interface durante zoom por gesto; `env(safe-area-inset-*)` reserva as áreas seguras do dispositivo.
 
 Todos os filtros de cardinalidade múltipla usam comboboxes de busca, listas com marcação e etiquetas removíveis. Domínios completos usam as opções em cache e busca local sem distinção de acentos; domínios parciais mantêm as sugestões remotas. Os menus ficam no contêiner `filter-popups`, fora do conteúdo rolável, com posição fixa calculada a partir do campo. A rolagem atualiza essa posição ou fecha o menu se o campo sair da área visível. Apenas um menu permanece aberto; clique externo, perda de foco, Tab e Escape o fecham. As setas e Enter controlam a seleção, com vínculos ARIA entre combobox e listbox.
 
@@ -81,6 +84,10 @@ O tema é aplicado por `theme.js`, carregado antes da inicialização das consul
 
 O componente usa `table`, `thead`, `tbody` e `colgroup`. Renderiza até 100 linhas da página e somente colunas visíveis, sem virtualização. O cabeçalho permanece fixo na rolagem vertical; rodapé e paginação ficam fora da área rolável. A paginação usa `last_page` do serviço e até quatro páginas numeradas. O total real e o aviso da janela de 10.000 documentos pertencem ao rodapé da aplicação.
 
+O callback opcional `renderCard` cria um resumo documental com texto e nós DOM; o componente mantém o acionamento de detalhes e renderiza cartões com os mesmos registros confirmados. Em até 700 px, cartões são a apresentação inicial. `setMobileView` alterna cartões/tabela em memória, sem pesquisar novamente ou alterar os critérios da URL. Acima desse limite, a tabela permanece visível. A seleção de colunas pertence à tabela e não remove os campos fixos dos cartões. Na paginação móvel, anterior/próxima acompanham o campo de página e a ação **Ir**, com validação entre 1 e `last_page` antes de chamar o mesmo fluxo remoto.
+
+`initializeMobileLayout` move os controles existentes para o popover nativo **Mais** em até 700 px, conservando handlers, estados e nomes acessíveis. Ao ampliar a tela, os controles retornam às posições originais. O popover fecha ao executar uma ação, mudar a visualização, clicar fora ou pressionar Escape. Os listeners e marcadores são descartados com a página; a retomada pelo cache de navegação preserva os controles.
+
 Linhas cujos valores visíveis não mudaram são reaproveitadas nas atualizações. A referência ao registro completo é atualizada mesmo nesse caso, para que a abertura de detalhes use os dados mais recentes. Alterações na definição das colunas invalidam essa renderização.
 
 Visibilidade, ordem e larguras são mantidas em memória no tipo documental atual. Ao trocar o tipo, as definições padrão do esquema são reaplicadas. Pointer Events permitem mover e redimensionar colunas; Alt + setas move o título focado, e as setas/Home ajustam o controle de largura, com mínimo de 85 px. Menus têm foco, teclado, fechamento com Escape/clique externo e posição limitada ao viewport. O título do registro tem uma ação focável de detalhes, além do clique na linha. Seleção de texto e controles internos não ativam a linha. Conteúdo do PNCP é montado como texto e nós DOM.
@@ -92,6 +99,8 @@ Em colunas com apenas filtragem, o ícone abre o painel diretamente; “Filtrar 
 ## Painéis dos documentos
 
 O cabeçalho do painel usa o título da linha selecionada. Contratações iniciam itens, arquivos, atas, contratos/empenhos e histórico em segundo plano. Atas iniciam detalhes completos, partes envolvidas, contratos, arquivos e histórico. Contratos iniciam detalhes completos, empenhos, instrumentos de cobrança, termos, arquivos e histórico. Uma fila do painel limita a duas tarefas ativas; abas preservam dados e paginação, contadores, teclado e recuperação independente.
+
+O seletor móvel **Seção** e as abas usam a mesma função de ativação e os mesmos painéis. Opções acompanham contagens, erros e carregamento; a seção selecionada mantém o spinner durante a consulta. Selecionar uma opção sincroniza `aba` na URL sem refazer consultas. No layout móvel, o conteúdo rola separado do cabeçalho, mantendo o fechamento disponível; abaixo de 401 px, os campos passam a uma coluna.
 
 CNPJ, ano e sequenciais são textos validados. Atas preservam sequenciais da compra e da ata; contratos usam seu próprio sequencial. O detalhe completo confere controle PNCP contra a identidade antes de substituir os campos da busca. Falhas conservam os campos disponíveis.
 

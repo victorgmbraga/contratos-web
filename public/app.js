@@ -4,6 +4,7 @@ import { readDetailUrl, writeDetailUrl, detailDocumentPath } from '../src/browse
 import { controlLink } from '../src/document-details.js';
 import { compareDecimal } from '../src/validation.js';
 import { createResultsTable } from './results-table.js';
+import { initializeMobileLayout } from './mobile-layout.js';
 
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
 const $ = id => document.getElementById(id);
@@ -184,6 +185,24 @@ function renderCell(value,column) {
     }
     return node;
 }
+function renderCard(doc) {
+  const content=el('div'),heading=el('h2'),open=el('button',doc.titulo || 'Documento sem título','result-card-open');
+  open.type='button';open.setAttribute('aria-label',`Ver detalhes: ${doc.titulo || 'documento'}`);heading.append(open);
+  const object=el('p',doc.objeto_compra || 'Objeto não informado.','result-card-object');
+  const organ=el('p',doc.orgao_nome || 'Órgão não informado.','result-card-organ');
+  const location=el('p',[doc.municipio_nome,doc.uf].filter(Boolean).join(' / ') || 'Local não informado.','result-card-location');
+  content.append(heading,object,organ,location);
+  const fields=el('dl',undefined,'result-card-values'),kind=doc.tipo_documento;
+  const names=kind==='edital'?['valor_total_estimado','data_publicacao_pncp']:kind==='contrato'?['valor_global','data_inicio_vigencia']:['data_inicio_vigencia','data_fim_vigencia'];
+  for(const name of names){
+    const column=state.schema.columns_by_document[kind].find(column=>column.field===name),pair=el('div'),value=el('dd');
+    value.append(renderCell(doc[name],column));pair.append(el('dt',column.title),value);fields.append(pair);
+  }
+  content.append(fields);
+  if(kind==='edital')content.append(renderCell(doc.situacao_compra_nome_pncp,{field:'situacao_compra_nome_pncp'}));
+  else if(kind==='ata' && doc.cancelado!==null && doc.cancelado!==undefined)content.append(el('span',doc.cancelado?'Cancelada':'Não cancelada','status-cell'));
+  return content;
+}
 function columnAction(field,action) {
   const definition=state.schema.columns.find(column=>column.field===field);
   if(!definition)return;
@@ -350,6 +369,7 @@ async function openFilters(column=null) {
   renderFilterStatuses();
   $('draft-search').value=state.draft.q;$('draft-status').value=state.draft.status;
   filterFields.clear();$('filter-groups').replaceChildren();$('filter-popups').replaceChildren();
+  const jump=$('filter-group-jump'),general=el('option','Filtros gerais');general.value='filters-basics';jump.replaceChildren(general);jump.value=general.value;
   $('filters-title').textContent=`Filtros · ${documentName().label}`;
   openDialog('filters-dialog');
   const controller=new AbortController();state.domainAbort=controller;
@@ -359,6 +379,8 @@ async function openFilters(column=null) {
     const caps=state.schema.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.group===groupName && c.documents.includes(state.draft.document_type));
     if(!caps.length)continue;
     const group=el('fieldset',undefined,'filter-group'),legend=el('legend',groupName==='Contratação' && state.draft.document_type!=='edital'?'Documento':groupName==='Contrato' && state.draft.document_type==='ata'?'Ata':groupName);
+    group.id=`filter-group-${caps[0].name}`;group.tabIndex=-1;
+    const option=el('option',legend.textContent);option.value=group.id;jump.append(option);
     group.append(legend);
     if(groupName==='Item' && state.draft.document_type==='edital')group.append(el('p','Filtros de itens, resultados e fornecedores selecionam contratações. Os detalhes mostram todos os itens, inclusive os que não correspondem ao filtro. Condições diferentes podem corresponder a itens ou resultados diferentes.','panel-note'));
     const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);
@@ -672,11 +694,18 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   const links=$('details-links');links.replaceChildren();
   for(const [label,url]of [['Abrir no PNCP',doc.url_pncp],['Sistema de origem',doc.link_sistema_origem]]){const link=safeAnchor(label,url);if(link)links.append(link);}
   const nav=el('div',undefined,'detail-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label',`Seções: ${names.singular}`);content.append(nav);
+  const sectionLabel=el('label',undefined,'detail-section-choice'),sectionText=el('span','Seção'),sectionSelect=el('select'),sectionSpinner=el('span',undefined,'detail-tab-spinner');
+  sectionSelect.id='details-section';sectionSelect.setAttribute('aria-label','Seção dos detalhes');sectionSpinner.hidden=true;sectionSpinner.setAttribute('aria-hidden','true');
+  sectionLabel.append(sectionText,sectionSelect,sectionSpinner);content.append(sectionLabel);
   function activate(index,focus=false,write=true) {
     tabs.forEach((tab,i)=>{tab.button.setAttribute('aria-selected',String(i===index));tab.button.tabIndex=i===index?0:-1;tab.panel.hidden=i!==index;});
     if(state.detailSelection){state.detailSelection.tab=tabs[index].button.dataset.resource;if(write)syncDetailUrl();}
+    sectionSelect.value=tabs[index].button.dataset.resource;sectionSelect.setAttribute('aria-controls',tabs[index].panel.id);
+    sectionSelect.setAttribute('aria-busy',tabs[index].button.getAttribute('aria-busy'));
+    sectionSpinner.hidden=tabs[index].button.getAttribute('aria-busy')!=='true';
     if(focus){tabs[index].button.focus();tabs[index].button.scrollIntoView({block:'nearest',inline:'nearest'});}
   }
+  sectionSelect.addEventListener('change',()=>{const index=tabs.findIndex(tab=>tab.button.dataset.resource===sectionSelect.value);if(index>=0)activate(index);});
   function addTab(resource,title,panel) {
     const button=el('button',title,'detail-tab'),index=tabs.length;button.type='button';button.id=`detail-tab-${resource}`;button.dataset.resource=resource;
     panel.id=`detail-panel-${resource}`;panel.hidden=true;panel.tabIndex=0;panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',button.id);
@@ -687,6 +716,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
       if(event.key==='ArrowRight')target=(index+1)%tabs.length;else if(event.key==='ArrowLeft')target=(index-1+tabs.length)%tabs.length;else if(event.key==='Home')target=0;else if(event.key==='End')target=tabs.length-1;else return;
       event.preventDefault();activate(target,true);
     });
+    const option=el('option',title);option.value=resource;sectionSelect.append(option);
     nav.append(button);content.append(panel);tabs.push({button,panel});
     const update=(count,phase)=>{
       const loading=count===null && phase==='loading';
@@ -694,6 +724,8 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
       if(loading){const spinner=el('span',undefined,'detail-tab-spinner');spinner.setAttribute('aria-hidden','true');button.append(spinner);}
       button.setAttribute('aria-label',loading?`${title}: carregando`:button.textContent);
       button.setAttribute('aria-busy',String(loading));button.dataset.state=phase;
+      option.textContent=loading?`${title} — carregando`:button.textContent;
+      if(sectionSelect.value===resource){sectionSpinner.hidden=!loading;sectionSelect.setAttribute('aria-busy',String(loading));}
     };
     update(null,'loading');return update;
   }
@@ -798,11 +830,13 @@ async function init() {
   state.placeholder=el('div','Informe uma pesquisa e consulte as contratações do PNCP.');
   const resultInfo=$('result-info');
   state.table=tableFactory({
-    container:$('results-table'),columns:tableColumnDefinitions(),renderCell,footerContent:resultInfo,
+    container:$('results-table'),columns:tableColumnDefinitions(),renderCell,renderCard,footerContent:resultInfo,
     placeholder:state.placeholder,paginationIcons,menuIcon:filterHeaderIcon,
     onPageChange:page=>loadPage(page),onOpenDocument:doc=>openDetails(doc),onColumnAction:columnAction,
   });
   resultInfo.hidden=false;
+  initializeMobileLayout({document,window});
+  $('results-view').addEventListener('change',()=>state.table.setMobileView($('results-view').value));
   renderColumnChoices();
   $('document-type').addEventListener('change',changeDocumentType);
   $('app-header').addEventListener('focusin',event=>event.target.scrollIntoView({block:'nearest',inline:'nearest'}));
@@ -820,6 +854,9 @@ async function init() {
   $('clear-button').addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();return execute();});
   $('apply-filters').addEventListener('click',()=>{if(state.legalPending || state.legalError)return;state.draft.q=$('draft-search').value;state.draft.status=$('draft-status').value;state.query=clone(state.draft);$('search').value=state.query.q;$('filters-dialog').close();updateCriteria();return execute();});
   $('filters-dialog').addEventListener('close',()=>{stopFilterEditors();state.legalAbort?.abort();state.legalSeq++;});
+  $('filter-group-jump').addEventListener('change',()=>{
+    closeFilterDropdown();const group=$($('filter-group-jump').value);group?.scrollIntoView({block:'start'});group?.focus({preventScroll:true});
+  });
   document.addEventListener('pointerdown',event=>{if(openFilterEditor && event.target!==openFilterEditor.input && !openFilterEditor.suggestions.contains(event.target))closeFilterDropdown();});
   $('filters-dialog').querySelector('.filters-body')?.addEventListener('scroll',positionFilterDropdown);
   window.addEventListener('resize',closeFilterDropdown);

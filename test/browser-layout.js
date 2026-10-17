@@ -4,7 +4,8 @@ const baseline=JSON.parse(await readFile(new URL('./layout-baseline.json',import
 const normalizeFonts=styles=>Object.fromEntries(Object.entries(styles).map(([selector,style])=>[selector,{...style,fontFamily:style.fontFamily.replace(/["']/g,'')}]));
 
 async function snapshot(page) {
-  await page.locator('.results-row').first().waitFor();
+  await page.locator('.results-row').first().waitFor({state:'attached'});
+  await page.locator('.results-grid:visible, .results-cards:visible').first().waitFor();
   return page.evaluate(async () => {
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const selectors = ['#app-header', '.search-field', '#search-button', '#results-table', '.results-header', '.results-col', '.results-col-content', '.results-col-title', '.results-row', '.results-row-even', '.results-cell', '.results-footer', '.results-footer-contents', '.results-page-counter', '.results-paginator', '.results-page', '.results-page.active'];

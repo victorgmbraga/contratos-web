@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
   <title>Contratos Web · Pesquisa PNCP</title>
   <meta name="description" content="Pesquise editais, atas de registro de preços e contratos diretamente no PNCP, consulte detalhes e exporte resultados em CSV.">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
@@ -12,6 +12,7 @@
   <header id="app-header" class="topbar">
     <div id="header-content" class="topbar-content">
       <a class="brand" href="./" aria-label="Contratos Web, página inicial"><img src="./favicon.svg" alt="" width="28" height="28"><span>Contratos <strong>Web</strong></span></a>
+      <button type="button" id="more-actions-button" class="button mobile-only" popovertarget="more-actions" aria-controls="more-actions" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>Mais</button>
       <form id="search-form" class="search-row" role="search" aria-label="Pesquisar contratações">
         <label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="sr-only">Busca textual no PNCP</span><input id="search" type="search" maxlength="128" placeholder="Busque por objeto, órgão ou palavras-chave" autocomplete="off"></label>
         <button type="submit" class="button primary icon-only search-action" id="search-button" aria-label="Pesquisar" aria-describedby="search-button-tooltip"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
@@ -27,6 +28,7 @@
       </div>
       <button type="button" id="theme-button" class="button icon-only" aria-label="Modo escuro" aria-pressed="false" aria-describedby="theme-button-tooltip"><svg class="theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.9 13.3A9 9 0 0 1 10.7 3.1 9 9 0 1 0 20.9 13.3Z"/></svg><svg class="theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
       <a id="repository-link" class="repository-link" href="https://github.com/victorgmbraga/contratos-web" target="_blank" rel="noopener noreferrer" aria-label="Repositório do Contratos Web no GitHub (abre em nova aba)" aria-describedby="repository-link-tooltip"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>
+      <div id="more-actions" popover="auto" role="group" aria-label="Mais ações"><label class="mobile-view-choice">Visualização dos resultados<select id="results-view"><option value="cards">Cartões</option><option value="table">Tabela</option></select></label></div>
     </div>
   </header>
   <main class="workspace">
@@ -63,7 +65,8 @@
   <div id="window-warning-tooltip" class="tooltip footer-tooltip warning" role="tooltip" hidden></div>
 
   <dialog id="filters-dialog" class="modal filters-modal" aria-labelledby="filters-title"><div class="dialog-header"><div><span class="eyebrow">CRITÉRIOS DA PESQUISA</span><h2 id="filters-title">Filtros do PNCP</h2></div><button class="icon-button close-dialog" aria-label="Fechar">×</button></div>
-    <div class="filters-body"><p class="panel-note">Preencha os critérios desejados e clique em Aplicar e pesquisar. Campos vazios ou com “Selecionar” não filtram os resultados.</p><div class="filters-basics"><label>Texto da pesquisa no PNCP (opcional)<input id="draft-search" maxlength="128" placeholder="Delimita a busca em vários campos indexados"></label><label>Status temporal<select id="draft-status"><option value="todos">Todos</option></select></label></div><p id="legal-error" class="inline-error" role="status" hidden></p><div id="filter-groups"></div></div>
+    <label class="filter-group-jump mobile-only">Ir para o grupo<select id="filter-group-jump" aria-controls="filter-groups"></select></label>
+    <div class="filters-body"><p class="panel-note">Preencha os critérios desejados. Campos vazios ou com “Selecionar” não filtram os resultados.</p><div id="filters-basics" class="filters-basics" tabindex="-1"><label>Texto da pesquisa no PNCP (opcional)<input id="draft-search" maxlength="128" placeholder="Delimita a busca em vários campos indexados"></label><label>Status temporal<select id="draft-status"><option value="todos">Todos</option></select></label></div><p id="legal-error" class="inline-error" role="status" hidden></p><div id="filter-groups"></div></div>
     <div class="dialog-footer"><button class="button close-dialog">Cancelar</button><button id="apply-filters" class="button primary">Aplicar e pesquisar</button></div><div id="filter-popups"></div>
   </dialog>
 

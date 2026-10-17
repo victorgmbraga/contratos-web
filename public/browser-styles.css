@@ -2,3 +2,4 @@
    A single CSS entry also preserves this order in multi-page static builds. */
 @import './results-table.css';
 @import './styles.css';
+@import './mobile.css';

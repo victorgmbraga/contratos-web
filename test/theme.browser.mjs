@@ -72,10 +72,12 @@ try {
   await page.locator('#theme-button').focus();await page.keyboard.press('Enter');
   await second.waitForFunction(()=>document.documentElement.dataset.theme==='dark');await second.close();
   await page.reload();await ready();assert.equal(await theme(),'dark');
-  await page.setViewportSize({width:390,height:844});await page.locator('#theme-button').focus();
+  await page.goto(url);await ready();
+  await page.setViewportSize({width:390,height:844});await page.locator('#more-actions-button').click();await page.locator('#theme-button').focus();
   const bounds=await page.locator('#theme-button').boundingBox();assert(bounds.x>=0 && bounds.x+bounds.width<=390);
   assert.equal(await page.locator('#theme-button').evaluate(node=>node.closest('#header-content')!==null),true);
-  await page.screenshot({path:join(tmpdir(),'contratos-dark-mobile.png')});
+  await contrast(['.result-card-open','.result-card-object','.result-card-organ','.result-card-values dt','.result-card-values dd']);
+  await page.keyboard.press('Escape');await page.screenshot({path:join(tmpdir(),'contratos-dark-mobile.png')});
   await page.goto(new URL('pncp-diagnostic.html',url).href);assert.equal(await theme(),'dark');await contrast(['h1','p','a']);
   assert.deepEqual(errors,[]);
   console.log('PASS Temas: sistema, alternância, persistência, sincronização entre abas, contraste, três tipos, modais, detalhes, avisos e tela pequena');

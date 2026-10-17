@@ -327,8 +327,12 @@
   "viewport_overrides": {
     "390": {
       "#app-header": {
-        "padding": "8px",
-        "gap": "5px"
+        "padding": "6px 8px 8px",
+        "gap": "6px"
+      },
+      ".search-field": {
+        "gap": "6px",
+        "minHeight": "44px"
       },
       "#search-button": {
         "fontSize": "12px",
@@ -336,21 +340,26 @@
         "minHeight": "34px"
       },
       ".results-footer": {
-        "padding": "6px"
+        "padding": "6px 8px"
       },
       ".results-footer-contents": {
-        "gap": "4px"
+        "gap": "6px"
       },
       ".results-paginator": {
-        "fontSize": "12px"
+        "fontSize": "12px",
+        "gap": "6px"
       },
       ".results-page": {
-        "fontSize": "12px",
-        "lineHeight": "12px"
+        "fontSize": "13px",
+        "lineHeight": "13px",
+        "display": "none",
+        "minHeight": "0px"
       },
       ".results-page.active": {
-        "fontSize": "12px",
-        "lineHeight": "12px"
+        "fontSize": "13px",
+        "lineHeight": "13px",
+        "display": "inline-flex",
+        "minHeight": "0px"
       }
     },
     "1068": {},

@@ -15,11 +15,19 @@ A tabela e a leitura de JSON com precisão numérica são módulos do próprio p
 5. Use **Selecionar colunas** para ajustar a tabela. Colunas com filtro exibem um ícone após o nome: quando há apenas filtragem, o clique abre diretamente o campo correspondente e o tooltip indica **Filtrar por esta coluna**. Colunas que também permitem ordenação exibem um menu com as ações disponíveis.
 6. Use **Exportar CSV** para coletar todos os documentos dos últimos critérios concluídos, desde a primeira página. O arquivo inclui todas as colunas do tipo documental. A coleta mostra progresso e pode ser interrompida pelo X em um círculo (**Cancelar CSV**).
 
-O ícone do GitHub, ao final dos controles do cabeçalho, abre o repositório em nova aba. Em telas pequenas, acompanha a rolagem horizontal com os demais botões.
+O ícone do GitHub abre o repositório em nova aba. Em telas pequenas, fica no menu **Mais**, junto com atualizar, selecionar colunas, exportar CSV e alternar o tema.
 
 O botão de sol/lua, junto ao GitHub, alterna entre os modos claro e escuro. No primeiro acesso, o tema acompanha a preferência do sistema. A escolha fica salva no navegador e é sincronizada entre abas; se o armazenamento estiver bloqueado, a alternância continua funcionando na página aberta.
 
 As colunas podem ser redimensionadas pela borda direita ou movimentadas pelo título. Pelo teclado, foque o título e use **Alt + ←/→** para mover; no controle de largura, use **←/→** ou **Home** para a largura mínima. O título de cada registro também permite abrir os detalhes pelo teclado.
+
+### Dispositivos móveis
+
+Em telas de até 700 px, o cabeçalho mantém busca e filtros visíveis, com tipo documental e ordenação na linha seguinte. Os resultados usam cartões com título, resumo do objeto, órgão, local e campos próprios do documento: valor estimado e publicação em editais, valor global e início da vigência em contratos, início e fim da vigência em atas. Toque no cartão ou no título para abrir os detalhes.
+
+Em **Mais → Visualização dos resultados**, escolha **Tabela** para comparar todas as colunas ou **Cartões** para retomar a leitura compacta. Essa escolha é mantida durante o uso da página; telas maiores sempre exibem a tabela. A seleção de colunas afeta a tabela; os cartões mantêm seus campos de resumo.
+
+A paginação móvel oferece anterior/próxima e um campo **Página**: digite o número e pressione Enter ou **Ir**. Os filtros ocupam a tela, com atalhos **Ir para o grupo**, todos os campos disponíveis e ações fixas. Nos detalhes, o seletor **Seção** substitui as abas e preserva suas contagens e o link compartilhável. O fechamento permanece acessível durante a rolagem; telas abaixo de 401 px exibem os campos de detalhes em uma coluna.
 
 ### Detalhes dos documentos
 
