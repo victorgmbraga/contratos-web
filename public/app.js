@@ -248,7 +248,7 @@ async function loadResultsPage(targetPage) {
   }catch(error) {
     if(seq===state.seq) {
       if(error.name==='AbortError'){status('cancelled');notice('Consulta cancelada. Nenhum novo resultado foi aplicado.','warning');}
-      else {status('error');notice(`${error.message}${error.code?' ['+error.code+']':''}${state.lastResult?'\nA tabela mantém o resultado anterior, consultado às '+time(state.lastResult.finished_at)+'.':''}`,'error');}
+      else {status('error');notice(`${error.message}${error.code?' ['+error.code+']':''}${state.lastResult?'\nA tabela mantém o resultado anterior.':''}`,'error');}
     }
     throw error;
   }finally{if(seq===state.seq)state.abort=null;}
@@ -672,7 +672,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
       updateCount(result.total,'loaded');
       const first=result.data.length?(page-1)*result.size+1:0,last=result.data.length?first+result.data.length-1:0;
       const summary=unknownTotal?`${result.data.length?`${fmtInt(result.data.length)} ${result.data.length===1?'registro':'registros'} nesta página`:'Fim do histórico: nenhum registro nesta página'} · Quantidade desconhecida: contagem inconsistente do PNCP` : result.total===0?'0 registros':`Registros ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total)}`;
-      status.textContent=`${summary} · Consulta às ${time(result.queried_at)}.`;
+      status.textContent=summary;
       label.textContent=unknownTotal?`Página ${page}`:`Página ${page} de ${fmtInt(result.total_pages)}`;pager.hidden=!unknownTotal && result.total_pages<=1;previous.disabled=page<=1;next.disabled=!hasMore;
     }catch(error){if(current() && error.name!=='AbortError'){
       if(error.code==='PAGE_OUT_OF_RANGE' && Number.isSafeInteger(error.details?.last_page) && error.details.last_page>=1 && error.details.last_page<target)return load(error.details.last_page);
@@ -743,7 +743,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   if(kind!=='edital' || doc._detail_from_url){
     const detailStatus=el('p','Preparando consulta dos detalhes…','items-status'),retryDetails=el('button','Tentar novamente','button small');retryDetails.hidden=true;detailStatus.setAttribute('role','status');detailPanel.append(detailStatus,retryDetails);
     async function loadDetails(){
-      retryDetails.hidden=true;detailPanel.setAttribute('aria-busy','true');
+      retryDetails.hidden=true;detailStatus.hidden=false;detailPanel.setAttribute('aria-busy','true');
       try {
         const data=await schedule(async()=>{detailStatus.textContent='Consultando detalhes no PNCP…';return service.call('documentDetails',{document:detailIdentity(doc)},{signal:detailController.signal});},detailController.signal);
         if(token!==state.detailSeq)return;
@@ -751,7 +751,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
         updateDetails(data.fields.length,'loaded');if(data.objeto)content.children[0].textContent=data.objeto;else if(doc._detail_from_url)content.children[0].textContent='Objeto não informado.';
         if(doc._detail_from_url){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=indexed?.titulo || data.titulo || doc.titulo;}
         if(data.link_sistema_origem && !doc.link_sistema_origem){const link=safeAnchor('Sistema de origem',data.link_sistema_origem);if(link)links.append(link);}
-        detailStatus.textContent=`Consulta às ${time(data.queried_at)}.`;
+        detailStatus.textContent='';detailStatus.hidden=true;
       }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)content.children[0].textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');}}
       finally{if(token===state.detailSeq)detailPanel.setAttribute('aria-busy','false');}
     }
@@ -784,7 +784,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
       if(!result.data.length)list.append(el('p','Esta contratação não possui itens.','panel-note'));
       const first=result.data.length?(page-1)*result.size+1:0,last=result.data.length?first+result.data.length-1:0;
       itemsTitle.textContent=`Itens da contratação (${fmtInt(result.total_items)})`;
-      hasMore=result.has_more;itemStatus.textContent=`${result.total_items===0?'0 itens':`Itens ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total_items)}`} · Consulta às ${time(result.queried_at)}.`;pageLabel.textContent=`Página ${page} de ${result.total_pages}`;pager.hidden=result.total_pages<=1;previous.disabled=page<=1;next.disabled=!hasMore;
+      hasMore=result.has_more;itemStatus.textContent=result.total_items===0?'0 itens':`Itens ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total_items)}`;pageLabel.textContent=`Página ${page} de ${result.total_pages}`;pager.hidden=result.total_pages<=1;previous.disabled=page<=1;next.disabled=!hasMore;
     }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){
       if(error.code==='PAGE_OUT_OF_RANGE' && Number.isSafeInteger(error.details?.last_page) && error.details.last_page>=1 && error.details.last_page<target)return itemPage(error.details.last_page);
       itemStatus.textContent=error.message;retry.hidden=false;previous.disabled=page<=1;next.disabled=!hasMore;
@@ -817,7 +817,7 @@ async function exportCsv() {
     if(seq!==state.exportSeq || controller.signal.aborted)return;
     const blob=new Blob(result.chunks,{type:result.mime});
     const href=URL.createObjectURL(blob),link=el('a');link.href=href;link.download=result.filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(href),10000);
-    notice(`${result.metadata.exported_rows} linhas exportadas. Nova coleta de ${time(result.metadata.started_at)} a ${time(result.metadata.finished_at)}.`);
+    notice(`${result.metadata.exported_rows} linhas exportadas.`);
   }catch(error){if(seq===state.exportSeq && error.name!=='AbortError')notice(`Falha ao exportar CSV: ${error.message}${error.code?' ['+error.code+']':''}`,'error');}
   finally{if(seq===state.exportSeq){state.exportAbort=null;updateExportButton();}}
 }
