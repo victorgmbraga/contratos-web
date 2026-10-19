@@ -25,8 +25,9 @@ async function headerLayout(width) {
     const {x,y,width,height}=document.querySelector(selector).getBoundingClientRect();return [name,{x,y,width,height}];
   })));
   assert.equal(await page.locator('.brand').isVisible(),false);
-  assert.equal(boxes.type.width,boxes.order.width);assert(boxes.type.width<=140 && boxes.type.width>100);
-  if(width>=358)assert.equal(boxes.type.width,140);
+  assert.equal(boxes.type.width,boxes.order.width);assert(boxes.type.width>100);
+  assert.equal(boxes.type.x,boxes.search.x,'Seletores começam na borda esquerda da linha');
+  assert.equal(boxes.more.x+boxes.more.width,boxes.filters.x+boxes.filters.width,'Segunda linha ocupa toda a largura disponível');
   assert.equal(boxes.search.y,boxes.submit.y);assert.equal(boxes.search.y,boxes.filters.y);
   assert.deepEqual(await page.locator('.search-row>button:visible').evaluateAll(nodes=>nodes.map(node=>node.id)),['search-button','filters-button']);
   assert.equal(boxes.type.y,boxes.order.y);

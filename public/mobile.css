@@ -13,7 +13,7 @@
 @media(max-width:700px){
   body{height:var(--viewport-height,100dvh)}
   .topbar{--header-gap:6px;padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 8px max(8px,env(safe-area-inset-left))}
-  .topbar-content{display:grid;grid-template-columns:minmax(0,286px) 44px minmax(0,1fr);gap:6px;overflow:visible;margin:0;padding:0}
+  .topbar-content{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:6px;overflow:visible;margin:0;padding:0}
   .topbar-content>#theme-button,.topbar-content>.repository-link{display:none}
   .brand{display:none}
   #more-actions-button{display:inline-flex;grid-row:2;grid-column:2;min-width:44px;width:44px;height:44px;padding:0}
