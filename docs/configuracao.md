@@ -61,7 +61,7 @@ O cliente tenta novamente erros de transporte e respostas HTTP 429, 502, 503 e 5
 | Chave | Padrão | Efeito |
 | --- | --- | --- |
 | `PNCP_PAGE_SIZE` | `50` | Tamanho padrão de consulta do serviço e das chamadas de exportação; aceita 10, 25, 50 ou 100 |
-| `PNCP_MAX_DETAIL_ITEMS` | `20000` | Limite de itens recebidos por operação de detalhes |
+| `PNCP_MAX_DETAIL_ITEMS` | `20000` | Limite de registros recebidos por operação de detalhes; o total disponível nas páginas não consome esse limite. Listas sem paginação são contabilizadas antes do recorte local |
 | `PNCP_MAX_EXPORT_DOCUMENTS` | `10000` | Total máximo aceito para exportar; não pode superar 10.000 |
 | `PNCP_MAX_EXPORT_BYTES` | `52428800` (50 MiB) | Limite do CSV montado em memória |
 | `PNCP_MAX_OPERATION_BYTES` | `104857600` (100 MiB) | Soma dos bytes lidos das respostas da fonte na operação |

@@ -11,7 +11,7 @@ import {demoFetch,demoAtas,demoContracts} from '../src/demo.js';
 import {config,query,json,service,document} from './helpers.js';
 
 const ata={type:'ata',cnpj:'01234567000189',ano:'2025',sequencial_compra:'57',sequencial:'9'},contract={type:'contrato',cnpj:ata.cnpj,ano:'2026',sequencial:'44'};
-const fixture=handler=>{const cfg=config(),requests=[],client=new PncpClient(cfg,{fetcher:async(url,init)=>{const u=new URL(url);requests.push(u);return handler(u,init);}});return {client,requests,service:new QueryService(cfg,client)};};
+const fixture=(handler,settings={})=>{const cfg=config(settings),requests=[],client=new PncpClient(cfg,{fetcher:async(url,init)=>{const u=new URL(url);requests.push(u);return handler(u,init);}});return {client,requests,service:new QueryService(cfg,client)};};
 const demo=()=>{const cfg=config({DEMO_MODE:true});return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
 
 test('DOCUMENTS-01: os três tipos publicam colunas, status e os 16 filtros compatíveis com atas',async()=>{
@@ -176,4 +176,34 @@ test('DOCUMENTS-19: detalhe completo de edital usa identidade nativa, título e 
   assert.equal(f.requests[0].pathname,'/api/consulta/v1/orgaos/01234567000189/compras/2025/57');assert.equal(result.fields.length,12);assert.equal(result.titulo,'Edital nº 0057/2025');assert.equal(result.objeto,'Obra de demonstração');
   assert.equal(result.fields.find(field=>field.field==='valorTotalEstimado').value,'9007199254740993.12345');assert.equal(result.fields.find(field=>field.field==='valorTotalHomologado').value,'0.0000');
   await assert.rejects(fixture(()=>json({...raw,numeroControlePNCP:'01234567000189-1-000058/2025'})).service.documentDetails(purchase),error=>error.code==='INVALID_UPSTREAM');
+});
+
+test('DOCUMENTS-20: histórico extenso de ata mantém o total e permite navegar além de 20000 registros',async()=>{
+  const document={type:'ata',cnpj:'00509968000148',ano:'2025',sequencial_compra:'402',sequencial:'1'},total=62364;
+  const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(total):json(Array.from({length:Math.min(10,total-(Number(u.searchParams.get('pagina'))-1)*10)},()=>({tipoLogManutencaoNome:'Retificação',categoriaLogManutencaoNome:'Ata'}))));
+  for(const page of [1,2,2001,6237]){
+    const result=await f.service.documentRelated(document,'historico',page,10);
+    assert.equal(result.total,total);assert.equal(result.total_pages,6237);assert.equal(result.page,page);
+    assert.equal(result.data.length,page===6237?4:10);assert.equal(result.data[0].evento,'Retificação - Ata');
+    assert.equal(result.has_more,page<6237);assert.equal(result.complete,page===6237);assert.equal(result.upstream_requests,2);
+    assert.equal(f.requests.at(-1).pathname,'/api/pncp/v1/orgaos/00509968000148/compras/2025/402/atas/1/historico');
+    assert.equal(f.requests.at(-1).searchParams.get('pagina'),String(page));assert.equal(f.requests.at(-1).searchParams.get('tamanhoPagina'),'10');
+  }
+  await assert.rejects(f.service.documentRelated(document,'historico',6238,10),error=>error.code==='PAGE_OUT_OF_RANGE' && error.details.last_page===6237);
+});
+
+test('DOCUMENTS-21: limite de detalhes considera registros recebidos, inclusive antes do recorte local e sem total',async()=>{
+  const records=Array.from({length:11},()=>({})),settings={PNCP_MAX_DETAIL_ITEMS:10};
+  for(const [document,resource]of [[ata,'historico'],[contract,'historico'],[contract,'arquivos'],[contract,'termos']]){
+    const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(62364):json(records.slice(0,10)),settings);
+    assert.equal((await f.service.documentRelated(document,resource,1,10)).data.length,10);
+    const oversized=fixture(u=>u.pathname.endsWith('/quantidade')?json(62364):json(records),settings);
+    await assert.rejects(oversized.service.documentRelated(document,resource,1,25),error=>error.code==='DETAIL_ITEM_LIMIT');
+  }
+  const unknown=fixture(u=>u.pathname.endsWith('/quantidade')?json(1):json(records),settings);
+  await assert.rejects(unknown.service.documentRelated(contract,'historico',1,25),error=>error.code==='DETAIL_ITEM_LIMIT');
+  const unpaged=fixture(()=>json(records),settings);
+  await assert.rejects(unpaged.service.documentRelated(contract,'instrumentocobranca',1,10),error=>error.code==='DETAIL_ITEM_LIMIT');
+  const limited=fixture(()=>json(records.slice(0,10)),settings);
+  assert.equal((await limited.service.documentRelated(contract,'instrumentocobranca',1,10)).data.length,10);
 });

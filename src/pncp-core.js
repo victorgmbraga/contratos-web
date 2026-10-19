@@ -228,13 +228,15 @@ export class PncpClient {
     if(!counted)total=unpaged?(Array.isArray(data)?data.length:0):result===null?0:integer(result?.totalRegistros,'Total de registros');
     assert(Array.isArray(data) && data.every(v=>v && typeof v==='object' && !Array.isArray(v)),'INVALID_UPSTREAM','Listagem PNCP retornou formato inesperado.',502);
     assert(!contractHistory || data.length<=size,'INVALID_UPSTREAM','Histórico PNCP retornou mais registros que o tamanho solicitado.',502);
+    // Limit records received in this operation, not the total available across pages.
+    op.itemCount+=data.length;
+    assert(op.itemCount<=this.config.PNCP_MAX_DETAIL_ITEMS,'DETAIL_ITEM_LIMIT','Limite de registros da operação excedido.',422);
     const pages=total===null?null:Math.max(1,Math.ceil(total/size));
     if(!counted && !unpaged && result!==null && result.numeroPagina!=null)assert(integer(result.numeroPagina,'Número da página')===page,'INVALID_UPSTREAM','PNCP retornou outra página da listagem.',502);
     if(unpaged)data=data.slice((page-1)*size,page*size);
     const matches=total!==null && data.length===Math.min(size,Math.max(0,total-(page-1)*size));
     const unknownTotal=contractHistory && (paginationMode==='until_empty' || page>pages || !matches);
     if(!unknownTotal){
-      assert(total<=this.config.PNCP_MAX_DETAIL_ITEMS,'DETAIL_ITEM_LIMIT','Limite de registros da operação excedido.',422);
       assert(page<=pages,'PAGE_OUT_OF_RANGE','Página além da listagem atual.',422,{last_page:pages});
       assert(matches,'SOURCE_CHANGED','A página não corresponde ao total informado pelo PNCP. Repita a consulta.',409,{},true);
     }
