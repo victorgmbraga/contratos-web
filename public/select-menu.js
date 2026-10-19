@@ -11,10 +11,15 @@ export function initializeSelectMenus({document, window}) {
     return element;
   };
   const normalize = text => text.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLocaleLowerCase('pt-BR');
+  function renderValue(control) {
+    const option = control.source.selectedOptions[0];
+    control.value.textContent = (opened===control?option?.label:option?.dataset.closedLabel || option?.label) || 'Selecionar';
+  }
   function close(restoreFocus = false) {
     const control = opened;
     if (!control) return;
     opened = null;
+    renderValue(control);
     if (control.menu.matches(':popover-open')) control.menu.hidePopover();
     control.button.setAttribute('aria-expanded','false');
     control.button.removeAttribute('aria-activedescendant');
@@ -72,7 +77,7 @@ export function initializeSelectMenus({document, window}) {
       if (!c) continue;
       const previousActive = c.items[c.active]?.option, selected = c.source.selectedOptions[0], selectionChanged = c.selected !== selected;
       c.selected = selected;
-      c.value.textContent = c.source.selectedOptions[0]?.label || 'Selecionar';
+      renderValue(c);
       c.button.disabled = c.source.disabled;
       c.button.dataset.empty = String(c.source.value==='');
       for (const attr of ['aria-describedby','aria-busy','aria-invalid','aria-required']) {
@@ -185,7 +190,7 @@ export function initializeSelectMenus({document, window}) {
     for(const c of controls.values())if(!c.source.isConnected)remove(c);
     for(const source of changed)refresh(source);
   });
-  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled','selected','label','value','aria-label','aria-describedby','aria-busy','aria-invalid','hidden']});
+  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled','selected','label','value','data-closed-label','aria-label','aria-describedby','aria-busy','aria-invalid','hidden']});
   document.addEventListener('pointerdown',event=>{if(opened && !opened.wrapper.contains(event.target))close();},{signal});
   document.addEventListener('scroll',event=>{if(opened && !opened.menu.contains(event.target))position();},{signal,capture:true});
   document.addEventListener('close',()=>close(),{signal,capture:true});
