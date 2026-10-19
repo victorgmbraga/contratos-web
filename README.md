@@ -25,7 +25,7 @@ As colunas podem ser redimensionadas pela borda direita ou movimentadas pelo tí
 
 ### Dispositivos móveis
 
-Em telas de até 700 px, o cabeçalho mantém busca e filtros visíveis, com tipo documental e ordenação na linha seguinte. Os resultados usam cartões com título, resumo do objeto, órgão, local e campos próprios do documento: valor estimado e publicação em editais, valor global e início da vigência em contratos, início e fim da vigência em atas. Toque no cartão ou no título para abrir os detalhes.
+Em telas de até 700 px, tipo documental e ordenação ficam acima da busca, à esquerda de **Mais** quando há espaço. Cada seletor mantém 140 px; nas telas mais estreitas, eles ocupam uma linha própria. Busca e filtros permanecem visíveis. Os resultados usam cartões com título, resumo do objeto, órgão, local e campos próprios do documento: valor estimado e publicação em editais, valor global e início da vigência em contratos, início e fim da vigência em atas. Toque no cartão ou no título para abrir os detalhes.
 
 Em **Mais → Visualização dos resultados**, escolha **Tabela** para comparar todas as colunas ou **Cartões** para retomar a leitura compacta. Essa escolha é mantida durante o uso da página; telas maiores sempre exibem a tabela. A seleção de colunas afeta a tabela; os cartões mantêm seus campos de resumo.
 

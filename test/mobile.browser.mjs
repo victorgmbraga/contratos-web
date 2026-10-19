@@ -20,10 +20,33 @@ async function fits(selector,{height=false,touch=false}={}) {
   if(height)assert(box.y>=-1 && box.y+box.height<=page.viewportSize().height+1,`${selector} cabe verticalmente`);
   if(touch)assert(box.width>=43.99 && box.height>=43.99,`${selector} possui área de toque de 44 px (${box.width} × ${box.height})`);
 }
+async function headerLayout(width) {
+  const boxes=await page.evaluate(()=>Object.fromEntries(Object.entries({brand:'.brand',type:'#document-type-control',order:'#order-control',more:'#more-actions-button',search:'.search-row'}).map(([name,selector])=>{
+    const {x,y,width,height}=document.querySelector(selector).getBoundingClientRect();return [name,{x,y,width,height}];
+  })));
+  assert.equal(boxes.type.width,140);assert.equal(boxes.order.width,140);
+  assert.equal(boxes.type.y,boxes.order.y);
+  assert(boxes.order.y+boxes.order.height<=boxes.search.y,'Seletores ficam acima da busca');
+  if(width>385){
+    assert.equal(boxes.type.y,boxes.more.y,'Seletores e Mais ficam na mesma linha');
+    assert(boxes.order.x+boxes.order.width<boxes.more.x,'Seletores ficam à esquerda de Mais');
+    if(width>=560)assert.equal(boxes.brand.y,boxes.type.y);
+    else assert(boxes.brand.y+boxes.brand.height<=boxes.type.y);
+  } else {
+    assert.equal(boxes.brand.y,boxes.more.y);
+    assert(boxes.more.y+boxes.more.height<=boxes.type.y,'Tela estreita mantém os seletores inteiros em outra linha');
+  }
+  await page.locator('.brand').focus();
+  const sequence=width<=385?['more-actions-button','document-type-control','order-control','search']:['document-type-control','order-control','more-actions-button','search'];
+  for(const id of sequence){await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.id),id,'Ordem do teclado acompanha o cabeçalho');}
+}
 try {
   await page.goto(url);await ready();
-  for(const width of [320,360,390,430,700]){
+  for(const width of [320,360,385,386,390,430,559,560,700]){
+    await page.locator('#document-type-control').focus();
     await page.setViewportSize({width,height:844});
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'document-type-control','Redimensionar preserva o foco do seletor');
+    await headerLayout(width);
     assert.equal(await page.locator('#header-content').evaluate(node=>node.scrollWidth<=node.clientWidth),true);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     for(const selector of ['#search','#search-button','#filters-button','#document-type','#order','#more-actions-button','.results-paginator'])await fits(selector,{height:true});
@@ -98,7 +121,13 @@ try {
   await page.keyboard.press('Escape');assert.equal(await page.locator('#more-actions').evaluate(node=>node.matches(':popover-open')),false);
   await more();const download=page.waitForEvent('download');await page.locator('#export-button').click();assert.match((await download).suggestedFilename(),/\.csv$/);await ready();
   await more();await page.locator('#refresh-button').click();await ready();assert.equal(requests.at(-1).q,'pagina-ui');
+  const selectedType=await page.locator('#document-type').inputValue(),selectedOrder=await page.locator('#order').inputValue();
+  await page.locator('#document-type-control').focus();
   await page.setViewportSize({width:1068,height:630});
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'document-type-control');
+  assert.equal(await page.locator('.header-toolbar').evaluate(node=>node.previousElementSibling.id),'source-badge');
+  assert.equal(await page.locator('#document-type').inputValue(),selectedType);assert.equal(await page.locator('#order').inputValue(),selectedOrder);
+  for(const id of ['document-type','order'])assert.equal(await page.locator(`#${id}`).count(),1);
   assert.equal(await page.locator('#more-actions-button').isVisible(),false);assert.equal(await page.locator('.results-grid').isVisible(),true);
   for(const id of ['theme-button','repository-link','refresh-button','columns-button','export-button']){
     assert.equal(await page.locator(`#more-actions #${id}`).count(),0);assert.equal(await page.locator(`#${id}`).isVisible(),true);
@@ -109,5 +138,5 @@ try {
   await page.setViewportSize({width:360,height:800});
   await page.locator('#clear-button').click();await ready();await page.screenshot({path:join(tmpdir(),'contratos-mobile-cards.png')});
   assert.deepEqual(errors,[]);
-  console.log('PASS Mobile: 320/360/390/430/700 px, três tipos, cartões/tabela, ações, filtros, detalhes/URL, toque, paginação, paisagem e viewport reduzido');
+  console.log('PASS Mobile: 320–700 px, seletores junto a Mais, quebras de linha, teclado/foco e retorno ao desktop, três tipos, cartões/tabela, ações, filtros, detalhes/URL, toque, paginação e paisagem');
 } finally {await browser.close();await app.close();}
