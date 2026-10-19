@@ -15,7 +15,7 @@ A tabela e a leitura de JSON com precisão numérica são módulos do próprio p
 5. Use **Selecionar colunas** para ajustar a tabela. Colunas com filtro exibem um ícone após o nome: quando há apenas filtragem, o clique abre diretamente o campo correspondente e o tooltip indica **Filtrar por esta coluna**. Colunas que também permitem ordenação exibem um menu com as ações disponíveis.
 6. Use **Exportar CSV** para coletar todos os documentos dos últimos critérios concluídos, desde a primeira página. O arquivo inclui todas as colunas do tipo documental. A coleta mostra progresso e pode ser interrompida pelo X em um círculo (**Cancelar CSV**).
 
-O ícone do GitHub abre o repositório em nova aba. Em telas pequenas, fica no menu **Mais**, junto com atualizar, selecionar colunas, exportar CSV e alternar o tema.
+O ícone do GitHub abre o repositório em nova aba. Em telas pequenas, fica no menu **Mais**, junto com atualizar, selecionar colunas, limpar filtros, exportar CSV e alternar o tema.
 
 O botão de sol/lua, junto ao GitHub, alterna entre os modos claro e escuro. No primeiro acesso, o tema acompanha a preferência do sistema. A escolha fica salva no navegador e é sincronizada entre abas; se o armazenamento estiver bloqueado, a alternância continua funcionando na página aberta.
 
@@ -25,7 +25,7 @@ As colunas podem ser redimensionadas pela borda direita ou movimentadas pelo tí
 
 ### Dispositivos móveis
 
-Em telas de até 700 px, tipo documental e ordenação ficam acima da busca, à esquerda de **Mais** quando há espaço. Cada seletor mantém 140 px; nas telas mais estreitas, eles ocupam uma linha própria. Busca e filtros permanecem visíveis. Os resultados usam cartões com título, resumo do objeto, órgão, local e campos próprios do documento: valor estimado e publicação em editais, valor global e início da vigência em contratos, início e fim da vigência em atas. Toque no cartão ou no título para abrir os detalhes.
+Em telas de até 700 px, o cabeçalho não exibe a marca. A primeira linha contém busca, pesquisar e filtros; a segunda contém tipo documental, ordenação e o ícone **Mais**. Os seletores têm até 140 px e encolhem igualmente nas telas mais estreitas. A ação **Limpar filtros** fica em **Mais**. Os resultados usam cartões com título, resumo do objeto, órgão, local e campos próprios do documento: valor estimado e publicação em editais, valor global e início da vigência em contratos, início e fim da vigência em atas. Toque no cartão ou no título para abrir os detalhes.
 
 Em **Mais → Visualização dos resultados**, escolha **Tabela** para comparar todas as colunas ou **Cartões** para retomar a leitura compacta. Essa escolha é mantida durante o uso da página; telas maiores sempre exibem a tabela. A seleção de colunas afeta a tabela; os cartões mantêm seus campos de resumo.
 

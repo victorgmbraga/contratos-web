@@ -31,7 +31,9 @@ export function initializeSelectMenus({document, window}) {
     const c = opened;if (!c) return;
     const anchor = c.button.getBoundingClientRect(), view = window.visualViewport;
     const left = view?.offsetLeft || 0, top = view?.offsetTop || 0, width = view?.width || window.innerWidth, height = view?.height || window.innerHeight, gap = 6, edge = 8;
-    const ancestors = [c.button.closest('.filters-body'),c.button.closest('#details-content'),c.button.closest('#header-content')].filter(Boolean);
+    // A top-layer popover escapes the clipping bounds of its outer containers.
+    const host = c.button.closest(':popover-open');
+    const ancestors = [host,c.button.closest('.filters-body'),c.button.closest('#details-content'),c.button.closest('#header-content')].filter(element=>element && (!host || host.contains(element)));
     if (!anchor.width || !anchor.height || anchor.bottom <= top || anchor.top >= top+height || ancestors.some(element=>{
       const box = element.getBoundingClientRect();return anchor.bottom < box.top || anchor.top > box.bottom || anchor.right < box.left || anchor.left > box.right;
     })) {close();return;}
@@ -106,6 +108,7 @@ export function initializeSelectMenus({document, window}) {
     // A single-choice menu replaces any other open selector or suggestion list.
     document.dispatchEvent(new window.Event('select-menu-open'));
     opened = c;refresh(c.source);
+    if (opened !== c) return;
     c.menu.showPopover();c.button.setAttribute('aria-expanded','true');position();
     active(c,c.items.findIndex(item=>item.option.selected));
   }

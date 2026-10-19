@@ -21,30 +21,32 @@ async function fits(selector,{height=false,touch=false}={}) {
   if(touch)assert(box.width>=43.99 && box.height>=43.99,`${selector} possui área de toque de 44 px (${box.width} × ${box.height})`);
 }
 async function headerLayout(width) {
-  const boxes=await page.evaluate(()=>Object.fromEntries(Object.entries({brand:'.brand',type:'#document-type-control',order:'#order-control',more:'#more-actions-button',search:'.search-row'}).map(([name,selector])=>{
+  const boxes=await page.evaluate(()=>Object.fromEntries(Object.entries({type:'#document-type-control',order:'#order-control',more:'#more-actions-button',search:'.search-field',submit:'#search-button',filters:'#filters-button'}).map(([name,selector])=>{
     const {x,y,width,height}=document.querySelector(selector).getBoundingClientRect();return [name,{x,y,width,height}];
   })));
-  assert.equal(boxes.type.width,140);assert.equal(boxes.order.width,140);
+  assert.equal(await page.locator('.brand').isVisible(),false);
+  assert.equal(boxes.type.width,boxes.order.width);assert(boxes.type.width<=140 && boxes.type.width>100);
+  if(width>=358)assert.equal(boxes.type.width,140);
+  assert.equal(boxes.search.y,boxes.submit.y);assert.equal(boxes.search.y,boxes.filters.y);
+  assert.deepEqual(await page.locator('.search-row>button:visible').evaluateAll(nodes=>nodes.map(node=>node.id)),['search-button','filters-button']);
   assert.equal(boxes.type.y,boxes.order.y);
-  assert(boxes.order.y+boxes.order.height<=boxes.search.y,'Seletores ficam acima da busca');
+  assert(boxes.search.y+boxes.search.height<boxes.type.y,'Busca ocupa a primeira linha e seletores a segunda');
   assert.equal(boxes.more.width,44);assert.equal(boxes.more.height,44);
-  if(width>357){
-    assert.equal(boxes.type.y,boxes.more.y,'Seletores e Mais ficam na mesma linha');
-    assert(boxes.order.x+boxes.order.width<boxes.more.x,'Seletores ficam à esquerda de Mais');
-    if(width>=500){assert.equal(boxes.brand.y,boxes.type.y);assert(boxes.type.x-boxes.brand.x-boxes.brand.width<=7,'Espaçamento após o título é compacto');}
-    else assert(boxes.brand.y+boxes.brand.height<=boxes.type.y);
-  } else {
-    assert.equal(boxes.brand.y,boxes.more.y);
-    assert(boxes.more.x-boxes.brand.x-boxes.brand.width<=7,'Ícone fica próximo do título na tela estreita');
-    assert(boxes.more.y+boxes.more.height<=boxes.type.y,'Tela estreita mantém os seletores inteiros em outra linha');
-  }
-  await page.locator('.brand').focus();
-  const sequence=width<=357?['more-actions-button','document-type-control','order-control','search']:['document-type-control','order-control','more-actions-button','search'];
+  assert.equal(boxes.type.y,boxes.more.y,'Seletores e Mais ficam na segunda linha');
+  assert(boxes.order.x+boxes.order.width<boxes.more.x,'Mais fica à direita dos seletores');
+  await page.locator('#search').focus();
+  const sequence=['search-button','filters-button','document-type-control','order-control','more-actions-button'];
   for(const id of sequence){await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.id),id,'Ordem do teclado acompanha o cabeçalho');}
+  await more();await page.locator('#more-actions').waitFor({state:'visible'});
+  const popup=await page.locator('#more-actions').boundingBox();
+  assert(popup.x>=0 && popup.x+popup.width<=width);
+  assert(popup.y>=boxes.more.y+boxes.more.height);
+  assert(popup.x<=boxes.more.x+boxes.more.width && popup.x+popup.width>=boxes.more.x,'Menu abre junto ao botão');
+  await page.keyboard.press('Escape');
 }
 try {
   await page.goto(url);await ready();
-  for(const width of [320,357,358,360,390,430,499,500,560,700]){
+  for(const width of [320,352,358,360,390,430,560,700]){
     await page.locator('#document-type-control').focus();
     await page.setViewportSize({width,height:844});
     assert.equal(await page.evaluate(()=>document.activeElement.id),'document-type-control','Redimensionar preserva o foco do seletor');
@@ -92,7 +94,8 @@ try {
   await page.locator('#filter-ufs:not(:disabled)').click();
   await page.locator('#filter-suggestions-ufs [data-value="DF"]').click();await fits('#apply-filters',{height:true});
   await page.locator('#apply-filters').click();await ready();assert.equal(new URL(page.url()).searchParams.get('ufs'),'DF');
-  await fits('#clear-button',{touch:true,height:true});await page.locator('#clear-button').click();await ready();
+  assert.equal(await page.locator('.search-row #clear-button').count(),0);
+  await more();await fits('#clear-button',{touch:true,height:true});await page.locator('#clear-button').click();await ready();
   await page.locator('#search').fill('benchmark-ui');await page.locator('#search-button').click();await ready();
   await page.getByRole('button',{name:'Última página',exact:true}).click();await ready();
   assert.deepEqual(await page.locator('.results-pages button').allTextContents(),['96','97','98','99','100']);
@@ -127,6 +130,9 @@ try {
   await page.locator('#document-type-control').focus();
   await page.setViewportSize({width:1068,height:630});
   assert.equal(await page.evaluate(()=>document.activeElement.id),'document-type-control');
+  assert.equal(await page.locator('.brand').isVisible(),true);
+  assert.equal(await page.locator('#more-actions-button').evaluate(node=>node.nextElementSibling.id),'search-form');
+  assert.equal(await page.locator('#search-form #clear-button').count(),1);
   assert.equal(await page.locator('.header-toolbar').evaluate(node=>node.previousElementSibling.id),'source-badge');
   assert.equal(await page.locator('#document-type').inputValue(),selectedType);assert.equal(await page.locator('#order').inputValue(),selectedOrder);
   for(const id of ['document-type','order'])assert.equal(await page.locator(`#${id}`).count(),1);
@@ -138,7 +144,7 @@ try {
   await page.setViewportSize({width:360,height:400});await page.locator('#draft-search').click();await fits('#apply-filters',{height:true});await fits('#draft-search',{height:true});
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   await page.setViewportSize({width:360,height:800});
-  await page.locator('#clear-button').click();await ready();await page.screenshot({path:join(tmpdir(),'contratos-mobile-cards.png')});
+  await more();await page.locator('#clear-button').click();await ready();await page.screenshot({path:join(tmpdir(),'contratos-mobile-cards.png')});
   assert.deepEqual(errors,[]);
-  console.log('PASS Mobile: 320–700 px, seletores junto a Mais, quebras de linha, teclado/foco e retorno ao desktop, três tipos, cartões/tabela, ações, filtros, detalhes/URL, toque, paginação e paisagem');
+  console.log('PASS Mobile: 320–700 px, cabeçalho em duas linhas sem marca, menu ancorado e limpar filtros, teclado/foco e retorno ao desktop, três tipos, cartões/tabela, filtros, detalhes/URL, toque e paginação');
 } finally {await browser.close();await app.close();}
