@@ -9,7 +9,7 @@
 .select-chevron svg{width:14px;height:14px}
 .select-trigger[aria-expanded="true"] .select-chevron{transform:rotate(180deg)}
 .criteria-row .select-trigger{padding:7px 8px;font-size:.8125rem;font-weight:500}
-.criteria-row .select-control{max-width:180px}
+.criteria-row .select-control{width:100%;max-width:100%}
 .filter-field>.select-control{width:100%;margin-bottom:6px}
 .filter-field .select-trigger{font-weight:400}
 .detail-section-choice .select-control,.filter-group-jump .select-control{flex:1;min-width:0}
