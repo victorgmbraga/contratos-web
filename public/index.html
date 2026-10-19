@@ -64,9 +64,15 @@
   <div id="repository-link-tooltip" class="tooltip" role="tooltip" hidden>Repositório no GitHub</div>
   <div id="window-warning-tooltip" class="tooltip footer-tooltip warning" role="tooltip" hidden></div>
 
-  <dialog id="filters-dialog" class="modal filters-modal" aria-labelledby="filters-title"><div class="dialog-header"><div><span class="eyebrow">CRITÉRIOS DA PESQUISA</span><h2 id="filters-title">Filtros do PNCP</h2></div><button class="icon-button close-dialog" aria-label="Fechar">×</button></div>
+  <dialog id="filters-dialog" class="modal filters-modal" aria-labelledby="filters-title"><div class="dialog-header"><h2 id="filters-title">Filtros do PNCP</h2><button class="icon-button close-dialog" aria-label="Fechar">×</button></div>
     <label class="filter-group-jump mobile-only">Ir para o grupo<select id="filter-group-jump" aria-controls="filter-groups"></select></label>
-    <div class="filters-body"><p class="panel-note">Preencha os critérios desejados. Campos vazios ou com “Selecionar” não filtram os resultados.</p><div id="filters-basics" class="filters-basics" tabindex="-1"><label>Texto da pesquisa no PNCP (opcional)<input id="draft-search" maxlength="128" placeholder="Delimita a busca em vários campos indexados"></label><label>Status temporal<select id="draft-status"><option value="todos">Todos</option></select></label></div><p id="legal-error" class="inline-error" role="status" hidden></p><div id="filter-groups"></div></div>
+    <div class="filters-body">
+      <div id="filters-basics" class="filters-basics" tabindex="-1">
+        <div class="filter-field"><div class="filter-field-heading"><label for="draft-search">Texto da pesquisa no PNCP</label></div><input id="draft-search" maxlength="128" placeholder="Delimita a busca em vários campos indexados"></div>
+        <div class="filter-field"><div class="filter-field-heading"><label for="draft-status">Status temporal</label></div><select id="draft-status"><option value="todos">Todos</option></select></div>
+      </div>
+      <p id="legal-error" class="inline-error" role="status" hidden></p><div id="filter-groups"></div>
+    </div>
     <div class="dialog-footer"><button class="button close-dialog">Cancelar</button><button id="apply-filters" class="button primary">Aplicar e pesquisar</button></div><div id="filter-popups"></div>
   </dialog>
 

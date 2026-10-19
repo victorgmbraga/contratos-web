@@ -111,7 +111,6 @@ dialog::backdrop{background:var(--backdrop,#122b4655);backdrop-filter:blur(2px)}
 .filters-modal>.dialog-header{margin-bottom:16px}
 .filters-modal>.dialog-footer{margin-top:16px;padding-top:16px}
 .filters-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:8px}
-.filters-body>.panel-note{margin:0 0 16px}
 .filters-basics{display:grid;grid-template-columns:2fr 1fr;gap:16px}
 .filter-group{min-width:0;margin:16px 0 0;padding:16px 0 0;border:0;border-top:1px solid var(--line)}
 .filter-group legend{padding:0 10px 0 0;font-size:.9375rem;font-weight:700;color:var(--navy)}
