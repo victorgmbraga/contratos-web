@@ -15,6 +15,7 @@ const url=`http://127.0.0.1:${app.server.address().port}/?demo=1`;
 const ready=()=>page.waitForFunction(()=>document.querySelector('#results-table').getAttribute('aria-busy')==='false' && !document.querySelector('#export-button').disabled);
 const more=()=>page.locator('#more-actions-button').click();
 async function fits(selector,{height=false,touch=false}={}) {
+  if(selector.startsWith('#details-dialog'))await page.locator('#details-dialog').evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished)));
   const box=await page.locator(selector).first().boundingBox();assert(box,`${selector} visível`);
   assert(box.x>=-1 && box.x+box.width<=page.viewportSize().width+1,`${selector} cabe horizontalmente`);
   if(height)assert(box.y>=-1 && box.y+box.height<=page.viewportSize().height+1,`${selector} cabe verticalmente`);
@@ -79,7 +80,7 @@ try {
     await page.waitForFunction(()=>document.querySelector('#details-section')?.value==='historico');assert.equal(page.url(),link);
     await page.locator('#details-content').evaluate(node=>{node.scrollTop=10000;});await fits('#details-dialog .close-dialog',{height:true,touch:true});
     await page.locator('#details-dialog .close-dialog').click();
-    await page.locator('#filters-button').click();assert.equal(await page.locator('.filter-field').count(),count);
+    await page.locator('#filters-button').click();assert.equal(await page.locator('#filter-groups .filter-field').count(),count);
     assert.equal(await page.locator('#filters-dialog').evaluate(node=>Math.round(node.getBoundingClientRect().width)),360);
     const options=await page.locator('#filter-group-jump option').evaluateAll(options=>options.map(option=>option.value));
     await page.locator('#filter-group-jump').selectOption(options.at(-1));
