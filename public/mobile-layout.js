@@ -2,7 +2,7 @@
 export function initializeMobileLayout({document, window}) {
   const media = window.matchMedia?.('(max-width:700px)');
   if (!media) return {destroy() {}};
-  const narrow = window.matchMedia('(max-width:385px)');
+  const narrow = window.matchMedia('(max-width:357px)');
   const lifetime = new window.AbortController(), {signal} = lifetime;
   const panel = document.getElementById('more-actions'), trigger = document.getElementById('more-actions-button');
   const toolbar = document.querySelector('.header-toolbar'), toolbarMarker = document.createComment('header-toolbar');

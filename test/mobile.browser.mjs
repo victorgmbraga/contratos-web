@@ -27,22 +27,24 @@ async function headerLayout(width) {
   assert.equal(boxes.type.width,140);assert.equal(boxes.order.width,140);
   assert.equal(boxes.type.y,boxes.order.y);
   assert(boxes.order.y+boxes.order.height<=boxes.search.y,'Seletores ficam acima da busca');
-  if(width>385){
+  assert.equal(boxes.more.width,44);assert.equal(boxes.more.height,44);
+  if(width>357){
     assert.equal(boxes.type.y,boxes.more.y,'Seletores e Mais ficam na mesma linha');
     assert(boxes.order.x+boxes.order.width<boxes.more.x,'Seletores ficam à esquerda de Mais');
-    if(width>=560)assert.equal(boxes.brand.y,boxes.type.y);
+    if(width>=500){assert.equal(boxes.brand.y,boxes.type.y);assert(boxes.type.x-boxes.brand.x-boxes.brand.width<=7,'Espaçamento após o título é compacto');}
     else assert(boxes.brand.y+boxes.brand.height<=boxes.type.y);
   } else {
     assert.equal(boxes.brand.y,boxes.more.y);
+    assert(boxes.more.x-boxes.brand.x-boxes.brand.width<=7,'Ícone fica próximo do título na tela estreita');
     assert(boxes.more.y+boxes.more.height<=boxes.type.y,'Tela estreita mantém os seletores inteiros em outra linha');
   }
   await page.locator('.brand').focus();
-  const sequence=width<=385?['more-actions-button','document-type-control','order-control','search']:['document-type-control','order-control','more-actions-button','search'];
+  const sequence=width<=357?['more-actions-button','document-type-control','order-control','search']:['document-type-control','order-control','more-actions-button','search'];
   for(const id of sequence){await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.id),id,'Ordem do teclado acompanha o cabeçalho');}
 }
 try {
   await page.goto(url);await ready();
-  for(const width of [320,360,385,386,390,430,559,560,700]){
+  for(const width of [320,357,358,360,390,430,499,500,560,700]){
     await page.locator('#document-type-control').focus();
     await page.setViewportSize({width,height:844});
     assert.equal(await page.evaluate(()=>document.activeElement.id),'document-type-control','Redimensionar preserva o foco do seletor');
