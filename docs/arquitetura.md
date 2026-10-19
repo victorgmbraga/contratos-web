@@ -36,6 +36,7 @@ flowchart LR
 | [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, DOM, histórico da URL, painéis e download |
 | [`public/results-table.js`](../public/results-table.js), [`results-table.css`](../public/results-table.css) | Tabela semântica, cartões móveis, paginação, menus, visibilidade, ordem e largura de colunas |
 | [`public/mobile-layout.js`](../public/mobile-layout.js), [`mobile.css`](../public/mobile.css) | Cabeçalho móvel, ações em popover, adaptação ao viewport visível, áreas seguras e painéis responsivos |
+| [`public/select-menu.js`](../public/select-menu.js), [`select-menu.css`](../public/select-menu.css) | Seletores simples com combobox/listbox, menus em popover, teclado, temas e sincronização dos valores nativos |
 | [`public/browser-entry.js`](../public/browser-entry.js) | Configuração pública e inicialização da distribuição estática |
 | [`public/theme.js`](../public/theme.js), [`theme.css`](../public/theme.css) | Preferência de tema, integração com o sistema, sincronização entre abas e paleta escura |
 | [`src/demo.js`](../src/demo.js) | Fonte fictícia escolhida explicitamente |
@@ -63,6 +64,12 @@ Em até 700 px, o modal ocupa o viewport visível e oferece um seletor de atalho
 Todos os filtros de cardinalidade múltipla usam comboboxes de busca, listas com marcação e etiquetas removíveis. Domínios completos usam as opções em cache e busca local sem distinção de acentos; domínios parciais mantêm as sugestões remotas. Os menus ficam no contêiner `filter-popups`, fora do conteúdo rolável, com posição fixa calculada a partir do campo. A rolagem atualiza essa posição ou fecha o menu se o campo sair da área visível. Apenas um menu permanece aberto; clique externo, perda de foco, Tab e Escape o fecham. As setas e Enter controlam a seleção, com vínculos ARIA entre combobox e listbox.
 
 As ajudas de campos vêm de `help_text` no esquema e complementam os rótulos. Exemplos de preenchimento ficam somente no placeholder, via `input_hint`; descrições técnicas de argumentos não são exibidas como ajuda. A orientação sobre filtros de itens, resultados e fornecedores aparece uma vez, na seção de itens.
+
+`initializeSelectMenus` aplica uma apresentação comum aos selects simples, incluindo controles criados nos filtros e detalhes. O select original conserva valor, eventos, integração com formulários e tamanho intrínseco; fica transparente, fora da navegação por Tab e da árvore acessível. Um botão com papel `combobox` assume o rótulo e os estados, e uma `listbox` em popover nativo exibe opções como texto, a marca de seleção e o destaque de navegação. Rótulos apontam para o novo controle. Nenhuma dependência é adicionada.
+
+Setas, Home/End e busca pelas primeiras letras movem o destaque sem alterar o valor. Enter/Espaço confirma e emite `input`/`change` quando a escolha muda; Escape, Tab, perda de foco e clique externo descartam a navegação. Opções ocultas são omitidas e opções desabilitadas não podem ser escolhidas. Os menus ajustam largura, altura e posição ao viewport visível, abrem acima quando falta espaço abaixo e acompanham a rolagem ou fecham quando o controle sai de vista. Dentro de diálogos e do menu Mais, permanecem na camada superior e no contexto do controle.
+
+Um `MutationObserver` acompanha opções, rótulos e estados atualizados em segundo plano. Alterações programáticas de valor na aplicação chamam `refresh`; eventos dos controles nativos e reset de formulário também atualizam a apresentação. Atualizar o texto de opções preserva o destaque em navegação. Controles removidos são descartados; no encerramento da página, listeners e observadores são liberados. A retomada pelo cache de navegação mantém os controles.
 
 Critérios novos começam na primeira página; Atualizar preserva os últimos critérios concluídos e a página. Respostas antigas são descartadas. Falhas identificam e preservam o resultado anterior e desabilitam exportação até a pesquisa concluir novamente.
 

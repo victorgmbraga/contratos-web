@@ -30,7 +30,7 @@ export function initializeMobileLayout({document, window}) {
   }
   panel.addEventListener('beforetoggle',event=>{if(event.newState==='open')position();},{signal});
   panel.addEventListener('toggle',()=>trigger.setAttribute('aria-expanded',String(panel.matches(':popover-open'))),{signal});
-  panel.addEventListener('click',event=>{if(event.target.closest('button,a'))close();},{signal});
+  panel.addEventListener('click',event=>{if(event.target.closest('button,a') && !event.target.closest('.select-control'))close();},{signal});
   panel.addEventListener('change',close,{signal});
   media.addEventListener('change',resize,{signal});
   window.visualViewport?.addEventListener('resize',viewport,{signal});

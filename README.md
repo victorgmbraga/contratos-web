@@ -19,6 +19,8 @@ O ícone do GitHub abre o repositório em nova aba. Em telas pequenas, fica no m
 
 O botão de sol/lua, junto ao GitHub, alterna entre os modos claro e escuro. No primeiro acesso, o tema acompanha a preferência do sistema. A escolha fica salva no navegador e é sincronizada entre abas; se o armazenamento estiver bloqueado, a alternância continua funcionando na página aberta.
 
+Os seletores simples usam menus com o mesmo visual nos temas claro e escuro, marcação da opção selecionada e rolagem para listas extensas. Clique para abrir ou use **Enter/Espaço**; **↑/↓**, **Home/End** e a digitação das primeiras letras percorrem as opções. **Enter/Espaço** confirma; **Escape**, **Tab** ou um clique fora fecham sem aplicar a opção apenas destacada. As alterações nos filtros continuam sendo rascunhos até **Aplicar e pesquisar**.
+
 As colunas podem ser redimensionadas pela borda direita ou movimentadas pelo título. Pelo teclado, foque o título e use **Alt + ←/→** para mover; no controle de largura, use **←/→** ou **Home** para a largura mínima. O título de cada registro também permite abrir os detalhes pelo teclado.
 
 ### Dispositivos móveis

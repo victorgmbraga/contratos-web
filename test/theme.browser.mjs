@@ -19,7 +19,8 @@ async function contrast(selectors) {
     const luminance=channels=>channels.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
     const failures=[];
     for(const selector of selectors) {
-      const node=document.querySelector(selector);if(!node){failures.push({selector,missing:true});continue;}
+      let node=document.querySelector(selector);if(!node){failures.push({selector,missing:true});continue;}
+      if(node.matches('.select-source'))node=node.parentElement.querySelector('.select-trigger');
       let background=node;
       while(background.parentElement && rgb(getComputedStyle(background).backgroundColor)[3]===0)background=background.parentElement;
       const style=getComputedStyle(node),fg=luminance(rgb(style.color)),bg=luminance(rgb(getComputedStyle(background).backgroundColor));

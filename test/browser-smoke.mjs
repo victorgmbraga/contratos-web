@@ -2,6 +2,7 @@ import { build } from 'vite';
 await import('./results-table.browser.mjs');
 await build({ mode: 'test' });
 await import('./ui-smoke.mjs');
+await import('./select-menu.browser.mjs');
 await import('./theme.browser.mjs');
 await import('./mobile.browser.mjs');
 await import('./detail-links.browser.mjs');

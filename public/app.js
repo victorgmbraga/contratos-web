@@ -5,6 +5,7 @@ import { controlLink } from '../src/document-details.js';
 import { compareDecimal } from '../src/validation.js';
 import { createResultsTable } from './results-table.js';
 import { initializeMobileLayout } from './mobile-layout.js';
+import { initializeSelectMenus } from './select-menu.js';
 
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
 const $ = id => document.getElementById(id);
@@ -46,6 +47,7 @@ function money(value) {
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
 const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,detailSelection:null,detailDoc:null,detailActivate:null,exportAbort:null,exportSeq:0};
 let filterOptionsCache;
+let selectMenus;
 const filterFields=new Map();
 let openFilterEditor=null;
 let urlMode='replace',urlError=null,tableReady=false,queryRequested=false;
@@ -172,6 +174,7 @@ function updateCriteria() {
     const label=Array.isArray(value)?value.map(id=>options.find(o=>o.id===id)?.label || id).join(', '):typeof value==='boolean'?(value?'Sim':'Não'):String(value);
     $('native-chips').append(el('span',`${filterLabel(key)}: ${label}`,'filter-chip'));
   }
+  selectMenus?.refresh();
 }
 function renderCell(value,column) {
     const node=el('span',value===null || value===undefined?'—':column.type==='date'?date(value):column.type==='decimal'?money(value):column.type==='boolean'?(value?'Sim':'Não'):String(value));
@@ -330,6 +333,7 @@ function syncFilterEditor(editor) {
     editor.selected=(value || []).map(id=>editor.options?.find(o=>o.id===id) || editor.selected.find(o=>o.id===id) || {id,label:id});
     renderSelectedOptions(editor);updateFilterChoices(editor);
   } else editor.input.value=value===undefined?'':String(value);
+  selectMenus?.refresh(editor.input);
 }
 async function setDraftFilter(name,value) {
   const draft=state.draft,previous=JSON.stringify(draft.pncp_filters[name]);
@@ -703,6 +707,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
     sectionSelect.value=tabs[index].button.dataset.resource;sectionSelect.setAttribute('aria-controls',tabs[index].panel.id);
     sectionSelect.setAttribute('aria-busy',tabs[index].button.getAttribute('aria-busy'));
     sectionSpinner.hidden=tabs[index].button.getAttribute('aria-busy')!=='true';
+    selectMenus?.refresh(sectionSelect);
     if(focus){tabs[index].button.focus();tabs[index].button.scrollIntoView({block:'nearest',inline:'nearest'});}
   }
   sectionSelect.addEventListener('change',()=>{const index=tabs.findIndex(tab=>tab.button.dataset.resource===sectionSelect.value);if(index>=0)activate(index);});
@@ -836,6 +841,7 @@ async function init() {
   });
   resultInfo.hidden=false;
   initializeMobileLayout({document,window});
+  selectMenus=initializeSelectMenus({document,window});
   $('results-view').addEventListener('change',()=>state.table.setMobileView($('results-view').value));
   renderColumnChoices();
   $('document-type').addEventListener('change',changeDocumentType);
@@ -854,6 +860,7 @@ async function init() {
   $('clear-button').addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();return execute();});
   $('apply-filters').addEventListener('click',()=>{if(state.legalPending || state.legalError)return;state.draft.q=$('draft-search').value;state.draft.status=$('draft-status').value;state.query=clone(state.draft);$('search').value=state.query.q;$('filters-dialog').close();updateCriteria();return execute();});
   $('filters-dialog').addEventListener('close',()=>{stopFilterEditors();state.legalAbort?.abort();state.legalSeq++;});
+  document.addEventListener('select-menu-open',closeFilterDropdown);
   $('filter-group-jump').addEventListener('change',()=>{
     closeFilterDropdown();const group=$($('filter-group-jump').value);group?.scrollIntoView({block:'start'});group?.focus({preventScroll:true});
   });
