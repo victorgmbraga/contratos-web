@@ -18,7 +18,7 @@
 .results-row:hover{background:var(--row-hover,#eff7fd);cursor:pointer}
 .results-cell{border-right:1px solid var(--border-subtle,#edf1f6);border-bottom:1px solid var(--border-subtle,#e9eef4);padding:7px 8px;line-height:1.4;font-size:.8125rem;vertical-align:top;min-height:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .results-cell>span:not(.object-text){display:block;overflow:hidden;text-overflow:ellipsis}
-.results-cell>.status-cell{display:inline-block}
+.results-cell>span.status-cell{display:inline-block;max-width:100%}
 .results-open{border:0;padding:0;background:transparent;color:inherit;font:inherit;text-align:left;max-width:100%;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .results-open>span{display:block;overflow:hidden;text-overflow:ellipsis}
 .results-open:hover{text-decoration:underline}
