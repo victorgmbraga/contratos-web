@@ -347,19 +347,21 @@
       },
       ".results-paginator": {
         "fontSize": "12px",
-        "gap": "6px"
+        "gap": "4px"
       },
       ".results-page": {
         "fontSize": "13px",
         "lineHeight": "13px",
-        "display": "none",
-        "minHeight": "0px"
+        "display": "flex",
+        "minHeight": "44px",
+        "padding": "4px 1px"
       },
       ".results-page.active": {
         "fontSize": "13px",
         "lineHeight": "13px",
-        "display": "inline-flex",
-        "minHeight": "0px"
+        "display": "flex",
+        "minHeight": "44px",
+        "padding": "4px 1px"
       }
     },
     "1068": {},

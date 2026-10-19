@@ -27,7 +27,9 @@ try {
     assert.equal(await page.locator('#header-content').evaluate(node=>node.scrollWidth<=node.clientWidth),true);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     for(const selector of ['#search','#search-button','#filters-button','#document-type','#order','#more-actions-button','.results-paginator'])await fits(selector,{height:true});
-    for(const selector of ['#search-button','#filters-button','#more-actions-button','.results-page[data-page="prev"]','.results-page[data-page="next"]'])await fits(selector,{touch:true});
+    for(const selector of ['#search-button','#filters-button','#more-actions-button'])await fits(selector,{touch:true});
+    for(const action of ['first','prev','next','last'])await fits(`.results-page[data-page="${action}"]`,{height:true});
+    assert.equal(await page.locator('.results-paginator').evaluate(node=>Math.abs(node.getBoundingClientRect().width-node.parentElement.getBoundingClientRect().width)<1),true);
     assert.equal(await page.locator('.results-grid').isVisible(),false);assert.equal(await page.locator('.result-card').first().isVisible(),true);
     assert.equal(await page.locator('.results-scroll').evaluate(node=>node.scrollWidth<=node.clientWidth),true);
   }
@@ -66,15 +68,24 @@ try {
   await page.locator('#filter-suggestions-ufs [data-value="DF"]').click();await fits('#apply-filters',{height:true});
   await page.locator('#apply-filters').click();await ready();assert.equal(new URL(page.url()).searchParams.get('ufs'),'DF');
   await fits('#clear-button',{touch:true,height:true});await page.locator('#clear-button').click();await ready();
+  await page.locator('#search').fill('benchmark-ui');await page.locator('#search-button').click();await ready();
+  await page.getByRole('button',{name:'Última página',exact:true}).click();await ready();
+  assert.deepEqual(await page.locator('.results-pages button').allTextContents(),['96','97','98','99','100']);
+  for(const width of [320,360,390,430,700]){
+    await page.setViewportSize({width,height:844});
+    await fits('.results-paginator',{height:true});
+    assert.equal(await page.locator('.results-paginator button:visible').count(),9);
+    assert.equal(await page.locator('.results-paginator').evaluate(nav=>nav.scrollWidth<=nav.clientWidth && [...nav.querySelectorAll('button')].every(button=>button.scrollWidth<=button.clientWidth+1)),true);
+  }
+  await page.setViewportSize({width:360,height:800});
   await page.locator('#search').fill('pagina-ui');await page.locator('#search-button').click();await ready();
   assert.equal(await page.locator('.result-card').count(),100);
-  await page.locator('.results-page-jump input').fill('2');await page.locator('.results-page-jump input').press('Enter');await ready();
+  await page.getByRole('button',{name:'Página 2',exact:true}).click();await ready();
   assert.equal(new URL(page.url()).searchParams.get('pagina'),'2');assert.equal(await page.locator('.result-card').count(),64);
   assert.equal(await page.locator('.results-page[data-page="next"]').isDisabled(),true);
   await page.locator('.results-page[data-page="prev"]').click();await ready();assert.equal(new URL(page.url()).searchParams.get('pagina'),'1');
-  assert.equal(await page.locator('.results-page-jump input').evaluate(node=>node===document.activeElement),true);
-  const countBefore=requests.length;await page.locator('.results-page-jump input').fill('3');await page.locator('.results-page-jump input').press('Enter');
-  assert.equal(await page.locator('.results-page-jump input').evaluate(node=>node.validity.rangeOverflow),true);assert.equal(requests.length,countBefore);
+  assert.equal(await page.locator('.results-page.active').evaluate(node=>node===document.activeElement),true);
+  assert.equal(await page.getByRole('button',{name:'Página 3',exact:true}).count(),0);
   await more();await page.locator('#results-view').selectOption('table');
   assert.equal(await page.locator('.results-grid').isVisible(),true);assert.equal(await page.locator('.results-cards').isVisible(),false);
   const filter=page.getByRole('button',{name:'Filtrar Órgão',exact:true});await filter.click();

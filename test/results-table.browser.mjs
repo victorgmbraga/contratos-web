@@ -68,6 +68,34 @@ try {
   await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Filtrar Órgão',exact:true}).click();
   const menu=await page.getByRole('menu').boundingBox();assert(menu.x>=8 && menu.x+menu.width<=382);
   await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Primeira página',exact:true}).click();
+  assert.deepEqual(await page.locator('.results-pages button').allTextContents(),['1','2','3','4','5']);
+  assert.equal(await page.locator('.results-paginator input').count(),0);
+  for(const width of [320,360,390,430,700]){
+    await page.setViewportSize({width,height:844});
+    const geometry=await page.locator('.results-paginator').evaluate(nav=>{
+      const rect=nav.getBoundingClientRect(),buttons=[...nav.querySelectorAll('button')].map(button=>button.getBoundingClientRect());
+      return {width:rect.width,parentWidth:nav.parentElement.getBoundingClientRect().width,count:buttons.length,
+        fills:Math.abs(buttons[0].left-rect.left)<1 && Math.abs(buttons.at(-1).right-rect.right)<1,
+        even:buttons.every(button=>Math.abs(button.width-buttons[0].width)<1 && Math.abs(button.top-buttons[0].top)<1 && button.height>=43.99)};
+    });
+    assert.equal(geometry.count,9);assert(geometry.fills && geometry.even && Math.abs(geometry.width-geometry.parentWidth)<1,JSON.stringify({width,...geometry}));
+  }
+  await page.getByRole('button',{name:'Última página',exact:true}).click();
+  assert.deepEqual(await page.locator('.results-pages button').allTextContents(),['96','97','98','99','100']);
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'100');
+  assert.equal(await page.getByRole('button',{name:'Última página',exact:true}).isDisabled(),true);
+  await page.getByRole('button',{name:'Página anterior',exact:true}).click();
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'99');
+  await page.getByRole('button',{name:'Página 97',exact:true}).press('Enter');
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'97');
+  await page.getByRole('button',{name:'Primeira página',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'Página anterior',exact:true}).isDisabled(),true);
+  assert.equal(await page.evaluate(()=>document.activeElement.dataset.page),'1');
+  await page.getByRole('button',{name:'Próxima página',exact:true}).click();
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'2');
+  await page.getByRole('button',{name:'Página anterior',exact:true}).click();
+  await page.setViewportSize({width:390,height:844});
   await page.evaluate(()=>{for(const column of tableFixture.columns)tableFixture.instance.setColumnVisibility(column.field,false);});
   assert(await page.getByText('Selecione ao menos uma coluna.').isVisible());
   assert.equal(await page.locator('.results-row').count(),0);

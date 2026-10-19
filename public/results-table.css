@@ -37,19 +37,15 @@
 .results-menu{position:fixed;z-index:1001;display:flex;flex-direction:column;border:1px solid var(--border,#ccd9e7);border-radius:6px;box-shadow:0 5px 20px var(--shadow,#173b6520);font-size:.875rem;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);overflow:auto;background:var(--surface,white);color:var(--text,#23354a);padding:0}
 .results-menu-item{border:0;background:transparent;color:inherit;text-align:left;padding:9px 12px;font:inherit}
 .results-menu-item:hover,.results-menu-item:focus-visible{background:var(--blue-soft)}
-.results-cards,.results-page-jump{display:none}
+.results-cards{display:none}
 @media(max-width:700px){
   .results-footer-contents{flex-wrap:wrap}
   .results-page-counter,.results-paginator{flex-basis:100%}
   .results-footer{padding:6px 8px}
   .results-footer-contents{gap:6px}
-  .results-paginator{justify-content:center;gap:6px;white-space:normal;font-size:.75rem;min-width:0}
-  .results-page{flex-basis:44px;width:44px;height:44px;font-size:.8125rem}
-  .results-pages,.results-page[data-page="first"],.results-page[data-page="last"]{display:none}
-  .results-page-jump{display:flex;align-items:center;gap:6px;min-width:0}
-  .results-page-jump label{display:flex;align-items:center;gap:5px;white-space:nowrap}
-  .results-page-jump input{width:44px;height:44px;min-width:0;padding:4px;border:1px solid var(--border,#ccd7e3);border-radius:5px;background:var(--surface,white);color:var(--text,#23354a);font-size:1rem;text-align:center;appearance:textfield;-moz-appearance:textfield}
-  .results-page-jump input::-webkit-inner-spin-button,.results-page-jump input::-webkit-outer-spin-button{appearance:none;margin:0}
+  .results-paginator{justify-content:space-between;gap:4px;width:100%;white-space:normal;font-size:.75rem;min-width:0}
+  .results-page{display:flex;flex:1 1 0;width:auto;min-width:0;min-height:44px;height:44px;padding:4px 1px;font-size:.8125rem}
+  .results-pages{display:contents}
   .results-header-menu{min-width:44px;min-height:44px}
   .results-menu-item{min-height:44px}
   .results-has-cards[data-mobile-view="cards"] .results-grid{display:none}

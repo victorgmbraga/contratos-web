@@ -1,5 +1,5 @@
 export function paginationPages(page, lastPage) {
-  const count = Math.min(4, lastPage), first = Math.max(1, Math.min(page - 1, lastPage - count + 1));
+  const count = Math.min(5, lastPage), first = Math.max(1, Math.min(page - 2, lastPage - count + 1));
   return Array.from({length:count}, (_, index) => first + index);
 }
 
@@ -213,22 +213,12 @@ export function createResultsTable({container, columns = [], renderCell, renderC
     paginator.append(add('first','Primeira página',1,page <= 1,paginationIcons.first),add('prev','Página anterior',page-1,page <= 1,paginationIcons.prev));
     const numbered = node('span','results-pages');
     for (const number of paginationPages(page,lastPage)) numbered.append(add(number,`Página ${number}`,number,false));
-    const jump = node('form','results-page-jump'), label = node('label',null,'Página '), input = node('input');
-    input.type = 'number';input.inputMode = 'numeric';input.min = '1';input.max = String(lastPage);input.value = String(page);input.required = true;
-    input.setAttribute('aria-label','Número da página');input.dataset.page = 'jump';input.disabled = busy;
-    label.append(input,document.createTextNode(` de ${lastPage}`));
-    const go = node('button','results-page','Ir');go.type = 'submit';go.setAttribute('aria-label','Ir para a página');go.disabled = busy;go.dataset.page = 'go';
-    jump.append(label,go);
-    jump.addEventListener('submit',event=>{
-      event.preventDefault();const target = Number(input.value);
-      if (!busy && Number.isSafeInteger(target) && target >= 1 && target <= lastPage && target !== page) Promise.resolve(onPageChange?.(target)).catch(()=>{});
-    });
-    paginator.append(numbered,jump,add('next','Próxima página',page+1,page >= lastPage,paginationIcons.next),add('last','Última página',lastPage,page >= lastPage,paginationIcons.last));
+    paginator.append(numbered,add('next','Próxima página',page+1,page >= lastPage,paginationIcons.next),add('last','Última página',lastPage,page >= lastPage,paginationIcons.last));
     if (!busy && paginationFocus) {
       if (focused || document.activeElement === document.body) {
         const controls = [...paginator.querySelectorAll('[data-page]')];
         const available = button=>!button.disabled && button.getClientRects().length > 0;
-        (controls.find(button=>button.dataset.page === paginationFocus && available(button)) || controls.find(button=>button.getAttribute('aria-current') === 'page' && available(button)) || controls.find(button=>button.dataset.page === 'jump' && available(button)))?.focus({preventScroll:true});
+        (controls.find(button=>button.dataset.page === paginationFocus && available(button)) || controls.find(button=>button.getAttribute('aria-current') === 'page' && available(button)))?.focus({preventScroll:true});
       }
       paginationFocus = null;
     }
