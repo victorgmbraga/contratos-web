@@ -11,6 +11,11 @@ import { config, service, document, query, memoryStorage } from './helpers.js';
 import { FILTER_OPTIONS_TTL } from '../src/browser/filter-options-cache.js';
 import { project } from '../src/adapter.js';
 
+function paginationButton(pager, action) {
+  const buttons=Array.from(pager.children).flatMap(node=>node.tagName==='button'?[node]:node.children);
+  return buttons.find(button=>button.dataset.page===String(action));
+}
+
 // Execute the actual app handlers with a minimal DOM and injected results view.
 // These tests verify query state and requests, not browser rendering.
 async function interfaceFixture(options={}) {
@@ -193,7 +198,7 @@ test('RELATED-UI-01: quatro abas carregam em background e exibem dados e links c
 });
 test('RELATED-UI-02: paginação de arquivos e histórico é independente dos itens e das outras seções',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(document(1)));const sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');
-  for(const resource of ['arquivos','historico']){const section=sections.find(s=>s.dataset.resource===resource);await ui.nodes.get(`detail-tab-${resource}`).fire('click');const pager=section.children[4];assert.equal(pager.hidden,false);await pager.children[2].fire('click');assert.equal(section.children[3].children.length,2);assert.equal(pager.children[2].disabled,true);assert.equal(pager.children[1].textContent,'Página 2 de 2');await pager.children[0].fire('click');assert.equal(section.children[3].children.length,10);}
+  for(const resource of ['arquivos','historico']){const section=sections.find(s=>s.dataset.resource===resource);await ui.nodes.get(`detail-tab-${resource}`).fire('click');const pager=section.children[4];assert.equal(pager.hidden,false);await paginationButton(pager,'next').fire('click');assert.equal(section.children[3].children.length,2);assert.equal(paginationButton(pager,'next').disabled,true);assert.equal(paginationButton(pager,2).getAttribute('aria-current'),'page');await paginationButton(pager,'first').fire('click');assert.equal(section.children[3].children.length,10);}
   assert.equal(ui.itemRequests.length,1);assert.equal(ui.relatedRequests.length,8);assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (12)');assert.equal(ui.nodes.get('detail-tab-historico').textContent,'Histórico (12)');
 });
 test('RELATED-UI-03: falha em uma listagem permite repetir e não impede as outras',async()=>{
@@ -201,6 +206,30 @@ test('RELATED-UI-03: falha em uma listagem permite repetir e não impede as outr
   await ui.openDocument(project(document(1)));const sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section'),files=sections[0];assert.equal(files.children[1].children[0].hidden,false);assert.equal(files.children[2].textContent,'Arquivos indisponíveis.');assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (—)');
   const atas=sections[1];assert.equal(atas.children[3].children.length,3);assert.equal(ui.nodes.get('detail-tab-atas').textContent,'Atas de Registro de Preço (3)');
   await files.children[1].children[0].fire('click');assert.equal(files.children[3].children.length,10);assert.equal(files.children[1].children[0].hidden,true);assert.equal(ui.itemRequests.length,1);
+});
+
+test('RELATED-PAGES-01: páginas numeradas, limites e falha preservam a página confirmada de cada lista',async()=>{
+  let fail=false,release;
+  const ui=await interfaceFixture({relatedHandler:async(payload,options,core)=>{
+    if(payload.resource!=='arquivos')return core.documentRelated(payload.document,payload.resource,payload.page,payload.size,options.signal);
+    if(payload.page===6 && fail){await new Promise(resolve=>{release=resolve;});throw new Error('Página indisponível.');}
+    return {page:payload.page,size:10,total:92,total_pages:10,has_more:payload.page<10,data:[{titulo:`Arquivo da página ${payload.page}`} ]};
+  }});
+  await ui.openDocument(project(document(1)));await ui.nodes.get('detail-tab-arquivos').fire('click');
+  const section=ui.nodes.get('detail-panel-arquivos'),pager=section.children[4];
+  const pages=()=>pager.children[2].children.map(button=>button.dataset.page);
+  assert.deepEqual(pages(),['1','2','3','4','5']);assert.equal(paginationButton(pager,'first').disabled,true);
+  await paginationButton(pager,5).fire('click');assert.deepEqual(pages(),['3','4','5','6','7']);
+  assert.match(section.children[3].children[0].children[0].textContent,/página 5/);
+  fail=true;const pending=paginationButton(pager,6).fire('click');await tick();
+  assert.equal(pager.getAttribute('aria-busy'),'true');assert.equal(paginationButton(pager,'last').disabled,true);assert.equal(paginationButton(pager,5).disabled,true);
+  release();await pending;
+  assert.equal(paginationButton(pager,5).getAttribute('aria-current'),'page');assert.equal(paginationButton(pager,'next').disabled,false);assert.equal(pager.getAttribute('aria-busy'),'false');
+  assert.equal(section.children[2].textContent,'Página indisponível.');
+  fail=false;await paginationButton(pager,'last').fire('click');assert.deepEqual(pages(),['6','7','8','9','10']);
+  assert.equal(paginationButton(pager,10).getAttribute('aria-current'),'page');assert.equal(paginationButton(pager,'next').disabled,true);assert.equal(paginationButton(pager,'last').disabled,true);
+  await paginationButton(pager,'first').fire('click');assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');
+  assert.equal(ui.relatedRequests.filter(request=>request.resource==='historico').length,1);
 });
 test('RELATED-UI-04: HTTP 404 de contratos exibe zero, listas vazias e ausência de identificação são tratadas',async()=>{
   const ui=await interfaceFixture({itemFetcher:url=>url.includes('/contratos/contratacao/')?Promise.resolve(new Response(null,{status:404})):demoFetch(url)});await ui.openDocument(project(document(5)));let sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');
@@ -629,21 +658,21 @@ test('DETAILS-UI-04: mostra 109 itens e mantém a última página sem oferecer u
   }});
   await ui.openDocument(project(document(1)));
   const section=ui.nodes.get('details-content').children.find(n=>n.className==='items-section');
-  const [toolbar,itemStatus,list,pager]=section.children,[previous,pageLabel,next]=pager.children;
+  const [toolbar,itemStatus,list,pager]=section.children,previous=()=>paginationButton(pager,'prev'),next=()=>paginationButton(pager,'next');
   assert.equal(toolbar.children[0].textContent,'Itens da contratação (109)');
-  assert.match(itemStatus.textContent,/Itens 1–100 de 109/);assert.equal(pageLabel.textContent,'Página 1 de 2');
-  assert.equal(previous.disabled,true);assert.equal(next.disabled,false);
-  await next.fire('click');
+  assert.match(itemStatus.textContent,/Itens 1–100 de 109/);assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');
+  assert.equal(previous().disabled,true);assert.equal(next().disabled,false);
+  await next().fire('click');
   assert.equal(list.children.length,9);assert.equal(list.children[0].children[0].textContent,'Item 101');
-  assert.match(itemStatus.textContent,/Itens 101–109 de 109/);assert.equal(pageLabel.textContent,'Página 2 de 2');
-  assert.equal(next.disabled,true);assert.equal(previous.disabled,false);assert.deepEqual(itemPages,[1,2]);
+  assert.match(itemStatus.textContent,/Itens 101–109 de 109/);assert.equal(paginationButton(pager,2).getAttribute('aria-current'),'page');
+  assert.equal(next().disabled,true);assert.equal(previous().disabled,false);assert.deepEqual(itemPages,[1,2]);
   assert(!ui.all.some(n=>/Fim dos itens confirmado/.test(n.textContent || '')));
-  await previous.fire('click');assert.equal(pageLabel.textContent,'Página 1 de 2');assert.equal(next.disabled,false);
-  await next.fire('click');
-  await previous.fire('click');total=1;await next.fire('click');
+  await previous().fire('click');assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');assert.equal(next().disabled,false);
+  await next().fire('click');
+  await previous().fire('click');total=1;await next().fire('click');
   assert.equal(toolbar.children[0].textContent,'Itens da contratação (1)');
-  assert.equal(pageLabel.textContent,'Página 1 de 1');assert.equal(list.children.length,1);assert.equal(pager.hidden,true);
-  assert.match(itemStatus.textContent,/Itens 1–1 de 1/);assert.equal(next.disabled,true);
+  assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');assert.equal(list.children.length,1);assert.equal(pager.hidden,true);
+  assert.match(itemStatus.textContent,/Itens 1–1 de 1/);assert.equal(next().disabled,true);
 });
 
 test('DETAILS-UI-05: contratação sem itens mostra total zero e oculta a paginação',async()=>{
@@ -652,6 +681,25 @@ test('DETAILS-UI-05: contratação sem itens mostra total zero e oculta a pagina
   const section=ui.nodes.get('details-content').children.find(n=>n.className==='items-section'),[toolbar,itemStatus,list,pager]=section.children;
   assert.equal(toolbar.children[0].textContent,'Itens da contratação (0)');assert.match(itemStatus.textContent,/0 itens/);
   assert.equal(list.children[0].textContent,'Esta contratação não possui itens.');assert.equal(pager.hidden,true);
+});
+
+test('DETAIL-PAGES-01: itens permitem saltar páginas e alcançar os limites mantendo até cinco números',async()=>{
+  const requests=[],ui=await interfaceFixture({itemFetcher:url=>{
+    const u=new URL(url);
+    if(u.pathname.endsWith('/itens/quantidade'))return Promise.resolve(905);
+    if(u.pathname.endsWith('/itens')){
+      const page=Number(u.searchParams.get('pagina'));requests.push(page);
+      return Promise.resolve(Array.from({length:Math.min(100,905-(page-1)*100)},(_,i)=>({numeroItem:(page-1)*100+i+1,descricao:'Item de teste'})));
+    }
+    return demoFetch(url);
+  }});
+  await ui.openDocument(project(document(1)));
+  const section=ui.nodes.get('detail-panel-itens'),pager=section.children[3],pages=()=>pager.children[2].children.map(button=>button.dataset.page);
+  assert.deepEqual(pages(),['1','2','3','4','5']);
+  await paginationButton(pager,5).fire('click');assert.deepEqual(pages(),['3','4','5','6','7']);assert.match(section.children[1].textContent,/Itens 401–500 de 905/);
+  await paginationButton(pager,'last').fire('click');assert.deepEqual(pages(),['6','7','8','9','10']);assert.equal(section.children[2].children.length,5);assert.equal(paginationButton(pager,'last').disabled,true);
+  await paginationButton(pager,'prev').fire('click');assert.equal(paginationButton(pager,9).getAttribute('aria-current'),'page');
+  await paginationButton(pager,'first').fire('click');assert.equal(paginationButton(pager,'prev').disabled,true);assert.deepEqual(requests,[1,5,10,9,1]);
 });
 
 test('DETAILS-UI-06: quantidade e valores do PNCP preservam precisão, zero e ausência de informação',async()=>{
@@ -1034,6 +1082,7 @@ test('CONTRACTS-UI-08: histórico com total desconhecido preserva navegação ma
   }});
   await ui.openDocument(project(demoContracts[0]));await ui.nodes.get('detail-tab-historico').fire('click');
   const tab=ui.nodes.get('detail-tab-historico'),panel=ui.nodes.get('detail-panel-historico'),pager=panel.children[4];
+  assert.equal(pager.children.length,3);assert.equal(paginationButton(pager,'first'),undefined);assert.equal(paginationButton(pager,'last'),undefined);assert.equal(paginationButton(pager,1),undefined);
   assert.equal(tab.textContent,'Histórico (?)');assert.equal(tab.dataset.state,'loaded');assert.equal(panel.children[0].textContent,'Histórico (?)');assert.equal(panel.children[1].children[0].hidden,true);
   assert.match(panel.children[2].textContent,/Quantidade desconhecida/);assert.equal(panel.children[3].children.length,2);assert.equal(pager.hidden,false);assert.equal(pager.children[1].textContent,'Página 1');assert.equal(pager.children[0].disabled,true);assert.equal(pager.children[2].disabled,false);
   await pager.children[2].fire('click');assert.equal(pager.children[1].textContent,'Página 2');assert.equal(panel.children[3].children.length,1);assert.equal(pager.children[2].disabled,false);assert.equal(tab.textContent,'Histórico (?)');

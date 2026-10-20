@@ -1,5 +1,6 @@
 import { build } from 'vite';
 await import('./results-table.browser.mjs');
+await import('./pagination.browser.mjs');
 await build({ mode: 'test' });
 await import('./ui-smoke.mjs');
 await import('./select-menu.browser.mjs');

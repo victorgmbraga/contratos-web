@@ -45,7 +45,7 @@ try {
     await contrast(['.brand','.results-col','.results-cell','.results-page','.results-page.active','#search-button','#repository-link','#result-title','#document-type']);
     assert.equal(await page.locator('.results-row').first().evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(23, 35, 49)');
     await page.locator('#filters-button').click();await page.locator('#filter-ufs:not(:disabled)').waitFor();
-    await contrast(['#filters-title','.filters-body .panel-note','#draft-status','.filter-field label','#apply-filters']);
+    await contrast(['#filters-title','.filters-body .filter-help:not([hidden])','#draft-status','.filter-field label','#apply-filters']);
     await page.locator('#filter-ufs').click();await page.locator('#filter-suggestions-ufs').waitFor({state:'visible'});
     await contrast(['#filter-suggestions-ufs .suggestion']);
     await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();

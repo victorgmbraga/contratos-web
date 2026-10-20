@@ -75,7 +75,6 @@
   .detail-section-choice>.detail-tab-spinner{position:absolute;right:24px;background:var(--surface,white);pointer-events:none}
   .detail-grid{gap:16px}
   [role="tabpanel"]{padding-top:18px}
-  .item-pager{gap:8px;flex-wrap:wrap}
 }
 @media(max-width:400px){
   .detail-grid{grid-template-columns:minmax(0,1fr)}

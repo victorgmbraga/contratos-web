@@ -4,6 +4,7 @@ import { readDetailUrl, writeDetailUrl, detailDocumentPath } from '../src/browse
 import { controlLink } from '../src/document-details.js';
 import { compareDecimal } from '../src/validation.js';
 import { createResultsTable } from './results-table.js';
+import { createPagination, paginationIcons } from './pagination.js';
 import { initializeMobileLayout } from './mobile-layout.js';
 import { initializeSelectMenus } from './select-menu.js';
 
@@ -20,13 +21,6 @@ const purchaseStatusClasses=new Map([
   ['anulada','status-cell--anulada'],
   ['suspensa','status-cell--suspensa'],
 ]);
-// Ícones Lucide de paginação (ISC/MIT): THIRD_PARTY_LICENSES.md.
-const paginationIcons={
-  first:'<svg class="pagination-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m17 18-6-6 6-6"/><path d="M7 6v12"/></svg>',
-  prev:'<svg class="pagination-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 18-6-6 6-6"/></svg>',
-  next:'<svg class="pagination-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 18 6-6-6-6"/></svg>',
-  last:'<svg class="pagination-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7 18 6-6-6-6"/><path d="M17 6v12"/></svg>',
-};
 const filterHeaderIcon='<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M7 12h10m-7 5h4"/></svg>';
 const fmtInt = value => new Intl.NumberFormat('pt-BR').format(value);
 const time = value => value ? new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'medium'}).format(new Date(value)) : '—';
@@ -616,20 +610,20 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
   const section=el('section',undefined,'related-section');section.dataset.resource=resource;
   const heading=el('h3',title,'detail-panel-title'),toolbar=el('div',undefined,'items-toolbar'),retry=el('button','Tentar novamente','button small'),status=el('p','Preparando consulta…','items-status'),list=el('div',undefined,'related-list');
   retry.hidden=true;toolbar.append(retry);
-  const pager=el('div',undefined,'item-pager'),previous=el('button','Anterior','button small'),label=el('span','Página 1'),next=el('button','Próxima','button small');pager.hidden=true;pager.append(previous,label,next);
-  previous.setAttribute('aria-label',`Página anterior de ${title}`);next.setAttribute('aria-label',`Próxima página de ${title}`);retry.setAttribute('aria-label',`Consultar ${title} novamente`);
+  const pagination=createPagination({document,className:'item-pager',label:`Paginação de ${title}`,subject:title,hideSinglePage:true,onPageChange:load}),pager=pagination.element;
+  retry.setAttribute('aria-label',`Consultar ${title} novamente`);
   status.setAttribute('role','status');section.append(heading,toolbar,status,list,pager);
-  let loaded=false,page=1,hasMore=false,untilEmpty=false,controller=null,seq=0;
+  let loaded=false,page=1,untilEmpty=false,controller=null,seq=0;
   const showFields=(card,fields)=>{const values=el('dl',undefined,'related-values');for(const [name,value]of fields){const field=el('div');field.append(el('dt',name),el('dd',value ?? '—'));values.append(field);}card.append(values);};
   async function load(target) {
     controller?.abort();controller=new AbortController();const request=++seq;
     const current=()=>token===state.detailSeq && request===seq && !signal.aborted;
-    retry.hidden=true;previous.disabled=true;next.disabled=true;section.setAttribute('aria-busy','true');status.textContent='Preparando consulta…';
+    retry.hidden=true;pagination.setBusy(true);section.setAttribute('aria-busy','true');status.textContent='Preparando consulta…';
     if(!loaded)updateCount(null,'loading');
     try {
       const requestSignal=AbortSignal.any([signal,controller.signal]);
       const result=await schedule(async()=>{status.textContent='Consultando o PNCP…';return service.call('documentRelated',{document:detailIdentity(doc),resource,page:target,size:10,...(untilEmpty?{pagination_mode:'until_empty'}:{})},{signal:requestSignal});},requestSignal);
-      if(!current())return;loaded=true;page=result.page;hasMore=result.has_more;untilEmpty ||= result.pagination_mode==='until_empty';list.replaceChildren();
+      if(!current())return;loaded=true;page=result.page;untilEmpty ||= result.pagination_mode==='until_empty';list.replaceChildren();
       for(const record of result.data) {
         const card=el('article',undefined,'related-card');
         if(record.fields) {
@@ -672,15 +666,15 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
       const first=result.data.length?(page-1)*result.size+1:0,last=result.data.length?first+result.data.length-1:0;
       const summary=unknownTotal?`${result.data.length?`${fmtInt(result.data.length)} ${result.data.length===1?'registro':'registros'} nesta página`:'Fim do histórico: nenhum registro nesta página'} · Quantidade desconhecida: contagem inconsistente do PNCP` : result.total===0?'0 registros':`Registros ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total)}`;
       status.textContent=summary;
-      label.textContent=unknownTotal?`Página ${page}`:`Página ${page} de ${fmtInt(result.total_pages)}`;pager.hidden=!unknownTotal && result.total_pages<=1;previous.disabled=page<=1;next.disabled=!hasMore;
+      pagination.render({page,lastPage:unknownTotal?null:result.total_pages,hasMore:result.has_more});
     }catch(error){if(current() && error.name!=='AbortError'){
       if(error.code==='PAGE_OUT_OF_RANGE' && Number.isSafeInteger(error.details?.last_page) && error.details.last_page>=1 && error.details.last_page<target)return load(error.details.last_page);
-      status.textContent=error.message;retry.hidden=false;previous.disabled=page<=1;next.disabled=!hasMore;
+      status.textContent=error.message;retry.hidden=false;
       if(!loaded)updateCount(null,'error');
-    }}finally{if(current())section.setAttribute('aria-busy','false');}
+    }}finally{if(current()){pagination.setBusy(false);section.setAttribute('aria-busy','false');}}
   }
   if(detailIdentity(doc)) {
-    retry.addEventListener('click',()=>load(page));previous.addEventListener('click',()=>load(page-1));next.addEventListener('click',()=>load(page+1));
+    retry.addEventListener('click',()=>load(page));
   } else {status.textContent='A fonte não forneceu CNPJ, ano e sequencial originais suficientes para consultar esta listagem.';updateCount(null,'unavailable');}
   return {section,load:()=>detailIdentity(doc)?load(1):Promise.resolve()};
 }
@@ -759,18 +753,19 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   }
   if(kind==='edital'){
   const section=el('section',undefined,'items-section'),toolbar=el('div',undefined,'items-toolbar'),retry=el('button','Tentar consultar itens','button small'),itemsTitle=el('h3','Itens da contratação');retry.hidden=true;toolbar.append(itemsTitle,retry);section.append(toolbar);
-  const itemStatus=el('p','Preparando consulta de itens…','items-status'),list=el('div'),pager=el('div',undefined,'item-pager'),previous=el('button','Anterior','button small'),pageLabel=el('span','Página 1'),next=el('button','Próxima','button small');pager.hidden=true;pager.append(previous,pageLabel,next);section.append(itemStatus,list,pager);
-  itemStatus.setAttribute('role','status');previous.setAttribute('aria-label','Página anterior de Itens');next.setAttribute('aria-label','Próxima página de Itens');
+  const itemStatus=el('p','Preparando consulta de itens…','items-status'),list=el('div'),pagination=createPagination({document,className:'item-pager',label:'Paginação de Itens',subject:'Itens',hideSinglePage:true,onPageChange:itemPage}),pager=pagination.element;section.append(itemStatus,list,pager);
+  itemStatus.setAttribute('role','status');
   const updateItems=addTab('itens','Itens',section);
-  let page=1,controller=null,hasMore=false,itemsLoaded=false;
+  let page=1,controller=null,itemsLoaded=false,itemSeq=0;
   async function itemPage(target) {
-    controller?.abort();controller=new AbortController();
-    retry.hidden=true;previous.disabled=true;next.disabled=true;itemStatus.textContent='Consultando itens no PNCP…';
+    controller?.abort();controller=new AbortController();const request=++itemSeq;
+    const current=()=>token===state.detailSeq && request===itemSeq && !detailController.signal.aborted;
+    retry.hidden=true;pagination.setBusy(true);itemStatus.textContent='Consultando itens no PNCP…';
     section.setAttribute('aria-busy','true');if(!itemsLoaded)updateItems(null,'loading');
     try {
       const p=doc._purchase,signal=AbortSignal.any([detailController.signal,controller.signal]);
       const result=await schedule(async()=>{return service.call('details',{document:{type:'edital',...p},page:target,size:100},{signal});},signal);
-      if(token!==state.detailSeq)return;page=result.page;list.replaceChildren();
+      if(!current())return;page=result.page;list.replaceChildren();
       itemsLoaded=true;updateItems(result.total_items,'loaded');
       for(const item of result.data) {
         const card=el('article',undefined,'item-card');card.append(el('h4',`Item ${item.numeroItem ?? '—'}`),el('p',item.descricao ?? 'Descrição não informada.'),el('div',`${item.materialOuServico==='S'?'Serviço':item.materialOuServico==='M'?'Material':'Tipo não informado'} · ${item.situacaoCompraItemNome ?? 'Situação não informada'} · Catálogo: ${item.catalogo?.nome ?? '—'} / ${item.catalogoCodigoItem ?? '—'}`,'item-meta'));
@@ -783,15 +778,15 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
       if(!result.data.length)list.append(el('p','Esta contratação não possui itens.','panel-note'));
       const first=result.data.length?(page-1)*result.size+1:0,last=result.data.length?first+result.data.length-1:0;
       itemsTitle.textContent=`Itens da contratação (${fmtInt(result.total_items)})`;
-      hasMore=result.has_more;itemStatus.textContent=result.total_items===0?'0 itens':`Itens ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total_items)}`;pageLabel.textContent=`Página ${page} de ${result.total_pages}`;pager.hidden=result.total_pages<=1;previous.disabled=page<=1;next.disabled=!hasMore;
-    }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){
+      itemStatus.textContent=result.total_items===0?'0 itens':`Itens ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total_items)}`;pagination.render({page,lastPage:result.total_pages,hasMore:result.has_more});
+    }catch(error){if(current() && error.name!=='AbortError'){
       if(error.code==='PAGE_OUT_OF_RANGE' && Number.isSafeInteger(error.details?.last_page) && error.details.last_page>=1 && error.details.last_page<target)return itemPage(error.details.last_page);
-      itemStatus.textContent=error.message;retry.hidden=false;previous.disabled=page<=1;next.disabled=!hasMore;
+      itemStatus.textContent=error.message;retry.hidden=false;
       if(!itemsLoaded)updateItems(null,'error');
-    }}finally{if(token===state.detailSeq)section.setAttribute('aria-busy','false');}
+    }}finally{if(current()){pagination.setBusy(false);section.setAttribute('aria-busy','false');}}
   }
   if(!doc._purchase){itemStatus.textContent='A fonte não forneceu CNPJ, ano e sequencial originais suficientes para consultar itens.';updateItems(null,'unavailable');}
-  else {retry.addEventListener('click',()=>itemPage(page));previous.addEventListener('click',()=>itemPage(page-1));next.addEventListener('click',()=>itemPage(page+1));loads.push(()=>itemPage(1));}
+  else {retry.addEventListener('click',()=>itemPage(page));loads.push(()=>itemPage(1));}
   }
   const sections={edital:[['arquivos','Arquivos'],['atas','Atas de Registro de Preço'],['contratos','Contratos/Empenhos'],['historico','Histórico']],ata:[['partesenvolvidas','Partes envolvidas'],['contratos','Contratos'],['arquivos','Arquivos'],['historico','Histórico']],contrato:[['empenhos','Empenhos'],['instrumentocobranca','Instrumentos de cobrança'],['termos','Termos'],['arquivos','Arquivos'],['historico','Histórico']]};
   for(const [resource,title]of sections[kind]){

@@ -270,8 +270,8 @@ try {
   assert.equal(tabRequests.length,5);check('Trocar abas preserva dados sem repetir consultas');
   for(const resource of ['arquivos','historico']) {
     const section=page.locator(`.related-section[data-resource="${resource}"]`);await page.locator(`#detail-tab-${resource}`).click();assert.equal(await section.locator('.related-card').count(),10);
-    await section.locator('.item-pager button').nth(1).click();await page.waitForFunction(r=>document.querySelector(`.related-section[data-resource="${r}"] .item-pager span`)?.textContent==='Página 2 de 2',resource);
-    assert.equal(await section.locator('.related-card').count(),2);assert.equal(await section.locator('.item-pager button').nth(1).isDisabled(),true);check(`Paginação de ${resource} alcança a última página`);
+    await section.getByRole('button',{name:new RegExp(`^Próxima página de `)}).click();await page.waitForFunction(r=>document.querySelector(`.related-section[data-resource="${r}"] .item-pager [aria-current="page"]`)?.dataset.page==='2',resource);
+    assert.equal(await section.locator('.related-card').count(),2);assert.equal(await section.locator('.item-pager [data-page="next"]').isDisabled(),true);check(`Paginação de ${resource} alcança a última página`);
   }
   const fileLink=page.locator('.related-section[data-resource="arquivos"] .related-card a').first();assert.equal(await fileLink.getAttribute('target'),'_blank');assert.equal(await fileLink.getAttribute('rel'),'noopener noreferrer');assert.match(await fileLink.getAttribute('href'),/^https:\/\/pncp.gov.br\//);
   await page.locator('#detail-tab-detalhes').click();const previousViewport=page.viewportSize();

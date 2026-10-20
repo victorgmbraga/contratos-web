@@ -1,7 +1,5 @@
-export function paginationPages(page, lastPage) {
-  const count = Math.min(5, lastPage), first = Math.max(1, Math.min(page - 2, lastPage - count + 1));
-  return Array.from({length:count}, (_, index) => first + index);
-}
+import {createPagination} from './pagination.js';
+export {paginationPages} from './pagination.js';
 
 let tableSerial = 0;
 
@@ -9,7 +7,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
   paginationIcons = {}, menuIcon = '', onPageChange, onOpenDocument, onColumnAction}) {
   const document = container.ownerDocument, window = document.defaultView;
   const lifetime = new window.AbortController(), {signal} = lifetime;
-  let fields = [], rows = [], page = 1, lastPage = 1, busy = false, destroyed = false, menu = null, gesture = null, paginationFocus = null;
+  let fields = [], rows = [], page = 1, lastPage = 1, busy = false, destroyed = false, menu = null, gesture = null;
   let rowViews = [];
   const originalFooterParent = footerContent?.parentNode;
   const node = (tag, className, text) => {
@@ -31,7 +29,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
   filterTooltip.id = `results-filter-tooltip-${++tableSerial}`;
   filterTooltip.setAttribute('role','tooltip'); filterTooltip.hidden = true; document.body.append(filterTooltip);
   const counter = node('div','results-page-counter'), paginator = node('nav','results-paginator');
-  paginator.setAttribute('aria-label','Paginação dos resultados');
+  const pagination = createPagination({document,element:paginator,label:'Paginação dos resultados',icons:paginationIcons,legacyClasses:true,onPageChange:target=>{if(!destroyed)return onPageChange?.(target);}});
   if (footerContent) counter.append(footerContent);
   footerInner.append(counter, paginator); footer.append(footerInner);
   container.classList.add('results-table'); container.replaceChildren(scroll, footer);
@@ -199,29 +197,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
     }
   }
   function renderPagination() {
-    const focused = document.activeElement?.closest('[data-page]')?.dataset.page;
-    if (focused) paginationFocus = focused;
-    paginator.replaceChildren();
-    const add = (action,label,target,disabled,icon) => {
-      const button = node('button','results-page'); button.type = 'button'; button.dataset.page = String(action);
-      button.title = label; button.setAttribute('aria-label',label); button.disabled = busy || disabled;
-      if (icon) button.innerHTML = icon; else button.textContent = String(action);
-      if (action === page) { button.classList.add('active'); button.setAttribute('aria-current','page'); }
-      button.addEventListener('click',()=>{if (!busy) Promise.resolve(onPageChange?.(target)).catch(()=>{});});
-      return button;
-    };
-    paginator.append(add('first','Primeira página',1,page <= 1,paginationIcons.first),add('prev','Página anterior',page-1,page <= 1,paginationIcons.prev));
-    const numbered = node('span','results-pages');
-    for (const number of paginationPages(page,lastPage)) numbered.append(add(number,`Página ${number}`,number,false));
-    paginator.append(numbered,add('next','Próxima página',page+1,page >= lastPage,paginationIcons.next),add('last','Última página',lastPage,page >= lastPage,paginationIcons.last));
-    if (!busy && paginationFocus) {
-      if (focused || document.activeElement === document.body) {
-        const controls = [...paginator.querySelectorAll('[data-page]')];
-        const available = button=>!button.disabled && button.getClientRects().length > 0;
-        (controls.find(button=>button.dataset.page === paginationFocus && available(button)) || controls.find(button=>button.getAttribute('aria-current') === 'page' && available(button)))?.focus({preventScroll:true});
-      }
-      paginationFocus = null;
-    }
+    pagination.render({page,lastPage,busy});
   }
   function rebuild() {
     if (destroyed) return;

@@ -55,6 +55,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), em 1440, 1068 e 390 pixels |
+| Paginação compartilhada | [`test/pagination.browser.mjs`](../test/pagination.browser.mjs): janela de páginas, atalhos, teclado/foco, carregamento, total desconhecido e números longos nos dois temas, de 320 a 1068 px |
 | CORS controlado | Duas origens locais, permissão e bloqueio de leitura, exposição de `Retry-After` |
 | Exportação | 10.000 documentos sintéticos, resposta da interface durante a coleta, cancelamento e reutilização do Worker |
 | Bundles | Ausência de dependências de Node, variáveis do processo e fixtures de teste em produção |
