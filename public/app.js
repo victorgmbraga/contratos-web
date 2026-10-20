@@ -681,12 +681,12 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   const detailController=new AbortController();state.detailAbort=detailController;
   const identity=detailIdentity(doc);state.detailDoc=doc;state.detailSelection=identity?{document:identity,tab}:null;
   const schedule=detailScheduler(),loads=[],tabs=[];
-  const content=$('details-content');content.replaceChildren();
-  content.append(el('p',doc.objeto_compra ?? (doc._detail_from_url?'Carregando detalhes do documento…':'Objeto não informado.'),'detail-object'));
+  const content=$('details-content'),links=$('details-links');content.replaceChildren(...(links.parentElement===content?[links]:[]));
+  const objectSummary=el('p',doc.objeto_compra ?? (doc._detail_from_url?'Carregando detalhes do documento…':'Objeto não informado.'),'detail-object');content.append(objectSummary);
   const kind=doc.tipo_documento,names=documentName(kind);
   $('details-kind').textContent=doc.titulo ?? '—';
   $('details-dialog').setAttribute('aria-label',`Detalhes: ${names.singular}`);
-  const links=$('details-links');links.replaceChildren();
+  links.replaceChildren();
   for(const [label,url]of [['Abrir no PNCP',doc.url_pncp],['Sistema de origem',doc.link_sistema_origem]]){const link=safeAnchor(label,url);if(link)links.append(link);}
   const nav=el('div',undefined,'detail-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label',`Seções: ${names.singular}`);content.append(nav);
   const sectionLabel=el('label',undefined,'detail-section-choice'),sectionSelect=el('select'),sectionSpinner=el('span',undefined,'detail-tab-spinner');
@@ -739,11 +739,11 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
         const data=await schedule(async()=>{detailStatus.textContent='Consultando detalhes no PNCP…';return service.call('documentDetails',{document:detailIdentity(doc)},{signal:detailController.signal});},detailController.signal);
         if(token!==state.detailSeq)return;
         const holder=el('div');grid=appendFields(holder,data.fields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);
-        updateDetails(data.fields.length,'loaded');if(data.objeto)content.children[0].textContent=data.objeto;else if(doc._detail_from_url)content.children[0].textContent='Objeto não informado.';
+        updateDetails(data.fields.length,'loaded');if(data.objeto)objectSummary.textContent=data.objeto;else if(doc._detail_from_url)objectSummary.textContent='Objeto não informado.';
         if(doc._detail_from_url){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=indexed?.titulo || data.titulo || doc.titulo;}
         if(data.link_sistema_origem && !doc.link_sistema_origem){const link=safeAnchor('Sistema de origem',data.link_sistema_origem);if(link)links.append(link);}
         detailStatus.textContent='';detailStatus.hidden=true;
-      }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)content.children[0].textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');}}
+      }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)objectSummary.textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');}}
       finally{if(token===state.detailSeq)detailPanel.setAttribute('aria-busy','false');}
     }
     if(detailIdentity(doc)){retryDetails.addEventListener('click',loadDetails);loads.push(loadDetails);updateDetails(null,'loading');}

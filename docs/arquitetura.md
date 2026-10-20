@@ -112,7 +112,7 @@ O cabeçalho do painel usa o título da linha selecionada. Contratações inicia
 
 A contagem de registros aparece após a listagem, alinhada à esquerda da paginação no desktop e acima dela no mobile.
 
-O seletor móvel de seções, com nome acessível **Seção dos detalhes** e sem rótulo visível, e as abas usam a mesma função de ativação e os mesmos painéis. Opções acompanham contagens, erros e carregamento; a seção selecionada mantém o spinner durante a consulta. Selecionar uma opção sincroniza `aba` na URL sem refazer consultas. No layout móvel, o conteúdo rola separado do cabeçalho, mantendo o fechamento disponível; abaixo de 401 px, os campos passam a uma coluna.
+O seletor móvel de seções, com nome acessível **Seção dos detalhes** e sem rótulo visível, e as abas usam a mesma função de ativação e os mesmos painéis. Opções acompanham contagens, erros e carregamento; a seção selecionada mantém o spinner durante a consulta. Selecionar uma opção sincroniza `aba` na URL sem refazer consultas. No layout móvel, `initializeMobileLayout` move os links **Abrir no PNCP** e **Sistema de origem** para o início de `details-content`: eles rolam junto da descrição e retornam ao cabeçalho no desktop. O conteúdo rola separado do título e do botão de fechar, que permanece disponível; abaixo de 401 px, os campos passam a uma coluna.
 
 CNPJ, ano e sequenciais são textos validados. Atas preservam sequenciais da compra e da ata; contratos usam seu próprio sequencial. O detalhe completo confere controle PNCP contra a identidade antes de substituir os campos da busca. Falhas conservam os campos disponíveis.
 

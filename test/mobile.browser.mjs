@@ -70,6 +70,7 @@ try {
     await page.locator('.result-card-open').first().press('Enter');
     assert.equal(await page.locator('#details-kind').innerText(),titleBefore);
     await page.waitForFunction(()=>[...document.querySelectorAll('.detail-tab')].every(tab=>tab.dataset.state==='loaded'));
+    assert.equal(await page.locator('#details-content>#details-links').count(),1);
     assert.equal(await page.locator('.detail-tabs').isVisible(),false);
     assert.deepEqual(await page.locator('#details-section option').allTextContents(),await page.locator('.detail-tab').allTextContents());
     assert.equal(await page.locator('.detail-grid').first().evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length),1);
@@ -78,7 +79,15 @@ try {
     assert.equal(new URL(page.url()).searchParams.get('aba'),'historico');assert.equal(await page.locator('#detail-panel-historico').isVisible(),true);
     const link=page.url();await page.reload();await ready();
     await page.waitForFunction(()=>document.querySelector('#details-section')?.value==='historico');assert.equal(page.url(),link);
-    await page.locator('#details-content').evaluate(node=>{node.scrollTop=10000;});await fits('#details-dialog .close-dialog',{height:true,touch:true});
+    await page.waitForFunction(()=>[...document.querySelectorAll('.detail-tab')].every(tab=>tab.dataset.state==='loaded'));
+    assert.match(await page.locator('.detail-object').innerText(),/firewall/);
+    assert.match(await page.locator('#details-links a').first().getAttribute('href'),/pncp\.gov\.br\/app\//);
+    const scrolled=await page.locator('#details-content').evaluate(node=>{
+      node.scrollTop=10000;const top=node.getBoundingClientRect().top;
+      return ['#details-links','.detail-object'].every(selector=>node.querySelector(selector).getBoundingClientRect().bottom<=top);
+    });assert.equal(scrolled,true,'Links e descrição saem da área visível ao rolar');
+    await fits('#details-dialog .close-dialog',{height:true,touch:true});
+    await page.locator('#details-content').evaluate(node=>{node.scrollTop=0;});await fits('#details-links a',{height:true,touch:true});
     await page.locator('#details-dialog .close-dialog').click();
     await page.locator('#filters-button').click();assert.equal(await page.locator('#filter-groups .filter-field').count(),count);
     assert.equal(await page.locator('#filters-dialog').evaluate(node=>Math.round(node.getBoundingClientRect().width)),360);
@@ -130,6 +139,7 @@ try {
   const selectedType=await page.locator('#document-type').inputValue(),selectedOrder=await page.locator('#order').inputValue();
   await page.locator('#document-type-control').focus();
   await page.setViewportSize({width:1068,height:630});
+  assert.equal(await page.locator('.details-actions>#details-links').count(),1);
   assert.equal(await page.evaluate(()=>document.activeElement.id),'document-type-control');
   assert.equal(await page.locator('.brand').isVisible(),true);
   assert.equal(await page.locator('#more-actions-button').evaluate(node=>node.nextElementSibling.id),'search-form');
