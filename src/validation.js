@@ -76,7 +76,6 @@ export function validateQuery(input, config) {
   assert(typeof q.q === 'string' && q.q.length <= 128, 'INVALID_QUERY_TEXT', 'A busca textual permite até 128 caracteres.');
   assert(documentStatuses[q.document_type].includes(q.status), 'INVALID_STATUS', 'Status temporal inválido para o tipo documental.');
   assert(documentOrders[q.document_type].includes(q.order), 'INVALID_ORDER', 'Ordenação não disponível para o tipo documental.');
-  assert(q.order !== 'relevancia' || q.q.trim(), 'INVALID_ORDER', 'Ordenação por relevância exige busca textual.');
   assert(Number.isSafeInteger(q.page) && q.page > 0, 'INVALID_PAGE', 'page deve ser inteiro positivo.');
   assert([10,25,50,100].includes(q.size), 'INVALID_SIZE', 'size deve ser 10, 25, 50 ou 100.');
   q.pncp_filters = validateFilters(q.pncp_filters, config, q.document_type);

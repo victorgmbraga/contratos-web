@@ -316,6 +316,27 @@ test('ORDER-UI-01: seletor acompanha o tipo, preserva a ordenação do link e re
   await ui.browser.back();assert.equal(ui.nodes.get('document-type').value,'contrato');assert.equal(ui.nodes.get('order').value,'valor_global');assert(options().includes('valor_global'));assert(!options().includes('valor'));
 });
 
+test('ORDER-UI-02: relevância sem texto funciona nos três tipos pela URL e pelo seletor, inclusive ao limpar o texto',async()=>{
+  for(const document_type of ['edital','ata','contrato']) {
+    const ui=await interfaceFixture({href:`https://example.test/?tipos_documento=${document_type}&ordenacao=relevancia`});
+    const check=()=>{
+      assert.equal(ui.requests.at(-1).document_type,document_type);
+      assert.equal(ui.requests.at(-1).order,'relevancia');
+      assert.equal(ui.nodes.get('order').value,'relevancia');
+      assert.equal(new URL(ui.browser.href()).searchParams.get('ordenacao'),'relevancia');
+      assert.equal(ui.nodes.get('notice').hidden,true);
+    };
+    check();assert.equal(ui.requests.at(-1).q,'');
+    ui.nodes.get('order').value='data';await ui.nodes.get('order').fire('change');
+    ui.nodes.get('order').value='relevancia';await ui.nodes.get('order').fire('change');
+    check();assert.equal(ui.requests.at(-1).q,'');
+    ui.nodes.get('search').value='firewall';await ui.nodes.get('search-form').fire('submit');
+    check();assert.equal(ui.requests.at(-1).q,'firewall');
+    ui.nodes.get('search').value='';await ui.nodes.get('search-form').fire('submit');
+    check();assert.equal(ui.requests.at(-1).q,'');
+  }
+});
+
 test('EXPORT-UI-01: um clique baixa o CSV dos últimos critérios concluídos sem modal',async()=>{
   const ui=await interfaceFixture();ui.nodes.get('search').value='firewall';await ui.nodes.get('search-form').fire('submit');
   const completed=ui.state();ui.nodes.get('search').value='texto ainda não pesquisado';

@@ -37,8 +37,8 @@ async function addEveryFilter(type) {
   const caps=catalog.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.documents.includes(type));
   await page.locator('#filters-button').click();
   assert.equal(await page.locator('#add-native, #native-field, #filters-dialog select[multiple]').count(),0);
-  assert.equal(await page.locator('.filter-field').count(),caps.length);
-  const visibleNames=await page.locator('.filter-field').evaluateAll(fields=>fields.map(field=>field.id.slice('filter-field-'.length)));
+  assert.equal(await page.locator('#filter-groups .filter-field').count(),caps.length);
+  const visibleNames=await page.locator('#filter-groups .filter-field').evaluateAll(fields=>fields.map(field=>field.id.slice('filter-field-'.length)));
   assert.deepEqual(visibleNames.sort(),caps.map(cap=>cap.name).sort());
   for(const cap of caps){
     const input=filter(cap.name);
@@ -195,7 +195,7 @@ try {
       if(type!=='edital'){await orderedPage.locator('#document-type').selectOption(type);await waitOrdered(type,'-data');}
       assert.deepEqual(await orderedPage.locator('#order option').evaluateAll(options=>options.map(option=>option.value)),orders);
       assert.equal(await orderedPage.locator('#order').inputValue(),'-data');
-      for(const order of orders.slice(3)) {
+      for(const order of ['relevancia',...orders.slice(3)]) {
         await orderedPage.locator('#order').selectOption(order);await waitOrdered(type,order);
         assert.equal(new URL(orderedPage.url()).searchParams.get('ordenacao'),order);
         assert.equal(new URL(orderedPage.url()).searchParams.get('pagina'),'1');
@@ -203,7 +203,7 @@ try {
         assert.equal(await orderedPage.locator('#order').inputValue(),order);assert.equal(orderedPage.url(),href);
       }
     }
-    check('Oito opções adicionais acompanham o tipo e chegam ao Worker, à URL e ao recarregamento');
+    check('Relevância sem texto e oito opções adicionais acompanham o tipo, o Worker, a URL e o recarregamento');
     await orderedPage.goto(orderedBase+'?demo=1&tipos_documento=ata&ordenacao=valor_global');
     await orderedPage.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Ordenação não disponível'));
     assert.equal(await orderedPage.evaluate(()=>window.__orderRequests.length),0);check('Link com ordenação incompatível é rejeitado antes de consultar o PNCP');
@@ -276,7 +276,9 @@ try {
   const fileLink=page.locator('.related-section[data-resource="arquivos"] .related-card a').first();assert.equal(await fileLink.getAttribute('target'),'_blank');assert.equal(await fileLink.getAttribute('rel'),'noopener noreferrer');assert.match(await fileLink.getAttribute('href'),/^https:\/\/pncp.gov.br\//);
   await page.locator('#detail-tab-detalhes').click();const previousViewport=page.viewportSize();
   for(const width of [320,390,768]){
-    await page.setViewportSize({width,height:844});assert.equal(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);
+    await page.setViewportSize({width,height:844});
+    await page.locator('#details-dialog').evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished)));
+    assert.equal(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);
     if(width<=700)await page.locator('#details-section').selectOption('historico');else await page.locator('#detail-tab-historico').click();
     assert(await page.locator('#detail-panel-historico').isVisible());
     if(width<=700)await page.locator('#details-section').selectOption('detalhes');else await page.locator('#detail-tab-detalhes').click();
@@ -372,7 +374,11 @@ try {
   assert.equal(ataRequests.length,5);assert.equal(await page.locator('#detail-panel-detalhes dt').count(),22);assert.match(await page.locator('#detail-panel-detalhes').innerText(),/Número da ata/);assert.equal(await page.locator('#detail-tab-itens').count(),0);assert.equal(await page.locator('#detail-tab-termos').count(),0);check('Ata carrega seus dados completos e quatro listas em background');
   await page.locator('#detail-tab-partesenvolvidas').click();assert.match(await page.locator('#detail-panel-partesenvolvidas').innerText(),/Gerenciadora/);await page.locator('#detail-tab-contratos').click();assert.match(await page.locator('#detail-panel-contratos').innerText(),/Valor global/);assert.equal(ataRequests.length,5);check('Partes envolvidas e contratos vinculados da ata aparecem sem repetir consultas');
   await page.locator('#detail-tab-detalhes').click();const ataOrigin=page.locator('#detail-panel-detalhes a').first();assert.match(await ataOrigin.getAttribute('href'),/\/app\/editais\//);assert.equal(await ataOrigin.getAttribute('rel'),'noopener noreferrer');
-  for(const width of [320,390,768]){await page.setViewportSize({width,height:844});assert(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1));}
+  for(const width of [320,390,768]){
+    await page.setViewportSize({width,height:844});
+    await page.locator('#details-dialog').evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished)));
+    assert(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1));
+  }
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/ata-details-mobile.png`});await page.setViewportSize({width:1440,height:1000});check('Detalhes de ata conservam vínculos seguros e layout em telas menores');
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeAta);
   await page.locator('#filters-button').click();await page.locator('#draft-status').selectOption('vigente');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='12 atas');

@@ -44,7 +44,7 @@ O seletor usa as opções oferecidas pelo portal oficial em [editais](https://pn
 
 | Tipo | Ordenações disponíveis |
 | --- | --- |
-| Todos | `-data` (mais recentes), `data` (mais antigas), `relevancia` (relevância, exige texto não vazio) |
+| Todos | `-data` (mais recentes), `data` (mais antigas), `relevancia` (relevância, com ou sem texto de busca) |
 | Edital | `numero_controle_pncp` (controle PNCP), `-valor_total_estimado` (valor total estimado) |
 | Ata | `valor` (maior valor), `-valor` (menor valor) |
 | Contrato | `numero_contratacao` (número da contratação), `numero_controle_pncp` (controle PNCP), `data_inicio_vigencia` (início da vigência), `valor_global` (valor global) |
@@ -60,7 +60,7 @@ Os parâmetros GET da página são lidos pela interface estática. Os critérios
 | `tipos_documento` | `edital` | Um tipo: `edital`, `ata` ou `contrato` |
 | `q` | Vazio | Texto de até 128 caracteres, codificado pela URL |
 | `status` | `todos` | Status temporal compatível com o tipo documental |
-| `ordenacao` | `-data` | Código da tabela de ordenações, compatível com `tipos_documento`; relevância exige texto |
+| `ordenacao` | `-data` | Código da tabela de ordenações, compatível com `tipos_documento` |
 | `pagina` | `1` | Inteiro de 1 a 100; a interface usa 100 registros por página |
 | Nome de filtro habilitado | Ausente | Tipo e compatibilidade publicados no catálogo |
 | `detalhe` | Ausente, painel fechado | `edital/{cnpj}/{ano}/{sequencial}`, `contrato/{cnpj}/{ano}/{sequencial}` ou `ata/{cnpj}/{anoCompra}/{sequencialCompra}/{sequencialAta}` |

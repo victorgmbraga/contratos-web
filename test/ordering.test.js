@@ -22,14 +22,13 @@ test('ORDER-01: catálogo publica as opções oficiais por documento e seus rót
 });
 
 test('ORDER-02: critérios válidos preservam o código nativo em consultas e URLs',()=>{
-  for(const [document_type,orders] of Object.entries(expected))for(const order of orders) {
-    const input=validateQuery(query({document_type,order,q:order==='relevancia'?'software':''}),config());
+  for(const [document_type,orders] of Object.entries(expected))for(const order of orders)for(const q of order==='relevancia'?['','   ','software']:['']) {
+    const input=validateQuery(query({document_type,order,q}),config());
     assert.equal(input.order,order);
     const href=writeQueryUrl(base,input,catalog);
     assert.equal(new URL(href).searchParams.get('ordenacao'),order);
     assert.deepEqual(readQueryUrl(href,catalog,10),input);
   }
-  for(const document_type of Object.keys(expected))for(const q of ['', '   '])assert.throws(()=>validateQuery(query({document_type,order:'relevancia',q}),config()),error=>error.code==='INVALID_ORDER');
 });
 
 test('ORDER-03: ordenação incompatível é rejeitada antes da rede, inclusive no CSV e nos links',async()=>{
@@ -42,8 +41,8 @@ test('ORDER-03: ordenação incompatível é rejeitada antes da rede, inclusive 
   assert.equal(s.requests.length,0);
 });
 
-test('ORDER-04: novas ordenações chegam ao PNCP sem reordenar a página ou o CSV localmente',async()=>{
-  for(const [document_type,orders] of Object.entries(expected))for(const order of orders.slice(3)) {
+test('ORDER-04: ordenações nativas chegam ao PNCP sem reordenar a página ou o CSV localmente',async()=>{
+  for(const [document_type,orders] of Object.entries(expected))for(const order of ['relevancia',...orders.slice(3)]) {
     const docs=[3,1,2].map(index=>document(index,{document_type,title:`Registro ${index}`})),s=service(docs);
     const result=await s.service.execute(query({document_type,order}));
     assert.deepEqual(result.data.map(row=>row.titulo),['Registro 3','Registro 1','Registro 2']);

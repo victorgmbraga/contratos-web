@@ -260,7 +260,6 @@ function loadPage(page,mode='push') {
 function execute() {
   closeDetails(false);
   state.query.q=$('search').value;state.query.order=$('order').value;
-  if(state.query.order==='relevancia' && !state.query.q.trim())state.query.order='-data';
   urlError=null;
   updateCriteria();
   return loadPage(1);

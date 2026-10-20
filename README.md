@@ -9,7 +9,7 @@ A tabela e a leitura de JSON com precisão numérica são módulos do próprio p
 ## Usar a aplicação
 
 1. Escolha **Editais e Avisos de Contratações**, **Atas de Registro de Preços** ou **Contratos**. Digite a busca e use o botão com ícone de lupa. Sem critérios na URL, a aplicação pesquisa contratações sem filtros.
-2. Use o botão com ícone de filtro para editar os critérios. O modal exibe todos os filtros disponíveis para o tipo documental, agrupados e com rolagem interna. Preencha os campos desejados e selecione **Aplicar e pesquisar**; campos vazios ou **Selecionar** não filtram os resultados. O X de cada campo limpa aquele critério; cancelar descarta as alterações. Filtros e ordenações dependem do tipo documental; ordenar por relevância exige texto. O filtro com um X (**Limpar filtros**) remove os critérios aplicados.
+2. Use o botão com ícone de filtro para editar os critérios. O modal exibe todos os filtros disponíveis para o tipo documental, agrupados e com rolagem interna. Preencha os campos desejados e selecione **Aplicar e pesquisar**; campos vazios ou **Selecionar** não filtram os resultados. O X de cada campo limpa aquele critério; cancelar descarta as alterações. Filtros e ordenações dependem do tipo documental. O filtro com um X (**Limpar filtros**) remove os critérios aplicados.
 3. Navegue pelos resultados, com 100 documentos por página. Novos critérios começam na página 1. **Atualizar** repete a última consulta concluída; **Tentar novamente** repete a página que falhou. O X em um círculo (**Cancelar pesquisa**) interrompe a consulta em andamento.
 4. Clique em uma linha para abrir seus detalhes. O título do painel é o título da linha; **Abrir no PNCP** e **Sistema de origem**, quando disponíveis, ficam junto ao botão de fechar.
 5. Use **Selecionar colunas** para ajustar a tabela. Colunas com filtro exibem um ícone após o nome: quando há apenas filtragem, o clique abre diretamente o campo correspondente e o tooltip indica **Filtrar por esta coluna**. Colunas que também permitem ordenação exibem um menu com as ações disponíveis.
@@ -53,7 +53,7 @@ As opções dos três tipos são carregadas na inicialização e armazenadas no 
 
 A tabela mantém a ordem, os resultados e o total do PNCP. A janela de navegação alcança até 10.000 documentos; refine a pesquisa para acessar conjuntos maiores. O CSV exige que o total caiba no limite de exportação configurado. Filtros de itens selecionam contratações, enquanto os detalhes exibem todos os itens. Os dados podem mudar entre consultas.
 
-As ordenações acompanham o tipo de documento: editais oferecem controle PNCP e valor estimado; atas, maior/menor valor; contratos, número da contratação, controle PNCP, início da vigência e valor global. Todos oferecem mais recentes, mais antigas e relevância, que exige texto. Veja os [códigos das ordenações](docs/consultas-pncp.md#ordenações-por-tipo-de-documento).
+As ordenações acompanham o tipo de documento: editais oferecem controle PNCP e valor estimado; atas, maior/menor valor; contratos, número da contratação, controle PNCP, início da vigência e valor global. Todos oferecem mais recentes, mais antigas e relevância. A ordenação por relevância pode ser usada com ou sem texto de busca, conforme o PNCP. Veja os [códigos das ordenações](docs/consultas-pncp.md#ordenações-por-tipo-de-documento).
 
 ## Compartilhar uma busca ou um documento
 
