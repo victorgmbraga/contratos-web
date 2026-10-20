@@ -57,7 +57,7 @@ try {
   await page.locator('label[for="filter-srp-control"]').click();await control('filter-srp').press('Escape');
   assert.equal(await page.locator('#filters-dialog').evaluate(node=>node.open),true);
   await page.locator('#filter-ufs:not(:disabled)').click();assert.equal(await page.locator('#filter-suggestions-ufs').isVisible(),true);
-  await control('filter-srp').click();assert.equal(await page.locator('#filter-suggestions-ufs').isVisible(),false);await bounded();
+  await control('filter-srp').click();await page.locator('#filter-suggestions-ufs').waitFor({state:'hidden'});await bounded();
   await menu().getByRole('option',{name:'Não',exact:true}).click();
   await page.locator('#apply-filters').click();await ready();assert.equal(new URL(page.url()).searchParams.get('srp'),'false');
   await page.locator('#clear-button').click();await ready();

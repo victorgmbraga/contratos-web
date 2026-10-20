@@ -105,8 +105,8 @@ dialog{background:var(--surface,white);border:1px solid var(--border,#d3ddea);bo
 dialog::backdrop{background:var(--backdrop,#122b4655);backdrop-filter:blur(2px)}
 .modal{width:min(780px,calc(100vw - 30px))}
 .modal.narrow{width:min(520px,calc(100vw - 30px))}
-.filters-modal{width:min(1140px,calc(100vw - 30px));max-height:92dvh;overflow:hidden}
-.filters-modal[open]{display:flex;flex-direction:column}
+.filters-modal{width:min(1140px,calc(100vw - 30px));max-height:92dvh;overflow:hidden;flex-direction:column}
+.filters-modal[open]{display:flex}
 .filters-modal>.dialog-header,.filters-modal>.dialog-footer{flex-shrink:0}
 .filters-modal>.dialog-header{margin-bottom:16px}
 .filters-modal>.dialog-footer{margin-top:16px;padding-top:16px}
@@ -162,12 +162,21 @@ dialog select[multiple]{min-height:155px}
 .selected-option:hover:not(:disabled){border-color:var(--blue);color:var(--blue-hover)}
 .drawer{position:fixed;inset:0 0 0 auto;margin:0;width:min(888px,100vw);max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;border-right:0;padding:28px}
 @media(min-width:701px){
+  .modal{opacity:0;transition:opacity .2s ease-out,display .2s allow-discrete,overlay .2s allow-discrete}
+  .modal[open]{opacity:1}
+  .modal::backdrop{opacity:0;transition:opacity .2s ease-out,display .2s allow-discrete,overlay .2s allow-discrete}
+  .modal[open]::backdrop{opacity:1}
+  .modal:not([open]),.modal:not([open])::backdrop{pointer-events:none}
+  .filter-options-popup{opacity:0;transition:opacity .16s ease-out,display .16s allow-discrete}
+  .filter-options-popup:not([hidden]){opacity:1}
+  .filter-options-popup[hidden]{pointer-events:none}
   .drawer{transform:translateX(100%);transition:transform .24s cubic-bezier(.2,.7,.2,1),display .24s allow-discrete,overlay .24s allow-discrete}
   .drawer[open]{transform:none}
   .drawer::backdrop{opacity:0;transition:opacity .24s ease-out,display .24s allow-discrete,overlay .24s allow-discrete}
   .drawer[open]::backdrop{opacity:1}
   .drawer:not([open]),.drawer:not([open])::backdrop{pointer-events:none}
   @starting-style{
+    .modal[open],.modal[open]::backdrop,.filter-options-popup:not([hidden]){opacity:0}
     .drawer[open]{transform:translateX(100%)}
     .drawer[open]::backdrop{opacity:0}
   }

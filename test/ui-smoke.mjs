@@ -73,7 +73,7 @@ try {
     const tooltip=page.locator('#'+await ufButton.getAttribute('aria-describedby'));
     await tooltip.waitFor({state:'visible'});assert.equal(await tooltip.innerText(),'Filtrar por esta coluna');
     assert.equal(await page.getByRole('menu').count(),0);
-    assert.equal(await page.locator('#filters-dialog').isVisible(),false);
+    await page.locator('#filters-dialog').waitFor({state:'hidden'});
     await ufButton.press('Enter');
     await page.waitForFunction(()=>document.activeElement?.id==='filter-ufs');
     assert.equal(await tooltip.isVisible(),false);

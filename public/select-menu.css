@@ -26,4 +26,11 @@
 .select-option[aria-disabled="true"]{color:var(--muted);opacity:.55;cursor:default}
 .select-menu-group{padding:8px 10px 4px;font-size:.75rem;font-weight:650;color:var(--text-muted,#607286)}
 .select-menu-empty{padding:10px;color:var(--text-muted,#607286)}
+@media(min-width:701px){
+  .select-chevron{transition:transform .16s ease-out}
+  .select-menu{opacity:0;transition:opacity .16s ease-out,display .16s allow-discrete,overlay .16s allow-discrete}
+  .select-menu:popover-open{opacity:1}
+  .select-menu:not(:popover-open),.select-menu:not(:popover-open)::backdrop{pointer-events:none}
+  @starting-style{.select-menu:popover-open{opacity:0}}
+}
 @media(max-width:700px){.select-option{min-height:44px}.criteria-row .select-control{width:100%;max-width:none}.criteria-row .select-trigger{font-size:1rem;padding:8px 6px}.select-trigger{font-size:1rem}}
