@@ -697,9 +697,9 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   const links=$('details-links');links.replaceChildren();
   for(const [label,url]of [['Abrir no PNCP',doc.url_pncp],['Sistema de origem',doc.link_sistema_origem]]){const link=safeAnchor(label,url);if(link)links.append(link);}
   const nav=el('div',undefined,'detail-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label',`Seções: ${names.singular}`);content.append(nav);
-  const sectionLabel=el('label',undefined,'detail-section-choice'),sectionText=el('span','Seção'),sectionSelect=el('select'),sectionSpinner=el('span',undefined,'detail-tab-spinner');
+  const sectionLabel=el('label',undefined,'detail-section-choice'),sectionSelect=el('select'),sectionSpinner=el('span',undefined,'detail-tab-spinner');
   sectionSelect.id='details-section';sectionSelect.setAttribute('aria-label','Seção dos detalhes');sectionSpinner.hidden=true;sectionSpinner.setAttribute('aria-hidden','true');
-  sectionLabel.append(sectionText,sectionSelect,sectionSpinner);content.append(sectionLabel);
+  sectionLabel.append(sectionSelect,sectionSpinner);content.append(sectionLabel);
   function activate(index,focus=false,write=true) {
     tabs.forEach((tab,i)=>{tab.button.setAttribute('aria-selected',String(i===index));tab.button.tabIndex=i===index?0:-1;tab.panel.hidden=i!==index;});
     if(state.detailSelection){state.detailSelection.tab=tabs[index].button.dataset.resource;if(write)syncDetailUrl();}
