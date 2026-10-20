@@ -171,8 +171,12 @@ dialog select[multiple]{min-height:155px}
   .filter-options-popup{opacity:0;transition:opacity .16s ease-out,display .16s allow-discrete}
   .filter-options-popup:not([hidden]){opacity:1}
   .filter-options-popup[hidden]{pointer-events:none}
-  .drawer{transform:translateX(100%);transition:transform .24s cubic-bezier(.2,.7,.2,1),display .24s allow-discrete,overlay .24s allow-discrete}
-  .drawer[open]{transform:none}
+  .drawer{overflow:hidden;flex-direction:column;transform:translateX(100%);transition:transform .24s cubic-bezier(.2,.7,.2,1),display .24s allow-discrete,overlay .24s allow-discrete}
+  .drawer[open]{display:flex;transform:none}
+  .drawer>.details-header{flex-shrink:0}
+  .drawer>#details-content{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+  .drawer>#details-content>.detail-object,.drawer>#details-content>.detail-tabs{flex-shrink:0}
+  .drawer>#details-content>[role="tabpanel"]{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;align-content:start}
   .drawer::backdrop{opacity:0;transition:opacity .24s ease-out,display .24s allow-discrete,overlay .24s allow-discrete}
   .drawer[open]::backdrop{opacity:1}
   .drawer:not([open]),.drawer:not([open])::backdrop{pointer-events:none}
