@@ -188,6 +188,7 @@ test('DETAIL-TABS-03: abertura é imediata e consulta as cinco listas com no má
 test('RELATED-UI-01: quatro abas carregam em background e exibem dados e links corretos',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(document(1)));
   const sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');assert.equal(sections.length,4);assert.equal(ui.relatedRequests.length,4);
+  assert(ui.relatedRequests.every(request=>request.size===10));
   for(const section of sections){assert.equal(section.hidden,true);assert.match(section.children[0].textContent,/\(\d+\)$/);assert(section.children[2].children.length>0);assert.equal(section.getAttribute('aria-busy'),'false');}
   assert.equal(ui.relatedRequests.length,4);
   const files=sections.find(s=>s.dataset.resource==='arquivos');assert.equal(files.children[2].children[0].children.at(-1).textContent,'Baixar arquivo');assert.match(files.children[2].children[0].children.at(-1).href,/\/arquivos\/1$/);
@@ -630,7 +631,7 @@ test('DETAILS-UI-01: abrir uma linha carrega itens automaticamente e usa o link 
   const ui=await interfaceFixture(),doc=project(document(1,{item_url:'/compras/00000000000000/2026/1'}));
   const columns=ui.tableColumns();assert.equal(columns[0].field,'titulo');assert.equal(columns[0].visible,true);assert.equal(columns.find(c=>c.field==='municipio_nome').visible,true);
   await ui.openDocument(doc);assert.equal(ui.nodes.get('details-dialog').open,true);assert.equal(ui.itemRequests.length,1);
-  assert.deepEqual(ui.itemRequests[0],{document:{type:'edital',cnpj:'00000000000000',ano:'2026',sequencial:'1'},page:1,size:100});
+  assert.deepEqual(ui.itemRequests[0],{document:{type:'edital',cnpj:'00000000000000',ano:'2026',sequencial:'1'},page:1,size:10});
   assert(ui.all.some(n=>n.className==='item-card'));assert.equal(ui.all.find(n=>n.textContent==='Abrir no PNCP').href,'https://pncp.gov.br/app/editais/00000000000000/2026/1');
   assert(!ui.all.some(n=>n.textContent==='Atualizar itens'));
   assert.equal(ui.all.find(n=>n.textContent==='Tentar consultar itens').hidden,true);
@@ -645,26 +646,26 @@ test('DETAILS-UI-03: erro no carregamento automático permite repetir a consulta
   await retry.fire('click');assert.equal(ui.itemRequests.length,2);assert(ui.all.some(n=>n.className==='item-card'));assert.equal(retry.hidden,true);
 });
 
-test('DETAILS-UI-04: mostra 109 itens e mantém a última página sem oferecer uma página vazia',async()=>{
-  let total=109;const itemPages=[];
+test('DETAILS-UI-04: mostra 19 itens em páginas de dez e mantém a última sem oferecer uma página vazia',async()=>{
+  let total=19;const itemPages=[];
   const ui=await interfaceFixture({itemFetcher:url=>{
     const u=new URL(url);
     if(u.pathname.endsWith('/itens/quantidade'))return Promise.resolve((total));
     if(u.pathname.endsWith('/itens')) {
-      const page=Number(u.searchParams.get('pagina'));itemPages.push(page);
-      return Promise.resolve((Array.from({length:total},(_,i)=>({numeroItem:i+1,descricao:`Item ${i+1}`})).slice((page-1)*100,page*100)));
+      const page=Number(u.searchParams.get('pagina')),size=Number(u.searchParams.get('tamanhoPagina'));itemPages.push(page);
+      return Promise.resolve((Array.from({length:total},(_,i)=>({numeroItem:i+1,descricao:`Item ${i+1}`})).slice((page-1)*size,page*size)));
     }
     return demoFetch(url);
   }});
   await ui.openDocument(project(document(1)));
   const section=ui.nodes.get('details-content').children.find(n=>n.className==='items-section');
   const [toolbar,list,itemStatus,pager]=section.children,previous=()=>paginationButton(pager,'prev'),next=()=>paginationButton(pager,'next');
-  assert.equal(toolbar.children[0].textContent,'Itens da contratação (109)');
-  assert.match(itemStatus.textContent,/Itens 1–100 de 109/);assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');
+  assert.equal(toolbar.children[0].textContent,'Itens da contratação (19)');
+  assert.equal(list.children.length,10);assert.match(itemStatus.textContent,/Itens 1–10 de 19/);assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');
   assert.equal(previous().disabled,true);assert.equal(next().disabled,false);
   await next().fire('click');
-  assert.equal(list.children.length,9);assert.equal(list.children[0].children[0].textContent,'Item 101');
-  assert.match(itemStatus.textContent,/Itens 101–109 de 109/);assert.equal(paginationButton(pager,2).getAttribute('aria-current'),'page');
+  assert.equal(list.children.length,9);assert.equal(list.children[0].children[0].textContent,'Item 11');
+  assert.match(itemStatus.textContent,/Itens 11–19 de 19/);assert.equal(paginationButton(pager,2).getAttribute('aria-current'),'page');
   assert.equal(next().disabled,true);assert.equal(previous().disabled,false);assert.deepEqual(itemPages,[1,2]);
   assert(!ui.all.some(n=>/Fim dos itens confirmado/.test(n.textContent || '')));
   await previous().fire('click');assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');assert.equal(next().disabled,false);
@@ -686,17 +687,17 @@ test('DETAILS-UI-05: contratação sem itens mostra total zero e oculta a pagina
 test('DETAIL-PAGES-01: itens permitem saltar páginas e alcançar os limites mantendo até cinco números',async()=>{
   const requests=[],ui=await interfaceFixture({itemFetcher:url=>{
     const u=new URL(url);
-    if(u.pathname.endsWith('/itens/quantidade'))return Promise.resolve(905);
+    if(u.pathname.endsWith('/itens/quantidade'))return Promise.resolve(95);
     if(u.pathname.endsWith('/itens')){
-      const page=Number(u.searchParams.get('pagina'));requests.push(page);
-      return Promise.resolve(Array.from({length:Math.min(100,905-(page-1)*100)},(_,i)=>({numeroItem:(page-1)*100+i+1,descricao:'Item de teste'})));
+      const page=Number(u.searchParams.get('pagina')),size=Number(u.searchParams.get('tamanhoPagina'));requests.push(page);
+      return Promise.resolve(Array.from({length:Math.min(size,95-(page-1)*size)},(_,i)=>({numeroItem:(page-1)*size+i+1,descricao:'Item de teste'})));
     }
     return demoFetch(url);
   }});
   await ui.openDocument(project(document(1)));
   const section=ui.nodes.get('detail-panel-itens'),pager=section.children[3],pages=()=>pager.children[2].children.map(button=>button.dataset.page);
   assert.deepEqual(pages(),['1','2','3','4','5']);
-  await paginationButton(pager,5).fire('click');assert.deepEqual(pages(),['3','4','5','6','7']);assert.match(section.children[2].textContent,/Itens 401–500 de 905/);
+  await paginationButton(pager,5).fire('click');assert.deepEqual(pages(),['3','4','5','6','7']);assert.match(section.children[2].textContent,/Itens 41–50 de 95/);
   await paginationButton(pager,'last').fire('click');assert.deepEqual(pages(),['6','7','8','9','10']);assert.equal(section.children[1].children.length,5);assert.equal(paginationButton(pager,'last').disabled,true);
   await paginationButton(pager,'prev').fire('click');assert.equal(paginationButton(pager,9).getAttribute('aria-current'),'page');
   await paginationButton(pager,'first').fire('click');assert.equal(paginationButton(pager,'prev').disabled,true);assert.deepEqual(requests,[1,5,10,9,1]);
@@ -1021,7 +1022,7 @@ test('ATAS-UI-01: trocar para atas ajusta status, colunas, filtros, contagem e C
 test('ATAS-UI-02: o painel de ata carrega detalhes completos e quatro listas com identidades corretas',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(demoAtas[2]));
   assert.equal(ui.itemRequests.length,0);assert.equal(ui.documentRequests.length,1);assert.equal(ui.relatedRequests.length,4);assert.deepEqual(ui.documentRequests[0],{document:{type:'ata',cnpj:'00000000000000',ano:'2026',sequencial_compra:'3',sequencial:'3'}});
-  assert(ui.relatedRequests.every(r=>r.document.type==='ata' && r.document.sequencial_compra==='3' && r.document.sequencial==='3'));
+  assert(ui.relatedRequests.every(r=>r.document.type==='ata' && r.document.sequencial_compra==='3' && r.document.sequencial==='3' && r.size===10));
   const tabs=ui.nodes.get('details-content').children.find(n=>n.className==='detail-tabs');assert.deepEqual(tabs.children.map(b=>b.textContent),['Detalhes (22)','Partes envolvidas (1)','Contratos (2)','Arquivos (12)','Histórico (12)']);
   assert.equal(ui.nodes.get('details-kind').textContent,demoAtas[2].title);
   const titles=ui.nodes.get('detail-panel-detalhes').children[0].children.map(f=>f.children[0].textContent);assert(titles.includes('Número da ata'));assert(titles.includes('Permite adesão'));assert(!titles.includes('Valor estimado'));assert(!titles.includes('Fornecedor'));
@@ -1033,7 +1034,7 @@ test('CONTRACTS-UI-04: os dados nativos e cinco listas do contrato carregam ante
   const ui=await interfaceFixture();await ui.openDocument(project(demoContracts[0]));
   assert.equal(ui.documentRequests.length,1);assert.equal(ui.relatedRequests.length,5);assert.equal(ui.itemRequests.length,0);
   const tabs=ui.nodes.get('details-content').children.find(n=>n.className==='detail-tabs');assert.deepEqual(tabs.children.map(b=>b.textContent),['Detalhes (34)','Empenhos (1)','Instrumentos de cobrança (1)','Termos (1)','Arquivos (12)','Histórico (12)']);
-  assert(ui.relatedRequests.every(r=>r.document.type==='contrato' && r.document.sequencial==='1'));
+  assert(ui.relatedRequests.every(r=>r.document.type==='contrato' && r.document.sequencial==='1' && r.size===10));
   const fields=ui.nodes.get('detail-panel-detalhes').children[0].children.map(w=>[w.children[0].textContent,w.children[1].textContent]);assert(fields.some(([label,value])=>label==='Valor da parcela' && value==='R$ 100,0000'));assert(fields.some(([label,value])=>label==='Processo' && value==='DEMO-1/2026'));assert(!fields.some(([label])=>label==='Modalidade'));
 });
 

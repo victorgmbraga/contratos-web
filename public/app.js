@@ -14,6 +14,7 @@ const el = (tag, text, className) => { const node=document.createElement(tag); i
 const clone = value => structuredClone(value);
 const documentName=(type=state.query.document_type)=>state.schema.document_types.find(d=>d.id===type);
 const TABLE_PAGE_SIZE = 100;
+const DETAIL_PAGE_SIZE = 10;
 // Situação da Contratação: PNCP, Manual de Integração, tabela de domínio 7.13.
 const purchaseStatusClasses=new Map([
   ['divulgada no pncp','status-cell--divulgada'],
@@ -622,7 +623,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
     if(!loaded)updateCount(null,'loading');
     try {
       const requestSignal=AbortSignal.any([signal,controller.signal]);
-      const result=await schedule(async()=>{status.textContent='Consultando o PNCP…';return service.call('documentRelated',{document:detailIdentity(doc),resource,page:target,size:10,...(untilEmpty?{pagination_mode:'until_empty'}:{})},{signal:requestSignal});},requestSignal);
+      const result=await schedule(async()=>{status.textContent='Consultando o PNCP…';return service.call('documentRelated',{document:detailIdentity(doc),resource,page:target,size:DETAIL_PAGE_SIZE,...(untilEmpty?{pagination_mode:'until_empty'}:{})},{signal:requestSignal});},requestSignal);
       if(!current())return;loaded=true;page=result.page;untilEmpty ||= result.pagination_mode==='until_empty';list.replaceChildren();
       for(const record of result.data) {
         const card=el('article',undefined,'related-card');
@@ -764,7 +765,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
     section.setAttribute('aria-busy','true');if(!itemsLoaded)updateItems(null,'loading');
     try {
       const p=doc._purchase,signal=AbortSignal.any([detailController.signal,controller.signal]);
-      const result=await schedule(async()=>{return service.call('details',{document:{type:'edital',...p},page:target,size:100},{signal});},signal);
+      const result=await schedule(async()=>{return service.call('details',{document:{type:'edital',...p},page:target,size:DETAIL_PAGE_SIZE},{signal});},signal);
       if(!current())return;page=result.page;list.replaceChildren();
       itemsLoaded=true;updateItems(result.total_items,'loaded');
       for(const item of result.data) {
