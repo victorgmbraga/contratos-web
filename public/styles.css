@@ -124,6 +124,7 @@ dialog::backdrop{background:var(--backdrop,#122b4655);backdrop-filter:blur(2px)}
 .filter-field label{margin-bottom:6px;font-weight:500}
 .filter-field input,.filter-field select{width:100%;font-weight:400}
 .filter-field input::placeholder{color:var(--filter-placeholder);opacity:1}
+.filter-field:has(.filter-reset[hidden]) input[type="date"]{color:var(--filter-placeholder)}
 .filter-field select option{color:var(--text,#263f58)}
 .filter-field select:has(option[value=""]:checked),.filter-field select option[value=""]{color:var(--filter-placeholder)}
 .filter-field>input,.filter-field>select{margin-bottom:6px}
