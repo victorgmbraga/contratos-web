@@ -8,7 +8,7 @@ flowchart LR
     UI <-->|Mensagens por operação| Worker[Worker por aba]
     Worker --> Core[Núcleo de consultas e validações]
     Core --> Native[fetch do navegador]
-    Native --> PNCP[APIs Search e PNCP v1]
+    Native --> PNCP[APIs Search, Consulta v1 e PNCP v1]
     Core -. demonstração explícita .-> Demo[Dados sintéticos]
     Worker -->|Buffers transferíveis| UI
     UI --> CSV[Blob e download local]
@@ -64,7 +64,7 @@ Em até 700 px, o modal ocupa o viewport visível; os grupos de filtros ficam em
 
 Todos os filtros de cardinalidade múltipla usam comboboxes de busca, listas com marcação e etiquetas removíveis. Domínios completos usam as opções em cache e busca local sem distinção de acentos; domínios parciais mantêm as sugestões remotas. Os menus ficam no contêiner `filter-popups`, fora do conteúdo rolável, com posição fixa calculada a partir do campo. A rolagem atualiza essa posição ou fecha o menu se o campo sair da área visível. Apenas um menu permanece aberto; clique externo, perda de foco, Tab e Escape o fecham. As setas e Enter controlam a seleção, com vínculos ARIA entre combobox e listbox.
 
-As ajudas de campos vêm de `help_text` no esquema e complementam os rótulos. Exemplos de preenchimento ficam somente no placeholder, via `input_hint`; descrições técnicas de argumentos não são exibidas como ajuda. A orientação sobre filtros de itens, resultados e fornecedores aparece uma vez, na seção de itens.
+As ajudas de campos vêm de `help_text` no esquema e complementam os rótulos. Exemplos de preenchimento ficam somente no placeholder, via `input_hint`, incluindo os limites de ordem de classificação. Datas vazias e os demais placeholders usam a mesma cor semântica do tema; datas preenchidas usam a cor normal do texto. Descrições técnicas de argumentos não são exibidas como ajuda. A orientação sobre filtros de itens, resultados e fornecedores aparece uma vez, na seção de itens.
 
 `initializeSelectMenus` aplica uma apresentação comum aos selects simples, incluindo controles criados nos filtros e detalhes. O select original conserva valor, eventos, integração com formulários e tamanho intrínseco; fica transparente, fora da navegação por Tab e da árvore acessível. Um botão com papel `combobox` assume o rótulo e os estados, e uma `listbox` em popover nativo exibe opções como texto, a marca de seleção e o destaque de navegação. Rótulos apontam para o novo controle. Nenhuma dependência é adicionada.
 
@@ -108,9 +108,11 @@ Em colunas com apenas filtragem, o ícone abre o painel diretamente; “Filtrar 
 
 ## Painéis dos documentos
 
-O cabeçalho do painel usa o título da linha selecionada. Contratações iniciam itens, arquivos, atas, contratos/empenhos e histórico em segundo plano. Atas iniciam detalhes completos, partes envolvidas, contratos, arquivos e histórico. Contratos iniciam detalhes completos, empenhos, instrumentos de cobrança, termos, arquivos e histórico. Uma fila do painel limita a duas tarefas ativas; abas preservam dados e paginação, contadores, teclado e recuperação independente. Itens e listagens reutilizam `createPagination`: com total conhecido, mostram até cinco páginas próximas à atual e os quatro atalhos; uma única página oculta o controle. Durante uma consulta, todos os botões ficam desabilitados. Falhas mantêm a página confirmada; a restauração de foco fica restrita à própria paginação.
+O cabeçalho do painel usa o título da linha selecionada. Contratações iniciam itens, arquivos, atas, contratos/empenhos e histórico em segundo plano. Atas iniciam detalhes completos, partes envolvidas, contratos, arquivos e histórico. Contratos iniciam detalhes completos, empenhos, instrumentos de cobrança, termos, arquivos e histórico. Uma fila do painel limita a duas tarefas ativas; abas preservam dados e paginação, contadores, teclado e recuperação independente. Itens e listagens usam dez registros por página, definidos em `DETAIL_PAGE_SIZE`, e reutilizam `createPagination`: com total conhecido, mostram até cinco páginas próximas à atual e os quatro atalhos; uma única página oculta o controle. Durante uma consulta, todos os botões ficam desabilitados. Falhas mantêm a página confirmada; a restauração de foco fica restrita à própria paginação.
 
-O seletor móvel **Seção** e as abas usam a mesma função de ativação e os mesmos painéis. Opções acompanham contagens, erros e carregamento; a seção selecionada mantém o spinner durante a consulta. Selecionar uma opção sincroniza `aba` na URL sem refazer consultas. No layout móvel, o conteúdo rola separado do cabeçalho, mantendo o fechamento disponível; abaixo de 401 px, os campos passam a uma coluna.
+A contagem de registros aparece após a listagem, alinhada à esquerda da paginação no desktop e acima dela no mobile.
+
+O seletor móvel de seções, com nome acessível **Seção dos detalhes** e sem rótulo visível, e as abas usam a mesma função de ativação e os mesmos painéis. Opções acompanham contagens, erros e carregamento; a seção selecionada mantém o spinner durante a consulta. Selecionar uma opção sincroniza `aba` na URL sem refazer consultas. No layout móvel, o conteúdo rola separado do cabeçalho, mantendo o fechamento disponível; abaixo de 401 px, os campos passam a uma coluna.
 
 CNPJ, ano e sequenciais são textos validados. Atas preservam sequenciais da compra e da ata; contratos usam seu próprio sequencial. O detalhe completo confere controle PNCP contra a identidade antes de substituir os campos da busca. Falhas conservam os campos disponíveis.
 
@@ -126,10 +128,9 @@ Exportar inicia uma nova coleta com os últimos critérios concluídos, desde a 
 
 Progresso contém páginas, linhas, total e bytes. Só a coleta completa transfere os `ArrayBuffer` à interface, junto de nome, MIME e metadados compactos. A interface cria o Blob e revoga a URL após o download. Não há download parcial. `snapshot_guaranteed` é `false`, pois o PNCP pode mudar entre chamadas.
 
-
 ## Persistência e segurança
 
-Estado de consultas, fila, contadores e resultados de pesquisa, detalhes e CSV são transitórios. Somente listas normalizadas de opções e seus metadados de apresentação ficam no `localStorage`, sob o prefixo `contratos-web:filter-options:v1:`, separadas por fonte, versão do esquema e contexto. A validade é de 4 horas desde o carregamento bem-sucedido; a inicialização e cada uso descartam entradas vencidas, corrompidas, com data futura ou com aviso de omissão de anos, sem limpar dados alheios. As opções de ano preservam os valores fornecidos pelo PNCP, inclusive fora do formato `AAAA`. Leituras não prolongam a validade. Amparos legais têm entradas por tipo e conjunto de normativos.
+Estado de consultas, fila, contadores e resultados de pesquisa, detalhes e CSV são transitórios. Além da preferência de tema, o `localStorage` armazena listas normalizadas de opções e seus metadados de apresentação, sob o prefixo `contratos-web:filter-options:v1:`, separadas por fonte, versão do esquema e contexto. A validade é de 4 horas desde o carregamento bem-sucedido; a inicialização e cada uso descartam entradas vencidas, corrompidas, com data futura ou com aviso de omissão de anos, sem limpar dados alheios. As opções de ano preservam os valores fornecidos pelo PNCP, inclusive fora do formato `AAAA`. Leituras não prolongam a validade. Amparos legais têm entradas por tipo e conjunto de normativos.
 
 Listas com JSON a partir de 65.536 caracteres são compactadas com `CompressionStream('gzip')` e armazenadas em base64, mantendo opções, IDs, rótulos, estados e metadados. A leitura aceita JSON ou gzip/base64 e usa `DecompressionStream` no segundo caso. A pré-carga processa cada entrada antes da próxima. Conteúdo inválido é descartado e recarregado.
 

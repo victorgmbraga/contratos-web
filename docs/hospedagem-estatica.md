@@ -6,7 +6,7 @@ O artefato de produção é `dist-browser/`. A hospedagem entrega HTML, JavaScri
 
 ## Gerar e verificar
 
-Use Node.js 22.12 ou superior na máquina de build:
+Use Node.js 22.12 ou superior na máquina de build. Antes de compilar, ajuste [`public/browser-config.json`](../public/browser-config.json) conforme [Configuração](configuracao.md). `{}` usa o PNCP real e os limites padrão. O arquivo é público.
 
 ```sh
 npm ci
@@ -17,15 +17,13 @@ npm run preview
 
 Abra `http://localhost:8000` para a fonte real ou `http://localhost:8000/?demo=1` para demonstração. O preview usa os arquivos compilados.
 
-Configure [`public/browser-config.json`](../public/browser-config.json) conforme [Configuração](configuracao.md). `{}` usa o PNCP real e os limites padrão. O arquivo é público.
-
 Publique **todo o conteúdo de `dist-browser/`**, incluindo `assets/`. Os caminhos relativos permitem servir na raiz ou em um diretório como `/contratos-web/`; abra a URL do diretório com barra final. A hospedagem precisa fornecer MIME apropriado: `text/javascript` para módulos e Worker, `text/css` e `application/json`. Use HTTPS; a abertura por `file://` não é suportada.
 
-Links de pesquisa usam parâmetros no mesmo caminho, por exemplo `/contratos-web/?tipos_documento=ata&pagina=2`. O servidor entrega o HTML, e a interface lê os critérios. Rotas `/api/...` são chamadas diretamente no PNCP; a hospedagem não precisa de reescrita para essas rotas.
+Links de pesquisa e detalhes usam parâmetros no mesmo caminho, por exemplo `/contratos-web/?tipos_documento=ata&pagina=2`; os parâmetros `detalhe` e `aba` identificam o painel e sua seção. O servidor entrega o mesmo HTML, e a interface restaura a busca e o documento. Esses links não exigem rotas adicionais na hospedagem. Rotas `/api/...` são chamadas diretamente no PNCP; a hospedagem não precisa de reescrita para essas rotas.
 
 ## GitHub Pages
 
-O workflow [`static-pages.yml`](../.github/workflows/static-pages.yml) executa em cada push para `main` e por `workflow_dispatch`. O job `build` usa Node.js 24, instala com `npm ci`, executa `npm test`, compila e envia `dist-browser/` como artefato. O job `deploy` publica no ambiente `github-pages`. Os testes de navegador são executados separadamente, conforme [Validação](validacao.md).
+O workflow [`static-pages.yml`](../.github/workflows/static-pages.yml) executa em cada push para `main` e por `workflow_dispatch`. O job `build` usa Node.js 24, instala com `npm ci`, executa `npm test`, compila e envia `dist-browser/` como artefato. O job `deploy` publica no ambiente `github-pages`. Esse workflow não executa os testes de navegador: eles pertencem ao workflow de validação dos pull requests e da branch indicada nele, conforme [Validação](validacao.md).
 
 Para configurar uma publicação:
 

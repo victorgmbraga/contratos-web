@@ -15,14 +15,14 @@ O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 - HTTP 204/404 nos recursos permitidos, histórico de contrato com total desconhecido, falhas de formato, transporte e contagem.
 - CSV, consistência entre páginas, limites de bytes/documentos, progresso e cancelamento.
 - Configuração pública, fila, tentativas, prazo de operação e comunicação com o Worker.
-- URL compartilhável da busca e dos detalhes, restauração dos controles, página, documento e aba, Voltar/Avançar e descarte de respostas atrasadas. Editais consultam a API de consulta, inclusive quando a rota anterior retorna HTTP 301 sem `Location`.
+- URL compartilhável da busca e dos detalhes, restauração dos controles, página, documento e aba, Voltar/Avançar e descarte de respostas atrasadas. Links diretos de editais consultam a API de consulta quando a linha não está disponível na busca.
 - Pré-carga das opções, validade de quatro horas, compactação, armazenamento indisponível, deduplicação e amparos por normativo.
 - Modal com todos os filtros compatíveis, edição sem confirmação intermediária, campos sem restrição, cancelamento do rascunho, sugestões independentes e rolagem com ações visíveis.
 - Ícones de coluna com filtragem direta e tooltip neutro nos três tipos, menus preservados nas colunas com ordenação, opções e intervalos, direcionamento independente de listas lentas e preservação do foco escolhido pelo usuário.
-- Temas claro/escuro, preferência do sistema, persistência, sincronização entre abas, armazenamento bloqueado, contraste dos textos e controle acessível no cabeçalho.
+- Preferência de tema, acompanhamento do sistema, persistência, sincronização entre abas e armazenamento bloqueado. Renderização, contraste e controles são conferidos nos testes de navegador.
 - Seleção múltipla por campos de busca, pesquisa local sem acentos, marcação e remoção, teclado e menus suspensos que acompanham a rolagem sem alterar a altura dos grupos.
 - Parser exato com corpus independente de tokens/erros, números extensos, zeros finais, notação científica, Unicode, chaves repetidas/especiais e estruturas profundas. As fixtures usam JSON textual para não arredondar os dados antes do teste.
-- Paginação da tabela e preservação das linhas e da página confirmadas quando outra consulta falha.
+- Paginação da tabela e dos detalhes, páginas de dez registros no painel, navegação numerada, total desconhecido e preservação da página confirmada quando outra consulta falha.
 
 [`test/interface.test.js`](../test/interface.test.js) usa um DOM mínimo e o serviço tipado para verificar os fluxos da interface. Os testes usam fontes controladas; a renderização é verificada no navegador.
 
@@ -47,15 +47,16 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Etapa | Cobertura |
 | --- | --- |
 | Componente de tabela | Cem linhas, conteúdo tratado como texto, paginação, foco, menus, teclado, redimensionamento, movimentação, visibilidade, cabeçalho fixo e destruição |
+| Paginação compartilhada | [`test/pagination.browser.mjs`](../test/pagination.browser.mjs): janela de páginas, atalhos, teclado/foco, carregamento, total desconhecido e números longos nos dois temas, de 320 a 1068 px |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
 | Interface | Filtros, três tipos, links de busca e documento/aba, histórico do navegador, paginação, painéis, CSV, cancelamento, teclado e responsividade |
 | Seletores | Menus reais, teclado e cancelamento, busca por letras, URL/Voltar, filtros, menu Mais, detalhes, temas/contraste, limites do viewport, estados e opções dinâmicas, formulários e texto não confiável |
 | Temas | Alternância, restauração, sincronização, contraste mínimo de 4,5:1 nos textos verificados, filtros, detalhes, avisos, carregamento e tela pequena |
-| Layout móvel | 320, 360, 390, 430 e 700 px; três tipos, cartões/tabela, menu de ações, campos e alvos de toque, filtros, seções/URL, paginação, paisagem e viewport reduzido |
+| Layout móvel | 320, 352, 358, 360, 390, 430, 560 e 700 px; três tipos, cartões/tabela, menu de ações, campos e alvos de toque, filtros, seções/URL, paginação, paisagem e viewport reduzido |
+| Links diretos de detalhes | [`test/detail-links.browser.mjs`](../test/detail-links.browser.mjs): documento e aba, recarregamento, Voltar/Avançar, resultados ausentes e cancelamento |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), em 1440, 1068 e 390 pixels |
-| Paginação compartilhada | [`test/pagination.browser.mjs`](../test/pagination.browser.mjs): janela de páginas, atalhos, teclado/foco, carregamento, total desconhecido e números longos nos dois temas, de 320 a 1068 px |
 | CORS controlado | Duas origens locais, permissão e bloqueio de leitura, exposição de `Retry-After` |
 | Exportação | 10.000 documentos sintéticos, resposta da interface durante a coleta, cancelamento e reutilização do Worker |
 | Bundles | Ausência de dependências de Node, variáveis do processo e fixtures de teste em produção |
@@ -64,18 +65,20 @@ Esses ensaios servem arquivos estáticos e verificam a ausência de chamadas a u
 
 O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results-table.browser.mjs). A referência visual mantém cores, fontes e espaçamentos; os papéis de display nativos da tabela e as bordas por célula representam sua estrutura semântica. Os testes de navegação utilizam identificadores da aplicação e papéis acessíveis.
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pushes da branch de refatoração e pull requests para `main` com instalação reproduzível, testes e suites de Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. O workflow de publicação permanece separado.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests para `main` e pushes para `refactor/substituir-tabulator-lossless-json`. Usa instalação reproduzível, `npm test` e a suíte completa de navegador em Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. Pushes para `main` acionam [`static-pages.yml`](../.github/workflows/static-pages.yml), que executa `npm test` e o build antes de publicar; esse workflow não executa a suíte de navegador.
 
 ### Medir tamanho e renderização
 
-Após o build de produção e o build de testes gerados pela suíte:
+Use os builds gerados pela suíte ou prepare-os explicitamente antes de medir:
 
 ```sh
+npm run build
+npm run build -- --mode test
 node test/measure-build.mjs
 node test/table-benchmark.mjs
 ```
 
-O primeiro comando informa bytes brutos e gzip por asset e totais de JavaScript/CSS. O segundo mede atualização de 100 registros com todas as colunas, até dois frames após a consulta, descarta o aquecimento e informa sete amostras, mediana e quantidade de nós DOM. Compare execuções no mesmo navegador, máquina e condições de carga. O teste de exportação informa separadamente o custo da coleta de 10.000 documentos; esse conjunto não é montado na tabela.
+O script `measure-build.mjs` informa bytes brutos e gzip por asset e totais de JavaScript/CSS. `table-benchmark.mjs` mede a atualização de 100 registros com todas as colunas, até dois frames após a consulta, descarta o aquecimento e informa sete amostras, mediana e quantidade de nós DOM. Ele usa o mesmo navegador e as mesmas opções do runner descritas abaixo. Compare execuções no mesmo navegador, máquina e condições de carga. O teste de exportação informa separadamente o custo da coleta de 10.000 documentos; esse conjunto não é montado na tabela.
 
 ### Opções do runner
 

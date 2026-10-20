@@ -150,7 +150,7 @@ Booleanos exigem valores JSON, sem aspas: `false` é enviado ao PNCP como `false
 
 Filtros de itens selecionam **contratações** na busca nativa. Tabela e CSV continuam contendo uma linha por contratação. Os detalhes exibem todos os itens, inclusive os que não satisfazem os critérios. Uma condição verdadeira na busca pode coexistir com itens que a informam como falsa nos detalhes. Não há garantia de que condições diferentes incidam sobre o mesmo item; a aplicação não aplica um refinamento local para impor essa correlação. Os nomes enviados à busca continuam sendo `categorias_leilao` e `beneficios`, embora os domínios usem aliases.
 
-`service.call("schema")` informa `columns`, `columns_by_document`, `capabilities`, `statuses`, `statuses_by_document`, `orders`, `orders_by_document`, `order_labels` e `limits`. O catálogo em [`src/pncp-arguments.json`](../src/pncp-arguments.json) contém 87 argumentos: sete controles reservados ao adaptador e 80 filtros. São 71 aplicáveis a edital, 16 a ata e 32 a contrato. `columns`, `statuses` e `orders` usam os padrões de edital; os mapas por documento fornecem os valores próprios de cada tipo, e `order_labels` contém os nomes exibidos no seletor. A compatibilidade de filtros é definida por `documents`.
+`service.call("schema", {})` informa `columns`, `columns_by_document`, `capabilities`, `statuses`, `statuses_by_document`, `orders`, `orders_by_document`, `order_labels` e `limits`. O catálogo em [`src/pncp-arguments.json`](../src/pncp-arguments.json) contém 87 argumentos: sete controles reservados ao adaptador e 80 filtros. São 71 aplicáveis a edital, 16 a ata e 32 a contrato. `columns`, `statuses` e `orders` usam os padrões de edital; os mapas por documento fornecem os valores próprios de cada tipo, e `order_labels` contém os nomes exibidos no seletor. A compatibilidade de filtros é definida por `documents`.
 
 Atas aceitam `ufs`, `orgaos`, `unidades`, `municipios`, `esferas`, `poderes`, `anos`, `modalidades`, `tipos`, `permite_adesao`, `data_publicacao_inicio/fim`, `data_assinatura_inicio/fim` e `data_inicio_vigencia_inicio/fim`. Filtros de itens, resultados e valores contratuais não são aplicáveis a atas.
 
@@ -179,7 +179,7 @@ Cada capacidade também informa `label`, `group`, `input_hint`, `help_text`, `ca
 
 Com zero resultados, `data` é vazio e `last_page` é `1`. Uma página além do resultado atual gera `PAGE_OUT_OF_RANGE`.
 
-Os campos documentais são definidos em [`src/schema.js`](../src/schema.js). Cada documento também contém `_identity`, `_document`, `_purchase` e `_raw`: identidade de negócio, identificadores originais por tipo, identificadores de itens (somente editais) e registro original convertido para JSON. Valores monetários projetados são strings decimais, e ausências são `null`. O tipo documental vem de `document_type`; `doc_type` é metadado do índice. Nos dados originais e itens, inteiros seguros podem ser números; decimais e inteiros fora da faixa segura são preservados como strings.
+Os campos documentais são definidos em [`src/schema.js`](../src/schema.js). Cada documento também contém `_identity`, `_document`, `_purchase` e `_raw`: identidade de negócio, identificadores originais por tipo, identificadores de itens (somente editais) e registro original normalizado. Valores monetários projetados são strings decimais, e ausências são `null`. Na projeção, o tipo fica em `tipo_documento`, derivado de `document_type` da fonte; `doc_type` é apenas metadado do índice. Nos dados originais e itens, inteiros seguros podem ser números; decimais e inteiros fora da faixa segura são preservados como strings.
 
 ## Domínios e sugestões
 
@@ -225,7 +225,7 @@ A interface consulta os itens em páginas de 10 registros ao abrir os detalhes e
 
 `service.call("documentRelated", {document, resource, page, size})` usa os mesmos identificadores de contratação e os parâmetros `page` e `size` dos itens. Ao abrir os detalhes, a interface inicia as primeiras páginas dessas listagens e dos itens em segundo plano, com até duas requisições simultâneas. Pede dez registros por página em todas as listagens dos painéis de editais, atas e contratos, incluindo os itens. Cada aba preserva seu próprio estado e permite repetir uma consulta que falhou. Trocar de aba não faz nova consulta; mudar sua página consulta novamente a fonte. Fechar os detalhes, abrir outra contratação ou trocar o tipo documental cancela chamadas ativas e pendentes.
 
-O painel usa o título da linha selecionada e começa na aba **Detalhes**, com 12 campos documentais. Seu contador indica os campos exibidos; os contadores das outras cinco abas indicam o total de registros informado pela fonte, independentemente da página atual. `…` indica carregamento; `—` indica falha ou identificação insuficiente. Zero é mostrado somente quando confirmado pela fonte. As abas podem ser percorridas por setas, Home e End; em telas menores, a barra permite rolagem horizontal. Os links externos ficam no cabeçalho junto ao botão de fechar.
+O painel usa o título da linha selecionada e começa na aba **Detalhes**, ou na aba indicada pelo link. Em uma contratação, Detalhes mostra 12 campos documentais; seu contador indica os campos exibidos. Os contadores das outras cinco abas indicam o total de registros informado pela fonte, independentemente da página atual. Um spinner indica carregamento; `—` indica falha ou identificação insuficiente. Zero é mostrado somente quando confirmado pela fonte. No desktop, as abas aceitam setas, Home e End; no mobile, um seletor de seções substitui as abas e conserva contagens e estado de carregamento. Os links externos ficam no cabeçalho junto ao botão de fechar. A contagem da página aparece ao final da listagem, à esquerda da paginação no desktop e acima dela no mobile.
 
 | Recurso | Campos em `data` | Serviço externo, relativo a `PNCP_DETAIL_BASE_URL` |
 | --- | --- | --- |
@@ -234,15 +234,15 @@ O painel usa o título da linha selecionada e começa na aba **Detalhes**, com 1
 | `contratos` | `numero`, `numero_controle_pncp`, `data_assinatura`, `vigencia_inicio`, `vigencia_fim`, `fornecedor_nome`, `valor_global`, `url` | `/orgaos/{cnpj}/contratos/contratacao/{ano}/{sequencial}` |
 | `historico` | `evento`, `nome`, `data_evento`, `justificativa` | `/orgaos/{cnpj}/compras/{ano}/{sequencial}/historico` e `/historico/quantidade` |
 
-Todos os serviços de página recebem `pagina` e `tamanhoPagina`. Arquivos e histórico retornam listas; atas e contratos retornam um objeto com `data` e `totalRegistros`. HTTP 204 na listagem equivale a uma página sem registros. Na listagem de **Contratos/Empenhos**, HTTP 404 do serviço PNCP também significa ausência de registros: a aplicação retorna uma lista vazia com total zero e a aba exibe `Contratos/Empenhos (0)`. Quantidade ausente, outros HTTP de erro, formato inesperado ou divergência entre página e total são reportados como erros. HTTP 404 nas demais listagens continua sendo erro, salvo nas listas de empenhos e instrumentos de cobrança de um contrato, descritas abaixo.
+Todos os serviços de página recebem `pagina` e `tamanhoPagina`. Arquivos e histórico retornam listas; atas e contratos retornam um objeto com `data` e `totalRegistros`. HTTP 204 na listagem é tratado como uma página vazia, que ainda precisa ser compatível com a contagem quando ela existe. Na listagem de **Contratos/Empenhos**, HTTP 404 do serviço PNCP também significa ausência de registros: a aplicação retorna uma lista vazia com total zero e a aba exibe `Contratos/Empenhos (0)`. Quantidade ausente, outros HTTP de erro, formato inesperado ou divergência entre página e total são reportados como erros. HTTP 404 nas demais listagens continua sendo erro, salvo nas listas de empenhos e instrumentos de cobrança de um contrato, descritas abaixo.
 
-A resposta da aplicação contém `api_version`, `request_id`, `source`, `resource`, `data`, `page`, `size`, `total`, `total_pages`, `has_more`, `complete`, `snapshot_guaranteed: false`, `queried_at` e `upstream_requests`. `complete` identifica a última página. `valor_global` preserva os decimais como string. `url` é `null` quando o link de download é inválido ou os identificadores do registro não permitem gerar um link de acesso. O link de ata usa o ano da compra presente no número de controle PNCP, que pode diferir de `anoAta`.
+A resposta de `documentRelated` contém `api_version`, `request_id`, `document_type`, `source`, `resource`, `data`, `page`, `size`, `total`, `total_pages`, `has_more`, `complete`, `snapshot_guaranteed: false`, `queried_at` e `upstream_requests`. O método `related`, restrito a contratações, usa o mesmo formato sem `document_type`. `complete` identifica a última página. `valor_global` preserva os decimais como string. `url` é `null` quando o link de download é inválido ou os identificadores do registro não permitem gerar um link de acesso. O link de ata usa o ano da compra presente no número de controle PNCP, que pode diferir de `anoAta`.
 
 O histórico apresenta o evento, o nome do documento quando fornecido, a data/hora e a justificativa. Uma justificativa ausente ou vazia é apresentada como `Exigência Legal`, seguindo o portal oficial. Textos são exibidos como texto; downloads aceitam apenas HTTP/HTTPS sem credenciais, e os links de atas e contratos apontam para o PNCP. Listagens não são consultadas durante pesquisa ou exportação. Quando faltam identificadores originais válidos, as seções mostram essa informação e não fazem requisições.
 
 A demonstração fornece arquivos, atas, contratos/empenhos e eventos fictícios, incluindo listas vazias, cancelamento, mais de uma página e valores monetários exatos. Seus links de documentos/registro são ilustrativos e não garantem a existência desses dados no PNCP.
 
-## Detalhes de atas e contratos
+## Detalhes completos de editais, atas e contratos
 
 `service.call("documentDetails", {document})` consulta os dados completos. Os identificadores são strings:
 
@@ -313,7 +313,8 @@ A ponte rejeita a promessa com um erro tipado. `status` é um código da aplica�
 
 | Código | Ação |
 | --- | --- |
-| `UNKNOWN_FIELD`, `INVALID_DOMAIN`, `INVALID_SIZE` | Corrigir os critérios |
+| `UNKNOWN_FIELD`, `INVALID_TYPE`, `INVALID_DATE`, `INVALID_DECIMAL`, `INVERTED_RANGE`, `INVALID_DOMAIN`, `INVALID_SIZE`, `INVALID_ORDER`, `INVALID_STATUS` | Corrigir os critérios |
+| `INVALID_URL_PARAMETERS`, `INVALID_DOCUMENT_IDENTITY`, `INVALID_PAGINATION` | Conferir o link, os identificadores e a paginação |
 | `DOCUMENT_FILTER_UNAVAILABLE`, `DOMAIN_UNAVAILABLE` | Conferir tipo documental e disponibilidade do domínio |
 | `SOURCE_CHANGED` | Repetir a coleta; a fonte mudou entre chamadas |
 | `PAGE_OUT_OF_RANGE`, `EXPORT_TOO_BROAD`, limites de recursos | Ajustar página, limites ou escopo da pesquisa |
