@@ -29,7 +29,7 @@ Em telas de até 700 px, o cabeçalho não exibe a marca. A primeira linha cont�
 
 Em **Mais → Visualização dos resultados**, escolha **Tabela** para comparar todas as colunas ou **Cartões** para retomar a leitura compacta. Essa escolha é mantida durante o uso da página; telas maiores sempre exibem a tabela. A seleção de colunas afeta a tabela; os cartões mantêm seus campos de resumo.
 
-A paginação mostra até cinco páginas numeradas e os botões de primeira, anterior, próxima e última página. No celular, os botões se distribuem por toda a largura disponível. Os filtros ocupam a tela, com atalhos **Ir para o grupo**, todos os campos disponíveis e ações fixas. Nos detalhes, um seletor substitui as abas e preserva suas contagens e o link compartilhável. O fechamento permanece acessível durante a rolagem; telas abaixo de 401 px exibem os campos de detalhes em uma coluna.
+A paginação mostra até cinco páginas numeradas e os botões de primeira, anterior, próxima e última página. No celular, os botões se distribuem por toda a largura disponível. Os filtros ocupam a tela, com todos os campos disponíveis em uma área rolável e ações fixas. Nos detalhes, um seletor substitui as abas e preserva suas contagens e o link compartilhável. O fechamento permanece acessível durante a rolagem; telas abaixo de 401 px exibem os campos de detalhes em uma coluna.
 
 ### Detalhes dos documentos
 

@@ -79,7 +79,7 @@ try {
   assert.match(await control('details-section').locator('.select-value').innerText(),/^Histórico \(\d+\)$/);
   await control('details-section').click();await bounded();await control('details-section').press('Escape');
   await page.locator('#details-dialog .close-dialog').click();
-  await page.locator('#filters-button').click();await choose('filter-group-jump','filters-basics');
+  await page.locator('#filters-button').click();
   await control('draft-status').click();await page.locator('.filters-body').evaluate(node=>{node.scrollTop=10000;});
   await page.waitForFunction(()=>document.querySelectorAll('.select-menu:popover-open').length===0);
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();

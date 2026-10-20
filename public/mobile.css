@@ -46,8 +46,6 @@
   .filters-modal>.dialog-header{margin-bottom:10px;align-items:flex-start;gap:10px}
   .filters-modal .eyebrow{display:none}
   .filters-modal .dialog-header h2{font-size:1.0625rem;line-height:1.4;margin:0}
-  .filter-group-jump{display:flex;flex-shrink:0;flex-direction:row;align-items:center;gap:10px;margin:0 0 12px;font-size:.8125rem;white-space:nowrap}
-  .filter-group-jump select{width:100%;min-width:0}
   .filters-body{padding-right:2px;scroll-padding-top:8px}
   .filters-body>.panel-note{font-size:.8125rem;margin-bottom:12px;line-height:1.5}
   .filter-grid,.filters-basics{grid-template-columns:minmax(0,1fr)}

@@ -82,17 +82,16 @@ try {
     await page.locator('#details-dialog .close-dialog').click();
     await page.locator('#filters-button').click();assert.equal(await page.locator('#filter-groups .filter-field').count(),count);
     assert.equal(await page.locator('#filters-dialog').evaluate(node=>Math.round(node.getBoundingClientRect().width)),360);
-    const options=await page.locator('#filter-group-jump option').evaluateAll(options=>options.map(option=>option.value));
-    await page.locator('#filter-group-jump').selectOption(options.at(-1));
+    assert.equal(await page.locator('#filter-group-jump').count(),0);
+    await page.locator('#filter-groups .filter-field').last().scrollIntoViewIfNeeded();
     assert.equal(await page.locator('.filters-body').evaluate(node=>node.scrollTop>0),true);
     await fits('#apply-filters',{height:true,touch:true});await fits('#filters-dialog .close-dialog[aria-label="Fechar"]',{height:true,touch:true});
-    await page.locator('#filter-group-jump').selectOption('filters-basics');
+    await page.locator('.filters-body').evaluate(node=>{node.scrollTop=0;});
     await page.locator('#draft-search').fill('descartar');await page.locator('#filters-dialog .dialog-footer .close-dialog').click();
     assert.equal(await page.locator('#search').inputValue(),'');
   }
   await page.locator('#document-type').selectOption('edital');await ready();
   await page.locator('#filters-button').click();
-  await page.locator('#filter-group-jump').selectOption({label:'Contratação'});
   await page.locator('#filter-ufs:not(:disabled)').click();
   await page.locator('#filter-suggestions-ufs [data-value="DF"]').click();await fits('#apply-filters',{height:true});
   await page.locator('#apply-filters').click();await ready();assert.equal(new URL(page.url()).searchParams.get('ufs'),'DF');

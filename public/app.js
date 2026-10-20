@@ -367,7 +367,6 @@ async function openFilters(column=null) {
   renderFilterStatuses();
   $('draft-search').value=state.draft.q;$('draft-status').value=state.draft.status;
   filterFields.clear();$('filter-groups').replaceChildren();$('filter-popups').replaceChildren();
-  const jump=$('filter-group-jump'),general=el('option','Filtros gerais');general.value='filters-basics';jump.replaceChildren(general);jump.value=general.value;
   $('filters-title').textContent=`Filtros · ${documentName().label}`;
   openDialog('filters-dialog');
   const controller=new AbortController();state.domainAbort=controller;
@@ -377,8 +376,6 @@ async function openFilters(column=null) {
     const caps=state.schema.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.group===groupName && c.documents.includes(state.draft.document_type));
     if(!caps.length)continue;
     const group=el('fieldset',undefined,'filter-group'),legend=el('legend',groupName==='Contratação' && state.draft.document_type!=='edital'?'Documento':groupName==='Contrato' && state.draft.document_type==='ata'?'Ata':groupName);
-    group.id=`filter-group-${caps[0].name}`;group.tabIndex=-1;
-    const option=el('option',legend.textContent);option.value=group.id;jump.append(option);
     group.append(legend);
     if(groupName==='Item' && state.draft.document_type==='edital')group.append(el('p','Filtros de itens, resultados e fornecedores selecionam contratações. Os detalhes mostram todos os itens, inclusive os que não correspondem ao filtro. Condições diferentes podem corresponder a itens ou resultados diferentes.','panel-note'));
     const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);
@@ -856,9 +853,6 @@ async function init() {
   $('apply-filters').addEventListener('click',()=>{if(state.legalPending || state.legalError)return;state.draft.q=$('draft-search').value;state.draft.status=$('draft-status').value;state.query=clone(state.draft);$('search').value=state.query.q;$('filters-dialog').close();updateCriteria();return execute();});
   $('filters-dialog').addEventListener('close',()=>{stopFilterEditors();state.legalAbort?.abort();state.legalSeq++;});
   document.addEventListener('select-menu-open',closeFilterDropdown);
-  $('filter-group-jump').addEventListener('change',()=>{
-    closeFilterDropdown();const group=$($('filter-group-jump').value);group?.scrollIntoView({block:'start'});group?.focus({preventScroll:true});
-  });
   document.addEventListener('pointerdown',event=>{if(openFilterEditor && event.target!==openFilterEditor.input && !openFilterEditor.suggestions.contains(event.target))closeFilterDropdown();});
   $('filters-dialog').querySelector('.filters-body')?.addEventListener('scroll',positionFilterDropdown);
   window.addEventListener('resize',closeFilterDropdown);
