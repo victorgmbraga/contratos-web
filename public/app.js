@@ -612,7 +612,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
   retry.hidden=true;toolbar.append(retry);
   const pagination=createPagination({document,className:'item-pager',label:`Paginação de ${title}`,subject:title,hideSinglePage:true,onPageChange:load}),pager=pagination.element;
   retry.setAttribute('aria-label',`Consultar ${title} novamente`);
-  status.setAttribute('role','status');section.append(heading,toolbar,status,list,pager);
+  status.setAttribute('role','status');section.append(heading,toolbar,list,status,pager);
   let loaded=false,page=1,untilEmpty=false,controller=null,seq=0;
   const showFields=(card,fields)=>{const values=el('dl',undefined,'related-values');for(const [name,value]of fields){const field=el('div');field.append(el('dt',name),el('dd',value ?? '—'));values.append(field);}card.append(values);};
   async function load(target) {
@@ -753,7 +753,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   }
   if(kind==='edital'){
   const section=el('section',undefined,'items-section'),toolbar=el('div',undefined,'items-toolbar'),retry=el('button','Tentar consultar itens','button small'),itemsTitle=el('h3','Itens da contratação');retry.hidden=true;toolbar.append(itemsTitle,retry);section.append(toolbar);
-  const itemStatus=el('p','Preparando consulta de itens…','items-status'),list=el('div'),pagination=createPagination({document,className:'item-pager',label:'Paginação de Itens',subject:'Itens',hideSinglePage:true,onPageChange:itemPage}),pager=pagination.element;section.append(itemStatus,list,pager);
+  const itemStatus=el('p','Preparando consulta de itens…','items-status'),list=el('div',undefined,'items-list'),pagination=createPagination({document,className:'item-pager',label:'Paginação de Itens',subject:'Itens',hideSinglePage:true,onPageChange:itemPage}),pager=pagination.element;section.append(list,itemStatus,pager);
   itemStatus.setAttribute('role','status');
   const updateItems=addTab('itens','Itens',section);
   let page=1,controller=null,itemsLoaded=false,itemSeq=0;

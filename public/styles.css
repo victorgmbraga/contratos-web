@@ -204,7 +204,8 @@ dialog select[multiple]{min-height:155px}
 .detail-grid dd{font-size:.875rem;margin:0;overflow-wrap:anywhere;line-height:1.5}
 .related-extra{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .related-extra .related-card{background:var(--surface-subtle,#f7fafc)}
-.items-section{border:0}
+.items-section,.related-section{border:0;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:center}
+.items-toolbar,.items-list,.related-list{grid-column:1/-1;min-width:0}
 .items-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .items-section h3{font-size:1rem;margin:0;position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .item-card{border:1px solid var(--border,#d4dfeb);border-radius:7px;padding:13px;margin:10px 0}
@@ -215,10 +216,9 @@ dialog select[multiple]{min-height:155px}
 .item-values dt{font-size:.75rem;color:var(--text-muted,#6c7e8f);margin-bottom:4px}
 .item-values dd{font-size:.875rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--heading,#295575);margin:0;overflow-wrap:anywhere;line-height:1.5}
 .item-pager{margin:13px 0}
-.items-status{font-size:.8125rem;color:var(--text-muted,#61768b);margin:0 0 16px;line-height:1.5}
+.items-status{font-size:.8125rem;color:var(--text-muted,#61768b);margin:13px 0;line-height:1.5;min-width:0;overflow-wrap:anywhere}
 .items-toolbar{justify-content:flex-end}
 .items-toolbar:has(button:not([hidden])){margin-bottom:12px}
-.related-section{border:0}
 .related-card{border:1px solid var(--border,#d4dfeb);border-radius:7px;padding:13px;margin:10px 0;overflow-wrap:anywhere}
 .related-card h4{font-size:.875rem;margin:0 0 12px;color:var(--heading,#295575)}
 .related-card a{display:inline-block;font-size:.875rem;margin-top:12px}

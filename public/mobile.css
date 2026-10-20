@@ -74,6 +74,9 @@
   .detail-section-choice select{flex:1;min-width:0;width:100%;padding-right:26px}
   .detail-section-choice>.detail-tab-spinner{position:absolute;right:24px;background:var(--surface,white);pointer-events:none}
   .detail-grid{gap:16px}
+  .items-section,.related-section{grid-template-columns:minmax(0,1fr)}
+  .items-status{margin:10px 0 8px}
+  .item-pager{margin:0 0 13px}
   [role="tabpanel"]{padding-top:18px}
 }
 @media(max-width:400px){

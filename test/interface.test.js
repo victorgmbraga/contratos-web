@@ -188,24 +188,24 @@ test('DETAIL-TABS-03: abertura é imediata e consulta as cinco listas com no má
 test('RELATED-UI-01: quatro abas carregam em background e exibem dados e links corretos',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(document(1)));
   const sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');assert.equal(sections.length,4);assert.equal(ui.relatedRequests.length,4);
-  for(const section of sections){assert.equal(section.hidden,true);assert.match(section.children[0].textContent,/\(\d+\)$/);assert(section.children[3].children.length>0);assert.equal(section.getAttribute('aria-busy'),'false');}
+  for(const section of sections){assert.equal(section.hidden,true);assert.match(section.children[0].textContent,/\(\d+\)$/);assert(section.children[2].children.length>0);assert.equal(section.getAttribute('aria-busy'),'false');}
   assert.equal(ui.relatedRequests.length,4);
-  const files=sections.find(s=>s.dataset.resource==='arquivos');assert.equal(files.children[3].children[0].children.at(-1).textContent,'Baixar arquivo');assert.match(files.children[3].children[0].children.at(-1).href,/\/arquivos\/1$/);
-  const atas=sections.find(s=>s.dataset.resource==='atas');assert.match(atas.children[3].children[0].children.at(-1).href,/\/app\/atas\//);
-  const contracts=sections.find(s=>s.dataset.resource==='contratos');assert.match(contracts.children[3].children[1].children[1].children.at(-1).children[1].textContent,/9\.007\.199\.254\.740\.993,12345/);
-  const history=sections.find(s=>s.dataset.resource==='historico');assert(history.children[3].children[1].children[1].children.some(field=>field.children[1].textContent==='Exigência Legal'));
+  const files=sections.find(s=>s.dataset.resource==='arquivos');assert.equal(files.children[2].children[0].children.at(-1).textContent,'Baixar arquivo');assert.match(files.children[2].children[0].children.at(-1).href,/\/arquivos\/1$/);
+  const atas=sections.find(s=>s.dataset.resource==='atas');assert.match(atas.children[2].children[0].children.at(-1).href,/\/app\/atas\//);
+  const contracts=sections.find(s=>s.dataset.resource==='contratos');assert.match(contracts.children[2].children[1].children[1].children.at(-1).children[1].textContent,/9\.007\.199\.254\.740\.993,12345/);
+  const history=sections.find(s=>s.dataset.resource==='historico');assert(history.children[2].children[1].children[1].children.some(field=>field.children[1].textContent==='Exigência Legal'));
   await ui.nodes.get('detail-tab-arquivos').fire('click');assert.equal(files.hidden,false);assert.equal(ui.relatedRequests.length,4);
 });
 test('RELATED-UI-02: paginação de arquivos e histórico é independente dos itens e das outras seções',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(document(1)));const sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');
-  for(const resource of ['arquivos','historico']){const section=sections.find(s=>s.dataset.resource===resource);await ui.nodes.get(`detail-tab-${resource}`).fire('click');const pager=section.children[4];assert.equal(pager.hidden,false);await paginationButton(pager,'next').fire('click');assert.equal(section.children[3].children.length,2);assert.equal(paginationButton(pager,'next').disabled,true);assert.equal(paginationButton(pager,2).getAttribute('aria-current'),'page');await paginationButton(pager,'first').fire('click');assert.equal(section.children[3].children.length,10);}
+  for(const resource of ['arquivos','historico']){const section=sections.find(s=>s.dataset.resource===resource);await ui.nodes.get(`detail-tab-${resource}`).fire('click');const pager=section.children[4];assert.equal(pager.hidden,false);await paginationButton(pager,'next').fire('click');assert.equal(section.children[2].children.length,2);assert.equal(paginationButton(pager,'next').disabled,true);assert.equal(paginationButton(pager,2).getAttribute('aria-current'),'page');await paginationButton(pager,'first').fire('click');assert.equal(section.children[2].children.length,10);}
   assert.equal(ui.itemRequests.length,1);assert.equal(ui.relatedRequests.length,8);assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (12)');assert.equal(ui.nodes.get('detail-tab-historico').textContent,'Histórico (12)');
 });
 test('RELATED-UI-03: falha em uma listagem permite repetir e não impede as outras',async()=>{
   let failures=1;const ui=await interfaceFixture({relatedHandler:async(payload,options,core)=>{if(payload.resource==='arquivos' && failures-->0)throw new Error('Arquivos indisponíveis.');return core.documentRelated(payload.document,payload.resource,payload.page,payload.size,options.signal);}});
-  await ui.openDocument(project(document(1)));const sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section'),files=sections[0];assert.equal(files.children[1].children[0].hidden,false);assert.equal(files.children[2].textContent,'Arquivos indisponíveis.');assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (—)');
-  const atas=sections[1];assert.equal(atas.children[3].children.length,3);assert.equal(ui.nodes.get('detail-tab-atas').textContent,'Atas de Registro de Preço (3)');
-  await files.children[1].children[0].fire('click');assert.equal(files.children[3].children.length,10);assert.equal(files.children[1].children[0].hidden,true);assert.equal(ui.itemRequests.length,1);
+  await ui.openDocument(project(document(1)));const sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section'),files=sections[0];assert.equal(files.children[1].children[0].hidden,false);assert.equal(files.children[3].textContent,'Arquivos indisponíveis.');assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (—)');
+  const atas=sections[1];assert.equal(atas.children[2].children.length,3);assert.equal(ui.nodes.get('detail-tab-atas').textContent,'Atas de Registro de Preço (3)');
+  await files.children[1].children[0].fire('click');assert.equal(files.children[2].children.length,10);assert.equal(files.children[1].children[0].hidden,true);assert.equal(ui.itemRequests.length,1);
 });
 
 test('RELATED-PAGES-01: páginas numeradas, limites e falha preservam a página confirmada de cada lista',async()=>{
@@ -220,12 +220,12 @@ test('RELATED-PAGES-01: páginas numeradas, limites e falha preservam a página 
   const pages=()=>pager.children[2].children.map(button=>button.dataset.page);
   assert.deepEqual(pages(),['1','2','3','4','5']);assert.equal(paginationButton(pager,'first').disabled,true);
   await paginationButton(pager,5).fire('click');assert.deepEqual(pages(),['3','4','5','6','7']);
-  assert.match(section.children[3].children[0].children[0].textContent,/página 5/);
+  assert.match(section.children[2].children[0].children[0].textContent,/página 5/);
   fail=true;const pending=paginationButton(pager,6).fire('click');await tick();
   assert.equal(pager.getAttribute('aria-busy'),'true');assert.equal(paginationButton(pager,'last').disabled,true);assert.equal(paginationButton(pager,5).disabled,true);
   release();await pending;
   assert.equal(paginationButton(pager,5).getAttribute('aria-current'),'page');assert.equal(paginationButton(pager,'next').disabled,false);assert.equal(pager.getAttribute('aria-busy'),'false');
-  assert.equal(section.children[2].textContent,'Página indisponível.');
+  assert.equal(section.children[3].textContent,'Página indisponível.');
   fail=false;await paginationButton(pager,'last').fire('click');assert.deepEqual(pages(),['6','7','8','9','10']);
   assert.equal(paginationButton(pager,10).getAttribute('aria-current'),'page');assert.equal(paginationButton(pager,'next').disabled,true);assert.equal(paginationButton(pager,'last').disabled,true);
   await paginationButton(pager,'first').fire('click');assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');
@@ -233,14 +233,14 @@ test('RELATED-PAGES-01: páginas numeradas, limites e falha preservam a página 
 });
 test('RELATED-UI-04: HTTP 404 de contratos exibe zero, listas vazias e ausência de identificação são tratadas',async()=>{
   const ui=await interfaceFixture({itemFetcher:url=>url.includes('/contratos/contratacao/')?Promise.resolve(new Response(null,{status:404})):demoFetch(url)});await ui.openDocument(project(document(5)));let sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');
-  for(const section of sections){assert.match(section.children[3].children[0].textContent,/Nenhum registro/);assert.equal(section.children[4].hidden,true);assert.match(ui.nodes.get(`detail-tab-${section.dataset.resource}`).textContent,/\(0\)$/);}
+  for(const section of sections){assert.match(section.children[2].children[0].textContent,/Nenhum registro/);assert.equal(section.children[4].hidden,true);assert.match(ui.nodes.get(`detail-tab-${section.dataset.resource}`).textContent,/\(0\)$/);}
   assert.equal(ui.nodes.get('detail-tab-contratos').textContent,'Contratos/Empenhos (0)');assert.equal(ui.nodes.get('detail-tab-contratos').dataset.state,'loaded');assert.equal(ui.nodes.get('detail-panel-contratos').children[1].children[0].hidden,true);
-  const count=ui.relatedRequests.length;await ui.openDocument(project(document(1,{numero_sequencial:null})));sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');for(const section of sections){assert.match(section.children[2].textContent,/não forneceu CNPJ/);assert.match(ui.nodes.get(`detail-tab-${section.dataset.resource}`).textContent,/\(—\)$/);}assert.equal(ui.relatedRequests.length,count);
+  const count=ui.relatedRequests.length;await ui.openDocument(project(document(1,{numero_sequencial:null})));sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');for(const section of sections){assert.match(section.children[3].textContent,/não forneceu CNPJ/);assert.match(ui.nodes.get(`detail-tab-${section.dataset.resource}`).textContent,/\(—\)$/);}assert.equal(ui.relatedRequests.length,count);
 });
 test('RELATED-UI-05: fechar os detalhes cancela todas as consultas e descarta uma resposta atrasada',async()=>{
   const resolutions=[],signals=[];const ui=await interfaceFixture({relatedHandler:(payload,options,core)=>{if(payload.document.sequencial==='1'){signals.push(options.signal);return new Promise(resolve=>resolutions.push(resolve));}return core.documentRelated(payload.document,payload.resource,payload.page,payload.size,options.signal);}});
   const pending=ui.openDocument(project(document(1)));await settle();const section=ui.nodes.get('details-content').children.find(n=>n.className==='related-section');ui.nodes.get('details-dialog').close();assert(signals.length>0);assert(signals.every(signal=>signal.aborted));
-  await ui.openDocument(project(document(2)));for(const resolve of resolutions)resolve(({page:1,size:10,data:[{titulo:'Resposta antiga'}],total:1,total_pages:1,has_more:false}));await pending;assert.equal(section.children[3].children.length,0);assert(!ui.all.some(n=>n.textContent==='Resposta antiga'));assert(!ui.relatedRequests.some(p=>p.document.sequencial==='1' && ['contratos','historico'].includes(p.resource)));
+  await ui.openDocument(project(document(2)));for(const resolve of resolutions)resolve(({page:1,size:10,data:[{titulo:'Resposta antiga'}],total:1,total_pages:1,has_more:false}));await pending;assert.equal(section.children[2].children.length,0);assert(!ui.all.some(n=>n.textContent==='Resposta antiga'));assert(!ui.relatedRequests.some(p=>p.document.sequencial==='1' && ['contratos','historico'].includes(p.resource)));
 });
 
 test('HEADER-UI-01: ordenação e todas as ações dos resultados ficam no cabeçalho',async()=>{
@@ -658,7 +658,7 @@ test('DETAILS-UI-04: mostra 109 itens e mantém a última página sem oferecer u
   }});
   await ui.openDocument(project(document(1)));
   const section=ui.nodes.get('details-content').children.find(n=>n.className==='items-section');
-  const [toolbar,itemStatus,list,pager]=section.children,previous=()=>paginationButton(pager,'prev'),next=()=>paginationButton(pager,'next');
+  const [toolbar,list,itemStatus,pager]=section.children,previous=()=>paginationButton(pager,'prev'),next=()=>paginationButton(pager,'next');
   assert.equal(toolbar.children[0].textContent,'Itens da contratação (109)');
   assert.match(itemStatus.textContent,/Itens 1–100 de 109/);assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');
   assert.equal(previous().disabled,true);assert.equal(next().disabled,false);
@@ -678,7 +678,7 @@ test('DETAILS-UI-04: mostra 109 itens e mantém a última página sem oferecer u
 test('DETAILS-UI-05: contratação sem itens mostra total zero e oculta a paginação',async()=>{
   const ui=await interfaceFixture({itemFetcher:url=>new URL(url).pathname.endsWith('/itens/quantidade')?Promise.resolve((0)):demoFetch(url)});
   await ui.openDocument(project(document(1)));
-  const section=ui.nodes.get('details-content').children.find(n=>n.className==='items-section'),[toolbar,itemStatus,list,pager]=section.children;
+  const section=ui.nodes.get('details-content').children.find(n=>n.className==='items-section'),[toolbar,list,itemStatus,pager]=section.children;
   assert.equal(toolbar.children[0].textContent,'Itens da contratação (0)');assert.match(itemStatus.textContent,/0 itens/);
   assert.equal(list.children[0].textContent,'Esta contratação não possui itens.');assert.equal(pager.hidden,true);
 });
@@ -696,8 +696,8 @@ test('DETAIL-PAGES-01: itens permitem saltar páginas e alcançar os limites man
   await ui.openDocument(project(document(1)));
   const section=ui.nodes.get('detail-panel-itens'),pager=section.children[3],pages=()=>pager.children[2].children.map(button=>button.dataset.page);
   assert.deepEqual(pages(),['1','2','3','4','5']);
-  await paginationButton(pager,5).fire('click');assert.deepEqual(pages(),['3','4','5','6','7']);assert.match(section.children[1].textContent,/Itens 401–500 de 905/);
-  await paginationButton(pager,'last').fire('click');assert.deepEqual(pages(),['6','7','8','9','10']);assert.equal(section.children[2].children.length,5);assert.equal(paginationButton(pager,'last').disabled,true);
+  await paginationButton(pager,5).fire('click');assert.deepEqual(pages(),['3','4','5','6','7']);assert.match(section.children[2].textContent,/Itens 401–500 de 905/);
+  await paginationButton(pager,'last').fire('click');assert.deepEqual(pages(),['6','7','8','9','10']);assert.equal(section.children[1].children.length,5);assert.equal(paginationButton(pager,'last').disabled,true);
   await paginationButton(pager,'prev').fire('click');assert.equal(paginationButton(pager,9).getAttribute('aria-current'),'page');
   await paginationButton(pager,'first').fire('click');assert.equal(paginationButton(pager,'prev').disabled,true);assert.deepEqual(requests,[1,5,10,9,1]);
 });
@@ -1040,7 +1040,7 @@ test('CONTRACTS-UI-04: os dados nativos e cinco listas do contrato carregam ante
 test('CONTRACTS-UI-05: arquivos de termos e detalhes de empenhos/instrumentos consultam somente o filho escolhido',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(demoContracts[0]));assert.equal(ui.childRequests.length,0);
   for(const resource of ['termos','empenhos','instrumentocobranca']){
-    await ui.nodes.get(`detail-tab-${resource}`).fire('click');const card=ui.nodes.get(`detail-panel-${resource}`).children[3].children[0],button=card.children[2],extra=card.children[3];
+    await ui.nodes.get(`detail-tab-${resource}`).fire('click');const card=ui.nodes.get(`detail-panel-${resource}`).children[2].children[0],button=card.children[2],extra=card.children[3];
     await button.fire('click');assert.equal(extra.hidden,false);assert.equal(button.getAttribute('aria-expanded'),'true');assert(extra.children.length>0);
     assert.deepEqual(ui.childRequests.at(-1),{document:{type:'contrato',cnpj:'00000000000000',ano:'2026',sequencial:'1'},resource,sequence:'1'});
     await button.fire('click');assert.equal(extra.hidden,true);await button.fire('click');assert.equal(extra.hidden,false);
@@ -1054,7 +1054,7 @@ test('CONTRACTS-UI-06: HTTP 404 de empenhos e instrumentos de cobrança exibe ab
   for(const [resource,title]of [['empenhos','Empenhos'],['instrumentocobranca','Instrumentos de cobrança']]){
     const tab=ui.nodes.get(`detail-tab-${resource}`),panel=ui.nodes.get(`detail-panel-${resource}`);
     assert.equal(tab.textContent,`${title} (0)`);assert.equal(tab.dataset.state,'loaded');assert.equal(panel.children[1].children[0].hidden,true);
-    assert.match(panel.children[2].textContent,/^0 registros/);assert.equal(panel.children[3].children[0].textContent,`Nenhum registro em ${title}.`);assert.equal(panel.children[4].hidden,true);
+    assert.match(panel.children[3].textContent,/^0 registros/);assert.equal(panel.children[2].children[0].textContent,`Nenhum registro em ${title}.`);assert.equal(panel.children[4].hidden,true);
     await tab.fire('click');assert.equal(panel.hidden,false);
   }
   assert.equal(ui.nodes.get('detail-tab-termos').dataset.state,'loaded');assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (12)');assert.equal(ui.nodes.get('detail-tab-historico').textContent,'Histórico (12)');assert.equal(ui.relatedRequests.length,5);
@@ -1084,11 +1084,11 @@ test('CONTRACTS-UI-08: histórico com total desconhecido preserva navegação ma
   const tab=ui.nodes.get('detail-tab-historico'),panel=ui.nodes.get('detail-panel-historico'),pager=panel.children[4];
   assert.equal(pager.children.length,3);assert.equal(paginationButton(pager,'first'),undefined);assert.equal(paginationButton(pager,'last'),undefined);assert.equal(paginationButton(pager,1),undefined);
   assert.equal(tab.textContent,'Histórico (?)');assert.equal(tab.dataset.state,'loaded');assert.equal(panel.children[0].textContent,'Histórico (?)');assert.equal(panel.children[1].children[0].hidden,true);
-  assert.match(panel.children[2].textContent,/Quantidade desconhecida/);assert.equal(panel.children[3].children.length,2);assert.equal(pager.hidden,false);assert.equal(pager.children[1].textContent,'Página 1');assert.equal(pager.children[0].disabled,true);assert.equal(pager.children[2].disabled,false);
-  await pager.children[2].fire('click');assert.equal(pager.children[1].textContent,'Página 2');assert.equal(panel.children[3].children.length,1);assert.equal(pager.children[2].disabled,false);assert.equal(tab.textContent,'Histórico (?)');
+  assert.match(panel.children[3].textContent,/Quantidade desconhecida/);assert.equal(panel.children[2].children.length,2);assert.equal(pager.hidden,false);assert.equal(pager.children[1].textContent,'Página 1');assert.equal(pager.children[0].disabled,true);assert.equal(pager.children[2].disabled,false);
+  await pager.children[2].fire('click');assert.equal(pager.children[1].textContent,'Página 2');assert.equal(panel.children[2].children.length,1);assert.equal(pager.children[2].disabled,false);assert.equal(tab.textContent,'Histórico (?)');
   assert.equal(ui.relatedRequests.at(-1).pagination_mode,'until_empty');
-  await pager.children[2].fire('click');assert.equal(pager.children[1].textContent,'Página 3');assert.equal(pager.children[2].disabled,true);assert.equal(pager.children[0].disabled,false);assert.equal(pager.hidden,false);assert.match(panel.children[3].children[0].textContent,/Nenhum registro/);assert.match(panel.children[2].textContent,/Fim do histórico/);assert.equal(counts,1);
-  await pager.children[0].fire('click');assert.equal(pager.children[1].textContent,'Página 2');assert.equal(panel.children[3].children.length,1);assert.equal(pager.children[2].disabled,false);
+  await pager.children[2].fire('click');assert.equal(pager.children[1].textContent,'Página 3');assert.equal(pager.children[2].disabled,true);assert.equal(pager.children[0].disabled,false);assert.equal(pager.hidden,false);assert.match(panel.children[2].children[0].textContent,/Nenhum registro/);assert.match(panel.children[3].textContent,/Fim do histórico/);assert.equal(counts,1);
+  await pager.children[0].fire('click');assert.equal(pager.children[1].textContent,'Página 2');assert.equal(panel.children[2].children.length,1);assert.equal(pager.children[2].disabled,false);
   await ui.openDocument(project(demoContracts[1]));assert.equal(ui.nodes.get('detail-tab-historico').textContent,'Histórico (12)');assert.equal(ui.relatedRequests.at(-1).pagination_mode,undefined);
 });
 
@@ -1113,7 +1113,7 @@ test('DOCUMENTS-UI-03: ausência de identificadores originais preserva campos da
 
 test('DOCUMENTS-UI-04: falha em arquivos de termo fica visível e uma nova tentativa consulta somente esse registro',async()=>{
   let failed=true;const ui=await interfaceFixture({itemFetcher:url=>url.includes('/termos/1/arquivos') && failed?Promise.resolve(new Response(null,{status:503})):demoFetch(url)});
-  await ui.openDocument(project(demoContracts[0]));const card=ui.nodes.get('detail-panel-termos').children[3].children[0],button=card.children[2],extra=card.children[3];
+  await ui.openDocument(project(demoContracts[0]));const card=ui.nodes.get('detail-panel-termos').children[2].children[0],button=card.children[2],extra=card.children[3];
   await button.fire('click');assert.equal(extra.hidden,false);assert.equal(button.getAttribute('aria-expanded'),'true');assert.match(extra.children[0].textContent,/PNCP/);assert.equal(button.textContent,'Tentar novamente');
   failed=false;await button.fire('click');assert.equal(extra.hidden,false);assert.equal(extra.children.length,2);assert.equal(ui.childRequests.length,2);assert.equal(ui.relatedRequests.length,5);
 });
