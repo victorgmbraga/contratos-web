@@ -209,6 +209,19 @@ test('RELATED-UI-03: falha em uma listagem permite repetir e não impede as outr
   await files.children[1].children[0].fire('click');assert.equal(files.children[2].children.length,10);assert.equal(files.children[1].children[0].hidden,true);assert.equal(ui.itemRequests.length,1);
 });
 
+test('RELATED-UI-06: data não reconhecida conserva os registros recebidos e o texto da fonte',async()=>{
+  const ui=await interfaceFixture({relatedHandler:async(payload,options,core)=>{
+    const result=await core.documentRelated(payload.document,payload.resource,payload.page,payload.size,options.signal);
+    if(payload.resource==='arquivos')result.data[0].data_publicacao='Data não informada';
+    return result;
+  }});
+  await ui.openDocument(project(document(1)));
+  assert.equal(ui.nodes.get('detail-tab-arquivos').dataset.state,'loaded');
+  assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (12)');
+  assert.equal(ui.nodes.get('detail-panel-arquivos').children[2].children.length,10);
+  assert(ui.all.some(node=>node.textContent==='Data não informada'));
+});
+
 test('RELATED-PAGES-01: páginas numeradas, limites e falha preservam a página confirmada de cada lista',async()=>{
   let fail=false,release;
   const ui=await interfaceFixture({relatedHandler:async(payload,options,core)=>{

@@ -23,8 +23,9 @@ const purchaseStatusClasses=new Map([
   ['suspensa','status-cell--suspensa'],
 ]);
 const filterHeaderIcon='<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M7 12h10m-7 5h4"/></svg>';
-const fmtInt = value => new Intl.NumberFormat('pt-BR').format(value);
-const time = value => value ? new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'medium'}).format(new Date(value)) : '—';
+const integerFormatter=new Intl.NumberFormat('pt-BR'),timeFormatter=new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'medium'});
+const fmtInt = value => integerFormatter.format(value);
+const time = value => {if(!value)return '—';const parsed=new Date(value);return Number.isNaN(parsed.getTime())?String(value):timeFormatter.format(parsed);};
 const date = value => value ? (/^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0,10).split('-').reverse().join('/') : value) : '—';
 function quantity(value) {
   if(value===null || value===undefined)return '—';
@@ -683,6 +684,11 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   const schedule=detailScheduler(),loads=[],tabs=[];
   const content=$('details-content'),links=$('details-links');content.replaceChildren(...(links.parentElement===content?[links]:[]));
   const objectSummary=el('p',doc.objeto_compra ?? (doc._detail_from_url?'Carregando detalhes do documento…':'Objeto não informado.'),'detail-object');content.append(objectSummary);
+  const more=el('button','Ver descrição completa','text-button detail-object-more');more.type='button';more.hidden=true;more.setAttribute('aria-haspopup','dialog');more.setAttribute('aria-controls','description-dialog');content.append(more);
+  const updateSummary=()=>{more.hidden=!(window.matchMedia?.('(min-width:701px)').matches && objectSummary.scrollHeight>objectSummary.clientHeight+1);};
+  const summaryObserver=window.ResizeObserver?new window.ResizeObserver(updateSummary):null;summaryObserver?.observe(objectSummary);
+  detailController.signal.addEventListener('abort',()=>{summaryObserver?.disconnect();if($('description-dialog').open)$('description-dialog').close();},{once:true});
+  more.addEventListener('click',()=>{$('description-content').textContent=objectSummary.textContent;openDialog('description-dialog');});
   const kind=doc.tipo_documento,names=documentName(kind);
   $('details-kind').textContent=doc.titulo ?? '—';
   $('details-dialog').setAttribute('aria-label',`Detalhes: ${names.singular}`);
@@ -739,7 +745,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
         const data=await schedule(async()=>{detailStatus.textContent='Consultando detalhes no PNCP…';return service.call('documentDetails',{document:detailIdentity(doc)},{signal:detailController.signal});},detailController.signal);
         if(token!==state.detailSeq)return;
         const holder=el('div');grid=appendFields(holder,data.fields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);
-        updateDetails(data.fields.length,'loaded');if(data.objeto)objectSummary.textContent=data.objeto;else if(doc._detail_from_url)objectSummary.textContent='Objeto não informado.';
+        updateDetails(data.fields.length,'loaded');if(data.objeto)objectSummary.textContent=data.objeto;else if(doc._detail_from_url)objectSummary.textContent='Objeto não informado.';updateSummary();
         if(doc._detail_from_url){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=indexed?.titulo || data.titulo || doc.titulo;}
         if(data.link_sistema_origem && !doc.link_sistema_origem){const link=safeAnchor('Sistema de origem',data.link_sistema_origem);if(link)links.append(link);}
         detailStatus.textContent='';detailStatus.hidden=true;

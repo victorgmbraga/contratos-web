@@ -2,7 +2,7 @@ name: Validar aplicação estática
 on:
   push:
     branches:
-      - refactor/substituir-tabulator-lossless-json
+      - main
   pull_request:
     branches:
       - main

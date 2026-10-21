@@ -9,6 +9,8 @@ export function createResultsTable({container, columns = [], renderCell, renderC
   const lifetime = new window.AbortController(), {signal} = lifetime;
   let fields = [], rows = [], page = 1, lastPage = 1, busy = false, destroyed = false, menu = null, gesture = null;
   let rowViews = [];
+  let cardsDirty = true;
+  const mobile = renderCard ? window.matchMedia('(max-width:700px)') : null;
   const originalFooterParent = footerContent?.parentNode;
   const node = (tag, className, text) => {
     const element = document.createElement(tag);
@@ -181,7 +183,15 @@ export function createResultsTable({container, columns = [], renderCell, renderC
     rowViews = nextViews; empty.hidden = rows.length > 0 && visible.length > 0;
     if (!visible.length && rows.length) { empty.replaceChildren(node('div',null,'Selecione ao menos uma coluna.')); }
     else empty.replaceChildren(emptyText);
-    if (renderCard) {
+    if (renderCard) { cardsDirty = true; renderCards(); container.dataset.hasRows = String(rows.length > 0); }
+  }
+  function renderCards() {
+    if (!renderCard || destroyed) return;
+    if (!mobile.matches || container.dataset.mobileView !== 'cards') {
+      if (cards.childElementCount) cards.replaceChildren();
+      cardsDirty = true; return;
+    }
+    if (cardsDirty) {
       cards.replaceChildren(...rows.map(row=>{
         const card = node('article','result-card');card.setAttribute('role','listitem');
         card.append(renderCard(row));
@@ -193,9 +203,10 @@ export function createResultsTable({container, columns = [], renderCell, renderC
         open?.addEventListener('click',()=>{if(!busy)onOpenDocument?.(row);});
         return card;
       }));
-      container.dataset.hasRows = String(rows.length > 0);
+      cardsDirty = false;
     }
   }
+  mobile?.addEventListener('change',renderCards,{signal});
   function renderPagination() {
     pagination.render({page,lastPage,busy});
   }
@@ -273,7 +284,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
     setMobileView(view) {
       if (!renderCard || !['cards','table'].includes(view) || destroyed) return;
       container.dataset.mobileView = view;scroll.scrollTop = 0;scroll.scrollLeft = 0;
-      hideFilterTooltip();closeMenu();
+      hideFilterTooltip();closeMenu();renderCards();
     },
     destroy() {
       if (destroyed) return;

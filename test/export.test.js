@@ -21,3 +21,11 @@ test('EXP-03: mudanças, duplicatas e páginas incompletas abortam a exportaçã
 test('EXP-04: aspas e quebras escapadas; decimal sem moeda',async()=>{
   const s=service([document(1,{description:'Texto "com aspas"\nLinha 2',valor_total_estimado:'2.25'})]);const r=await s.service.export(query());const csv=csvBytes(r).toString();assert(csv.includes('"Texto ""com aspas""\nLinha 2"'));assert(csv.includes('"2.25"'));assert(!csv.includes('R$'));
 });
+
+test('EXP-05: textos não são fórmulas ao abrir o CSV; valores monetários negativos mantêm precisão',async()=>{
+  for(const text of ['=1+1','+SUM(1,2)','-1+2','@SUM(1,2)',' \t=1+1','\r\n@SUM(1,2)']){
+    const s=service([document(1,{title:text,description:text,valor_total_estimado:'-9007199254740993.12345'})]);
+    const csv=csvBytes(await s.service.export(query())).toString();
+    assert(csv.includes('"\''+text+'"'),text);assert(csv.includes('"-9007199254740993.12345"'));
+  }
+});

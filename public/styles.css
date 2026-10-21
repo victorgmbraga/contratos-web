@@ -107,6 +107,10 @@ dialog::backdrop{background:var(--backdrop,#122b4655);backdrop-filter:blur(2px)}
 .modal.narrow{width:min(520px,calc(100vw - 30px))}
 .filters-modal{width:min(1140px,calc(100vw - 30px));max-height:92dvh;overflow:hidden;flex-direction:column}
 .filters-modal[open]{display:flex}
+.description-modal{overflow:hidden;flex-direction:column}
+.description-modal[open]{display:flex}
+.description-modal>.dialog-header{flex-shrink:0}
+.description-full{min-height:0;overflow:auto;overscroll-behavior:contain;overflow-wrap:anywhere;white-space:pre-wrap;margin:0;line-height:1.7}
 .filters-modal>.dialog-header,.filters-modal>.dialog-footer{flex-shrink:0}
 .filters-modal>.dialog-header{margin-bottom:16px}
 .filters-modal>.dialog-footer{margin-top:16px;padding-top:16px}
@@ -176,6 +180,8 @@ dialog select[multiple]{min-height:155px}
   .drawer>.details-header{flex-shrink:0}
   .drawer>#details-content{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
   .drawer>#details-content>.detail-object,.drawer>#details-content>.detail-tabs{flex-shrink:0}
+  .drawer>#details-content>.detail-object{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+  .detail-object-more{flex-shrink:0;align-self:flex-start;margin:-16px 0 14px 16px}
   .drawer>#details-content>[role="tabpanel"]{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;align-content:start}
   .drawer::backdrop{opacity:0;transition:opacity .24s ease-out,display .24s allow-discrete,overlay .24s allow-discrete}
   .drawer[open]::backdrop{opacity:1}

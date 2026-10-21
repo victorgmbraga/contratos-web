@@ -1,6 +1,11 @@
 import { assert } from './errors.js';
 
-const cell = value => '"' + (value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value)).replace(/"/g, '""') + '"';
+function cell(value,type) {
+  let text=value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+  const decimal=type==='decimal' && /^-?\d+(?:\.\d+)?$/.test(text);
+  if(!decimal && /^\s*[=+\-@]/u.test(text))text="'"+text;
+  return '"'+text.replace(/"/g,'""')+'"';
+}
 
 export function csvWriter(columns, limit) {
   const encoder = new TextEncoder(), chunks = [];
@@ -12,6 +17,6 @@ export function csvWriter(columns, limit) {
   }
   append('\ufeff' + columns.map(c => cell(c.field)).join(',') + '\r\n');
   return { chunks, get bytes() { return bytes; }, append(documents) {
-    append(documents.map(doc => columns.map(c => cell(doc[c.field])).join(',') + '\r\n').join(''));
+    append(documents.map(doc => columns.map(c => cell(doc[c.field],c.type)).join(',') + '\r\n').join(''));
   } };
 }

@@ -23,7 +23,7 @@ Links de pesquisa e detalhes usam parâmetros no mesmo caminho, por exemplo `/co
 
 ## GitHub Pages
 
-O workflow [`static-pages.yml`](../.github/workflows/static-pages.yml) executa em cada push para `main` e por `workflow_dispatch`. O job `build` usa Node.js 24, instala com `npm ci`, executa `npm test`, compila e envia `dist-browser/` como artefato. O job `deploy` publica no ambiente `github-pages`. Esse workflow não executa os testes de navegador: eles pertencem ao workflow de validação dos pull requests e da branch indicada nele, conforme [Validação](validacao.md).
+O workflow [`static-pages.yml`](../.github/workflows/static-pages.yml) executa em cada push para `main` e por `workflow_dispatch`. O job `build` usa Node.js 24, instala com `npm ci`, executa `npm test`, compila e envia `dist-browser/` como artefato. O job `deploy` publica no ambiente `github-pages`. Esse workflow não executa os testes de navegador: eles pertencem ao workflow de validação, acionado em pull requests e pushes para `main`, conforme [Validação](validacao.md).
 
 Para configurar uma publicação:
 

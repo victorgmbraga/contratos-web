@@ -80,9 +80,12 @@ export class PncpClient {
       let retryDelay = 0;
       const started = Date.now(); let status = null;
       try {
-        const slot = Math.max(Date.now(), this.nextSlot);
-        this.nextSlot = slot + 1000 / this.config.PNCP_REQUESTS_PER_SECOND;
-        await delay(Math.max(0, slot - Date.now()), op.signal);
+        for (;;) {
+          op.check();
+          const wait = this.nextSlot - Date.now();
+          if (wait <= 0) { this.nextSlot = Date.now() + 1000 / this.config.PNCP_REQUESTS_PER_SECOND; break; }
+          await delay(wait, op.signal);
+        }
         const signal = AbortSignal.any([op.signal, AbortSignal.timeout(this.config.PNCP_READ_TIMEOUT_SECONDS * 1000)]);
         let current = url; let response;
         for (let redirects = 0; redirects <= 3; redirects++) {

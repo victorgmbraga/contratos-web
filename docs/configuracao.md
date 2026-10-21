@@ -54,7 +54,7 @@ npm run demo -- --port 8100
 | `PNCP_REQUESTS_PER_SECOND` | `2` | Ritmo de início de chamadas por Worker |
 | `PNCP_MAX_CONCURRENT_OPERATIONS` | `4` | Operações simultâneas; excedentes recebem `CONCURRENCY_LIMIT` |
 
-O cliente tenta novamente erros de transporte e respostas HTTP 429, 502, 503 e 504 dentro do orçamento de tentativas e tempo. Aplica espera crescente e considera `Retry-After` da fonte.
+O cliente tenta novamente erros de transporte e respostas HTTP 429, 502, 503 e 504 dentro do orçamento de tentativas e tempo. Aplica espera crescente e considera `Retry-After` da fonte. Uma chamada cancelada antes de começar não reserva um intervalo futuro. HTTP 429 adia também as chamadas que já aguardavam o limitador, respeitando o prazo de cada operação.
 
 ## Paginação e orçamento
 
