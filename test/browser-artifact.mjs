@@ -58,7 +58,7 @@ try {
       const waitDirect=()=>page.waitForFunction(()=>document.querySelector('#details-dialog').open && [...document.querySelectorAll('.detail-tab')].every(tab=>tab.dataset.state==='loaded') && !document.querySelector('#export-button').disabled);
       await waitDirect();
       assert.equal(await page.locator('#detail-tab-arquivos').getAttribute('aria-selected'),'true');
-      assert.equal(await page.locator('#detail-panel-detalhes dt').count(),12);
+      assert((await page.locator('#detail-panel-detalhes dt').count())>12);
       assert.equal(await page.locator('#details-kind').innerText(),'Edital nº 1/2026');
       assert.equal(await page.locator('.detail-object').innerText(),nativeDetail.objetoCompra);
       assert.equal(new URL(page.url()).searchParams.has('demo'),false);

@@ -7,7 +7,7 @@ Aplicação para pesquisar editais e avisos de contratações, atas de registro 
 ## Funcionalidades
 
 - Busca por texto, filtros e ordenações compatíveis com cada tipo de documento.
-- Consulta de detalhes, itens, arquivos, registros vinculados e histórico dos documentos.
+- Consulta de detalhes com todos os campos do registro, itens, arquivos, registros vinculados e histórico dos documentos.
 - Resultados paginados, tabela com colunas personalizáveis (visibilidade, ordem e largura persistidas por tipo) e cartões para dispositivos móveis.
 - Exportação dos resultados completos ou somente da página atual em CSV, com progresso e estimativa de tempo.
 - Links compartilháveis para buscas e detalhes de documentos, com ação de copiar o link atual.

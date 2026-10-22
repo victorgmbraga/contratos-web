@@ -1,7 +1,7 @@
 import { createFilterOptionsCache } from '../src/browser/filter-options-cache.js';
 import { readQueryUrl, writeQueryUrl } from '../src/browser/query-url.js';
 import { readDetailUrl, writeDetailUrl, detailDocumentPath } from '../src/browser/detail-url.js';
-import { controlLink } from '../src/document-details.js';
+import { controlLink, indexedDocumentFields } from '../src/document-details.js';
 import { compareDecimal } from '../src/validation.js';
 import { createResultsTable } from './results-table.js';
 import { createPagination, paginationIcons } from './pagination.js';
@@ -829,7 +829,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   }
   const common=['numero_controle_pncp','orgao_nome','orgao_cnpj','unidade_orgao_nome_unidade','uf','municipio_nome'];
   const fieldNames=[...common,...(kind==='edital'?['modalidade_nome','situacao_compra_nome_pncp','data_publicacao_pncp','data_atualizacao_pncp','valor_total_estimado','valor_total_homologado']:kind==='ata'?['modalidade_nome','data_publicacao_pncp','data_atualizacao_pncp','data_assinatura','data_inicio_vigencia','data_fim_vigencia','cancelado','permite_adesao']:['tipo_contrato_nome','fornecedor_nome','fornecedor_ni','valor_global','data_assinatura','data_inicio_vigencia','data_fim_vigencia','data_publicacao_pncp','data_atualizacao_pncp'])];
-  const fields=fieldNames.map(name=>{const column=state.schema.columns_by_document[kind].find(c=>c.field===name);return {title:column.title,type:column.type,value:doc[name]};});
+  const fields=kind==='edital' && doc._raw?indexedDocumentFields(doc._raw):fieldNames.map(name=>{const column=state.schema.columns_by_document[kind].find(c=>c.field===name);return {title:column.title,type:column.type,value:doc[name]};});
   const detailPanel=el('section',undefined,'detail-information');
   let grid=appendFields(detailPanel,fields,'detail-grid');
   const updateDetails=addTab('detalhes','Detalhes',detailPanel);updateDetails(fields.length,'loaded');

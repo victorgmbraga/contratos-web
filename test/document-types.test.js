@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {parseExactJson as parse} from '../src/exact-json.js';
 import {schema,capabilities,columnsFor} from '../src/schema.js';
 import {project,documentIdentity} from '../src/adapter.js';
-import {recordFields,projectDocument,controlLink,nativeDocumentPath} from '../src/document-details.js';
+import {recordFields,projectDocument,controlLink,nativeDocumentPath,indexedDocumentFields} from '../src/document-details.js';
 import {PncpClient} from '../src/pncp-core.js';
 import {QueryService} from '../src/query-core.js';
 import {demoFetch,demoAtas,demoContracts} from '../src/demo.js';
@@ -169,11 +169,12 @@ test('DOCUMENTS-18: modo sem total é exclusivo de históricos de contrato e val
   for(const [d,resource,mode]of [[contract,'historico','inválido'],[contract,'historico',null],[contract,'arquivos','until_empty'],[ata,'historico','until_empty'],[{...contract,type:'edital'},'historico','until_empty']])await assert.rejects(f.service.documentRelated(d,resource,1,10,undefined,undefined,mode),e=>e.code==='INVALID_PAGINATION');
   assert.equal(f.requests.length,0);
 });
-test('DOCUMENTS-19: detalhe completo de edital usa identidade nativa, título e os doze campos com decimais exatos',async()=>{
+test('DOCUMENTS-19: detalhe completo de edital mantém os campos nativos e os adicionais',async()=>{
   const purchase={type:'edital',cnpj:'01234567000189',ano:'2025',sequencial:'57'};
   const rawText='{"numeroControlePNCP":"01234567000189-1-000057/2025","numeroCompra":"0057/2025","anoCompra":2025,"tipoInstrumentoConvocatorioNome":"Edital","objetoCompra":"Obra de demonstração","valorTotalEstimado":9007199254740993.12345,"valorTotalHomologado":0.0000,"orgaoEntidade":{"cnpj":"01234567000189","razaoSocial":"Órgão"},"unidadeOrgao":{"nomeUnidade":"Unidade","municipioNome":"Município","ufSigla":"DF"},"modalidadeNome":"Pregão","situacaoCompraNome":"Divulgada no PNCP"}',raw=parse(rawText);
   const f=fixture(()=>new Response(rawText,{headers:{'Content-Type':'application/json'}})),result=await f.service.documentDetails(purchase);
-  assert.equal(f.requests[0].pathname,'/api/consulta/v1/orgaos/01234567000189/compras/2025/57');assert.equal(result.fields.length,12);assert.equal(result.titulo,'Edital nº 0057/2025');assert.equal(result.objeto,'Obra de demonstração');
+  assert.equal(f.requests[0].pathname,'/api/consulta/v1/orgaos/01234567000189/compras/2025/57');assert((result.fields.length)>12);assert.equal(result.titulo,'Edital nº 0057/2025');assert.equal(result.objeto,'Obra de demonstração');
+  for(const [field,value]of [['numeroCompra','0057/2025'],['anoCompra','2025'],['tipoInstrumentoConvocatorioNome','Edital'],['objetoCompra','Obra de demonstração']])assert.equal(result.fields.find(item=>item.field===field)?.value,value);
   assert.equal(result.fields.find(field=>field.field==='valorTotalEstimado').value,'9007199254740993.12345');assert.equal(result.fields.find(field=>field.field==='valorTotalHomologado').value,'0.0000');
   await assert.rejects(fixture(()=>json({...raw,numeroControlePNCP:'01234567000189-1-000058/2025'})).service.documentDetails(purchase),error=>error.code==='INVALID_UPSTREAM');
 });
@@ -190,6 +191,13 @@ test('DOCUMENTS-20: histórico extenso de ata mantém o total e permite navegar 
     assert.equal(f.requests.at(-1).searchParams.get('pagina'),String(page));assert.equal(f.requests.at(-1).searchParams.get('tamanhoPagina'),'10');
   }
   await assert.rejects(f.service.documentRelated(document,'historico',6238,10),error=>error.code==='PAGE_OUT_OF_RANGE' && error.details.last_page===6237);
+});
+
+test('DOCUMENTS-22: detalhes indexados preservam todos os campos não vazios, inclusive extras',()=>{
+  const fields=indexedDocumentFields({document_type:'edital',numero_controle_pncp:'01234567000189-1-000057/2025',title:'Edital',description:'Objeto',data_atualizacao_pncp:'2026-10-22T13:11:05',valor_total_estimado:'53300.00',srp:false,amparo_legal_nome:['Lei 14.133/2021, Art. 28, I'],campo_extra:'Valor extra',campo_vazio:null});
+  assert.equal(fields.find(field=>field.field==='valor_total_estimado').type,'decimal');assert.equal(fields.find(field=>field.field==='srp').value,false);
+  assert.equal(fields.find(field=>field.field==='amparo_legal_nome').value,'Lei 14.133/2021, Art. 28, I');
+  assert.equal(fields.find(field=>field.field==='campo_extra').value,'Valor extra');assert(!fields.some(field=>field.field==='campo_vazio'));
 });
 
 test('DOCUMENTS-21: limite de detalhes considera registros recebidos, inclusive antes do recorte local e sem total',async()=>{
