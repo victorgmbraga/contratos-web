@@ -159,15 +159,15 @@ test('FILTER-YEARS-UI-01: preserva anos fora de AAAA nas opções, seleções, b
 });
 
 test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho correspondem ao documento aberto',async()=>{
-  const ui=await interfaceFixture();await ui.openDocument(project(document(1,{title:'Edital nº 1/2026',item_url:'/compras/00000000000000/2026/1',link_sistema_origem:'https://example.test/compra/1',uf:'DF',municipio_nome:'Brasília'})));
+  const ui=await interfaceFixture();await ui.openDocument(project(document(1,{title:'Edital nº 1/2026',item_url:'/compras/00000000000000/2026/1',link_sistema_origem:'https://example.test/compra/1',uf:'DF',municipio_nome:'Brasília',codigo_ibge:'5300108'})));
   assert.equal(ui.nodes.get('details-kind').textContent,'Edital nº 1/2026');
   const tabs=ui.nodes.get('details-content').children.find(n=>n.className==='detail-tabs');
   const detailTab=tabs.children[0].textContent.match(/^Detalhes \((\d+)\)$/);assert(detailTab && Number(detailTab[1])>12);
   assert.deepEqual(tabs.children.slice(1).map(n=>n.textContent),['Itens (2)','Arquivos (12)','Atas de Registro de Preço (3)','Contratos/Empenhos (2)','Histórico (12)']);assert.equal(tabs.getAttribute('role'),'tablist');
   for(const [index,button]of tabs.children.entries()){const panel=ui.nodes.get(button.getAttribute('aria-controls'));assert.equal(panel.getAttribute('role'),'tabpanel');assert.equal(panel.getAttribute('aria-labelledby'),button.id);assert.equal(panel.hidden,index!==0);assert.equal(button.getAttribute('aria-selected'),String(index===0));assert.equal(button.tabIndex,index===0?0:-1);}
   const grid=ui.nodes.get('detail-panel-detalhes').children[0],labels=grid.children.map(n=>n.children[0].textContent);
-  for(const label of ['Controle PNCP','Título','Ano','Sequencial','Situação','Modalidade','Publicação no PNCP','Órgão','CNPJ do órgão','ID da esfera','Valor total estimado'])assert(labels.includes(label),label);
-  for(const label of ['Objeto','Índice','Tipo de registro','Tipo de documento','Link PNCP','Link do sistema de origem'])assert(!labels.includes(label),label);
+  for(const label of ['Controle PNCP','Ano','Sequencial','Situação','Modalidade','Publicação no PNCP','Órgão','CNPJ do órgão','ID da esfera','Valor total estimado'])assert(labels.includes(label),label);
+  for(const label of ['Título','Objeto','Índice','Tipo de registro','Tipo de documento','Link PNCP','Link do sistema de origem'])assert(!labels.includes(label),label);
   assert.deepEqual(ui.nodes.get('details-links').children.map(n=>n.textContent),['Abrir no PNCP','Sistema de origem']);assert(!ui.nodes.get('details-content').children.some(n=>n.className==='detail-links'));
   await ui.openDocument(project(document(2,{title:'Edital nº 2/2026'})));assert.equal(ui.nodes.get('details-kind').textContent,'Edital nº 2/2026');assert.equal(ui.nodes.get('details-links').children.length,1);assert(!ui.nodes.get('details-links').children.some(n=>n.href==='https://example.test/compra/1'));
 });

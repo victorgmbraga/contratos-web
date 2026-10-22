@@ -17,7 +17,7 @@ export function controlLink(control) {
 const field=(path,title,type='text',required=false)=>({path,title,type,required});
 const indexedDefinitions=[
   ['numero_controle_pncp','Controle PNCP','control'],
-  ['title','Título'],['numero','Número'],['ano','Ano'],['numero_sequencial','Sequencial'],['numero_sequencial_compra_ata','Sequencial da compra da ata'],
+  ['numero','Número'],['ano','Ano'],['numero_sequencial','Sequencial'],['numero_sequencial_compra_ata','Sequencial da compra da ata'],
   ['tipo_nome','Tipo'],['tipo_id','ID do tipo'],['situacao_nome','Situação'],['situacao_id','ID da situação'],['modalidade_licitacao_nome','Modalidade'],['modalidade_licitacao_id','ID da modalidade'],['tipo_contrato_nome','Tipo de contrato'],['tipo_contrato_id','ID do tipo de contrato'],['numero_contratacao','Número da contratação'],['numero_contrato_empenho','Número do contrato/empenho'],
   ['data_publicacao_pncp','Publicação no PNCP','date'],['data_atualizacao_pncp','Última atualização','date'],['data_assinatura','Assinatura','date'],['data_inicio_vigencia','Início da vigência','date'],['data_fim_vigencia','Fim da vigência','date'],['data_inicio_recebimento_propostas','Início do recebimento de propostas (campo PNCP)','datetime'],['data_fim_recebimento_propostas','Fim do recebimento de propostas (campo PNCP)','datetime'],['prazo_manifestacao_interesse','Prazo de manifestação de interesse','date'],
   ['valor_total_estimado','Valor total estimado','decimal'],['valor_total_homologado','Valor total homologado','decimal'],['valor_global','Valor global','decimal'],['srp','SRP','boolean'],['tem_resultado','Tem resultado','boolean'],['tem_ata_registro_preco','Tem ata de registro de preços','boolean'],['tem_contrato_empenho','Tem contrato/empenho','boolean'],['tem_nfe_contrato','Tem NF-e de contrato','boolean'],['possui_nfe','Possui NF-e','boolean'],['cancelado','Cancelado','boolean'],['permite_adesao','Permite adesão','boolean'],['indicador_orcamento_sigiloso','Orçamento sigiloso','boolean'],['exigencia_conteudo_nacional','Exigência de conteúdo nacional','boolean'],['possui_emenda_parlamentar','Possui emenda parlamentar','boolean'],['incentivo_produtivo_basico','Incentivo produtivo básico','boolean'],['aplicabilidade_margem_preferencia','Aplicabilidade da margem de preferência','boolean'],['aplicabilidade_margem_preferencia_normal','Margem de preferência normal','boolean'],['aplicabilidade_margem_preferencia_adicional','Margem de preferência adicional','boolean'],['tipo_item_irp','Tipo de item do IRP'],
@@ -67,7 +67,7 @@ const indexedPair=path=>path.endsWith('_id')?path.slice(0,-3)+'_nome':null;
 const omittedFields=new Set([
   'item_url','link_sistema_origem','itemUrl','linkSistemaOrigem',
   'document_type','documentType','description','index','doc_type','docType',
-  'objeto_compra','objetoCompra',
+  'objeto_compra','objetoCompra','title',
 ]);
 const hasIndexedValue=value=>value!=null && value!=='' && (!Array.isArray(value) || value.length>0);
 function indexedField(path,title,type,value) {
