@@ -18,7 +18,7 @@ const field=(path,title,type='text',required=false)=>({path,title,type,required}
 const indexedDefinitions=[
   ['numero_controle_pncp','Controle PNCP','control'],
   ['title','Título'],['numero','Número'],['ano','Ano'],['numero_sequencial','Sequencial'],['numero_sequencial_compra_ata','Sequencial da compra da ata'],
-  ['tipo_nome','Tipo'],['tipo_id','ID do tipo'],['document_type','Tipo de documento'],['situacao_nome','Situação'],['situacao_id','ID da situação'],['modalidade_licitacao_nome','Modalidade'],['modalidade_licitacao_id','ID da modalidade'],['tipo_contrato_nome','Tipo de contrato'],['tipo_contrato_id','ID do tipo de contrato'],['numero_contratacao','Número da contratação'],['numero_contrato_empenho','Número do contrato/empenho'],
+  ['tipo_nome','Tipo'],['tipo_id','ID do tipo'],['situacao_nome','Situação'],['situacao_id','ID da situação'],['modalidade_licitacao_nome','Modalidade'],['modalidade_licitacao_id','ID da modalidade'],['tipo_contrato_nome','Tipo de contrato'],['tipo_contrato_id','ID do tipo de contrato'],['numero_contratacao','Número da contratação'],['numero_contrato_empenho','Número do contrato/empenho'],
   ['data_publicacao_pncp','Publicação no PNCP','date'],['data_atualizacao_pncp','Última atualização','date'],['data_assinatura','Assinatura','date'],['data_inicio_vigencia','Início da vigência','date'],['data_fim_vigencia','Fim da vigência','date'],['data_inicio_recebimento_propostas','Início do recebimento de propostas (campo PNCP)','datetime'],['data_fim_recebimento_propostas','Fim do recebimento de propostas (campo PNCP)','datetime'],['prazo_manifestacao_interesse','Prazo de manifestação de interesse','date'],
   ['valor_total_estimado','Valor total estimado','decimal'],['valor_total_homologado','Valor total homologado','decimal'],['valor_global','Valor global','decimal'],['srp','SRP','boolean'],['tem_resultado','Tem resultado','boolean'],['tem_ata_registro_preco','Tem ata de registro de preços','boolean'],['tem_contrato_empenho','Tem contrato/empenho','boolean'],['tem_nfe_contrato','Tem NF-e de contrato','boolean'],['possui_nfe','Possui NF-e','boolean'],['cancelado','Cancelado','boolean'],['permite_adesao','Permite adesão','boolean'],['indicador_orcamento_sigiloso','Orçamento sigiloso','boolean'],['exigencia_conteudo_nacional','Exigência de conteúdo nacional','boolean'],['possui_emenda_parlamentar','Possui emenda parlamentar','boolean'],['incentivo_produtivo_basico','Incentivo produtivo básico','boolean'],['aplicabilidade_margem_preferencia','Aplicabilidade da margem de preferência','boolean'],['aplicabilidade_margem_preferencia_normal','Margem de preferência normal','boolean'],['aplicabilidade_margem_preferencia_adicional','Margem de preferência adicional','boolean'],['tipo_item_irp','Tipo de item do IRP'],
   ['amparo_legal_nome','Amparo legal'],['amparo_legal_id','ID do amparo legal'],['normativo_base_nome','Normativo base'],['normativo_base_id','ID do normativo base'],['modo_disputa_nome','Modo de disputa'],['modo_disputa_id','ID do modo de disputa'],['criterio_julgamento_nome','Critério de julgamento'],['criterio_julgamento_id','ID do critério de julgamento'],['tipo_margem_preferencia_nome','Tipo de margem de preferência'],['tipo_margem_preferencia_id','ID do tipo de margem de preferência'],['tipo_margem_preferencia','Tipo de margem de preferência'],
@@ -26,8 +26,8 @@ const indexedDefinitions=[
   ['orgao_nome','Órgão'],['orgao_cnpj','CNPJ do órgão'],['orgao_id','ID do órgão'],['unidade_nome','Unidade'],['unidade_codigo','Código da unidade'],['unidade_id','ID da unidade'],['uf','UF'],['municipio_nome','Município'],['municipio_id','ID do município'],['codigo_ibge','Código IBGE'],['esfera_nome','Esfera'],['esfera_id','ID da esfera'],['poder_nome','Poder'],['poder_id','ID do poder'],
   ['orgao_subrogado_nome','Órgão sub-rogado'],['orgao_subrogado_cnpj','CNPJ do órgão sub-rogado'],['orgao_subrogado_id','ID do órgão sub-rogado'],['unidade_subrogada_nome','Unidade sub-rogada'],['unidade_subrogada_codigo','Código da unidade sub-rogada'],['unidade_subrogada_id','ID da unidade sub-rogada'],['unidade_subrogada_municipio_nome','Município da unidade sub-rogada'],['unidade_subrogada_municipio_id','ID do município da unidade sub-rogada'],['unidade_subrogada_uf','UF da unidade sub-rogada'],
   ['fornecedor_nome','Fornecedor'],['fornecedor_ni','CPF/CNPJ do fornecedor'],['fornecedor_tipo_pessoa','Tipo de pessoa do fornecedor'],['fornecedor_id','ID do fornecedor'],['fornecedor_subcontratado_nome','Fornecedor subcontratado'],['fornecedor_subcontratado_ni','CPF/CNPJ do fornecedor subcontratado'],['fornecedor_subcontratado_tipo_pessoa','Tipo de pessoa do fornecedor subcontratado'],['fornecedor_subcontratado_id','ID do fornecedor subcontratado'],
-  ['informacao_complementar','Informações complementares'],['description','Objeto'],['chave_nfe','Chave da NF-e'],
-  ['id','ID'],['index','Índice'],['doc_type','Tipo de registro'],['createdAt','Criado em','datetime'],
+  ['informacao_complementar','Informações complementares'],['chave_nfe','Chave da NF-e'],
+  ['id','ID'],['createdAt','Criado em','datetime'],
 ].map(([path,title,type='text'])=>({path,title,type}));
 const indexedLabels={
   data_inicio_vigencia:{edital:'Início do recebimento de propostas'},data_fim_vigencia:{edital:'Fim do recebimento de propostas'},
@@ -64,7 +64,11 @@ function indexedLabel(path) {
   })[part.toLocaleLowerCase('pt-BR')] || part.charAt(0).toLocaleUpperCase('pt-BR')+part.slice(1)).join(' ');
 }
 const indexedPair=path=>path.endsWith('_id')?path.slice(0,-3)+'_nome':null;
-const headerLinks=new Set(['item_url','link_sistema_origem','itemUrl','linkSistemaOrigem']);
+const omittedFields=new Set([
+  'item_url','link_sistema_origem','itemUrl','linkSistemaOrigem',
+  'document_type','documentType','description','index','doc_type','docType',
+  'objeto_compra','objetoCompra',
+]);
 const hasIndexedValue=value=>value!=null && value!=='' && (!Array.isArray(value) || value.length>0);
 function indexedField(path,title,type,value) {
   if(type==='boolean')return {field:path,title,type,value:value===true};
@@ -79,7 +83,7 @@ export function indexedDocumentFields(record) {
   const type=scalarText(record.document_type),fields=[],seen=new Set();
   for(const definition of indexedDefinitions){
     seen.add(definition.path);
-    if(definition.path==='id' || headerLinks.has(definition.path))continue;
+    if(definition.path==='id' || omittedFields.has(definition.path))continue;
     const pair=indexedPair(definition.path);
     if(pair && hasIndexedValue(record[pair]))continue;
     const value=indexedValue(record[definition.path]);
@@ -89,7 +93,7 @@ export function indexedDocumentFields(record) {
     if(field)fields.push(field);
   }
   for(const [key,value] of Object.entries(record)){
-    if(seen.has(key) || key.startsWith('_') || key==='id' || headerLinks.has(key))continue;
+    if(seen.has(key) || key.startsWith('_') || key==='id' || omittedFields.has(key))continue;
     const pair=indexedPair(key);
     if(pair && hasIndexedValue(record[pair]))continue;
     const normalized=indexedValue(value);
@@ -153,7 +157,7 @@ function nativeExtraFields(record,curated) {
   record=displayValue(record);
   const fields=[];
   const walk=(value,path)=>{
-    if(path && headerLinks.has(path))return;
+    if(path && omittedFields.has(path))return;
     if(value==null || value==='')return;
     if(Array.isArray(value) || typeof value==='object'){
       if(Array.isArray(value) && value.every(item=>item==null || typeof item!=='object')){

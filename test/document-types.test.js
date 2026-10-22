@@ -174,8 +174,8 @@ test('DOCUMENTS-19: detalhe completo de edital mantém os campos nativos e os ad
   const rawText='{"numeroControlePNCP":"01234567000189-1-000057/2025","numeroCompra":"0057/2025","anoCompra":2025,"tipoInstrumentoConvocatorioNome":"Edital","objetoCompra":"Obra de demonstração","valorTotalEstimado":9007199254740993.12345,"valorTotalHomologado":0.0000,"orgaoEntidade":{"cnpj":"01234567000189","razaoSocial":"Órgão"},"unidadeOrgao":{"nomeUnidade":"Unidade","municipioNome":"Município","ufSigla":"DF"},"modalidadeNome":"Pregão","situacaoCompraNome":"Divulgada no PNCP","linkSistemaOrigem":"https://example.test/compra/57"}',raw=parse(rawText);
   const f=fixture(()=>new Response(rawText,{headers:{'Content-Type':'application/json'}})),result=await f.service.documentDetails(purchase);
   assert.equal(f.requests[0].pathname,'/api/consulta/v1/orgaos/01234567000189/compras/2025/57');assert((result.fields.length)>12);assert.equal(result.titulo,'Edital nº 0057/2025');assert.equal(result.objeto,'Obra de demonstração');
-  for(const [field,value]of [['numeroCompra','0057/2025'],['anoCompra','2025'],['tipoInstrumentoConvocatorioNome','Edital'],['objetoCompra','Obra de demonstração']])assert.equal(result.fields.find(item=>item.field===field)?.value,value);
-  assert(!result.fields.some(field=>field.field==='linkSistemaOrigem'));assert.equal(result.link_sistema_origem,'https://example.test/compra/57');
+  for(const [field,value]of [['numeroCompra','0057/2025'],['anoCompra','2025'],['tipoInstrumentoConvocatorioNome','Edital']])assert.equal(result.fields.find(item=>item.field===field)?.value,value);
+  assert(!result.fields.some(field=>['objetoCompra','linkSistemaOrigem'].includes(field.field)));assert.equal(result.objeto,'Obra de demonstração');assert.equal(result.link_sistema_origem,'https://example.test/compra/57');
   assert.equal(result.fields.find(field=>field.field==='valorTotalEstimado').value,'9007199254740993.12345');assert.equal(result.fields.find(field=>field.field==='valorTotalHomologado').value,'0.0000');
   await assert.rejects(fixture(()=>json({...raw,numeroControlePNCP:'01234567000189-1-000058/2025'})).service.documentDetails(purchase),error=>error.code==='INVALID_UPSTREAM');
 });
@@ -195,9 +195,9 @@ test('DOCUMENTS-20: histórico extenso de ata mantém o total e permite navegar 
 });
 
 test('DOCUMENTS-22: detalhes indexados preservam todos os campos não vazios, inclusive extras',()=>{
-  const fields=indexedDocumentFields({id:'registro',document_type:'edital',numero_controle_pncp:'01234567000189-1-000057/2025',title:'Edital',description:'Objeto',item_url:'/compras/01234567000189/2025/57',link_sistema_origem:'https://example.test/compra/57',data_atualizacao_pncp:'2026-10-22T13:11:05',valor_total_estimado:'53300.00',srp:false,situacao_id:'4',situacao_nome:'Suspensa',amparo_legal_nome:['Lei 14.133/2021, Art. 28, I'],campo_extra:'Valor extra',campo_vazio:null});
+  const fields=indexedDocumentFields({id:'registro',doc_type:'_doc',index:0,document_type:'edital',numero_controle_pncp:'01234567000189-1-000057/2025',title:'Edital',description:'Objeto',item_url:'/compras/01234567000189/2025/57',link_sistema_origem:'https://example.test/compra/57',data_atualizacao_pncp:'2026-10-22T13:11:05',valor_total_estimado:'53300.00',srp:false,situacao_id:'4',situacao_nome:'Suspensa',amparo_legal_nome:['Lei 14.133/2021, Art. 28, I'],campo_extra:'Valor extra',campo_vazio:null});
   assert(!fields.some(field=>field.field==='id'));assert(!fields.some(field=>field.field==='situacao_id'));assert(fields.some(field=>field.field==='situacao_nome'));
-  assert(!fields.some(field=>field.field==='item_url' || field.field==='link_sistema_origem'));
+  for(const field of ['item_url','link_sistema_origem','document_type','description','index','doc_type'])assert(!fields.some(item=>item.field===field),field);
   assert.equal(fields.find(field=>field.field==='valor_total_estimado').type,'decimal');assert.equal(fields.find(field=>field.field==='srp').value,false);
   assert.equal(fields.find(field=>field.field==='amparo_legal_nome').value,'Lei 14.133/2021, Art. 28, I');
   assert.equal(fields.find(field=>field.field==='campo_extra').value,'Valor extra');assert(!fields.some(field=>field.field==='campo_vazio'));
