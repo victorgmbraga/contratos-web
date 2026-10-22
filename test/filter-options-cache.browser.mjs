@@ -41,6 +41,6 @@ try {
   assert.deepEqual(result.loadedCounts,[2500,2500,15000]);assert.deepEqual(result.legacyTypes,['edital','ata']);assert.equal(result.preference,'preservar');
   for(const type of result.legacyTypes)assert.equal(result.entries[['edital','ata','contrato'].indexOf(type)].fetched_at,1000);
   assert.deepEqual(result.calls.map(call=>call.type),['edital','ata','contrato'].filter(type=>!result.legacyTypes.includes(type)));
-  assert.equal(result.callsBeforeExpiry,0);assert.deepEqual(result.callsAfterExpiry,[{type:'contrato',field:null}]);
+  assert.equal(result.callsBeforeExpiry,0);assert.deepEqual(result.callsAfterExpiry,[{type:'contrato',field:null,priority:'background'}]);
   console.log('PASS Quota real do localStorage reproduz falha dos contratos; compactação preserva todas as opções, migra cache antigo, reutiliza após reinicialização e expira em quatro horas',JSON.stringify(result));
 } finally {await browser.close();await app.close();}

@@ -9,7 +9,7 @@ import { operation, delay } from '../src/operation.js';
 import { service, document, fixture, json } from './helpers.js';
 import { demoFetch, demoDocument } from '../src/demo.js';
 
-const settings = extra => ({ PNCP_PAGE_SIZE: 10, PNCP_REQUESTS_PER_SECOND: 100000, PNCP_MAX_RETRIES: 0, ...extra });
+const settings = extra => ({ PNCP_PAGE_SIZE: 10, PNCP_EXPORT_PAGE_SIZE: 10, PNCP_REQUESTS_PER_SECOND: 100000, PNCP_MAX_RETRIES: 0, ...extra });
 const purchase = { type: 'edital', cnpj: '00000000000000', ano: '2026', sequencial: '1' };
 const contract = { ...purchase, type: 'contrato' };
 

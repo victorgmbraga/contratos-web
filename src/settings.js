@@ -7,7 +7,7 @@ export const defaults = {
   PNCP_READ_TIMEOUT_SECONDS: 30,
   PNCP_OPERATION_TIMEOUT_SECONDS: 120, PNCP_MAX_RETRIES: 2,
   PNCP_MAX_CONCURRENT_REQUESTS: 2, PNCP_REQUESTS_PER_SECOND: 2,
-  PNCP_MAX_CONCURRENT_OPERATIONS: 4, PNCP_PAGE_SIZE: 50,
+  PNCP_MAX_CONCURRENT_OPERATIONS: 4, PNCP_PAGE_SIZE: 50, PNCP_EXPORT_PAGE_SIZE: 100,
   PNCP_MAX_DETAIL_ITEMS: 20000,
   PNCP_MAX_EXPORT_DOCUMENTS: 10000, PNCP_MAX_EXPORT_BYTES: 50 * 1024 * 1024,
   PNCP_MAX_OPERATION_BYTES: 100 * 1024 * 1024,
@@ -31,6 +31,6 @@ export function validateSettings(input = {}) {
     config[key] = url.href.replace(/\/$/, '');
   }
   assert(config.PNCP_MAX_EXPORT_DOCUMENTS <= 10000, 'INVALID_CONFIG', 'Limite de exportação não pode exceder a janela de 10000.');
-  assert([10, 25, 50, 100].includes(config.PNCP_PAGE_SIZE), 'INVALID_CONFIG', 'PNCP_PAGE_SIZE deve ser 10, 25, 50 ou 100.');
+  for (const key of ['PNCP_PAGE_SIZE', 'PNCP_EXPORT_PAGE_SIZE']) assert([10, 25, 50, 100].includes(config[key]), 'INVALID_CONFIG', `${key} deve ser 10, 25, 50 ou 100.`);
   return config;
 }

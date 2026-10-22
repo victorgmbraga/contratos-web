@@ -45,16 +45,22 @@ export class PncpClient {
     this.config = config; this.logger = logger; this.active = 0; this.queue = []; this.nextSlot = 0; this.lastCall = null;
     this.fetcher = fetcher; this.fetchOptions = fetchOptions;
   }
-  async acquire(signal) {
+  async acquire(signal, priority = 'foreground') {
     if (signal.aborted) throw signal.reason;
     if (this.active < this.config.PNCP_MAX_CONCURRENT_REQUESTS) { this.active++; return; }
     await new Promise((resolve,reject) => {
-      const waiter = { resolve: () => { signal.removeEventListener('abort', abort); resolve(); } };
+      const waiter = { priority, resolve: () => { signal.removeEventListener('abort', abort); resolve(); } };
       const abort = () => { this.queue = this.queue.filter(w => w !== waiter); reject(signal.reason); };
       signal.addEventListener('abort', abort, { once: true }); this.queue.push(waiter);
     });
   }
-  release() { const next = this.queue.shift(); if (next) next.resolve(); else this.active--; }
+  release() {
+    // Foreground work preempts background prefetches; FIFO within each class.
+    let index = this.queue.findIndex(waiter => waiter.priority === 'foreground');
+    if (index < 0) index = 0;
+    const next = this.queue.splice(index, 1)[0];
+    if (next) next.resolve(); else this.active--;
+  }
   async readBody(response, op, signal = op.signal) {
     const reader = response.body?.getReader(); if (!reader) return '';
     const decoder = new TextDecoder(), chunks = [];
@@ -76,7 +82,7 @@ export class PncpClient {
   async get(url, op, allowNoContent = false) {
     const origin = new URL(url).origin;
     for (let attempt = 0; attempt <= this.config.PNCP_MAX_RETRIES; attempt++) {
-      op.check(); await this.acquire(op.signal);
+      op.check(); await this.acquire(op.signal, op.priority);
       let retryDelay = 0;
       const started = Date.now(); let status = null;
       try {

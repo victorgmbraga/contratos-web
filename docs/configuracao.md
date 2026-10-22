@@ -60,14 +60,15 @@ O cliente tenta novamente erros de transporte e respostas HTTP 429, 502, 503 e 5
 
 | Chave | Padrão | Efeito |
 | --- | --- | --- |
-| `PNCP_PAGE_SIZE` | `50` | Tamanho padrão de consulta do serviço e das chamadas de exportação; aceita 10, 25, 50 ou 100 |
+| `PNCP_PAGE_SIZE` | `50` | Tamanho padrão de consulta do serviço; aceita 10, 25, 50 ou 100 |
+| `PNCP_EXPORT_PAGE_SIZE` | `100` | Tamanho das páginas da coleta para CSV; aceita 10, 25, 50 ou 100 |
 | `PNCP_MAX_DETAIL_ITEMS` | `20000` | Limite dos itens de contratação, das listagens de atas/contratos e dos arquivos de termos recebidos por operação; o total disponível nas páginas não consome esse limite. Listas sem paginação são contabilizadas antes do recorte local |
 | `PNCP_MAX_EXPORT_DOCUMENTS` | `10000` | Total máximo aceito para exportar; não pode superar 10.000 |
 | `PNCP_MAX_EXPORT_BYTES` | `52428800` (50 MiB) | Limite do CSV montado em memória |
 | `PNCP_MAX_OPERATION_BYTES` | `104857600` (100 MiB) | Soma dos bytes lidos das respostas da fonte na operação |
 | `PNCP_MAX_REQUESTS_PER_OPERATION` | `1000` | Orçamento de chamadas, incluindo domínios e tentativas |
 
-A interface usa 100 documentos por página na busca (`TABLE_PAGE_SIZE`) e dez registros por página em todas as listagens de detalhes (`DETAIL_PAGE_SIZE`), incluindo os itens. Esses valores ficam em `public/app.js`; alterar `PNCP_PAGE_SIZE` não muda os tamanhos visuais. A janela de busca é fixa em 10.000 documentos.
+A interface usa 100 documentos por página na busca (`TABLE_PAGE_SIZE`) e dez registros por página em todas as listagens de detalhes (`DETAIL_PAGE_SIZE`), incluindo os itens. Esses valores ficam em `public/app.js`; alterar `PNCP_PAGE_SIZE` não muda os tamanhos visuais. `PNCP_EXPORT_PAGE_SIZE` controla apenas o tamanho das páginas coletadas para o CSV. A janela de busca é fixa em 10.000 documentos.
 
 Os limites numéricos exigem valores de pelo menos 1, exceto `PNCP_MAX_RETRIES`, que aceita zero; exceto ritmo de requisições, todos os valores numéricos exigem inteiros. O navegador administra sua própria memória. Dimensione a memória total com margem para buffers, respostas e CSV.
 

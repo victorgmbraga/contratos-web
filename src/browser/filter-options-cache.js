@@ -1,4 +1,5 @@
 import { assert } from '../errors.js';
+import { openOptionsDatabase } from './options-db.js';
 
 export const FILTER_OPTIONS_TTL = 4 * 60 * 60 * 1000;
 export const FILTER_OPTIONS_PREFIX = 'contratos-web:filter-options:v1:';
@@ -44,9 +45,11 @@ function waitFor(promise, signal) {
   });
 }
 
-export function createFilterOptionsCache(service, schema, { getStorage = () => globalThis.localStorage, now = Date.now } = {}) {
+export function createFilterOptionsCache(service, schema, { getStorage = () => globalThis.localStorage, now = Date.now, indexedDB = globalThis.indexedDB } = {}) {
   let storage;
   try { storage = getStorage(); } catch { /* Storage may be blocked by the browser. */ }
+  let database = null;
+  const databaseReady = openOptionsDatabase(indexedDB).then(db => { database = db; return db; }).catch(() => null);
   const prefix = `${FILTER_OPTIONS_PREFIX}${schema.source}:${schema.api_version}:`;
   const memory = new Map(), pending = new Map(), queue = [], controller = new AbortController();
   let active = false;
@@ -60,20 +63,27 @@ export function createFilterOptionsCache(service, schema, { getStorage = () => g
     assert(normatives === undefined || Array.isArray(normatives) && normatives.every(id => typeof id === 'string' && /^\d+$/.test(id)), 'INVALID_DOMAIN', 'Normativos inválidos.');
     const selected = dependent ? [...new Set(normatives ?? [])].sort() : [];
     const key = prefix + encodeURIComponent(JSON.stringify(provider === 'search' ? [provider, type, selected] : [provider, field]));
-    return { key, payload: { type, field: provider === 'search' ? selected.length ? 'amparos_legais' : null : field, ...(selected.length ? { normatives: selected } : {}) } };
+    return { key, payload: { type, field: provider === 'search' ? selected.length ? 'amparos_legais' : null : field, ...(selected.length ? { normatives: selected } : {}), priority: 'background' } };
   }
 
   function discard(key) {
     memory.delete(key);
     try { storage?.removeItem(key); } catch { /* An in-memory cache still works. */ }
+    database?.delete(key).catch(() => {});
   }
   async function persist(key, entry) {
-    if (!storage) return;
+    if (storage) {
+      try {
+        const stored = await encodeEntry(entry);
+        controller.signal.throwIfAborted();
+        storage.setItem(key, JSON.stringify(stored));
+        return;
+      } catch { /* Quota or unavailable storage falls back to IndexedDB. */ }
+    }
     try {
-      const stored = await encodeEntry(entry);
-      controller.signal.throwIfAborted();
-      storage.setItem(key, JSON.stringify(stored));
-    } catch { /* Quota or unavailable storage must not break filters. */ }
+      const db = database || await databaseReady;
+      if (db) await db.set(key, entry);
+    } catch { /* The in-memory cache still works. */ }
   }
   async function read(key) {
     let entry = memory.get(key);
@@ -81,6 +91,10 @@ export function createFilterOptionsCache(service, schema, { getStorage = () => g
     if (!entry) {
       try { const text = storage?.getItem(key); if (text) entry = JSON.parse(text); }
       catch { discard(key); return null; }
+    }
+    if (!entry) {
+      try { const db = database || await databaseReady; if (db) entry = await db.get(key); }
+      catch { entry = null; }
     }
     if (!entry) return null;
     try {
@@ -142,6 +156,7 @@ export function createFilterOptionsCache(service, schema, { getStorage = () => g
   function close() {
     controller.abort(new DOMException('Carregamento de opções encerrado.', 'AbortError'));
     for (const job of queue.splice(0)) job.reject(controller.signal.reason);
+    database?.close();
   }
   return { get, preload, close };
 }

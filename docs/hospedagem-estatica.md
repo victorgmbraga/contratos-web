@@ -2,7 +2,7 @@
 
 A aplicação está disponível em [contratos-web.net.br](https://contratos-web.net.br/). O repositório é [victorgmbraga/contratos-web](https://github.com/victorgmbraga/contratos-web).
 
-O artefato de produção é `dist-browser/`. A hospedagem entrega HTML, JavaScript, CSS, favicon, licenças e `browser-config.json`; o navegador consulta o PNCP e gera o CSV.
+O artefato de produção é `dist-browser/`. A hospedagem entrega HTML, JavaScript, CSS, favicon, licenças, `theme-boot.js`, `sw.js` e `browser-config.json`; o navegador consulta o PNCP e gera o CSV.
 
 ## Gerar e verificar
 
@@ -40,7 +40,7 @@ O GitHub Pages não interpreta `_headers`. A CSP e a política de referrer do HT
 
 Em provedores como Cloudflare Pages, use comando de build `npm run build`, saída `dist-browser` e Node.js 24 para o build. Em Nginx, Apache ou outro servidor, sirva os mesmos arquivos com MIME correto.
 
-O build gera `_headers` com a política de segurança definida em [`vite.config.js`](../vite.config.js):
+O build gera `_headers` com a política de segurança definida em [`vite.config.js`](../vite.config.js). O `sw.js` é registrado somente em HTTPS e mantém em cache apenas os assets com hash em `/assets/*`; HTML, configuração e chamadas ao PNCP continuam indo à rede.
 
 - Scripts e Worker da própria origem; conexões à própria origem e a `https://pncp.gov.br`.
 - `X-Content-Type-Options: nosniff` e `Referrer-Policy: no-referrer`.
@@ -56,4 +56,4 @@ Abra `pncp-diagnostic.html` no domínio publicado para conferir o acesso real ao
 
 Atualize HTML, configuração e bundles como um conjunto. Os assets têm nomes com hash; preserve os anteriores temporariamente quando o provedor permitir, para atender abas abertas. HTML e configuração devem ser revalidados. Depois da publicação, abra uma nova aba e repita uma pesquisa.
 
-Para restaurar uma publicação, use HTML, configuração e bundles de um mesmo artefato aprovado, mantendo seus nomes e caminhos, e verifique a aplicação novamente.
+Para restaurar uma publicação, use HTML, configuração e bundles de um mesmo artefato aprovado, mantendo seus nomes e caminhos, e verifique a aplicação novamente. Ao publicar uma nova versão, o Service Worker mantém os assets antigos em cache até a limpeza da versão; os nomes com hash garantem que o HTML novo referencie os bundles corretos.

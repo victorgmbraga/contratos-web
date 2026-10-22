@@ -8,10 +8,11 @@ Aplicação para pesquisar editais e avisos de contratações, atas de registro 
 
 - Busca por texto, filtros e ordenações compatíveis com cada tipo de documento.
 - Consulta de detalhes, itens, arquivos, registros vinculados e histórico dos documentos.
-- Resultados paginados, tabela com colunas personalizáveis e cartões para dispositivos móveis.
-- Exportação dos resultados em CSV.
-- Links compartilháveis para buscas e detalhes de documentos.
-- Interface responsiva com temas claro e escuro.
+- Resultados paginados, tabela com colunas personalizáveis (visibilidade, ordem e largura persistidas por tipo) e cartões para dispositivos móveis.
+- Exportação dos resultados completos ou somente da página atual em CSV, com progresso e estimativa de tempo.
+- Links compartilháveis para buscas e detalhes de documentos, com ação de copiar o link atual.
+- Busca de filtros, contador de filtros ativos e limpeza do rascunho no modal.
+- Interface responsiva com temas claro e escuro, alternância cartões/tabela no mobile e atalhos `/` e `Ctrl+K` para a busca.
 
 ## Desenvolvimento local
 
@@ -32,6 +33,7 @@ Abra [http://localhost:8000](http://localhost:8000). As consultas reais precisam
 | `npm test` | Executar os testes automatizados |
 | `npm run build` | Gerar a distribuição estática em `dist-browser/` |
 | `npm run preview` | Servir o build localmente |
+| `npm run test:budget` | Conferir os limites de tamanho do build (requer `npm run build`) |
 
 Para os testes de navegador, instale o Chromium com `npx playwright install chromium` e execute `npm run test:browser`. Mais opções estão no [guia de validação](docs/validacao.md).
 

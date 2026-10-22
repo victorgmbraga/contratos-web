@@ -66,7 +66,7 @@ Esses ensaios servem arquivos estáticos e verificam a ausência de chamadas a u
 
 O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results-table.browser.mjs). A referência visual mantém cores, fontes e espaçamentos; os papéis de display nativos da tabela e as bordas por célula representam sua estrutura semântica. Os testes de navegação utilizam identificadores da aplicação e papéis acessíveis.
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`. Usa instalação reproduzível, `npm test` e a suíte completa de navegador em Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. Pushes para `main` acionam [`static-pages.yml`](../.github/workflows/static-pages.yml), que executa `npm test` e o build antes de publicar; esse workflow não executa a suíte de navegador.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`. Usa instalação reproduzível, `npm test`, build com orçamento de performance e a suíte completa de navegador em Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. Pushes para `main` acionam [`static-pages.yml`](../.github/workflows/static-pages.yml), que executa `npm test` e o build antes de publicar; esse workflow não executa a suíte de navegador.
 
 ### Medir tamanho e renderização
 
@@ -74,12 +74,13 @@ Use os builds gerados pela suíte ou prepare-os explicitamente antes de medir:
 
 ```sh
 npm run build
+npm run test:budget
 npm run build -- --mode test
 node test/measure-build.mjs
 node test/table-benchmark.mjs
 ```
 
-O script `measure-build.mjs` informa bytes brutos e gzip por asset e totais de JavaScript/CSS. `table-benchmark.mjs` mede a atualização de 100 registros com todas as colunas, até dois frames após a consulta, descarta o aquecimento e informa sete amostras, mediana e quantidade de nós DOM. Ele usa o mesmo navegador e as mesmas opções do runner descritas abaixo. Compare execuções no mesmo navegador, máquina e condições de carga. O teste de exportação informa separadamente o custo da coleta de 10.000 documentos; esse conjunto não é montado na tabela.
+O script `measure-build.mjs` informa bytes brutos e gzip por asset e totais de JavaScript/CSS. `npm run test:budget` falha quando o JavaScript/CSS do build ultrapassa os limites definidos em [`test/performance-budget.mjs`](../test/performance-budget.mjs); ele roda no workflow de validação e antes da publicação. `table-benchmark.mjs` mede a atualização de 100 registros com todas as colunas, até dois frames após a consulta, descarta o aquecimento e informa sete amostras, mediana e quantidade de nós DOM. Ele usa o mesmo navegador e as mesmas opções do runner descritas abaixo. Compare execuções no mesmo navegador, máquina e condições de carga. O teste de exportação informa separadamente o custo da coleta de 10.000 documentos; esse conjunto não é montado na tabela.
 
 ### Opções do runner
 

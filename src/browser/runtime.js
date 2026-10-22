@@ -25,17 +25,17 @@ export function createRuntime(input, options = {}) {
       const signal = controller.signal;
       try {
         const allowed = {
-          schema: [], execute: ['query'], domains: ['type','normatives','field'], suggest: ['type','field','q','size'],
+          schema: [], execute: ['query'], domains: ['type','normatives','field','priority'], suggest: ['type','field','q','size'],
           details: ['document','page','size'], related: ['document','resource','page','size'],
           documentDetails: ['document'], documentRelated: ['document','resource','page','size','pagination_mode'],
-          contractChild: ['document','resource','sequence'], export: ['query'],
+          contractChild: ['document','resource','sequence'], export: ['query','scope'],
         };
         checkKeys(payload, allowed[method], 'operação');
         let result;
         switch (method) {
           case 'schema': result = schema(config); break;
           case 'execute': result = await service.execute(payload.query, signal, id); break;
-          case 'domains': result = await service.domains(payload.type, payload.normatives, signal, id, payload.field); break;
+          case 'domains': result = await service.domains(payload.type, payload.normatives, signal, id, payload.field, payload.priority); break;
           case 'suggest': result = await service.suggest(payload.type, payload.field, payload.q, payload.size, signal, id); break;
           case 'details': result = await service.details(payload.document, payload.page, payload.size, signal, id); break;
           case 'related': result = await service.related(payload.document, payload.resource, payload.page, payload.size, signal, id); break;
@@ -43,9 +43,10 @@ export function createRuntime(input, options = {}) {
           case 'documentRelated': result = await service.documentRelated(payload.document, payload.resource, payload.page, payload.size, signal, id, payload.pagination_mode); break;
           case 'contractChild': result = await service.contractChild(payload.document, payload.resource, payload.sequence, signal, id); break;
           case 'export': {
-            const { chunks, metadata } = await service.export(payload.query, signal, id, { onProgress });
+            const { chunks, metadata } = await service.export(payload.query, signal, id, { onProgress, scope: payload.scope });
             const stamp = metadata.finished_at.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
-            result = { chunks: chunks.map(c => c.buffer), metadata, mime: 'text/csv; charset=utf-8', filename: `compras-${config.DEMO_MODE ? 'demo' : 'pncp'}-${stamp}.csv` };
+            const pageSuffix = metadata.export_scope === 'page' ? `-pagina-${metadata.page}` : '';
+            result = { chunks: chunks.map(c => c.buffer), metadata, mime: 'text/csv; charset=utf-8', filename: `compras-${config.DEMO_MODE ? 'demo' : 'pncp'}-${stamp}${pageSuffix}.csv` };
             break;
           }
         }

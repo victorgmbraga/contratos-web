@@ -5,6 +5,18 @@ import { service,document,query,csvBytes } from './helpers.js';
 test('EXP-01: nova coleta completa sem recorte da página visível',async()=>{
   const s=service(Array.from({length:12},(_,i)=>document(i+1)));await s.service.execute(query({page:2}));const previous=s.requests.length;const r=await s.service.export(query({page:2}));assert.equal(r.metadata.exported_rows,12);assert.equal(s.requests.length-previous,2);assert.equal(csvBytes(r).subarray(0,3).toString('hex'),'efbbbf');assert.equal(csvBytes(r).toString().split('\r\n').length,14);assert(!csvBytes(r).toString().includes('"categorizacao"'));
 });
+test('EXP-01B: exportação usa páginas de 100 por padrão',async()=>{
+  const s=service(Array.from({length:12},(_,i)=>document(i+1)),{}, {PNCP_EXPORT_PAGE_SIZE:100});
+  const r=await s.service.export(query());assert.equal(r.metadata.exported_rows,12);assert.equal(s.requests.length,1);assert.equal(r.metadata.export_scope,'all');
+});
+
+test('EXP-01C: escopo page exporta somente a página atual',async()=>{
+  const s=service(Array.from({length:12},(_,i)=>document(i+1)));
+  const r=await s.service.export(query({page:2}),null,null,{scope:'page'});
+  assert.equal(r.metadata.exported_rows,2);assert.equal(r.metadata.page,2);assert.equal(r.metadata.export_scope,'page');assert.equal(r.metadata.collection_complete,false);assert.equal(s.requests.length,1);
+  assert.equal(csvBytes(r).toString().split('\r\n').length,4);
+});
+
 test('EXP-02: última página falha ou buffer excede não devolve CSV parcial',async()=>{
   const docs=Array.from({length:12},(_,i)=>document(i+1));
   const s=service(docs,{handler:u=>u.searchParams.get('pagina')==='2'?new Response('<html>erro</html>',{headers:{'Content-Type':'text/html'}}):null});await assert.rejects(s.service.export(query()),e=>e.code==='INVALID_UPSTREAM');

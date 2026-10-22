@@ -15,6 +15,9 @@ const clone = value => structuredClone(value);
 const documentName=(type=state.query.document_type)=>state.schema.document_types.find(d=>d.id===type);
 const TABLE_PAGE_SIZE = 100;
 const DETAIL_PAGE_SIZE = 10;
+const RESULT_CACHE_TTL = 30000;
+const RESULT_CACHE_LIMIT = 20;
+const COLUMN_LAYOUT_PREFIX = 'contratos-web:columns:v1:';
 // Situação da Contratação: PNCP, Manual de Integração, tabela de domínio 7.13.
 const purchaseStatusClasses=new Map([
   ['divulgada no pncp','status-cell--divulgada'],
@@ -41,13 +44,47 @@ function money(value) {
   return `${match[1]}R$ ${match[2].replace(/\B(?=(\d{3})+(?!\d))/g,'.')},${(match[3] || '').padEnd(2,'0')}`;
 }
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
-const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,detailSelection:null,detailDoc:null,detailActivate:null,exportAbort:null,exportSeq:0};
+const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,detailSelection:null,detailDoc:null,detailActivate:null,exportAbort:null,exportSeq:0,resultCache:new Map()};
 let filterOptionsCache;
 let selectMenus;
 const filterFields=new Map();
 let openFilterEditor=null;
 let urlMode='replace',urlError=null,tableReady=false,queryRequested=false;
-const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-button','cancel-export-button'];
+let filterGroupElements=[];
+const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','copy-link-button','export-page-button','export-button','cancel-export-button'];
+function storageArea() { try { return window.localStorage; } catch { return null; } }
+function columnLayoutKey(type) { return COLUMN_LAYOUT_PREFIX + type; }
+function readColumnLayout(type) {
+  try {
+    const raw=storageArea()?.getItem(columnLayoutKey(type));
+    if(!raw)return null;
+    const value=JSON.parse(raw);
+    if(!value || !Array.isArray(value.order) || typeof value.visible!=='object' || typeof value.width!=='object')return null;
+    return value;
+  } catch { return null; }
+}
+function saveColumnLayout(columns) {
+  const type=state.query?.document_type;if(!type)return;
+  try {
+    storageArea()?.setItem(columnLayoutKey(type),JSON.stringify({order:columns.map(column=>column.field),visible:Object.fromEntries(columns.map(column=>[column.field,!!column.visible])),width:Object.fromEntries(columns.map(column=>[column.field,column.width]))}));
+  } catch { /* Storage may be blocked; the layout remains valid for this page. */ }
+}
+function clearColumnLayout(type) { try { storageArea()?.removeItem(columnLayoutKey(type)); } catch { /* Ignore unavailable storage. */ } }
+function resultCacheKey(query) { return writeQueryUrl('https://cache.invalid/',query,state.schema); }
+function pruneResultCache() {
+  const now=Date.now();
+  for(const [key,entry]of state.resultCache)if(now-entry.at>=RESULT_CACHE_TTL)state.resultCache.delete(key);
+  while(state.resultCache.size>RESULT_CACHE_LIMIT)state.resultCache.delete(state.resultCache.keys().next().value);
+}
+function takeCachedResult(query) {
+  const key=resultCacheKey(query),entry=state.resultCache.get(key);
+  if(!entry)return null;
+  if(Date.now()-entry.at>=RESULT_CACHE_TTL){state.resultCache.delete(key);return null;}
+  state.resultCache.delete(key);state.resultCache.set(key,entry);return entry.result;
+}
+function storeCachedResult(query,result) {
+  state.resultCache.set(resultCacheKey(query),{at:Date.now(),result});pruneResultCache();
+}
 function syncQueryUrl(query) {
   const mode=urlMode;urlMode='push';
   if(!window.location?.href || !window.history)return;
@@ -119,15 +156,41 @@ function positionTooltip(marker,tooltip) {
 function showWindowTooltip() {
   if(state.status!=='loading')showTooltip($('window-warning'),$('window-warning-tooltip'));
 }
+async function copyCurrentLink() {
+  const href=window.location?.href;if(!href)return;
+  try {
+    if(window.navigator?.clipboard?.writeText)await window.navigator.clipboard.writeText(href);
+    else {const area=document.createElement('textarea');area.value=href;area.setAttribute('readonly','');area.style.position='fixed';area.style.opacity='0';document.body.append(area);area.select();document.execCommand?.('copy');area.remove();}
+    notice('Link copiado.');
+  } catch { notice('Não foi possível copiar o link. Copie pela barra de endereços.','warning'); }
+}
+function setMobileView(view) {
+  if(!['cards','table'].includes(view))return;
+  state.table?.setMobileView?.(view);
+  const select=$('results-view');if(select)select.value=view;
+  const group=$('mobile-view-toggle');
+  if(group)for(const button of group.children || [])if(button.dataset?.view)button.setAttribute('aria-pressed',String(button.dataset.view===view));
+}
+function setConnectivity(message,kind='warning') {
+  const node=$('connectivity-notice');if(!node)return;
+  node.textContent=message || '';node.dataset.kind=kind;node.hidden=!message;
+}
+function updateOnlineStatus() {
+  if(window.navigator?.onLine===false)setConnectivity('Sem conexão. Verifique a rede para consultar o PNCP.','offline');
+  else if($('connectivity-notice')?.dataset.kind==='offline')setConnectivity('');
+}
 function updateExportButton() {
-  const busy=!!state.exportAbort;
-  $('export-button').disabled=busy || !['success','empty'].includes(state.status);
-  $('export-button').setAttribute('aria-busy',String(busy));
+  const busy=!!state.exportAbort,ready=['success','empty'].includes(state.status),hasPage=!!state.lastResult?.data?.length;
+  $('export-button').disabled=busy || !ready;
+  $('export-page-button').disabled=busy || !ready || !hasPage;
+  $('export-button').setAttribute('aria-busy',String(busy));$('export-page-button').setAttribute('aria-busy',String(busy));
   $('cancel-export-button').hidden=!busy;
   if(!busy)$('cancel-export-button-tooltip').hidden=true;
   $('export-button-tooltip').textContent=busy?'Consultando e gerando CSV…':'Exportar CSV';
-  if(busy)$('export-button-tooltip').hidden=true;
+  $('export-page-button-tooltip').textContent=busy?'Consultando e gerando CSV…':'Exportar página atual';
+  if(busy){$('export-button-tooltip').hidden=true;$('export-page-button-tooltip').hidden=true;}
   $('export-button').setAttribute('aria-label',busy?'Gerando CSV':'Exportar CSV');
+  $('export-page-button').setAttribute('aria-label',busy?'Gerando CSV':'Exportar página atual');
 }
 function status(value,query=state.query) {
   state.status=value;
@@ -210,10 +273,24 @@ function columnAction(field,action) {
   state.query.order=definition.native_order[action];
   updateCriteria();return execute();
 }
+function hasActiveCriteria(query) { return !!(query.q || query.status!=='todos' || Object.keys(query.pncp_filters).length); }
+function renderPlaceholder(query,empty) {
+  state.placeholder.replaceChildren(el('p',empty?`Nenhum registro encontrado em ${documentName(query.document_type).label}.`:'Informe uma pesquisa e consulte os documentos do PNCP.'));
+  if(!empty)return;
+  const actions=el('div',undefined,'empty-actions');
+  if(hasActiveCriteria(query)) {
+    const clear=el('button','Limpar filtros','button');clear.type='button';clear.addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();execute();});actions.append(clear);
+  }
+  const refresh=el('button','Atualizar','button');refresh.type='button';refresh.addEventListener('click',()=>loadPage(state.query.page,'push',{force:true}));actions.append(refresh);
+  state.placeholder.append(actions);
+}
 function renderResult(result,query) {
   state.lastQuery=clone(query);state.lastResult=result;
+  if(window.navigator?.onLine!==false)setConnectivity('');
   $('result-info').hidden=false;
-  state.placeholder.textContent=result.data.length?'Informe uma pesquisa e consulte os documentos do PNCP.':`Nenhum registro encontrado em ${documentName(query.document_type).label}.`;
+  renderPlaceholder(query,result.data.length===0);
+  $('result-timestamp').textContent=result.finished_at?`Consultado em ${time(result.finished_at)}`:'';$('result-timestamp').hidden=!result.finished_at;
+  state.table.setSortOrder?.(query.order);
   const first=result.data.length?(result.page-1)*result.size+1:0;
   const last=result.data.length?first+result.data.length-1:0;
   $('result-range').textContent=`Exibindo ${fmtInt(first)}-${fmtInt(last)} de `;$('result-range').hidden=false;
@@ -227,38 +304,41 @@ function renderResult(result,query) {
   state.table.renderPage({rows:result.data,page:result.page,pageSize:result.size,lastPage:result.last_page});
   status(result.data.length?'success':'empty');
 }
-async function loadResultsPage(targetPage) {
+async function loadResultsPage(targetPage,{force=false,cache=false}={}) {
   if(!state.query)return {data:[],last_page:1,last_row:0};
   queryRequested=true;
   const query=clone(state.query);
   query.page=Number(targetPage || 1);query.size=TABLE_PAGE_SIZE;
   state.query.page=query.page;urlError=null;
   state.abort?.abort();state.exportAbort?.abort();state.exportSeq++;state.exportAbort=null;
-  const seq=++state.seq;const controller=new AbortController();state.abort=controller;status('loading',query);
+  const seq=++state.seq;const controller=new AbortController();state.abort=controller;
+  const cached=cache && !force?takeCachedResult(query):null;
+  if(cached){state.abort=null;syncQueryUrl(query);renderResult(cached,query);return cached;}
+  status('loading',query);
   notice('');
   try {
     syncQueryUrl(query);
     const result=await service.call('execute',{query},{signal:controller.signal});
     if(seq!==state.seq)throw new DOMException('Resposta anterior descartada.','AbortError');
-    renderResult(result,query);return result;
+    storeCachedResult(query,result);renderResult(result,query);setConnectivity('');return result;
   }catch(error) {
     if(seq===state.seq) {
       if(error.name==='AbortError'){status('cancelled');notice('Consulta cancelada. Nenhum novo resultado foi aplicado.','warning');}
-      else {status('error');notice(`${error.message}${error.code?' ['+error.code+']':''}${state.lastResult?'\nA tabela mantém o resultado anterior.':''}`,'error');}
+      else {status('error');notice(`${error.message}${error.code?' ['+error.code+']':''}${state.lastResult?'\nA tabela mantém o resultado anterior.':''}`,'error');if(error.retryable || ['PNCP_UNAVAILABLE','PNCP_TRANSPORT_ERROR','PNCP_TIMEOUT','OPERATION_TIMEOUT'].includes(error.code))setConnectivity('O PNCP está instável. A tabela mantém o último resultado confirmado.','warning');}
     }
     throw error;
   }finally{if(seq===state.seq)state.abort=null;}
 }
-function loadPage(page,mode='push') {
+function loadPage(page,mode='push',options={cache:true}) {
   state.query.page=page;urlMode=mode;
-  return loadResultsPage(page).catch(()=>{});
+  return loadResultsPage(page,options).catch(()=>{});
 }
 function execute() {
   closeDetails(false);
   state.query.q=$('search').value;state.query.order=$('order').value;
   urlError=null;
   updateCriteria();
-  return loadPage(1);
+  return loadPage(1,'push',{force:true});
 }
 function defaultQuery(type=state.query?.document_type || 'edital') {return {api_version:'2.0',document_type:type,q:'',status:'todos',pncp_filters:{},order:'-data',page:1,size:TABLE_PAGE_SIZE};}
 function renderFilterStatuses() {
@@ -266,14 +346,19 @@ function renderFilterStatuses() {
   $('draft-status').replaceChildren();for(const value of statuses){const option=el('option',statusNames[value] || value);option.value=value;$('draft-status').append(option);}
 }
 function tableColumnDefinitions() {
-  const columns=state.schema.columns;
-  return [columns.find(c=>c.field==='titulo'),...columns.filter(c=>c.field!=='titulo')].map(column=>{
-    return {...column,width:column.width || 180,minWidth:85,visible:!!column.visible,filterable:!!(column.domain || column.native_range)};
+  const columns=state.schema.columns,base=[columns.find(c=>c.field==='titulo'),...columns.filter(c=>c.field!=='titulo')].filter(Boolean);
+  const layout=readColumnLayout(state.query?.document_type),byField=new Map(base.map(column=>[column.field,column])),ordered=[];
+  for(const field of layout?.order || []){const column=byField.get(field);if(column){ordered.push(column);byField.delete(field);}}
+  ordered.push(...byField.values());
+  return ordered.map(column=>{
+    const width=Number(layout?.width?.[column.field]),visible=layout && Object.hasOwn(layout.visible,column.field)?!!layout.visible[column.field]:!!column.visible;
+    return {...column,width:Number.isFinite(width)?Math.max(85,Math.round(width)):column.width || 180,minWidth:85,visible,filterable:!!(column.domain || column.native_range)};
   });
 }
 function renderColumnChoices() {
   $('column-list').replaceChildren();
-  for(const column of state.schema.columns) {
+  const columns=state.table?.getColumns?.() || state.schema.columns;
+  for(const column of columns) {
     const label=el('label',undefined,'checkbox-label'),input=el('input');input.type='checkbox';input.checked=!!column.visible;
     input.addEventListener('change',()=>state.table.setColumnVisibility(column.field,input.checked));label.append(input,document.createTextNode(column.title));$('column-list').append(label);
   }
@@ -328,7 +413,29 @@ function syncFilterEditor(editor) {
     editor.selected=(value || []).map(id=>editor.options?.find(o=>o.id===id) || editor.selected.find(o=>o.id===id) || {id,label:id});
     renderSelectedOptions(editor);updateFilterChoices(editor);
   } else editor.input.value=value===undefined?'':String(value);
-  selectMenus?.refresh(editor.input);
+  selectMenus?.refresh(editor.input);updateFilterFinder();
+}
+function updateFilterFinder() {
+  const search=$('filter-search'),count=$('filter-active-count'),clear=$('clear-draft-filters');
+  if(!search || !state.draft)return;
+  const text=normalizedOptionText(search.value.trim()),visibleGroups=new Set();
+  for(const editor of filterFields.values()) {
+    const match=!text || normalizedOptionText(editor.searchText || '').includes(text);
+    editor.area.hidden=!match;
+    if(match && editor.group)visibleGroups.add(editor.group);
+  }
+  for(const group of filterGroupElements)group.hidden=!visibleGroups.has(group);
+  const active=Object.keys(state.draft.pncp_filters).length;
+  if(count){count.textContent=active?`${active} ${active===1?'filtro ativo':'filtros ativos'}`:'Nenhum filtro ativo';}
+  if(clear)clear.disabled=active===0;
+}
+function clearDraftFilters() {
+  if(!state.draft)return;
+  state.legalAbort?.abort();state.legalSeq++;state.legalPending=false;state.legalError=false;
+  if($('legal-error'))$('legal-error').hidden=true;if($('apply-filters'))$('apply-filters').disabled=false;
+  state.draft.pncp_filters={};
+  for(const editor of filterFields.values())syncFilterEditor(editor);
+  updateFilterFinder();
 }
 async function setDraftFilter(name,value) {
   const draft=state.draft,previous=JSON.stringify(draft.pncp_filters[name]);
@@ -367,7 +474,7 @@ async function openFilters(column=null) {
   state.draft=clone(state.query);state.draft.q=$('search').value;
   renderFilterStatuses();
   $('draft-search').value=state.draft.q;$('draft-status').value=state.draft.status;
-  filterFields.clear();$('filter-groups').replaceChildren();$('filter-popups').replaceChildren();
+  $('filter-search').value='';filterGroupElements=[];filterFields.clear();$('filter-groups').replaceChildren();$('filter-popups').replaceChildren();
   $('filters-title').textContent=`Filtros · ${documentName().label}`;
   openDialog('filters-dialog');
   const controller=new AbortController();state.domainAbort=controller;
@@ -379,15 +486,16 @@ async function openFilters(column=null) {
     const group=el('fieldset',undefined,'filter-group'),legend=el('legend',groupName==='Contratação' && state.draft.document_type!=='edital'?'Documento':groupName==='Contrato' && state.draft.document_type==='ata'?'Ata':groupName);
     group.append(legend);
     if(groupName==='Item' && state.draft.document_type==='edital')group.append(el('p','Filtros de itens, resultados e fornecedores selecionam contratações. Os detalhes mostram todos os itens, inclusive os que não correspondem ao filtro. Condições diferentes podem corresponder a itens ou resultados diferentes.','panel-note'));
-    const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);
+    const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);filterGroupElements.push(group);
     for(const cap of caps) {
-      const editor=createFilterEditor(cap);filterFields.set(cap.name,editor);grid.append(editor.area);
+      const editor=createFilterEditor(cap);editor.group=group;filterFields.set(cap.name,editor);grid.append(editor.area);
       if(cap.domain)loads.push(loadFilterOptions(editor,controller.signal,cap.domain_source==='search' && !(cap.name==='amparos_legais' && state.draft.pncp_filters.normativos_base?.length)?base:undefined).then(()=>{
         if(cap.name===target && currentEditor(editor) && !editor.input.disabled && document.activeElement===editor.area)editor.input.focus({preventScroll:true});
       }));
     }
   }
   $('filters-dialog').querySelector('.filters-body')?.scrollTo(0,0);
+  updateFilterFinder();
   const editor=filterFields.get(target);
   if(editor && currentEditor(editor)) {
     editor.area.scrollIntoView({block:'center'});
@@ -406,7 +514,7 @@ function createFilterEditor(cap) {
   clear.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>';
   const help=el('p',cap.help_text || '','filter-help');help.id=`filter-help-${cap.name}`;help.hidden=!help.textContent;
   const error=el('p',undefined,'inline-error');error.id=`filter-error-${cap.name}`;error.setAttribute('role','status');error.hidden=true;
-  const editor={cap,area,input,help,error,clear,draft:state.draft,seq:state.domainSeq,loadSeq:0,suggestSeq:0};
+  const editor={cap,area,input,help,error,clear,draft:state.draft,seq:state.domainSeq,loadSeq:0,suggestSeq:0,searchText:[cap.label,cap.name,cap.help_text].filter(Boolean).join(' ')};
   if(cap.domain && cap.cardinality==='multiple') {
     editor.input=el('input');editor.input.type='search';editor.input.placeholder=cap.domain_kind==='suggest'?'Digite ao menos 3 caracteres':'Buscar e selecionar opções';editor.input.autocomplete='off';
     editor.selected=[];
@@ -752,7 +860,7 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
       }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)objectSummary.textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');}}
       finally{if(token===state.detailSeq)detailPanel.setAttribute('aria-busy','false');}
     }
-    if(detailIdentity(doc)){retryDetails.addEventListener('click',loadDetails);loads.push(loadDetails);updateDetails(null,'loading');}
+    if(detailIdentity(doc)){retryDetails.addEventListener('click',loadDetails);loads.push({resource:'detalhes',load:loadDetails});updateDetails(null,'loading');}
     else {detailStatus.textContent='A fonte não forneceu os identificadores originais para consultar os detalhes completos.';updateDetails(null,'unavailable');}
   }
   if(kind==='edital'){
@@ -790,32 +898,40 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
     }}finally{if(current()){pagination.setBusy(false);section.setAttribute('aria-busy','false');}}
   }
   if(!doc._purchase){itemStatus.textContent='A fonte não forneceu CNPJ, ano e sequencial originais suficientes para consultar itens.';updateItems(null,'unavailable');}
-  else {retry.addEventListener('click',()=>itemPage(page));loads.push(()=>itemPage(1));}
+  else {retry.addEventListener('click',()=>itemPage(page));loads.push({resource:'itens',load:()=>itemPage(1)});}
   }
   const sections={edital:[['arquivos','Arquivos'],['atas','Atas de Registro de Preço'],['contratos','Contratos/Empenhos'],['historico','Histórico']],ata:[['partesenvolvidas','Partes envolvidas'],['contratos','Contratos'],['arquivos','Arquivos'],['historico','Histórico']],contrato:[['empenhos','Empenhos'],['instrumentocobranca','Instrumentos de cobrança'],['termos','Termos'],['arquivos','Arquivos'],['historico','Histórico']]};
   for(const [resource,title]of sections[kind]){
     let updateCount=()=>{};
     const related=relatedSection(resource,title,doc,token,detailController.signal,schedule,(...args)=>updateCount(...args));
     updateCount=addTab(resource,title,related.section);if(!detailIdentity(doc))updateCount(null,'unavailable');
-    loads.push(related.load);
+    loads.push({resource,load:related.load});
   }
   state.detailActivate=resource=>activate(Math.max(0,tabs.findIndex(tab=>tab.button.dataset.resource===resource)),false,false);
   state.detailActivate(tab);openDialog('details-dialog');if(sync)syncDetailUrl();
-  await Promise.all(loads.map(load=>load()));
+  // Start the visible tab first; the remaining first pages continue in background.
+  const priority=[tab,'detalhes','itens',...sections[kind].map(([resource])=>resource)],seen=new Set(),ordered=[];
+  for(const resource of priority){const entry=loads.find(item=>item.resource===resource);if(entry && !seen.has(entry)){seen.add(entry);ordered.push(entry);}}
+  for(const entry of loads)if(!seen.has(entry))ordered.push(entry);
+  await Promise.all(ordered.map(entry=>entry.load()));
 }
-async function exportCsv() {
+async function exportCsv(scope='all') {
   if(!state.lastQuery || state.exportAbort || !['success','empty'].includes(state.status))return;
-  const query=clone(state.lastQuery);
+  if(scope==='page' && !state.lastResult?.data?.length)return;
+  const query=clone(state.lastQuery);if(scope==='page')query.page=state.lastResult.page;
   const seq=++state.exportSeq;const controller=new AbortController();state.exportAbort=controller;
-  updateExportButton();notice('Consultando o PNCP e gerando CSV dos últimos critérios concluídos. Os dados podem diferir da tabela.');
+  const started=Date.now();
+  updateExportButton();notice(scope==='page'?'Consultando o PNCP e gerando CSV da página atual. Os dados podem diferir da tabela.':'Consultando o PNCP e gerando CSV dos últimos critérios concluídos. Os dados podem diferir da tabela.');
   try {
-    const result=await service.call('export',{query},{signal:controller.signal,onProgress:progress=>{
-      if(seq===state.exportSeq)notice(`Coletando ${fmtInt(progress.rows)} de ${fmtInt(progress.total)} documentos para CSV…`);
+    const result=await service.call('export',scope==='page'?{query,scope:'page'}:{query},{signal:controller.signal,onProgress:progress=>{
+      if(seq!==state.exportSeq)return;
+      const elapsed=(Date.now()-started)/1000,remaining=progress.rows>0 && progress.total>progress.rows?Math.max(1,Math.ceil((progress.total-progress.rows)/(progress.rows/elapsed))):0;
+      notice(`Coletando ${fmtInt(progress.rows)} de ${fmtInt(progress.total)} documentos para CSV…${remaining?` Cerca de ${remaining} s restantes.`:''}`);
     }});
     if(seq!==state.exportSeq || controller.signal.aborted)return;
     const blob=new Blob(result.chunks,{type:result.mime});
     const href=URL.createObjectURL(blob),link=el('a');link.href=href;link.download=result.filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(href),10000);
-    notice(`${result.metadata.exported_rows} linhas exportadas.`);
+    notice(`${result.metadata.exported_rows} linhas exportadas${scope==='page'?` (página ${result.metadata.page})`:''}.`);
   }catch(error){if(seq===state.exportSeq && error.name!=='AbortError')notice(`Falha ao exportar CSV: ${error.message}${error.code?' ['+error.code+']':''}`,'error');}
   finally{if(seq===state.exportSeq){state.exportAbort=null;updateExportButton();}}
 }
@@ -835,12 +951,18 @@ async function init() {
   state.table=tableFactory({
     container:$('results-table'),columns:tableColumnDefinitions(),renderCell,renderCard,footerContent:resultInfo,
     placeholder:state.placeholder,paginationIcons,menuIcon:filterHeaderIcon,
-    onPageChange:page=>loadPage(page),onOpenDocument:doc=>openDetails(doc),onColumnAction:columnAction,
+    onPageChange:page=>loadPage(page),onOpenDocument:doc=>openDetails(doc),onColumnAction:columnAction,onColumnChange:saveColumnLayout,onSort:columnAction,
   });
   resultInfo.hidden=false;
   initializeMobileLayout({document,window});
   selectMenus=initializeSelectMenus({document,window});
-  $('results-view').addEventListener('change',()=>state.table.setMobileView($('results-view').value));
+  $('results-view').addEventListener('change',()=>setMobileView($('results-view').value));
+  for(const button of $('mobile-view-toggle').children || [])button.addEventListener('click',()=>setMobileView(button.dataset.view));
+  $('copy-link-button').addEventListener('click',copyCurrentLink);
+  $('export-page-button').addEventListener('click',()=>exportCsv('page'));
+  $('reset-columns').addEventListener('click',()=>{clearColumnLayout(state.query.document_type);state.table.setColumns(tableColumnDefinitions());renderColumnChoices();});
+  $('filter-search').addEventListener('input',updateFilterFinder);
+  $('clear-draft-filters').addEventListener('click',clearDraftFilters);
   renderColumnChoices();
   $('document-type').addEventListener('change',changeDocumentType);
   $('app-header').addEventListener('focusin',event=>event.target.scrollIntoView({block:'nearest',inline:'nearest'}));
@@ -849,9 +971,9 @@ async function init() {
   $('refresh-button').addEventListener('click',async()=>{
     if(!state.lastQuery)return;
     const {page}=state.lastQuery;state.query=clone(state.lastQuery);$('search').value=state.query.q;updateCriteria();
-    await loadPage(page);
+    await loadPage(page,'push',{force:true});
   });
-  $('retry-button').addEventListener('click',()=>loadPage(state.query.page));
+  $('retry-button').addEventListener('click',()=>loadPage(state.query.page,'push',{force:true}));
   $('cancel-button').addEventListener('click',()=>{state.abort?.abort();});
   $('cancel-export-button').addEventListener('click',()=>{state.exportAbort?.abort();notice('Exportação cancelada.');});
   $('order').addEventListener('change',()=>{state.query.order=$('order').value;return execute();});
@@ -872,6 +994,14 @@ async function init() {
   $('window-warning').addEventListener('blur',hideWindowTooltip);
   window.addEventListener('resize',hideTooltips);
   window.addEventListener('popstate',restoreQueryUrl);
+  window.addEventListener('online',updateOnlineStatus);window.addEventListener('offline',updateOnlineStatus);updateOnlineStatus();
+  document.addEventListener('keydown',event=>{
+    const target=event.target,editable=target && (target.closest?.('input,textarea,select,[contenteditable="true"]') || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName) || target.isContentEditable);
+    const dialogOpen=[...document.querySelectorAll('dialog')].some(dialog=>dialog.open);
+    const shortcut=(event.key==='/' && !event.ctrlKey && !event.metaKey && !event.altKey) || ((event.ctrlKey||event.metaKey) && !event.altKey && event.key.toLowerCase()==='k');
+    if(!shortcut || editable || dialogOpen)return;
+    event.preventDefault();$('search').focus();$('search').select?.();
+  });
   window.addEventListener('pagehide',event=>{if(!event.persisted){filterOptionsCache.close();state.table.destroy();}});
   document.addEventListener('scroll',event=>{
     const button=document.activeElement;
@@ -884,7 +1014,7 @@ async function init() {
     }
     hideTooltips();
   },true);
-  updateCriteria();status('idle');
+  updateCriteria();setMobileView('cards');status('idle');
   state.started=Promise.resolve(state.table.ready).then(()=>{
     tableReady=true;if(window.location?.href)return restoreQueryUrl();if(urlError)invalidQueryUrl(urlError);else return loadPage(state.query.page,'replace');
   });

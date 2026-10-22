@@ -76,7 +76,7 @@ try {
   assert.equal(new URL(page.url()).searchParams.has('detalhe'),false);
   await page.goBack();await page.waitForFunction(()=>document.querySelector('#search').value==='' && !document.querySelector('#export-button').disabled);
   await page.goBack();await waitLoaded();await waitTab('termos');assert.equal(page.url(),selected);
-  assert.equal(calls('execute'),searches+2);
+  assert.equal(calls('execute'),searches+1,'resultado em cache evita uma nova consulta ao voltar');
   console.log('PASS Clique na tabela escreve o link; nova busca remove a seleção e Voltar restaura o painel');
 
   const queries=calls('execute'),details=calls('documentDetails');

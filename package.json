@@ -13,6 +13,7 @@
     "dev": "vite",
     "demo": "vite --mode demo",
     "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:budget": "node test/performance-budget.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test:browser": "node test/browser-smoke.mjs"

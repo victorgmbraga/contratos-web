@@ -86,11 +86,12 @@ async function interfaceFixture(options={}) {
     renderPage({rows,page,lastPage}){this.rows=rows;this.page=page;this.lastPage=lastPage;},
     clear(){this.rows=[];this.page=1;this.lastPage=1;},
     setColumns(columns){this.columns=columns;},
-    setColumnVisibility(field,visible){this.columns.find(column=>column.field===field).visible=visible;},
+    setColumnVisibility(field,visible){this.columns.find(column=>column.field===field).visible=visible;this.options.onColumnChange?.(this.columns);},
+    setMobileView(view){this.mobileView=view;},
     getColumns(){return this.columns;},destroy(){},
   });
   const entries=[options.href ?? 'https://example.test/contratos-web/'],windowListeners={};let historyIndex=0;
-  const view={localStorage:options.storage,location:{get href(){return entries[historyIndex];}},addEventListener(name,fn){(windowListeners[name]??=[]).push(fn);},history:{
+  const view={localStorage:options.storage,navigator:options.navigator,location:{get href(){return entries[historyIndex];}},addEventListener(name,fn){(windowListeners[name]??=[]).push(fn);},history:{
     get length(){return entries.length;},
     pushState(_state,_title,href){entries.splice(historyIndex+1);entries.push(new URL(href,entries[historyIndex]).href);historyIndex++;},
     replaceState(_state,_title,href){entries[historyIndex]=new URL(href,entries[historyIndex]).href;},
@@ -109,6 +110,7 @@ async function interfaceFixture(options={}) {
   const focusedField=()=>dom.activeElement?.id;
   const tableColumns=()=>uiCore.state.table.getColumns();
   const request=params=>uiCore.loadResultsPage(params.page);
+  const pageChange=page=>uiCore.state.table.options.onPageChange(page);
   const footer=()=>uiCore.state.table.options.footerContent;
   const draft=()=>structuredClone(uiCore.state.draft);
   const setFilter=(name,value)=>uiCore.setDraftFilter(name,value);
@@ -131,7 +133,7 @@ async function interfaceFixture(options={}) {
     }
   };
   const renderedPage=()=>({page:uiCore.state.table.page,ids:uiCore.state.table.rows.map(row=>row.id)});
-  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,footer,startTable,renderedPage,optionsReady:uiCore.state.optionsReady,browser};
+  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,pageChange,footer,startTable,renderedPage,optionsReady:uiCore.state.optionsReady,browser};
 }
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
@@ -475,7 +477,7 @@ test('QUERY-URL-UI-03: Voltar e Avançar restauram critérios, página, colunas 
   ui.nodes.get('document-type').value='contrato';await ui.nodes.get('document-type').fire('change');
   await ui.nodes.get('filters-button').fire('click');await ui.setFilter('possui_nfe',false);ui.nodes.get('draft-status').value='vigente';await ui.nodes.get('apply-filters').fire('click');
   const length=ui.browser.entries.length,requests=ui.requests.length;
-  await ui.browser.back();assert.equal(ui.requests.length,requests+1);assert.equal(ui.state().document_type,'contrato');assert.deepEqual(ui.state().pncp_filters,{});
+  await ui.browser.back();assert.equal(ui.requests.length,requests,'resultado em cache evita nova consulta');assert.equal(ui.state().document_type,'contrato');assert.deepEqual(ui.state().pncp_filters,{});
   await ui.browser.back();assert.equal(ui.browser.href(),shared);assert.deepEqual(ui.state(),expected);assert.equal(ui.nodes.get('search').value,'firewall');assert(ui.tableColumns().some(column=>column.field==='valor_total_estimado'));assert.equal(ui.browser.entries.length,length);
   await ui.browser.forward();assert.equal(ui.state().document_type,'contrato');assert.equal(ui.state().page,1);assert.equal(ui.nodes.get('search').value,'');assert(ui.tableColumns().some(column=>column.field==='valor_global'));
   await ui.browser.forward();assert.equal(ui.state().pncp_filters.possui_nfe,false);assert.equal(ui.state().status,'vigente');assert.equal(ui.browser.entries.length,length);
@@ -1198,4 +1200,40 @@ test('TABLE-STATE-01: falha de outra página preserva linhas e página confirmad
   await assert.rejects(ui.request({page:2}),/Fonte indisponível/);
   assert.deepEqual(ui.renderedPage(),confirmed);assert.equal(ui.state().page,2);
   assert.equal(ui.nodes.get('table-loader').hidden,true);assert.equal(ui.nodes.get('results-table').inert,false);
+});
+
+test('CACHE-UI-01: revisitar uma página em cache não repete a consulta',async()=>{
+  const ui=await interfaceFixture();const first=ui.requests.length;
+  await ui.pageChange(2);const second=ui.requests.length;assert.equal(second,first+1);
+  await ui.pageChange(1);assert.equal(ui.requests.length,second);assert.equal(ui.state().page,1);
+});
+
+test('COLUMNS-UI-01: visibilidade das colunas é persistida por tipo documental',async()=>{
+  const storage=memoryStorage(),ui=await interfaceFixture({storage});
+  const label=ui.nodes.get('column-list').children.find(node=>node.children?.[1]==='Objeto');assert(label);
+  label.children[0].checked=false;await label.children[0].fire('change');
+  assert.equal(ui.tableColumns().find(column=>column.field==='objeto_compra').visible,false);
+  const restored=await interfaceFixture({storage});assert.equal(restored.tableColumns().find(column=>column.field==='objeto_compra').visible,false);
+});
+
+test('FILTER-FINDER-UI-01: busca de filtros, contador de ativos e limpeza do rascunho',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  const search=ui.nodes.get('filter-search');search.value='ufs';await search.fire('input');
+  assert.equal(ui.nodes.get('filter-field-ufs').hidden,false);assert.equal(ui.nodes.get('filter-field-orgaos').hidden,true);
+  await ui.setFilter('srp',false);
+  assert.match(ui.nodes.get('filter-active-count').textContent,/1 filtro ativo/);assert.equal(ui.nodes.get('clear-draft-filters').disabled,false);
+  await ui.nodes.get('clear-draft-filters').fire('click');
+  assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.nodes.get('filter-active-count').textContent,'Nenhum filtro ativo');assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
+});
+
+test('COPY-LINK-UI-01: copia a URL atual e informa o resultado',async()=>{
+  let copied=null;const ui=await interfaceFixture({navigator:{clipboard:{writeText:async text=>{copied=text;}}}});
+  await ui.nodes.get('copy-link-button').fire('click');
+  assert.equal(copied,ui.browser.href());assert.match(ui.nodes.get('notice').textContent,/Link copiado/);
+});
+
+test('EXPORT-PAGE-UI-01: exporta somente a página atual sem alterar o CSV completo',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('search-form').fire('submit');const completed=ui.state();
+  await ui.nodes.get('export-page-button').fire('click');
+  assert.equal(ui.exportRequests.length,1);assert.deepEqual(ui.exportRequests[0],{query:{...completed,page:1},scope:'page'});assert.equal(ui.downloads.length,1);
 });

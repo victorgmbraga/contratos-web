@@ -20,7 +20,7 @@ export class QueryService {
     }
   }
   async *collectPages(query, op) {
-    const size=this.config.PNCP_PAGE_SIZE,head=await this.client.search(query,1,size,op),limit=this.config.PNCP_MAX_EXPORT_DOCUMENTS;
+    const size=this.config.PNCP_EXPORT_PAGE_SIZE,head=await this.client.search(query,1,size,op),limit=this.config.PNCP_MAX_EXPORT_DOCUMENTS;
     const fmt=n=>new Intl.NumberFormat('pt-BR').format(n);
     assert(head.total<=limit && head.total<=10000,'EXPORT_TOO_BROAD',`A busca retornou ${fmt(head.total)} ${documentNames[query.document_type].plural}; o limite de exportação é ${fmt(limit)}. Delimite a pesquisa por texto, período de publicação, UF ou órgão.`,422,{source_total:head.total,limit});
     const seen=new Set(),pages=Math.max(1,Math.ceil(head.total/size));
@@ -58,12 +58,29 @@ export class QueryService {
     const query=validateQuery(input,this.config),op=operation(this.config,signal,requestId);
     try{return await this.process(query,op);}finally{op.finish();}
   }
-  async export(input,signal,requestId,{onProgress=()=>{}}={}) {
-    const query=validateQuery({...input,page:1,size:this.config.PNCP_PAGE_SIZE},this.config),op=operation(this.config,signal,requestId);
+  async export(input,signal,requestId,{onProgress=()=>{},scope='all'}={}) {
+    assert(scope==='all' || scope==='page','INVALID_EXPORT_SCOPE','Escopo de exportação inválido.',422);
+    const query=validateQuery({...input,...(scope==='all'?{page:1}:{}),size:this.config.PNCP_EXPORT_PAGE_SIZE},this.config),op=operation(this.config,signal,requestId);
     try {
       await this.verifyDomains(query,op);
       const writer=csvWriter(columnsFor(query.document_type),this.config.PNCP_MAX_EXPORT_BYTES);
       let rows=0,total=0;
+      if(scope==='page') {
+        const current=await this.client.search(query,query.page,query.size,op);
+        total=current.total;
+        const last=Math.max(1,Math.ceil(Math.min(total,10000)/query.size));
+        assert(query.page<=last,'PAGE_OUT_OF_RANGE','Página além do resultado atual.',422,{last_page:last});
+        assert(current.items.length===Math.min(query.size,Math.max(0,total-(query.page-1)*query.size)),'INVALID_UPSTREAM','O PNCP retornou uma página incompatível com o total e o tamanho solicitado.',502);
+        const documents=current.items.map(project);
+        for(let offset=0;offset<documents.length;offset+=25) {
+          op.check();writer.append(documents.slice(offset,offset+25));
+          await delay(0,op.signal);
+        }
+        rows=documents.length;
+        op.check();const metadata=this.metadata(query,[],total,op,false);metadata.exported_rows=rows;metadata.export_scope='page';
+        delete metadata.data;
+        return {chunks:writer.chunks,metadata};
+      }
       for await (const page of this.collectPages(query,op)) {
         total=page.source_total;
         for(let offset=0;offset<page.documents.length;offset+=25){
@@ -73,12 +90,12 @@ export class QueryService {
         rows+=page.documents.length;
         onProgress({pages:page.page,rows,total,bytes:writer.bytes});
       }
-      op.check();const metadata=this.metadata(query,[],total,op,true);metadata.exported_rows=rows;
+      op.check();const metadata=this.metadata(query,[],total,op,true);metadata.exported_rows=rows;metadata.export_scope='all';
       delete metadata.data;
       return {chunks:writer.chunks,metadata};
     }finally{op.finish();}
   }
-  async domains(type,normatives,signal,requestId,field=null) {validateDomains(type,normatives,field,this.config);const op=operation(this.config,signal,requestId);try{return {...await this.client.domains(type,normatives,op,field),request_id:op.id,queried_at:new Date().toISOString()};}finally{op.finish();}}
+  async domains(type,normatives,signal,requestId,field=null,priority='foreground') {validateDomains(type,normatives,field,this.config);const op=operation(this.config,signal,requestId,priority);try{return {...await this.client.domains(type,normatives,op,field),request_id:op.id,queried_at:new Date().toISOString()};}finally{op.finish();}}
   async suggest(type,field,q,size,signal,requestId) {validateSuggest(type,field,q,size,this.config);const op=operation(this.config,signal,requestId);try{return {...await this.client.suggest(type,field,q,size,op),request_id:op.id,queried_at:new Date().toISOString()};}finally{op.finish();}}
   async details(purchase,page,size,signal,requestId) {
     validateDocument(purchase,['edital']);validateDetailPage(page,size);

@@ -1,4 +1,5 @@
 import './browser-styles.css';
+import './theme.js';
 import { createApplicationUI } from './app.js';
 import { createWorkerService } from '../src/browser/service.js';
 
@@ -13,4 +14,7 @@ const ready = (async () => {
   window.addEventListener('pagehide', event => { if (!event.persisted) worker.close(); });
   return worker;
 })();
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register(new URL('./sw.js', document.baseURI)).catch(() => {});
+}
 createApplicationUI(service);

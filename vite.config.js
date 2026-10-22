@@ -20,7 +20,8 @@ export default defineConfig(({ mode }) => {
     worker: { format: 'es', plugins: () => mode === 'test' ? [{
       name: 'controlled-worker-fixtures',
       load(id) {
-        if (id === fileURLToPath(new URL('./src/browser/worker.js', import.meta.url))) {
+        const normalize = value => value.replaceAll('\\', '/').split('?')[0];
+        if (normalize(id) === normalize(fileURLToPath(new URL('./src/browser/worker.js', import.meta.url)))) {
           return `import { attachWorker } from './runtime.js';\nimport { uiDemoFetch } from ${JSON.stringify(fileURLToPath(new URL('./test/browser-fixtures.js', import.meta.url)))};\nattachWorker(globalThis, { demoFetcher: uiDemoFetch });`;
         }
       },
@@ -43,13 +44,10 @@ export default defineConfig(({ mode }) => {
         this.emitFile({ type: 'asset', fileName: 'browser-config.json', source: await config() });
         this.emitFile({ type: 'asset', fileName: 'LICENSE', source: await readFile(new URL('./LICENSE', import.meta.url), 'utf8') });
         this.emitFile({ type: 'asset', fileName: 'THIRD_PARTY_LICENSES.md', source: await readFile(new URL('./THIRD_PARTY_LICENSES.md', import.meta.url), 'utf8') });
+        this.emitFile({ type: 'asset', fileName: 'theme-boot.js', source: await readFile(new URL('./public/theme-boot.js', import.meta.url), 'utf8') });
+        this.emitFile({ type: 'asset', fileName: 'sw.js', source: await readFile(new URL('./public/sw.js', import.meta.url), 'utf8') });
         this.emitFile({ type: 'asset', fileName: '_headers', source: '/*\n' + Object.entries(headers).map(([name, value]) => `  ${name}: ${value}\n`).join('') + '  Cache-Control: no-cache\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n' });
       },
-    }, {
-      name: 'theme-before-paint',
-      transformIndexHtml: { order: 'post', handler(html) {
-        return html.replaceAll('<script type="module" crossorigin', '<script type="module" blocking="render" crossorigin');
-      } },
     }],
   };
 });

@@ -4,12 +4,13 @@ export {paginationPages} from './pagination.js';
 let tableSerial = 0;
 
 export function createResultsTable({container, columns = [], renderCell, renderCard, footerContent, placeholder,
-  paginationIcons = {}, menuIcon = '', onPageChange, onOpenDocument, onColumnAction}) {
+  paginationIcons = {}, menuIcon = '', onPageChange, onOpenDocument, onColumnAction, onColumnChange, onSort}) {
   const document = container.ownerDocument, window = document.defaultView;
   const lifetime = new window.AbortController(), {signal} = lifetime;
   let fields = [], rows = [], page = 1, lastPage = 1, busy = false, destroyed = false, menu = null, gesture = null;
   let rowViews = [];
   let cardsDirty = true;
+  let sortOrder = null;
   const mobile = renderCard ? window.matchMedia('(max-width:700px)') : null;
   const originalFooterParent = footerContent?.parentNode;
   const node = (tag, className, text) => {
@@ -92,12 +93,17 @@ export function createResultsTable({container, columns = [], renderCell, renderC
     container.classList.remove('results-dragging');
     head.querySelectorAll('[data-drop-target]').forEach(element=>element.removeAttribute('data-drop-target'));
     try { previous.element.releasePointerCapture(previous.id); } catch { /* Pointer already released. */ }
-    if (cancel && previous.resize) resizeColumn(previous.field,previous.width);
+    if (cancel && previous.resize) resizeColumn(previous.field,previous.width,false);
+    if (!cancel && previous.resize) onColumnChange?.(fields.map(field=>({...field})));
     if (!cancel && !previous.resize && previous.moved && previous.target) {
       moveColumn(previous.field,fields.findIndex(column=>column.field === previous.target));
     }
+    if (!cancel && !previous.resize && !previous.moved && previous.column?.native_order) {
+      const direction = sortOrder === previous.column.native_order.desc ? 'asc' : 'desc';
+      onSort?.(previous.column.field,direction);
+    }
   }
-  function resizeColumn(field, width) {
+  function resizeColumn(field, width, notify = true) {
     const column = fields.find(column=>column.field === field);
     if (!column) return;
     column.width = Math.max(column.minWidth,Math.round(width));
@@ -106,18 +112,19 @@ export function createResultsTable({container, columns = [], renderCell, renderC
     colgroup.children[index].style.width = `${column.width}px`;
     head.querySelectorAll('.results-col-resize')[index].setAttribute('aria-valuenow',String(column.width));
     table.style.width = `${fields.filter(column=>column.visible).reduce((sum,column)=>sum+column.width,0)}px`;
+    if (notify) onColumnChange?.(fields.map(field=>({...field})));
   }
   function moveColumn(field, targetIndex) {
     const index = fields.findIndex(column=>column.field === field);
     if (index < 0 || targetIndex < 0 || targetIndex >= fields.length || index === targetIndex) return;
     const [column] = fields.splice(index,1); fields.splice(targetIndex,0,column);
-    rebuild();
+    rebuild();onColumnChange?.(fields.map(field=>({...field})));
     [...head.querySelectorAll('.results-col-label')].find(element=>element.dataset.field === field)?.focus({preventScroll:true});
   }
   function startGesture(event, column, resize) {
     if (busy || destroyed || event.button !== 0) return;
     finishGesture(true); closeMenu();
-    gesture = {id:event.pointerId, field:column.field, element:event.currentTarget, x:event.clientX, width:column.width, resize, moved:false};
+    gesture = {id:event.pointerId, column, field:column.field, element:event.currentTarget, x:event.clientX, width:column.width, resize, moved:false};
     event.currentTarget.setPointerCapture(event.pointerId);
     if (resize) event.preventDefault();
   }
@@ -126,7 +133,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
     const delta = event.clientX - gesture.x;
     if (!gesture.moved && Math.abs(delta) < 5) return;
     gesture.moved = true; container.classList.add('results-dragging');
-    if (gesture.resize) resizeColumn(gesture.field,gesture.width + delta);
+    if (gesture.resize) resizeColumn(gesture.field,gesture.width + delta,false);
     else {
       const target = document.elementFromPoint(event.clientX,event.clientY)?.closest('.results-col');
       head.querySelectorAll('[data-drop-target]').forEach(element=>element.removeAttribute('data-drop-target'));
@@ -259,7 +266,14 @@ export function createResultsTable({container, columns = [], renderCell, renderC
       th.append(handle); headerRow.append(th);
     }
     head.replaceChildren(headerRow); table.style.width = `${visible.reduce((sum,column)=>sum+column.width,0)}px`;
-    table.hidden = visible.length === 0; renderRows();
+    table.hidden = visible.length === 0; updateSortState(); renderRows();
+  }
+  function updateSortState() {
+    for (const th of head.querySelectorAll('th')) {
+      const column = fields.find(field=>field.field === th.dataset.field);
+      if (!column?.native_order) { th.removeAttribute('aria-sort'); continue; }
+      th.setAttribute('aria-sort',sortOrder === column.native_order.asc ? 'ascending' : sortOrder === column.native_order.desc ? 'descending' : 'none');
+    }
   }
   const api = {
     setColumns(columns) {
@@ -267,7 +281,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
       rebuild();
     },
     setColumnVisibility(field, visible) {
-      const column = fields.find(column=>column.field === field); if (column) { column.visible = !!visible; rebuild(); }
+      const column = fields.find(column=>column.field === field); if (column) { column.visible = !!visible; rebuild();onColumnChange?.(fields.map(field=>({...field}))); }
     },
     renderPage({rows:nextRows, page:nextPage, lastPage:nextLastPage}) {
       if (destroyed) return;
@@ -280,6 +294,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
       if (busy) { finishGesture(true); closeMenu(); hideFilterTooltip(); } renderPagination();
     },
     clear() { rows = []; page = 1; lastPage = 1; renderRows(); renderPagination(); },
+    setSortOrder(order) { sortOrder = order || null; updateSortState(); },
     getColumns() { return fields.map(column=>({...column})); },
     setMobileView(view) {
       if (!renderCard || !['cards','table'].includes(view) || destroyed) return;

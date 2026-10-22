@@ -20,6 +20,19 @@ test('RATE-01: cancelar durante a espera não adia o início das próximas chama
   }finally{cancel.abort();first.finish();waiting.finish();next.finish();}
 });
 
+test('RATE-03: operações de primeiro plano passam à frente da pré-carga em segundo plano',async()=>{
+  const cfg=config({PNCP_MAX_CONCURRENT_REQUESTS:1}),client=new PncpClient(cfg,{fetcher:async()=>Response.json({ok:true})});
+  const first=operation(cfg),background=operation(cfg,undefined,undefined,'background'),foreground=operation(cfg,undefined,undefined,'foreground'),order=[];
+  try{
+    await client.acquire(first.signal);
+    const queuedBackground=client.acquire(background.signal,'background').then(()=>order.push('background'));
+    const queuedForeground=client.acquire(foreground.signal,'foreground').then(()=>order.push('foreground'));
+    await settle();assert.deepEqual(order,[]);
+    client.release();await queuedForeground;assert.deepEqual(order,['foreground']);
+    client.release();await queuedBackground;assert.deepEqual(order,['foreground','background']);
+  }finally{first.finish();background.finish();foreground.finish();}
+});
+
 test('RATE-02: chamadas já em espera respeitam Retry-After recebido por outra operação',async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:10000});
   const cfg=config({PNCP_REQUESTS_PER_SECOND:1}),starts=[];let finishLimited;

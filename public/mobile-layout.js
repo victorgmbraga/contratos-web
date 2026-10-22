@@ -8,7 +8,7 @@ export function initializeMobileLayout({document, window}) {
   trigger.before(triggerMarker);
   const detailLinks = document.getElementById('details-links'), detailLinksMarker = document.createComment('details-links');
   detailLinks.before(detailLinksMarker);
-  const controls = ['refresh-button','columns-button','clear-button','retry-button','cancel-export-button','export-button','theme-button','repository-link'].map(id => {
+  const controls = ['refresh-button','columns-button','copy-link-button','clear-button','retry-button','cancel-export-button','export-page-button','export-button','theme-button','repository-link'].map(id => {
     const element = document.getElementById(id), marker = document.createComment(id);
     element.before(marker);
     return {element, marker};
