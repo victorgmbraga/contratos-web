@@ -1216,10 +1216,9 @@ test('COLUMNS-UI-01: visibilidade das colunas é persistida por tipo documental'
   const restored=await interfaceFixture({storage});assert.equal(restored.tableColumns().find(column=>column.field==='objeto_compra').visible,false);
 });
 
-test('FILTER-FINDER-UI-01: busca de filtros, contador de ativos e limpeza do rascunho',async()=>{
+test('DRAFT-FILTERS-UI-01: contador de ativos e limpeza do rascunho',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  const search=ui.nodes.get('filter-search');search.value='ufs';await search.fire('input');
-  assert.equal(ui.nodes.get('filter-field-ufs').hidden,false);assert.equal(ui.nodes.get('filter-field-orgaos').hidden,true);
+  assert.equal(ui.nodes.get('filter-active-count').textContent,'Nenhum filtro ativo');assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
   await ui.setFilter('srp',false);
   assert.match(ui.nodes.get('filter-active-count').textContent,/1 filtro ativo/);assert.equal(ui.nodes.get('clear-draft-filters').disabled,false);
   await ui.nodes.get('clear-draft-filters').fire('click');

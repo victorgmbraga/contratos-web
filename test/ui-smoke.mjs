@@ -62,7 +62,7 @@ try {
   assert.deepEqual(initialDomains.filter(payload=>payload.field===null).map(payload=>payload.type),['edital','ata','contrato']);
   const storedOptions=await page.evaluate(prefix=>Object.keys(localStorage).filter(key=>key.startsWith(prefix)).map(key=>JSON.parse(localStorage.getItem(key))),FILTER_OPTIONS_PREFIX);
   for(const entry of storedOptions){assert.equal(entry.expires_at-entry.fetched_at,FILTER_OPTIONS_TTL);assert(!Object.hasOwn(entry.value,'raw'));}
-  for(let i=0;i<2;i++){await page.locator('#filters-button').click();await filter('ufs').waitFor();await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();}
+  for(let i=0;i<2;i++){await page.locator('#filters-button').click();await filter('ufs').waitFor();assert.equal(await page.locator('#filter-search, .filter-finder').count(),0);await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();}
   assert.equal(initialDomains.length,8);check('Inicialização pré-carrega e persiste as opções dos três tipos; reabrir filtros não consulta a fonte');
   for(const [type,title] of [['edital','64 contratações'],['ata','24 atas'],['contrato','32 contratos']]) {
     await page.locator('#document-type').selectOption(type);

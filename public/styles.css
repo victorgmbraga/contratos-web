@@ -128,9 +128,7 @@ dialog::backdrop{background:var(--backdrop,#122b4655);backdrop-filter:blur(2px)}
 .filters-modal>.dialog-footer{margin-top:16px;padding-top:16px}
 .filters-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:8px}
 .filters-basics{display:grid;grid-template-columns:2fr 1fr;gap:16px}
-.filter-finder{display:flex;align-items:flex-end;gap:12px;margin-bottom:8px}
-.filter-finder .filter-field{flex:1;max-width:420px}
-.filter-active-count{margin-left:auto;padding-bottom:10px;font-size:.8125rem;color:var(--muted);white-space:nowrap}
+.filter-active-count{margin:0 0 8px;font-size:.8125rem;color:var(--muted);white-space:nowrap}
 .filter-group{min-width:0;margin:16px 0 0;padding:16px 0 0;border:0;border-top:1px solid var(--line)}
 .filter-group legend{padding:0 10px 0 0;font-size:.9375rem;font-weight:700;color:var(--navy)}
 .filter-group>.panel-note{margin:0 0 14px;font-size:.8125rem}
@@ -281,9 +279,6 @@ dialog select[multiple]{min-height:155px}
   .filter-chip{max-width:260px}
   .result-info{flex-wrap:wrap;gap:3px;font-size:.6875rem}
   .result-count{flex-basis:100%}
-  .filter-finder{align-items:stretch;flex-direction:column;gap:4px}
-  .filter-finder .filter-field{max-width:none}
-  .filter-active-count{margin-left:0;padding-bottom:0}
   .notice,.connectivity-notice{margin:5px 7px;font-size:.75rem}
   .modal{padding:18px;max-height:94dvh}
   .filters-modal>.dialog-footer{gap:8px;flex-wrap:wrap}

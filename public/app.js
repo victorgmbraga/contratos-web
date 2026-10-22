@@ -50,7 +50,6 @@ let selectMenus;
 const filterFields=new Map();
 let openFilterEditor=null;
 let urlMode='replace',urlError=null,tableReady=false,queryRequested=false;
-let filterGroupElements=[];
 const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','copy-link-button','export-page-button','export-button','cancel-export-button'];
 function storageArea() { try { return window.localStorage; } catch { return null; } }
 function columnLayoutKey(type) { return COLUMN_LAYOUT_PREFIX + type; }
@@ -410,21 +409,13 @@ function syncFilterEditor(editor) {
     editor.selected=(value || []).map(id=>editor.options?.find(o=>o.id===id) || editor.selected.find(o=>o.id===id) || {id,label:id});
     renderSelectedOptions(editor);updateFilterChoices(editor);
   } else editor.input.value=value===undefined?'':String(value);
-  selectMenus?.refresh(editor.input);updateFilterFinder();
+  selectMenus?.refresh(editor.input);updateDraftActions();
 }
-function updateFilterFinder() {
-  const search=$('filter-search'),count=$('filter-active-count'),clear=$('clear-draft-filters');
-  if(!search || !state.draft)return;
-  const text=normalizedOptionText(search.value.trim()),visibleGroups=new Set();
-  for(const editor of filterFields.values()) {
-    const match=!text || normalizedOptionText(editor.searchText || '').includes(text);
-    editor.area.hidden=!match;
-    if(match && editor.group)visibleGroups.add(editor.group);
-  }
-  for(const group of filterGroupElements)group.hidden=!visibleGroups.has(group);
-  const active=Object.keys(state.draft.pncp_filters).length;
-  if(count){count.textContent=active?`${active} ${active===1?'filtro ativo':'filtros ativos'}`:'Nenhum filtro ativo';}
-  if(clear)clear.disabled=active===0;
+function updateDraftActions() {
+  if(!state.draft)return;
+  const active=Object.keys(state.draft.pncp_filters).length,count=$('filter-active-count');
+  if(count)count.textContent=active?`${active} ${active===1?'filtro ativo':'filtros ativos'}`:'Nenhum filtro ativo';
+  $('clear-draft-filters').disabled=active===0;
 }
 function clearDraftFilters() {
   if(!state.draft)return;
@@ -432,7 +423,7 @@ function clearDraftFilters() {
   if($('legal-error'))$('legal-error').hidden=true;if($('apply-filters'))$('apply-filters').disabled=false;
   state.draft.pncp_filters={};
   for(const editor of filterFields.values())syncFilterEditor(editor);
-  updateFilterFinder();
+  updateDraftActions();
 }
 async function setDraftFilter(name,value) {
   const draft=state.draft,previous=JSON.stringify(draft.pncp_filters[name]);
@@ -471,7 +462,7 @@ async function openFilters(column=null) {
   state.draft=clone(state.query);state.draft.q=$('search').value;
   renderFilterStatuses();
   $('draft-search').value=state.draft.q;$('draft-status').value=state.draft.status;
-  $('filter-search').value='';filterGroupElements=[];filterFields.clear();$('filter-groups').replaceChildren();$('filter-popups').replaceChildren();
+  filterFields.clear();$('filter-groups').replaceChildren();$('filter-popups').replaceChildren();
   $('filters-title').textContent=`Filtros · ${documentName().label}`;
   openDialog('filters-dialog');
   const controller=new AbortController();state.domainAbort=controller;
@@ -483,16 +474,16 @@ async function openFilters(column=null) {
     const group=el('fieldset',undefined,'filter-group'),legend=el('legend',groupName==='Contratação' && state.draft.document_type!=='edital'?'Documento':groupName==='Contrato' && state.draft.document_type==='ata'?'Ata':groupName);
     group.append(legend);
     if(groupName==='Item' && state.draft.document_type==='edital')group.append(el('p','Filtros de itens, resultados e fornecedores selecionam contratações. Os detalhes mostram todos os itens, inclusive os que não correspondem ao filtro. Condições diferentes podem corresponder a itens ou resultados diferentes.','panel-note'));
-    const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);filterGroupElements.push(group);
+    const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);
     for(const cap of caps) {
-      const editor=createFilterEditor(cap);editor.group=group;filterFields.set(cap.name,editor);grid.append(editor.area);
+      const editor=createFilterEditor(cap);filterFields.set(cap.name,editor);grid.append(editor.area);
       if(cap.domain)loads.push(loadFilterOptions(editor,controller.signal,cap.domain_source==='search' && !(cap.name==='amparos_legais' && state.draft.pncp_filters.normativos_base?.length)?base:undefined).then(()=>{
         if(cap.name===target && currentEditor(editor) && !editor.input.disabled && document.activeElement===editor.area)editor.input.focus({preventScroll:true});
       }));
     }
   }
   $('filters-dialog').querySelector('.filters-body')?.scrollTo(0,0);
-  updateFilterFinder();
+  updateDraftActions();
   const editor=filterFields.get(target);
   if(editor && currentEditor(editor)) {
     editor.area.scrollIntoView({block:'center'});
@@ -511,7 +502,7 @@ function createFilterEditor(cap) {
   clear.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>';
   const help=el('p',cap.help_text || '','filter-help');help.id=`filter-help-${cap.name}`;help.hidden=!help.textContent;
   const error=el('p',undefined,'inline-error');error.id=`filter-error-${cap.name}`;error.setAttribute('role','status');error.hidden=true;
-  const editor={cap,area,input,help,error,clear,draft:state.draft,seq:state.domainSeq,loadSeq:0,suggestSeq:0,searchText:[cap.label,cap.name,cap.help_text].filter(Boolean).join(' ')};
+  const editor={cap,area,input,help,error,clear,draft:state.draft,seq:state.domainSeq,loadSeq:0,suggestSeq:0};
   if(cap.domain && cap.cardinality==='multiple') {
     editor.input=el('input');editor.input.type='search';editor.input.placeholder=cap.domain_kind==='suggest'?'Digite ao menos 3 caracteres':'Buscar e selecionar opções';editor.input.autocomplete='off';
     editor.selected=[];
@@ -957,7 +948,6 @@ async function init() {
   $('copy-link-button').addEventListener('click',copyCurrentLink);
   $('export-page-button').addEventListener('click',()=>exportCsv('page'));
   $('reset-columns').addEventListener('click',()=>{clearColumnLayout(state.query.document_type);state.table.setColumns(tableColumnDefinitions());renderColumnChoices();});
-  $('filter-search').addEventListener('input',updateFilterFinder);
   $('clear-draft-filters').addEventListener('click',clearDraftFilters);
   renderColumnChoices();
   $('document-type').addEventListener('change',changeDocumentType);
