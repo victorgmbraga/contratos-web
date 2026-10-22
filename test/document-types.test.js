@@ -180,6 +180,13 @@ test('DOCUMENTS-19: detalhe completo de edital mantém os campos nativos e os ad
   await assert.rejects(fixture(()=>json({...raw,numeroControlePNCP:'01234567000189-1-000058/2025'})).service.documentDetails(purchase),error=>error.code==='INVALID_UPSTREAM');
 });
 
+test('DOCUMENTS-23: título nativo normaliza espaços e não duplica o ano',()=>{
+  const contract=projectDocument('contrato',{numeroControlePNCP:'10221786000120-2-000728/2025',numeroContratoEmpenho:' 20250874/2025\n',anoContrato:2025,tipoContrato:{nome:'Contrato (termo inicial)'},objetoContrato:'Objeto'});
+  assert.equal(contract.titulo,'Contrato nº 20250874/2025');
+  const commitment=projectDocument('contrato',{numeroControlePNCP:'10221786000120-2-000728/2025',numeroContratoEmpenho:'2026NE006103',anoContrato:2026,tipoContrato:{nome:'Empenho'},objetoContrato:'Objeto'});
+  assert.equal(commitment.titulo,'Empenho nº 2026NE006103/2026');
+});
+
 test('DOCUMENTS-20: histórico extenso de ata mantém o total e permite navegar além de 20000 registros',async()=>{
   const document={type:'ata',cnpj:'00509968000148',ano:'2025',sequencial_compra:'402',sequencial:'1'},total=62364;
   const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(total):json(Array.from({length:Math.min(10,total-(Number(u.searchParams.get('pagina'))-1)*10)},()=>({tipoLogManutencaoNome:'Retificação',categoriaLogManutencaoNome:'Ata'}))));

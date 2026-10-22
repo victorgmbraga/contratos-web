@@ -1195,6 +1195,20 @@ test('DETAIL-LINK-UI-07: fechar durante a carga remove a seleção e impede reab
   const opening=ui.startTable();await settle();ui.nodes.get('details-dialog').close();assert.equal(signal.aborted,true);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);
   finish();await opening;assert.equal(ui.nodes.get('details-dialog').open,false);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);
 });
+test('DETAIL-LINK-UI-08: falha dos detalhes nativos usa os dados da busca no link direto',async()=>{
+  const ui=await interfaceFixture({
+    href:'https://example.test/?demo=1&ufs=GO&detalhe=edital/00000000000000/2026/1',
+    queryHandler:async(input,options,core)=>input.q
+      ? {data:[project(demoDocuments[0])],total:1,page:1,size:10,last_page:1,last_row:1}
+      : core.execute(input,options.signal),
+    documentHandler:()=>Promise.reject(Object.assign(new Error('PNCP retornou HTTP 404.'),{code:'PNCP_HTTP_ERROR'})),
+  });
+  assert.equal(ui.documentRequests.length,1);assert.equal(ui.requests.length,2);assert.equal(ui.requests[1].q,'00000000000000-1-000001/2026');assert.equal(ui.nodes.get('details-dialog').open,true);
+  assert.equal(ui.nodes.get('details-kind').textContent,'Edital de demonstração nº 1/2026');
+  const object=ui.all.find(node=>node.className==='detail-object');assert.match(object.textContent,/firewall/i);
+  assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'loaded');assert.match(ui.nodes.get('detail-tab-detalhes').textContent,/Detalhes \(\d+\)/);
+  assert(ui.all.some(node=>node.className==='items-status' && /dados da busca/.test(node.textContent)));
+});
 
 test('TABLE-STATE-01: falha de outra página preserva linhas e página confirmadas na view',async()=>{
   let failed=false;

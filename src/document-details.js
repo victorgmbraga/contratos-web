@@ -194,8 +194,9 @@ export function projectDocument(type,record) {
   const fields=recordFields(type,record);
   const object=type==='contrato'?record?.objetoContrato:record?.objetoCompra;
   assert(object==null || typeof object==='string','INVALID_UPSTREAM','Objeto do documento inválido no PNCP.',502);
-  const number=scalarText(type==='edital'?record.numeroCompra:type==='ata'?record.numeroAtaRegistroPreco:record.numeroContratoEmpenho),year=scalarText(type==='edital'?record.anoCompra:type==='ata'?record.anoAta:record.anoContrato);
-  const kind=type==='edital'?scalarText(record.tipoInstrumentoConvocatorioNome) || 'Edital':type==='ata'?'Ata de Registro de Preços':/empenho/i.test(record.tipoContrato?.nome || '')?'Empenho':'Contrato';
-  const titulo=number?`${kind} nº ${number}${year && !number.endsWith('/'+year)?'/'+year:''}`:scalarText(record.numeroControlePNCP);
+  const clean=value=>scalarText(value)?.replace(/\s+/g,' ').trim() || null;
+  const number=clean(type==='edital'?record.numeroCompra:type==='ata'?record.numeroAtaRegistroPreco:record.numeroContratoEmpenho),year=clean(type==='edital'?record.anoCompra:type==='ata'?record.anoAta:record.anoContrato);
+  const kind=type==='edital'?clean(record.tipoInstrumentoConvocatorioNome) || 'Edital':type==='ata'?'Ata de Registro de Preços':/empenho/i.test(record.tipoContrato?.nome || '')?'Empenho':'Contrato';
+  const titulo=number?`${kind} nº ${number}${year && !number.endsWith('/'+year)?'/'+year:''}`:clean(record.numeroControlePNCP);
   return {fields,objeto:scalarText(object),titulo,link_sistema_origem:safeLink(record.linkSistemaOrigem)};
 }

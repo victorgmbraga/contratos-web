@@ -112,15 +112,30 @@ function sameDocument(left,right) {
 function directDetailRow(document) {
   const {type,cnpj,ano,sequencial,sequencial_compra}=document;
   const control=cnpj+'-'+(type==='contrato'?'2':'1')+'-'+String(type==='ata'?sequencial_compra:sequencial).padStart(6,'0')+'/'+ano+(type==='ata'?'-'+sequencial.padStart(6,'0'):'');
-  return {tipo_documento:type,titulo:control,numero_controle_pncp:control,orgao_cnpj:cnpj,url_pncp:controlLink(control),_document:document,_purchase:type==='edital'?{cnpj,ano,sequencial}:null,_detail_from_url:true};
+  return {tipo_documento:type,titulo:control,numero_controle_pncp:control,orgao_cnpj:cnpj,url_pncp:controlLink(control),_document:document,_purchase:type==='edital'?{cnpj,ano,sequencial}:null,_detail_from_url:true,_direct_link:true};
 }
-function restoreDetailSelection(selection) {
+function restoreDetailSelection(selection,searchReady=Promise.resolve()) {
   if(!selection){closeDetails(false);return Promise.resolve();}
   if($('details-dialog').open && sameDocument(state.detailSelection?.document,selection.document)) {
     state.detailActivate(selection.tab);return Promise.resolve();
   }
-  const row=state.lastResult?.data.find(doc=>sameDocument(detailIdentity(doc),selection.document)) || directDetailRow(selection.document);
-  return openDetails(row,{tab:selection.tab,sync:false});
+  const indexed=state.lastResult?.data.find(doc=>sameDocument(detailIdentity(doc),selection.document));
+  const row=indexed?{...indexed,_direct_link:true}:directDetailRow(selection.document);
+  return openDetails(row,{tab:selection.tab,sync:false,searchReady});
+}
+async function searchRowFor(identity,searchReady,doc,signal) {
+  const control=doc.numero_controle_pncp;
+  const matches=row=>sameDocument(detailIdentity(row),identity) || !!(control && row.numero_controle_pncp===control);
+  const find=()=>state.lastResult?.data.find(matches) || null;
+  const found=find();if(found)return found;
+  await Promise.resolve(searchReady).catch(()=>{});
+  const indexed=find();if(indexed)return indexed;
+  if(!control)return null;
+  try {
+    const query={api_version:'2.0',document_type:doc.tipo_documento,q:control,status:'todos',pncp_filters:{},order:'-data',page:1,size:10};
+    const result=await service.call('execute',{query},{signal});
+    return result.data.find(matches) || null;
+  } catch { return null; }
 }
 function invalidQueryUrl(error) {
   urlError=error;status('error');$('retry-button').hidden=true;$('clear-button').hidden=false;
@@ -376,8 +391,10 @@ async function restoreQueryUrl() {
     const {query,selection}=readLocationState();
     const changed=!queryRequested || writeQueryUrl('https://query.invalid/',query,state.schema)!==writeQueryUrl('https://query.invalid/',state.query,state.schema);
     if(changed)applyQuery(query,{preserveDetails:true});
-    const details=restoreDetailSelection(selection);
+    let finishResults;const resultsReady=new Promise(resolve=>{finishResults=resolve;});
+    const details=restoreDetailSelection(selection,resultsReady);
     const results=changed?loadPage(query.page,'replace'):Promise.resolve();
+    results.then(finishResults,finishResults);
     if(!changed)syncDetailUrl('replace');
     await Promise.all([results,details]);
   } catch(error) {
@@ -765,7 +782,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
   } else {status.textContent='A fonte não forneceu CNPJ, ano e sequencial originais suficientes para consultar esta listagem.';updateCount(null,'unavailable');}
   return {section,load:()=>detailIdentity(doc)?load(1):Promise.resolve()};
 }
-async function openDetails(doc,{tab='detalhes',sync=true}={}) {
+async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.resolve()}={}) {
   state.detailAbort?.abort();state.detailSeq++;const token=state.detailSeq;
   const detailController=new AbortController();state.detailAbort=detailController;
   const identity=detailIdentity(doc);state.detailDoc=doc;state.detailSelection=identity?{document:identity,tab}:null;
@@ -825,7 +842,8 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
   const detailPanel=el('section',undefined,'detail-information');
   let grid=appendFields(detailPanel,fields,'detail-grid');
   const updateDetails=addTab('detalhes','Detalhes',detailPanel);updateDetails(fields.length,'loaded');
-  if(kind!=='edital' || doc._detail_from_url){
+  const forceDetails=!!(doc._detail_from_url || doc._direct_link);
+  if(kind!=='edital' || forceDetails){
     const detailStatus=el('p','Preparando consulta dos detalhes…','items-status'),retryDetails=el('button','Tentar novamente','button small');retryDetails.hidden=true;detailStatus.setAttribute('role','status');detailPanel.append(detailStatus,retryDetails);
     async function loadDetails(){
       retryDetails.hidden=true;detailStatus.hidden=false;detailPanel.setAttribute('aria-busy','true');
@@ -834,10 +852,27 @@ async function openDetails(doc,{tab='detalhes',sync=true}={}) {
         if(token!==state.detailSeq)return;
         const holder=el('div');grid=appendFields(holder,data.fields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);
         updateDetails(data.fields.length,'loaded');if(data.objeto)objectSummary.textContent=data.objeto;else if(doc._detail_from_url)objectSummary.textContent='Objeto não informado.';updateSummary();
-        if(doc._detail_from_url){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=indexed?.titulo || data.titulo || doc.titulo;}
+        if(forceDetails){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=data.titulo || indexed?.titulo || doc.titulo;}
         if(data.link_sistema_origem && !doc.link_sistema_origem){const link=safeAnchor('Sistema de origem',data.link_sistema_origem);if(link)links.append(link);}
         detailStatus.textContent='';detailStatus.hidden=true;
-      }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)objectSummary.textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');}}
+      }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){
+        if(forceDetails){
+          const row=await searchRowFor(identity,searchReady,doc,detailController.signal);
+          if(token!==state.detailSeq)return;
+          if(row){
+            const fallbackFields=row._raw?indexedDocumentFields(row._raw):[];
+            if(fallbackFields.length){const holder=el('div');grid=appendFields(holder,fallbackFields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);}
+            if(row.titulo)$('details-kind').textContent=row.titulo;
+            if(row.objeto_compra){objectSummary.textContent=row.objeto_compra;updateSummary();}
+            if(row.link_sistema_origem && !doc.link_sistema_origem){const link=safeAnchor('Sistema de origem',row.link_sistema_origem);if(link)links.append(link);}
+            updateDetails(fallbackFields.length || fields.length,'loaded');
+            detailStatus.textContent='O PNCP não retornou os detalhes completos. Exibindo os dados da busca.';
+            detailStatus.hidden=false;retryDetails.hidden=false;
+            return;
+          }
+        }
+        detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)objectSummary.textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');
+      }}
       finally{if(token===state.detailSeq)detailPanel.setAttribute('aria-busy','false');}
     }
     if(detailIdentity(doc)){retryDetails.addEventListener('click',loadDetails);loads.push({resource:'detalhes',load:loadDetails});updateDetails(null,'loading');}
