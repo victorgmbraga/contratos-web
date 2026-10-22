@@ -50,7 +50,7 @@
   .filters-body>.panel-note{font-size:.8125rem;margin-bottom:12px;line-height:1.5}
   .filter-grid,.filters-basics{grid-template-columns:minmax(0,1fr)}
   .filters-basics{gap:0}
-  .filters-modal>.dialog-footer{margin-top:10px;padding-top:10px;gap:8px;flex-wrap:nowrap}
+  .filters-modal>.dialog-footer{margin-top:10px;padding-top:10px;gap:8px;flex-wrap:wrap}
   .filters-modal>.dialog-footer .button{min-height:44px;padding:10px 12px;font-size:.8125rem}
   #apply-filters{flex:1;white-space:normal}
   .column-list{grid-template-columns:1fr}
