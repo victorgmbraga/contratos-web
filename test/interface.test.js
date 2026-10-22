@@ -166,7 +166,8 @@ test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho cor
   assert.deepEqual(tabs.children.slice(1).map(n=>n.textContent),['Itens (2)','Arquivos (12)','Atas de Registro de Preço (3)','Contratos/Empenhos (2)','Histórico (12)']);assert.equal(tabs.getAttribute('role'),'tablist');
   for(const [index,button]of tabs.children.entries()){const panel=ui.nodes.get(button.getAttribute('aria-controls'));assert.equal(panel.getAttribute('role'),'tabpanel');assert.equal(panel.getAttribute('aria-labelledby'),button.id);assert.equal(panel.hidden,index!==0);assert.equal(button.getAttribute('aria-selected'),String(index===0));assert.equal(button.tabIndex,index===0?0:-1);}
   const grid=ui.nodes.get('detail-panel-detalhes').children[0],labels=grid.children.map(n=>n.children[0].textContent);
-  for(const label of ['Controle PNCP','Título','Ano','Sequencial','Tipo de documento','Situação','Modalidade','Publicação no PNCP','Órgão','CNPJ do órgão','ID da esfera','Valor total estimado','Link PNCP','Link do sistema de origem','Objeto'])assert(labels.includes(label),label);
+  for(const label of ['Controle PNCP','Título','Ano','Sequencial','Tipo de documento','Situação','Modalidade','Publicação no PNCP','Órgão','CNPJ do órgão','ID da esfera','Valor total estimado','Objeto'])assert(labels.includes(label),label);
+  assert(!labels.includes('Link PNCP') && !labels.includes('Link do sistema de origem'));
   assert.deepEqual(ui.nodes.get('details-links').children.map(n=>n.textContent),['Abrir no PNCP','Sistema de origem']);assert(!ui.nodes.get('details-content').children.some(n=>n.className==='detail-links'));
   await ui.openDocument(project(document(2,{title:'Edital nº 2/2026'})));assert.equal(ui.nodes.get('details-kind').textContent,'Edital nº 2/2026');assert.equal(ui.nodes.get('details-links').children.length,1);assert(!ui.nodes.get('details-links').children.some(n=>n.href==='https://example.test/compra/1'));
 });
