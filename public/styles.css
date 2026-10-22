@@ -101,7 +101,9 @@ p{line-height:1.55}
 .notice:not([hidden]){display:flex;align-items:flex-start;gap:8px}
 #notice-message{flex:1;min-width:0}
 .notice-close{flex:none;border:0;background:transparent;color:inherit;opacity:.72}
-.notice-close:hover:not(:disabled),.notice-close:focus-visible{background:transparent;color:inherit;opacity:1}
+.notice .notice-close{position:relative;height:auto;min-width:24px;padding:0;font-size:inherit;font-weight:600;line-height:inherit}
+.notice .notice-close::after{content:'';position:absolute;inset:-3px 0}
+.notice .notice-close:hover:not(:disabled),.notice .notice-close:focus-visible{background:transparent;color:inherit;opacity:1}
 .notice.error{background:var(--error-bg,#fff3f1);color:var(--error-text,#8f3b32);border-color:var(--error-border,#eac7c0)}
 .notice.warning{background:var(--warning-bg,#fffaeb);color:var(--warning-text,#7c6028);border-color:var(--warning-border,#e9d8b6)}
 .connectivity-notice{font-size:.8125rem;line-height:1.4;margin:6px 9px;padding:7px 9px;background:var(--warning-bg,#fffaeb);color:var(--warning-text,#7c6028);border:1px solid var(--warning-border,#e9d8b6);border-radius:5px;flex-shrink:0}
