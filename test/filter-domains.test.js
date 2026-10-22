@@ -21,6 +21,7 @@ test('FILTER-01: catálogo completo habilitado com contextos e proveniência exp
   assert.equal(caps.find(c=>c.name==='municipios_fornecedor').domain_kind,'suggest');
   assert.equal(caps.find(c=>c.name==='naturezas_juridicas').domain_source,'catalog');
   assert.deepEqual(caps.find(c=>c.name==='tipos_contrato').documents,['contrato']);
+  assert.deepEqual(caps.find(c=>c.name==='tipos_margens_preferencia').documents,['edital']);
 });
 
 test('FILTER-02: SRP booleano, IBGE textual e enumeração singular são validados antes da rede',()=>{

@@ -119,7 +119,7 @@ Os campos de sub-rogação, itens, resultados, fornecedores e contratos estão a
 | --- | --- |
 | `orgaos_subrogados`, `unidades_subrogadas`, `fornecedores` | Listas de IDs numéricos em strings, obtidos por opções parciais ou sugestões; edital e contrato |
 | `permite_adesao` | Booleano; edital, ata e contrato |
-| `tipos_margens_preferencia` | ID único em string, conferido no domínio; edital e contrato |
+| `tipos_margens_preferencia` | ID único em string, conferido no domínio; apenas edital, pois o portal não oferece esse filtro para contratos |
 | `unidades_medida` | Lista de textos em `item_unidades_medida`, preservando caixa e espaços |
 | `item_quantidade_min/max`, `item_valor_unitario_estimado_min/max`, `item_valor_total_estimado_min/max` | Decimais não negativos em strings |
 | `situacoes_resultado` | Lista de IDs conferidos em `resultado_item_situacoes` |
@@ -150,7 +150,7 @@ Booleanos exigem valores JSON, sem aspas: `false` é enviado ao PNCP como `false
 
 Filtros de itens selecionam **contratações** na busca nativa. Tabela e CSV continuam contendo uma linha por contratação. Os detalhes exibem todos os itens, inclusive os que não satisfazem os critérios. Uma condição verdadeira na busca pode coexistir com itens que a informam como falsa nos detalhes. Não há garantia de que condições diferentes incidam sobre o mesmo item; a aplicação não aplica um refinamento local para impor essa correlação. Os nomes enviados à busca continuam sendo `categorias_leilao` e `beneficios`, embora os domínios usem aliases.
 
-`service.call("schema", {})` informa `columns`, `columns_by_document`, `capabilities`, `statuses`, `statuses_by_document`, `orders`, `orders_by_document`, `order_labels` e `limits`. O catálogo em [`src/pncp-arguments.json`](../src/pncp-arguments.json) contém 87 argumentos: sete controles reservados ao adaptador e 80 filtros. São 71 aplicáveis a edital, 16 a ata e 32 a contrato. `columns`, `statuses` e `orders` usam os padrões de edital; os mapas por documento fornecem os valores próprios de cada tipo, e `order_labels` contém os nomes exibidos no seletor. A compatibilidade de filtros é definida por `documents`.
+`service.call("schema", {})` informa `columns`, `columns_by_document`, `capabilities`, `statuses`, `statuses_by_document`, `orders`, `orders_by_document`, `order_labels` e `limits`. O catálogo em [`src/pncp-arguments.json`](../src/pncp-arguments.json) contém 87 argumentos: sete controles reservados ao adaptador e 80 filtros. São 71 aplicáveis a edital, 16 a ata e 31 a contrato. `columns`, `statuses` e `orders` usam os padrões de edital; os mapas por documento fornecem os valores próprios de cada tipo, e `order_labels` contém os nomes exibidos no seletor. A compatibilidade de filtros é definida por `documents`.
 
 Atas aceitam `ufs`, `orgaos`, `unidades`, `municipios`, `esferas`, `poderes`, `anos`, `modalidades`, `tipos`, `permite_adesao`, `data_publicacao_inicio/fim`, `data_assinatura_inicio/fim` e `data_inicio_vigencia_inicio/fim`. Filtros de itens, resultados e valores contratuais não são aplicáveis a atas.
 

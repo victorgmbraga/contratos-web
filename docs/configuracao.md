@@ -74,7 +74,7 @@ Os limites numéricos exigem valores de pelo menos 1, exceto `PNCP_MAX_RETRIES`,
 
 ## Metadados de validação dos filtros
 
-O método `schema` publica 80 filtros habilitados: 71 de contratações, 16 de atas e 32 de contratos. `PNCP_VALIDATED_FILTERS` é opcional e altera apenas a classificação de validação para `operator_declared` nos filtros sem classificação `sampled_live`. Essa declaração não altera a disponibilidade nem a compatibilidade documental e não comprova o efeito do filtro no PNCP. Nomes desconhecidos ou reservados são rejeitados ao obter o esquema ou validar uma consulta.
+O método `schema` publica 80 filtros habilitados: 71 de contratações, 16 de atas e 31 de contratos. `PNCP_VALIDATED_FILTERS` é opcional e altera apenas a classificação de validação para `operator_declared` nos filtros sem classificação `sampled_live`. Essa declaração não altera a disponibilidade nem a compatibilidade documental e não comprova o efeito do filtro no PNCP. Nomes desconhecidos ou reservados são rejeitados ao obter o esquema ou validar uma consulta.
 
 As capacidades publicam tipo, cardinalidade, contexto, provedor de domínio e classificação de validação. Domínios fechados exigem pertencimento ao catálogo antes da pesquisa e do CSV; listas parciais usam sugestões. Países preservam IDs como `BRA`, e reservas/remanescentes usam a enumeração de referência. Consulte os [filtros disponíveis](consultas-pncp.md#filtros-disponíveis) e os procedimentos de [validação do PNCP](validacao.md#diagnóstico-do-pncp).
 

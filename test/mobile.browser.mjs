@@ -63,7 +63,7 @@ try {
     assert.equal(await page.locator('.results-scroll').evaluate(node=>node.scrollWidth<=node.clientWidth),true);
   }
   await page.setViewportSize({width:360,height:800});
-  for(const [type,title,count] of [['edital','64 contratações',71],['ata','24 atas',16],['contrato','32 contratos',32]]){
+  for(const [type,title,count] of [['edital','64 contratações',71],['ata','24 atas',16],['contrato','32 contratos',31]]){
     await page.locator('#document-type').selectOption(type);await ready();assert.equal(await page.locator('#result-title').innerText(),title);
     await fits('.result-card');
     const titleBefore=await page.locator('.result-card-open').first().innerText();

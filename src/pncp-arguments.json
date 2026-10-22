@@ -218,8 +218,8 @@
   {
     "name": "tipos_margens_preferencia",
     "format": "ID único",
-    "context": "E C",
-    "description": "Tipo de margem de preferência. O portal oferece seleção única: 1 Resolução CIIA-PAC ou 2 Resolução CICS."
+    "context": "E",
+    "description": "Tipo de margem de preferência. O portal oferece seleção única em contratações: 1 Resolução CIIA-PAC ou 2 Resolução CICS."
   },
   {
     "name": "fornecedores",
