@@ -94,8 +94,8 @@ p{line-height:1.55}
 .status-cell--anulada{background:var(--purple-bg,#f1eafa);color:var(--purple-text,#694098)}
 .status-cell--suspensa{background:var(--warning-bg,#fff3d6);color:var(--warning-text,#805910)}
 .status-cell--unknown{background:var(--neutral-bg,#edf0f4);color:var(--neutral-text,#526174)}
-.repository-link{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border:1px solid var(--accent-fill,var(--blue));border-radius:6px;background:var(--accent-fill,var(--blue));color:white;transition:background .12s,color .12s}
-.repository-link:hover{background:var(--accent-fill-hover,var(--blue-hover));border-color:var(--accent-fill-hover,var(--blue-hover));color:white;text-decoration:none}
+.repository-link{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border:1px solid var(--border,#ccd7e3);border-radius:6px;background:var(--surface,white);color:var(--blue);transition:background .12s,color .12s}
+.repository-link:hover{background:var(--blue-soft);border-color:var(--border,#ccd7e3);color:var(--blue-hover);text-decoration:none}
 .repository-link svg{width:18px;height:18px;stroke-width:2}
 .notice{font-size:.8125rem;line-height:1.4;margin:6px 9px;padding:7px 9px;background:var(--info-bg,#f0f7ff);color:var(--info-text,#264d74);border:1px solid var(--border,#d3e2f0);border-radius:5px;white-space:pre-line;max-height:min(112px,20dvh);overflow:auto;flex-shrink:0}
 .notice.error{background:var(--error-bg,#fff3f1);color:var(--error-text,#8f3b32);border-color:var(--error-border,#eac7c0)}
