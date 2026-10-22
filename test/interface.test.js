@@ -1228,19 +1228,13 @@ test('DRAFT-FILTERS-UI-01: contador de ativos e limpeza do rascunho',async()=>{
   assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.nodes.get('filter-active-count').textContent,'Nenhum filtro ativo');assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
 });
 
-test('COPY-LINK-UI-01: copia a URL atual e informa o resultado',async()=>{
-  let copied=null;const ui=await interfaceFixture({navigator:{clipboard:{writeText:async text=>{copied=text;}}}});
-  await ui.nodes.get('copy-link-button').fire('click');
-  assert.equal(copied,ui.browser.href());assert.match(ui.nodes.get('notice-message').textContent,/Link copiado/);
-});
-
 test('NOTICE-UI-01: fecha o aviso e o reexibe em uma nova mensagem',async()=>{
-  const ui=await interfaceFixture({navigator:{clipboard:{writeText:async()=>{}}}});
-  await ui.nodes.get('copy-link-button').fire('click');assert.equal(ui.nodes.get('notice').hidden,false);
+  const ui=await interfaceFixture(),cancelExport=ui.nodes.get('cancel-export-button');
+  await cancelExport.fire('click');assert.equal(ui.nodes.get('notice').hidden,false);
   await ui.nodes.get('notice-close').fire('click');
   assert.equal(ui.nodes.get('notice').hidden,true);assert.equal(ui.nodes.get('notice-message').textContent,'');
-  await ui.nodes.get('copy-link-button').fire('click');
-  assert.equal(ui.nodes.get('notice').hidden,false);assert.match(ui.nodes.get('notice-message').textContent,/Link copiado/);
+  await cancelExport.fire('click');
+  assert.equal(ui.nodes.get('notice').hidden,false);assert.equal(ui.nodes.get('notice-message').textContent,'Exportação cancelada.');
 });
 
 test('EXPORT-PAGE-UI-01: exporta somente a página atual sem alterar o CSV completo',async()=>{

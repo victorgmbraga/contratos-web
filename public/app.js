@@ -50,7 +50,7 @@ let selectMenus;
 const filterFields=new Map();
 let openFilterEditor=null;
 let urlMode='replace',urlError=null,tableReady=false,queryRequested=false;
-const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','copy-link-button','export-page-button','export-button','cancel-export-button'];
+const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-page-button','export-button','cancel-export-button'];
 function storageArea() { try { return window.localStorage; } catch { return null; } }
 function columnLayoutKey(type) { return COLUMN_LAYOUT_PREFIX + type; }
 function readColumnLayout(type) {
@@ -154,14 +154,6 @@ function positionTooltip(marker,tooltip) {
 }
 function showWindowTooltip() {
   if(state.status!=='loading')showTooltip($('window-warning'),$('window-warning-tooltip'));
-}
-async function copyCurrentLink() {
-  const href=window.location?.href;if(!href)return;
-  try {
-    if(window.navigator?.clipboard?.writeText)await window.navigator.clipboard.writeText(href);
-    else {const area=document.createElement('textarea');area.value=href;area.setAttribute('readonly','');area.style.position='fixed';area.style.opacity='0';document.body.append(area);area.select();document.execCommand?.('copy');area.remove();}
-    notice('Link copiado.');
-  } catch { notice('Não foi possível copiar o link. Copie pela barra de endereços.','warning'); }
 }
 function setMobileView(view) {
   if(!['cards','table'].includes(view))return;
@@ -945,7 +937,6 @@ async function init() {
   initializeMobileLayout({document,window});
   selectMenus=initializeSelectMenus({document,window});
   $('results-view').addEventListener('change',()=>setMobileView($('results-view').value));
-  $('copy-link-button').addEventListener('click',copyCurrentLink);
   $('export-page-button').addEventListener('click',()=>exportCsv('page'));
   $('reset-columns').addEventListener('click',()=>{clearColumnLayout(state.query.document_type);state.table.setColumns(tableColumnDefinitions());renderColumnChoices();});
   $('clear-draft-filters').addEventListener('click',clearDraftFilters);

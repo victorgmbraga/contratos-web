@@ -211,7 +211,7 @@ try {
   assert.equal(await page.locator('.results-page-size').count(),0);check('Seletor de linhas removido');
   assert.equal(await page.locator('#app-header .header-toolbar .criteria-row').count(),1);
   for(const id of ['order','clear-button','cancel-button','retry-button','refresh-button','columns-button','export-button','repository-link'])assert.equal(await page.locator(`#app-header #${id}`).count(),1);
-  assert.deepEqual(await page.locator('.header-toolbar > .result-actions').first().evaluate(node=>[...node.querySelectorAll('button')].map(button=>button.id)),['refresh-button','columns-button','copy-link-button','export-page-button','export-button','theme-button']);
+  assert.deepEqual(await page.locator('.header-toolbar > .result-actions').first().evaluate(node=>[...node.querySelectorAll('button')].map(button=>button.id)),['refresh-button','columns-button','export-page-button','export-button','theme-button']);
   assert.equal(await page.locator('.results-footer .repository-link').count(),0);
   for(const [id,label,accessibleLabel=label] of [['search-button','Pesquisar'],['filters-button','Filtros'],['refresh-button','Atualizar resultados'],['columns-button','Selecionar colunas'],['export-button','Exportar CSV'],['repository-link','Repositório no GitHub','Repositório do Contratos Web no GitHub (abre em nova aba)']]){
     const button=page.locator(`#${id}`),tooltip=page.locator(`#${id}-tooltip`);
