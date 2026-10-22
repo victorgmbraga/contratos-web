@@ -168,8 +168,6 @@ function setMobileView(view) {
   if(!['cards','table'].includes(view))return;
   state.table?.setMobileView?.(view);
   const select=$('results-view');if(select)select.value=view;
-  const group=$('mobile-view-toggle');
-  if(group)for(const button of group.children || [])if(button.dataset?.view)button.setAttribute('aria-pressed',String(button.dataset.view===view));
 }
 function setConnectivity(message,kind='warning') {
   const node=$('connectivity-notice');if(!node)return;
@@ -289,7 +287,6 @@ function renderResult(result,query) {
   if(window.navigator?.onLine!==false)setConnectivity('');
   $('result-info').hidden=false;
   renderPlaceholder(query,result.data.length===0);
-  $('result-timestamp').textContent=result.finished_at?`Consultado em ${time(result.finished_at)}`:'';$('result-timestamp').hidden=!result.finished_at;
   state.table.setSortOrder?.(query.order);
   const first=result.data.length?(result.page-1)*result.size+1:0;
   const last=result.data.length?first+result.data.length-1:0;
@@ -957,7 +954,6 @@ async function init() {
   initializeMobileLayout({document,window});
   selectMenus=initializeSelectMenus({document,window});
   $('results-view').addEventListener('change',()=>setMobileView($('results-view').value));
-  for(const button of $('mobile-view-toggle').children || [])button.addEventListener('click',()=>setMobileView(button.dataset.view));
   $('copy-link-button').addEventListener('click',copyCurrentLink);
   $('export-page-button').addEventListener('click',()=>exportCsv('page'));
   $('reset-columns').addEventListener('click',()=>{clearColumnLayout(state.query.document_type);state.table.setColumns(tableColumnDefinitions());renderColumnChoices();});
