@@ -47,8 +47,10 @@ A configuração pública fica em [`public/browser-config.json`](public/browser-
 
 ## Licenças
 
-O repositório ainda não declara uma licença para o código próprio.
+O código próprio deste repositório é distribuído sob a [licença MIT](LICENSE), com o aviso de copyright preservado nas cópias.
 
 Os ícones Lucide e Feather usam as licenças ISC e MIT, conforme os avisos em [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 As ferramentas de desenvolvimento Vite e Playwright usam, respectivamente, MIT e Apache-2.0.
+
+A licença do código não se estende aos dados consultados no PNCP, que seguem as condições do portal.

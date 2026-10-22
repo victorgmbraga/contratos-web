@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Pesquisa PNCP diretamente no navegador, com distribuição estática",
+  "license": "MIT",
   "engines": {
     "node": ">=22.12.0"
   },
