@@ -127,7 +127,7 @@ function invalidQueryUrl(error) {
   urlError=error;status('error');$('retry-button').hidden=true;$('clear-button').hidden=false;
   notice(`Parâmetros inválidos na URL: ${error.message} Corrija o link ou ajuste os critérios e pesquise novamente.`,'error');
 }
-function notice(message,kind='') { $('notice').textContent=message;$('notice').className='notice '+kind;$('notice').hidden=!message; }
+function notice(message,kind='') { $('notice-message').textContent=message;$('notice').className='notice '+kind;$('notice').hidden=!message; }
 function hideWindowTooltip() { $('window-warning-tooltip').hidden=true; }
 function hideTooltips() {
   hideWindowTooltip();
@@ -972,6 +972,7 @@ async function init() {
   $('retry-button').addEventListener('click',()=>loadPage(state.query.page,'push',{force:true}));
   $('cancel-button').addEventListener('click',()=>{state.abort?.abort();});
   $('cancel-export-button').addEventListener('click',()=>{state.exportAbort?.abort();notice('Exportação cancelada.');});
+  $('notice-close').addEventListener('click',()=>{notice('');});
   $('order').addEventListener('change',()=>{state.query.order=$('order').value;return execute();});
   $('clear-button').addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();return execute();});
   $('apply-filters').addEventListener('click',()=>{if(state.legalPending || state.legalError)return;state.draft.q=$('draft-search').value;state.draft.status=$('draft-status').value;state.query=clone(state.draft);$('search').value=state.query.q;$('filters-dialog').close();updateCriteria();return execute();});

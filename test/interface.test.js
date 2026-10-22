@@ -389,7 +389,7 @@ test('EXPORT-UI-01: um clique baixa o CSV dos últimos critérios concluídos se
   assert.equal(ui.nodes.has('export-dialog'),false);assert.equal(ui.nodes.has('download-csv'),false);
   assert.equal(ui.exportRequests.length,1);assert.deepEqual(ui.exportRequests[0],{query:completed});
   assert.equal(ui.downloads.length,1);assert.equal(ui.downloads[0].filename,'compras-demo.csv');
-  assert.match(ui.nodes.get('notice').textContent,/6 linhas exportadas/);
+  assert.match(ui.nodes.get('notice-message').textContent,/6 linhas exportadas/);
   assert.equal(ui.nodes.get('export-button').disabled,false);assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'false');
 });
 
@@ -401,7 +401,7 @@ test('EXPORT-UI-02: geração desabilita o botão e impede exportações duplica
   };})});
   const exporting=ui.nodes.get('export-button').fire('click');await settle();
   assert.equal(ui.nodes.get('export-button').disabled,true);assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'true');
-  assert.match(ui.nodes.get('notice').textContent,/gerando CSV/);
+  assert.match(ui.nodes.get('notice-message').textContent,/gerando CSV/);
   await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.length,1);
   await finish();await exporting;assert.equal(ui.downloads.length,1);assert.equal(ui.nodes.get('export-button').disabled,false);
   assert.equal(ui.nodes.get('export-button-tooltip').textContent,'Exportar CSV');
@@ -412,7 +412,7 @@ test('EXPORT-UI-03: falha é exibida acima da tabela e permite tentar exportar n
   const ui=await interfaceFixture({exportHandler:()=>({error:{code:'EXPORT_TOO_BROAD',message:'Delimite a pesquisa.'}})});
   await ui.nodes.get('export-button').fire('click');
   assert.equal(ui.downloads.length,0);assert.equal(ui.nodes.get('notice').className,'notice error');
-  assert.match(ui.nodes.get('notice').textContent,/Falha ao exportar CSV: Delimite a pesquisa/);
+  assert.match(ui.nodes.get('notice-message').textContent,/Falha ao exportar CSV: Delimite a pesquisa/);
   assert.equal(ui.nodes.get('export-button').disabled,false);assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'false');
   await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.length,2);
 });
@@ -442,7 +442,7 @@ test('STARTUP-UI-02: falha da pesquisa inicial usa o aviso de consulta e permite
     ?({error:{code:'PNCP_UNAVAILABLE',message:'PNCP indisponível.'}})
     :(await core.execute(input,options.signal))});
   assert.equal(ui.requests.length,1);assert.equal(ui.nodes.get('startup-error').hidden,true);
-  assert.match(ui.nodes.get('notice').textContent,/PNCP indisponível/);
+  assert.match(ui.nodes.get('notice-message').textContent,/PNCP indisponível/);
   assert.equal(ui.nodes.get('retry-button').hidden,false);assert.equal(ui.nodes.get('table-loader').hidden,true);
   fail=false;await ui.nodes.get('retry-button').fire('click');
   assert.equal(ui.requests.length,2);assert.equal(ui.nodes.get('result-title').textContent,'64 contratações');
@@ -496,7 +496,7 @@ test('QUERY-URL-UI-04: atualizar, repetir falha e exportar preservam a página e
 test('QUERY-URL-UI-05: URL inválida mostra erro sem pesquisa inicial e pode ser corrigida pela interface',async()=>{
   for(const search of ['?pagina=101','?tipos_documento=contrato&srp=false','?srp=0','?q=a&q=b']){
     const ui=await interfaceFixture({href:'https://example.test/'+search});assert.equal(ui.requests.length,0);assert.equal(ui.nodes.get('startup-error').hidden,true);
-    assert.match(ui.nodes.get('notice').textContent,/Parâmetros inválidos na URL/);assert.equal(ui.nodes.get('retry-button').hidden,true);assert.equal(ui.nodes.get('clear-button').hidden,false);assert.equal(ui.nodes.get('export-button').disabled,true);
+    assert.match(ui.nodes.get('notice-message').textContent,/Parâmetros inválidos na URL/);assert.equal(ui.nodes.get('retry-button').hidden,true);assert.equal(ui.nodes.get('clear-button').hidden,false);assert.equal(ui.nodes.get('export-button').disabled,true);
     assert.equal(ui.browser.href(),'https://example.test/'+search);
     await ui.nodes.get('clear-button').fire('click');assert.equal(ui.requests.length,1);assert.equal(ui.requests[0].page,1);assert.equal(ui.nodes.get('notice').hidden,true);assert.equal(new URL(ui.browser.href()).searchParams.has('srp'),false);
   }
@@ -541,9 +541,9 @@ test('TABLE-FOOTER-01: total real no rodapé, aviso de janela no marcador e dema
   extraWarning=true;await ui.request({page:100});
   assert.equal(ui.nodes.get('result-range').textContent,'Exibindo 9.901-10.000 de ');
   assert.equal(ui.nodes.get('notice').hidden,false);
-  assert.equal(ui.nodes.get('notice').textContent,'Há documentos sem identidade de negócio na página.');
+  assert.equal(ui.nodes.get('notice-message').textContent,'Há documentos sem identidade de negócio na página.');
   fail=true;await assert.rejects(ui.request({page:1}),e=>e.code==='PNCP_UNAVAILABLE');
-  assert.match(ui.nodes.get('notice').textContent,/PNCP indisponível/);assert.match(ui.nodes.get('notice').textContent,/resultado anterior/);
+  assert.match(ui.nodes.get('notice-message').textContent,/PNCP indisponível/);assert.match(ui.nodes.get('notice-message').textContent,/resultado anterior/);
   assert.equal(ui.nodes.get('notice').className,'notice error');assert.equal(warning.hidden,false);
   fail=false;extraWarning=false;total=10000;await ui.request({page:1});
   assert.equal(warning.hidden,true);assert.equal(ui.nodes.get('notice').hidden,true);
@@ -1166,14 +1166,14 @@ test('DETAIL-LINK-UI-03: nova busca fecha detalhes e não transporta o documento
 
 test('DETAIL-LINK-UI-04: link inválido não consulta detalhes e pode ser corrigido ao limpar os critérios',async()=>{
   for(const parameters of ['aba=itens','detalhe=edital/123/2026/1','detalhe=contrato/00000000000000/2026/1&aba=itens','detalhe=ata/00000000000000/2026/1']) {
-    const ui=await interfaceFixture({href:'https://example.test/?'+parameters});assert.equal(ui.requests.length,0);assert.equal(ui.documentRequests.length,0);assert.equal(ui.nodes.get('details-dialog').open,false);assert.match(ui.nodes.get('notice').textContent,/Parâmetros inválidos na URL/);
+    const ui=await interfaceFixture({href:'https://example.test/?'+parameters});assert.equal(ui.requests.length,0);assert.equal(ui.documentRequests.length,0);assert.equal(ui.nodes.get('details-dialog').open,false);assert.match(ui.nodes.get('notice-message').textContent,/Parâmetros inválidos na URL/);
     await ui.nodes.get('clear-button').fire('click');assert.equal(ui.requests.length,1);assert.equal(new URL(ui.browser.href()).searchParams.has('detalhe'),false);assert.equal(new URL(ui.browser.href()).searchParams.has('aba'),false);
   }
 });
 
 test('DETAIL-LINK-UI-05: falha da busca não impede carregar o documento identificado no link',async()=>{
   const ui=await interfaceFixture({href:'https://example.test/?detalhe=contrato/00000000000000/2026/1&aba=arquivos',queryHandler:()=>Promise.reject(new Error('Pesquisa indisponível'))});
-  assert.equal(ui.nodes.get('details-dialog').open,true);assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'loaded');assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (12)');assert.match(ui.nodes.get('notice').textContent,/Pesquisa indisponível/);
+  assert.equal(ui.nodes.get('details-dialog').open,true);assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'loaded');assert.equal(ui.nodes.get('detail-tab-arquivos').textContent,'Arquivos (12)');assert.match(ui.nodes.get('notice-message').textContent,/Pesquisa indisponível/);
 });
 
 test('DETAIL-LINK-UI-06: navegar para outro documento cancela a carga antiga e ignora sua resposta',async()=>{
@@ -1229,7 +1229,16 @@ test('FILTER-FINDER-UI-01: busca de filtros, contador de ativos e limpeza do ras
 test('COPY-LINK-UI-01: copia a URL atual e informa o resultado',async()=>{
   let copied=null;const ui=await interfaceFixture({navigator:{clipboard:{writeText:async text=>{copied=text;}}}});
   await ui.nodes.get('copy-link-button').fire('click');
-  assert.equal(copied,ui.browser.href());assert.match(ui.nodes.get('notice').textContent,/Link copiado/);
+  assert.equal(copied,ui.browser.href());assert.match(ui.nodes.get('notice-message').textContent,/Link copiado/);
+});
+
+test('NOTICE-UI-01: fecha o aviso e o reexibe em uma nova mensagem',async()=>{
+  const ui=await interfaceFixture({navigator:{clipboard:{writeText:async()=>{}}}});
+  await ui.nodes.get('copy-link-button').fire('click');assert.equal(ui.nodes.get('notice').hidden,false);
+  await ui.nodes.get('notice-close').fire('click');
+  assert.equal(ui.nodes.get('notice').hidden,true);assert.equal(ui.nodes.get('notice-message').textContent,'');
+  await ui.nodes.get('copy-link-button').fire('click');
+  assert.equal(ui.nodes.get('notice').hidden,false);assert.match(ui.nodes.get('notice-message').textContent,/Link copiado/);
 });
 
 test('EXPORT-PAGE-UI-01: exporta somente a página atual sem alterar o CSV completo',async()=>{
