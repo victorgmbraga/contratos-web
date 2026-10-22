@@ -194,10 +194,12 @@ test('DOCUMENTS-20: histórico extenso de ata mantém o total e permite navegar 
 });
 
 test('DOCUMENTS-22: detalhes indexados preservam todos os campos não vazios, inclusive extras',()=>{
-  const fields=indexedDocumentFields({document_type:'edital',numero_controle_pncp:'01234567000189-1-000057/2025',title:'Edital',description:'Objeto',data_atualizacao_pncp:'2026-10-22T13:11:05',valor_total_estimado:'53300.00',srp:false,amparo_legal_nome:['Lei 14.133/2021, Art. 28, I'],campo_extra:'Valor extra',campo_vazio:null});
+  const fields=indexedDocumentFields({id:'registro',document_type:'edital',numero_controle_pncp:'01234567000189-1-000057/2025',title:'Edital',description:'Objeto',data_atualizacao_pncp:'2026-10-22T13:11:05',valor_total_estimado:'53300.00',srp:false,situacao_id:'4',situacao_nome:'Suspensa',amparo_legal_nome:['Lei 14.133/2021, Art. 28, I'],campo_extra:'Valor extra',campo_vazio:null});
+  assert(!fields.some(field=>field.field==='id'));assert(!fields.some(field=>field.field==='situacao_id'));assert(fields.some(field=>field.field==='situacao_nome'));
   assert.equal(fields.find(field=>field.field==='valor_total_estimado').type,'decimal');assert.equal(fields.find(field=>field.field==='srp').value,false);
   assert.equal(fields.find(field=>field.field==='amparo_legal_nome').value,'Lei 14.133/2021, Art. 28, I');
   assert.equal(fields.find(field=>field.field==='campo_extra').value,'Valor extra');assert(!fields.some(field=>field.field==='campo_vazio'));
+  const onlyId=indexedDocumentFields({document_type:'edital',situacao_id:'4'});assert(onlyId.some(field=>field.field==='situacao_id'));
 });
 
 test('DOCUMENTS-21: limite de detalhes considera registros recebidos, inclusive antes do recorte local e sem total',async()=>{

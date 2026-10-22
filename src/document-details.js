@@ -63,6 +63,8 @@ function indexedLabel(path) {
     id:'ID',url:'URL',pncp:'PNCP',nfe:'NF-e',cnpj:'CNPJ',cpf:'CPF',uf:'UF',srp:'SRP',ibge:'IBGE',irp:'IRP',
   })[part.toLocaleLowerCase('pt-BR')] || part.charAt(0).toLocaleUpperCase('pt-BR')+part.slice(1)).join(' ');
 }
+const indexedPair=path=>path.endsWith('_id')?path.slice(0,-3)+'_nome':null;
+const hasIndexedValue=value=>value!=null && value!=='' && (!Array.isArray(value) || value.length>0);
 function indexedField(path,title,type,value) {
   if(type==='boolean')return {field:path,title,type,value:value===true};
   if(type==='decimal'){const text=decimalText(value);return text==null?null:{field:path,title,type,value:text};}
@@ -76,6 +78,9 @@ export function indexedDocumentFields(record) {
   const type=scalarText(record.document_type),fields=[],seen=new Set();
   for(const definition of indexedDefinitions){
     seen.add(definition.path);
+    if(definition.path==='id')continue;
+    const pair=indexedPair(definition.path);
+    if(pair && hasIndexedValue(record[pair]))continue;
     const value=indexedValue(record[definition.path]);
     if(value==null)continue;
     const fieldType=indexedTypes[definition.path]?.[type] || definition.type,resolvedType=fieldType==='datetime' && !/\d{1,2}:\d{2}/.test(String(value))?'date':fieldType;
@@ -83,7 +88,9 @@ export function indexedDocumentFields(record) {
     if(field)fields.push(field);
   }
   for(const [key,value] of Object.entries(record)){
-    if(seen.has(key) || key.startsWith('_'))continue;
+    if(seen.has(key) || key.startsWith('_') || key==='id')continue;
+    const pair=indexedPair(key);
+    if(pair && hasIndexedValue(record[pair]))continue;
     const normalized=indexedValue(value);
     if(normalized==null)continue;
     fields.push(indexedField(key,indexedLabel(key),indexedType(key,normalized),normalized));
