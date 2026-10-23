@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sitezinho. — um laboratório de HTML, CSS e JavaScript</title>
+  <meta name="description" content="Quatro experimentos interativos feitos com HTML, CSS e JavaScript puro. Pinte, toque, sorteie cores e jogue sem nenhuma dependência.">
+  <meta name="theme-color" content="#f7f2e7">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <script>
+    (() => {
+      const root = document.documentElement;
+      let theme = 'light';
+      try {
+        const saved = localStorage.getItem('sitezinho:theme');
+        theme = saved === 'dark' || saved === 'light'
+          ? saved
+          : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      } catch {
+        theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      root.dataset.theme = theme;
+      root.classList.add('js');
+    })();
+  </script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#top" aria-label="sitezinho, voltar ao início">sitezinho<span class="brand-dot">.</span></a>
+      <nav class="nav" aria-label="Navegação principal">
+        <a href="#experimentos">Experimentos</a>
+        <a href="#por-dentro">Por dentro</a>
+        <a href="#sobre">Sobre</a>
+      </nav>
+      <div class="header-actions">
+        <button id="theme-toggle" class="icon-button" type="button" aria-label="Ativar modo escuro" aria-pressed="false">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.8 13.2A8.5 8.5 0 0 1 10.8 3.2 8.5 8.5 0 1 0 20.8 13.2Z"></path>
+          </svg>
+        </button>
+        <a class="button button-small header-cta" href="#experimentos">Brincar <span aria-hidden="true">↓</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section id="top" class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow reveal"><span class="pulse-dot" aria-hidden="true"></span> HTML + CSS + JS, sem framework</p>
+        <h1 id="hero-title" class="reveal" style="--delay: 60ms">
+          <span class="line">Um sitezinho</span>
+          <span class="line">feito para</span>
+          <span class="line"><em>brincar.</em></span>
+        </h1>
+        <p class="lede reveal" style="--delay: 120ms">Quatro experimentos pequenos, vivos e sem nenhuma dependência. Pinte, toque, sorteie cores e teste sua memória — tudo direto no navegador.</p>
+        <div class="hero-actions reveal" style="--delay: 180ms">
+          <a class="button button-primary" href="#experimentos">Começar a brincar <span aria-hidden="true">↘</span></a>
+          <a class="button button-ghost" href="#por-dentro">Espiar o código</a>
+        </div>
+        <ul class="hero-stats reveal" style="--delay: 240ms" aria-label="Destaques do site">
+          <li><strong>4</strong><span>experimentos</span></li>
+          <li><strong>0</strong><span>dependências</span></li>
+          <li><strong>1</strong><span>arquivo de JS</span></li>
+        </ul>
+      </div>
+
+      <div class="hero-stage reveal" style="--delay: 140ms">
+        <canvas id="orbits" aria-hidden="true"></canvas>
+        <span class="stage-label stage-label-a">canvas 2d</span>
+        <span class="stage-label stage-label-b">requestAnimationFrame()</span>
+        <p class="stage-hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m5 3 14 9-6 1.5L10 20 5 3Z"></path></svg>
+          Mova o cursor. Clique para criar uma onda.
+        </p>
+        <span class="stage-spark" aria-hidden="true">✳</span>
+      </div>
+    </section>
+
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <div class="ticker-group">
+          <span>pinte</span><i>✳</i><span>toque</span><i>✳</i><span>sorteie</span><i>✳</i><span>combine</span><i>✳</i><span>reinicie</span><i>✳</i><span>descubra</span><i>✳</i>
+        </div>
+        <div class="ticker-group">
+          <span>pinte</span><i>✳</i><span>toque</span><i>✳</i><span>sorteie</span><i>✳</i><span>combine</span><i>✳</i><span>reinicie</span><i>✳</i><span>descubra</span><i>✳</i>
+        </div>
+      </div>
+    </div>
+
+    <section id="experimentos" class="experiments wrap" aria-labelledby="experimentos-title">
+      <header class="section-head reveal">
+        <p class="eyebrow">A bancada</p>
+        <h2 id="experimentos-title">Quatro coisas<br>para mexer.</h2>
+        <p>Nada aqui precisa de instalação. Clique, arraste, aperte teclas — e abra o código quando quiser ver o truque.</p>
+      </header>
+
+      <div class="lab-grid">
+        <article class="experiment reveal" id="exp-pixels">
+          <header class="experiment-head">
+            <div class="experiment-title">
+              <span class="experiment-index" aria-hidden="true">01</span>
+              <h3>Pintura em pixels</h3>
+            </div>
+            <span class="tag">canvas</span>
+          </header>
+          <p class="experiment-desc">Um canvas de 16 × 16. Escolha uma cor, arraste e crie um sprite. Dá até para baixar em PNG.</p>
+
+          <div class="pixel-demo">
+            <div class="canvas-shell">
+              <canvas id="pixel-canvas" width="16" height="16" role="img" aria-label="Tela de pixel art com 16 por 16 pixels, preenchida com um coração coral. Use os botões de cor e arraste sobre a tela para pintar."></canvas>
+            </div>
+            <div class="pixel-meta">
+              <span class="mono-note">16 × 16</span>
+              <span class="mono-note">arraste para pintar</span>
+            </div>
+            <div id="pixel-palette" class="pixel-palette" role="group" aria-label="Cor do pincel">
+              <button class="color-chip is-active" type="button" data-color="#ff5c39" style="--chip: #ff5c39" aria-label="Coral" aria-pressed="true"></button>
+              <button class="color-chip" type="button" data-color="#ffd166" style="--chip: #ffd166" aria-label="Amarelo" aria-pressed="false"></button>
+              <button class="color-chip" type="button" data-color="#28c98a" style="--chip: #28c98a" aria-label="Verde" aria-pressed="false"></button>
+              <button class="color-chip" type="button" data-color="#4f7cff" style="--chip: #4f7cff" aria-label="Azul" aria-pressed="false"></button>
+              <button class="color-chip" type="button" data-color="#9b6bff" style="--chip: #9b6bff" aria-label="Roxo" aria-pressed="false"></button>
+              <button class="color-chip" type="button" data-color="#fff7e6" style="--chip: #fff7e6" aria-label="Branco" aria-pressed="false"></button>
+              <button id="pixel-eraser" class="eraser-chip" type="button" aria-label="Borracha" aria-pressed="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 4 6 6-8.5 8.5a2 2 0 0 1-2.8 0L4 13.8a2 2 0 0 1 0-2.8L14 4Z"></path><path d="M8.5 9.5 14 15"></path></svg>
+              </button>
+            </div>
+            <div class="tool-actions">
+              <button id="pixel-random" class="chip-button" type="button">Surpreender</button>
+              <button id="pixel-download" class="chip-button" type="button">Baixar PNG</button>
+              <button id="pixel-clear" class="chip-button chip-button-quiet" type="button">Limpar</button>
+            </div>
+          </div>
+
+          <details class="code-panel">
+            <summary><span>Ver o código</span><span class="code-summary-meta">pintar.js <span class="chevron" aria-hidden="true">⌄</span></span></summary>
+            <div class="code-body">
+              <div class="code-head"><span>pintar.js</span><button class="code-copy" type="button">copiar</button></div>
+              <pre><code data-lang="js"><span class="tok-key">const</span> tela = document.<span class="tok-fn">querySelector</span>(<span class="tok-str">'#pixel-canvas'</span>);
+<span class="tok-key">const</span> ctx = tela.<span class="tok-fn">getContext</span>(<span class="tok-str">'2d'</span>);
+<span class="tok-key">let</span> pintando = <span class="tok-key">false</span>;
+
+tela.<span class="tok-fn">addEventListener</span>(<span class="tok-str">'pointerdown'</span>, () =&gt; pintando = <span class="tok-key">true</span>);
+tela.<span class="tok-fn">addEventListener</span>(<span class="tok-str">'pointerup'</span>, () =&gt; pintando = <span class="tok-key">false</span>);
+
+tela.<span class="tok-fn">addEventListener</span>(<span class="tok-str">'pointermove'</span>, (evento) =&gt; {
+  <span class="tok-key">if</span> (!pintando) <span class="tok-key">return</span>;
+
+  <span class="tok-key">const</span> area = tela.<span class="tok-fn">getBoundingClientRect</span>();
+  <span class="tok-key">const</span> x = Math.<span class="tok-fn">floor</span>((evento.clientX - area.left) / area.width * <span class="tok-num">16</span>);
+  <span class="tok-key">const</span> y = Math.<span class="tok-fn">floor</span>((evento.clientY - area.top) / area.height * <span class="tok-num">16</span>);
+
+  ctx.fillStyle = <span class="tok-str">'#ff5c39'</span>;
+  ctx.<span class="tok-fn">fillRect</span>(x, y, <span class="tok-num">1</span>, <span class="tok-num">1</span>);
+});</code></pre>
+            </div>
+          </details>
+        </article>
+
+        <article class="experiment reveal" id="exp-som" style="--delay: 80ms">
+          <header class="experiment-head">
+            <div class="experiment-title">
+              <span class="experiment-index" aria-hidden="true">02</span>
+              <h3>Sintetizador de bolso</h3>
+            </div>
+            <span class="tag">web audio</span>
+          </header>
+          <p class="experiment-desc">Oito notas para tocar no navegador. Sem samples, sem plugins: o som nasce de uma onda e um envelope.</p>
+
+          <div class="synth-demo">
+            <div class="synth-top">
+              <span class="synth-status"><span class="synth-led" aria-hidden="true"></span><span id="synth-status">pronto para tocar</span></span>
+              <label class="wave-picker">onda
+                <select id="synth-wave">
+                  <option value="triangle">triângulo</option>
+                  <option value="sine">seno</option>
+                  <option value="square">quadrada</option>
+                  <option value="sawtooth">serra</option>
+                </select>
+              </label>
+            </div>
+            <div class="pads" role="group" aria-label="Teclado de oito notas">
+              <button class="pad" type="button" data-note="Dó" data-freq="261.63"><span class="pad-note">Dó</span><kbd>1</kbd></button>
+              <button class="pad" type="button" data-note="Ré" data-freq="293.66"><span class="pad-note">Ré</span><kbd>2</kbd></button>
+              <button class="pad" type="button" data-note="Mi" data-freq="329.63"><span class="pad-note">Mi</span><kbd>3</kbd></button>
+              <button class="pad" type="button" data-note="Sol" data-freq="392.00"><span class="pad-note">Sol</span><kbd>4</kbd></button>
+              <button class="pad" type="button" data-note="Lá" data-freq="440.00"><span class="pad-note">Lá</span><kbd>5</kbd></button>
+              <button class="pad" type="button" data-note="Dó5" data-freq="523.25"><span class="pad-note">Dó<span class="octave">5</span></span><kbd>6</kbd></button>
+              <button class="pad" type="button" data-note="Ré5" data-freq="587.33"><span class="pad-note">Ré<span class="octave">5</span></span><kbd>7</kbd></button>
+              <button class="pad" type="button" data-note="Mi5" data-freq="659.25"><span class="pad-note">Mi<span class="octave">5</span></span><kbd>8</kbd></button>
+            </div>
+            <div class="synth-screen" aria-hidden="true">
+              <div id="synth-bars" class="synth-bars"></div>
+            </div>
+            <div class="synth-bottom">
+              <div class="volume-control">
+                <label for="synth-volume">volume</label>
+                <input id="synth-volume" type="range" min="0" max="100" value="55"><output id="synth-volume-value" for="synth-volume">55%</output>
+              </div>
+              <span class="hint">teclas <kbd>1</kbd>–<kbd>8</kbd></span>
+            </div>
+          </div>
+
+          <details class="code-panel">
+            <summary><span>Ver o código</span><span class="code-summary-meta">tocar.js <span class="chevron" aria-hidden="true">⌄</span></span></summary>
+            <div class="code-body">
+              <div class="code-head"><span>tocar.js</span><button class="code-copy" type="button">copiar</button></div>
+              <pre><code data-lang="js"><span class="tok-key">function</span> <span class="tok-fn">tocar</span>(frequencia) {
+  <span class="tok-key">const</span> agora = contexto.currentTime;
+  <span class="tok-key">const</span> oscilador = contexto.<span class="tok-fn">createOscillator</span>();
+  <span class="tok-key">const</span> volume = contexto.<span class="tok-fn">createGain</span>();
+
+  oscilador.type = <span class="tok-str">'triangle'</span>;
+  oscilador.frequency.<span class="tok-fn">setValueAtTime</span>(frequencia, agora);
+
+  volume.gain.<span class="tok-fn">setValueAtTime</span>(<span class="tok-num">0</span>, agora);
+  volume.gain.<span class="tok-fn">linearRampToValueAtTime</span>(<span class="tok-num">0.2</span>, agora + <span class="tok-num">0.02</span>);
+  volume.gain.<span class="tok-fn">exponentialRampToValueAtTime</span>(<span class="tok-num">0.0001</span>, agora + <span class="tok-num">0.9</span>);
+
+  oscilador.<span class="tok-fn">connect</span>(volume).<span class="tok-fn">connect</span>(contexto.destination);
+  oscilador.<span class="tok-fn">start</span>();
+  oscilador.<span class="tok-fn">stop</span>(agora + <span class="tok-num">1</span>);
+}</code></pre>
+            </div>
+          </details>
+        </article>
+
+        <article class="experiment reveal" id="exp-cores">
+          <header class="experiment-head">
+            <div class="experiment-title">
+              <span class="experiment-index" aria-hidden="true">03</span>
+              <h3>Máquina de paletas</h3>
+            </div>
+            <span class="tag">cor</span>
+          </header>
+          <p class="experiment-desc">Cinco cores que combinam entre si. Clique para copiar o hexadecimal e use o cadeado para fixar suas favoritas.</p>
+
+          <div class="palette-demo">
+            <div class="palette-top">
+              <span class="palette-kind">paleta <strong id="palette-kind">análoga</strong></span>
+              <button id="palette-generate" class="chip-button" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"></rect><circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="16" cy="8" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="8" cy="16" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="16" cy="16" r="1.2" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"></circle></svg>
+                Gerar outra
+              </button>
+            </div>
+            <div id="palette-swatches" class="palette-swatches" aria-live="polite"></div>
+            <p class="palette-hint">Clique em uma cor para copiar. O cadeado mantém a cor na próxima rodada.</p>
+          </div>
+
+          <details class="code-panel">
+            <summary><span>Ver o código</span><span class="code-summary-meta">cores.js <span class="chevron" aria-hidden="true">⌄</span></span></summary>
+            <div class="code-body">
+              <div class="code-head"><span>cores.js</span><button class="code-copy" type="button">copiar</button></div>
+              <pre><code data-lang="js"><span class="tok-key">function</span> <span class="tok-fn">hslToHex</span>(h, s, l) {
+  s /= <span class="tok-num">100</span>;
+  l /= <span class="tok-num">100</span>;
+
+  <span class="tok-key">const</span> k = n =&gt; (n + h / <span class="tok-num">30</span>) % <span class="tok-num">12</span>;
+  <span class="tok-key">const</span> a = s * Math.<span class="tok-fn">min</span>(l, <span class="tok-num">1</span> - l);
+  <span class="tok-key">const</span> f = n =&gt; l - a * Math.<span class="tok-fn">max</span>(
+    -<span class="tok-num">1</span>, Math.<span class="tok-fn">min</span>(<span class="tok-fn">k</span>(n) - <span class="tok-num">3</span>, <span class="tok-num">9</span> - <span class="tok-fn">k</span>(n), <span class="tok-num">1</span>)
+  );
+
+  <span class="tok-key">return</span> <span class="tok-str">'#'</span> + [<span class="tok-num">0</span>, <span class="tok-num">8</span>, <span class="tok-num">4</span>]
+    .<span class="tok-fn">map</span>(n =&gt; Math.<span class="tok-fn">round</span>(<span class="tok-num">255</span> * <span class="tok-fn">f</span>(n)).<span class="tok-fn">toString</span>(<span class="tok-num">16</span>).<span class="tok-fn">padStart</span>(<span class="tok-num">2</span>, <span class="tok-str">'0'</span>))
+    .<span class="tok-fn">join</span>(<span class="tok-str">''</span>);
+}
+
+<span class="tok-com">// hslToHex(12, 82, 60) → uma cor em hexadecimal</span></code></pre>
+            </div>
+          </details>
+        </article>
+
+        <article class="experiment reveal" id="exp-memoria" style="--delay: 80ms">
+          <header class="experiment-head">
+            <div class="experiment-title">
+              <span class="experiment-index" aria-hidden="true">04</span>
+              <h3>Jogo da memória</h3>
+            </div>
+            <span class="tag">jogo</span>
+          </header>
+          <p class="experiment-desc">Oito pares escondidos em dezesseis cartas. Encontre todos com o menor número de jogadas que conseguir.</p>
+
+          <div class="memory-demo">
+            <div class="memory-bar">
+              <div class="memory-stats">
+                <span>jogadas <strong id="memory-moves">0</strong></span>
+                <span>recorde <strong id="memory-best">—</strong></span>
+              </div>
+              <button id="memory-reset" class="chip-button" type="button">Reiniciar</button>
+            </div>
+            <div id="memory-board" class="memory-board" role="group" aria-label="Jogo da memória com oito pares de cartas"></div>
+            <p id="memory-status" class="memory-status" role="status" aria-live="polite">Encontre os oito pares.</p>
+          </div>
+
+          <details class="code-panel">
+            <summary><span>Ver o código</span><span class="code-summary-meta">cartas.html <span class="chevron" aria-hidden="true">⌄</span></span></summary>
+            <div class="code-body">
+              <div class="code-head"><span>cartas.html</span><button class="code-copy" type="button">copiar</button></div>
+              <pre><code data-lang="html"><span class="tok-com">&lt;!-- cada carta é um botão de verdade --&gt;</span>
+<span class="tok-tag">&lt;button</span> <span class="tok-attr">class</span>=<span class="tok-str">"memory-card"</span>
+        <span class="tok-attr">aria-label</span>=<span class="tok-str">"Carta virada"</span><span class="tok-tag">&gt;</span>
+  <span class="tok-tag">&lt;span</span> <span class="tok-attr">class</span>=<span class="tok-str">"memory-inner"</span><span class="tok-tag">&gt;</span>
+    <span class="tok-tag">&lt;span</span> <span class="tok-attr">class</span>=<span class="tok-str">"memory-back"</span>
+          <span class="tok-attr">aria-hidden</span>=<span class="tok-str">"true"</span><span class="tok-tag">&gt;</span>?<span class="tok-tag">&lt;/span&gt;</span>
+    <span class="tok-tag">&lt;span</span> <span class="tok-attr">class</span>=<span class="tok-str">"memory-front"</span>
+          <span class="tok-attr">aria-hidden</span>=<span class="tok-str">"true"</span><span class="tok-tag">&gt;</span>🍄<span class="tok-tag">&lt;/span&gt;</span>
+  <span class="tok-tag">&lt;/span&gt;</span>
+<span class="tok-tag">&lt;/button&gt;</span></code></pre>
+            </div>
+          </details>
+        </article>
+      </div>
+    </section>
+
+    <section id="por-dentro" class="under-hood" aria-labelledby="por-dentro-title">
+      <div class="wrap hood-grid">
+        <div class="hood-copy reveal">
+          <p class="eyebrow eyebrow-band">Por dentro</p>
+          <h2 id="por-dentro-title">Sem mágica.<br>Só o navegador.</h2>
+          <p>Este site inteiro é um arquivo HTML, um CSS e um JavaScript. Nada de bundler, servidor ou biblioteca. É a plataforma fazendo o trabalho — e você pode ler cada linha.</p>
+          <a class="band-link" href="https://developer.mozilla.org/pt-BR/docs/Web" target="_blank" rel="noopener noreferrer">Explorar a documentação da web <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="hood-cards">
+          <article class="hood-card reveal">
+            <span class="hood-icon" aria-hidden="true">&lt;/&gt;</span>
+            <div>
+              <h3>HTML com propósito</h3>
+              <p>Botões, canvas, dialogs e labels de verdade. A marcação carrega o significado antes de o CSS entrar em cena.</p>
+              <div class="hood-tags"><code>&lt;button&gt;</code><code>&lt;canvas&gt;</code><code>aria-label</code></div>
+            </div>
+          </article>
+          <article class="hood-card reveal" style="--delay: 80ms">
+            <span class="hood-icon hood-icon-css" aria-hidden="true">{ }</span>
+            <div>
+              <h3>CSS que se adapta</h3>
+              <p>Custom properties para os temas, grid para a bancada e clamp() para a tipografia. O layout respira em qualquer tela.</p>
+              <div class="hood-tags"><code>--cor</code><code>grid</code><code>clamp()</code></div>
+            </div>
+          </article>
+          <article class="hood-card reveal" style="--delay: 160ms">
+            <span class="hood-icon hood-icon-js" aria-hidden="true">JS</span>
+            <div>
+              <h3>JavaScript sem framework</h3>
+              <p>Canvas, Web Audio, clipboard e localStorage na mão. Eventos, estado e alguns requestAnimationFrame.</p>
+              <div class="hood-tags"><code>AudioContext</code><code>canvas</code><code>localStorage</code></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="sobre" class="about wrap reveal" aria-labelledby="sobre-title">
+      <div class="about-card">
+        <p class="eyebrow">Sobre este site</p>
+        <h2 id="sobre-title">A web também pode ser um lugar de brincar.</h2>
+        <p>Este é um experimento independente, feito para lembrar que um navegador já vem com canvas, som, armazenamento e uma porção de ideias boas. Sem rastreamento, sem cookies, sem pressa.</p>
+        <p class="about-secret">Pista: o código secreto é o clássico dos videogames. <button id="hint-button" class="link-button" type="button">Quer a resposta?</button></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <p><span class="brand footer-brand">sitezinho<span class="brand-dot">.</span></span><span class="footer-copy">Feito à mão com HTML, CSS e JavaScript.</span></p>
+      <a class="footer-top" href="#top">Voltar ao topo <span aria-hidden="true">↑</span></a>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
+
+  <script src="./script.js" defer></script>
+</body>
+</html>
