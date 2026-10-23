@@ -7,14 +7,13 @@ import { browserSettings } from '../src/browser/client.js';
 import { defaults } from '../src/settings.js';
 import { operation, delay } from '../src/operation.js';
 import { service, document, fixture, json } from './helpers.js';
-import { demoFetch, demoDocument } from '../src/demo.js';
+import { demoFetch, demoDocument } from './demo-fixtures.js';
 
 const settings = extra => ({ PNCP_PAGE_SIZE: 10, PNCP_EXPORT_PAGE_SIZE: 10, PNCP_REQUESTS_PER_SECOND: 100000, PNCP_MAX_RETRIES: 0, ...extra });
 const purchase = { type: 'edital', cnpj: '00000000000000', ano: '2026', sequencial: '1' };
 const contract = { ...purchase, type: 'contrato' };
 
 test('BROWSER-01: configuração pública rejeita segredos, hosts alternativos e limites inválidos', () => {
-  assert.equal(browserSettings({}).DEMO_MODE, false);
   for (const input of [{ HOST: 'localhost' }, { TOKEN: 'secret' }, { PNCP_SEARCH_BASE_URL: 'https://other.example' }, { PNCP_CONSULTATION_BASE_URL: 'https://other.example/api/consulta/v1' }, { PNCP_CONSULTATION_BASE_URL: 'https://pncp.gov.br/api/pncp/v1' }, { PNCP_PAGE_SIZE: 1 }, { PNCP_MAX_EXPORT_DOCUMENTS: 10001 }, { DEMO_MODE: 'true' }, { PNCP_MAX_OPERATION_BYTES: 0 }]) assert.throws(() => browserSettings(input), e => ['INVALID_CONFIG','UNKNOWN_FIELD'].includes(e.code));
 });
 
@@ -106,8 +105,8 @@ test('BROWSER-06: 429, 503, JSON inválido e orçamento de leitura não viram li
 test('BROWSER-07: CSV transferível coincide byte a byte com o núcleo nos três tipos e não envia documentos', async () => {
   for (const type of ['edital','ata','contrato']) {
     const input = { document_type: type, q: '', pncp_filters: {} }, progress = [];
-    const runtime = createRuntime(settings({ DEMO_MODE: true }));
-    const core = service([], { handler: (url, _n, init) => demoFetch(url.href, init) }, { DEMO_MODE: true });
+    const runtime = createRuntime(settings({}), { fetcher: demoFetch });
+    const core = service([], { handler: (url, _n, init) => demoFetch(url.href, init) }, {});
     try {
       const result = await runtime.run('1', 'export', { query: input }, p => progress.push(p));
       const reference = await core.service.export(input);

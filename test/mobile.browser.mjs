@@ -11,7 +11,7 @@ const page=await context.newPage(),errors=[],requests=[];
 page.on('pageerror',error=>errors.push(error.message));
 await page.exposeFunction('__observeMobile',message=>{if(message.method==='execute')requests.push(message.payload.query);});
 await page.addInitScript(()=>{const Native=Worker;window.Worker=class extends Native{postMessage(message,...args){window.__observeMobile(message);super.postMessage(message,...args);}};});
-const url=`http://127.0.0.1:${app.server.address().port}/?demo=1`;
+const url=`http://127.0.0.1:${app.server.address().port}/`;
 const ready=()=>page.waitForFunction(()=>document.querySelector('#results-table').getAttribute('aria-busy')==='false' && !document.querySelector('#export-button').disabled);
 const more=()=>page.locator('#more-actions-button').click();
 async function fits(selector,{height=false,touch=false}={}) {
@@ -146,7 +146,7 @@ try {
   assert.equal(await page.locator('.brand').isVisible(),true);
   assert.equal(await page.locator('#more-actions-button').evaluate(node=>node.nextElementSibling.id),'search-form');
   assert.equal(await page.locator('#search-form #clear-button').count(),1);
-  assert.equal(await page.locator('.header-toolbar').evaluate(node=>node.previousElementSibling.id),'source-badge');
+  assert.equal(await page.locator('.header-toolbar').evaluate(node=>node.previousElementSibling.id),'search-form');
   assert.equal(await page.locator('#document-type').inputValue(),selectedType);assert.equal(await page.locator('#order').inputValue(),selectedOrder);
   for(const id of ['document-type','order'])assert.equal(await page.locator(`#${id}`).count(),1);
   assert.equal(await page.locator('#more-actions-button').isVisible(),false);assert.equal(await page.locator('.results-grid').isVisible(),true);

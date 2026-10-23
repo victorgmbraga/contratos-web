@@ -8,13 +8,12 @@ Edite [`public/browser-config.json`](../public/browser-config.json) antes de `np
 
 ```json
 {
-  "DEMO_MODE": false,
   "PNCP_PAGE_SIZE": 50,
   "PNCP_MAX_EXPORT_DOCUMENTS": 10000
 }
 ```
 
-O arquivo inteiro é público. Chaves desconhecidas são rejeitadas; credenciais e variáveis do processo não entram no bundle. O Vite não carrega arquivos `.env` neste projeto. As bases do navegador devem ser exatamente as bases públicas padrão do PNCP. `?demo=1` escolhe demonstração explicitamente; `npm run demo` também a ativa.
+O arquivo inteiro é público. Chaves desconhecidas são rejeitadas; credenciais e variáveis do processo não entram no bundle. O Vite não carrega arquivos `.env` neste projeto. As bases do navegador devem ser exatamente as bases públicas padrão do PNCP.
 
 Cada aba da aplicação possui um Worker, um cliente e uma fila compartilhada entre pesquisa, detalhes e CSV. Concorrência e ritmo são **por aba**, sem coordenação com outras abas ou dispositivos. Excesso de operações gera `CONCURRENCY_LIMIT`, com possibilidade de repetir. Os números de status dos erros são da aplicação; `details.upstream_status` só existe quando houve resposta HTTP legível da fonte.
 
@@ -26,7 +25,6 @@ O cache de opções da interface é independente do cache HTTP: usa `localStorag
 
 | Chave | Padrão | Uso |
 | --- | --- | --- |
-| `DEMO_MODE` | `false` | `true` ativa dados sintéticos; `false` consulta o PNCP |
 | `PNCP_SEARCH_BASE_URL` | `https://pncp.gov.br/api/search` | Base para pesquisa, filtros e sugestões |
 | `PNCP_DETAIL_BASE_URL` | `https://pncp.gov.br/api/pncp/v1` | Base para atas/contratos, itens, arquivos, catálogos e demais listagens dos detalhes |
 | `PNCP_CONSULTATION_BASE_URL` | `https://pncp.gov.br/api/consulta/v1` | Base para os campos documentais de editais, usados nos links diretos de detalhes |
@@ -38,10 +36,9 @@ Para mudar a porta ou o endereço do servidor de desenvolvimento Vite, use seus 
 
 ```sh
 npm run dev -- --host 127.0.0.1 --port 8100
-npm run demo -- --port 8100
 ```
 
-`npm run demo` ativa `DEMO_MODE` na configuração servida pelo Vite. O build normal continua usando `public/browser-config.json`.
+O build e o servidor de desenvolvimento usam `public/browser-config.json`.
 
 ## Tempos e concorrência
 

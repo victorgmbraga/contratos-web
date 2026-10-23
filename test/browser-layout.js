@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { routePncp } from './pncp-route.js';
 const baseline=JSON.parse(await readFile(new URL('./layout-baseline.json',import.meta.url),'utf8'));
 const normalizeFonts=styles=>Object.fromEntries(Object.entries(styles).map(([selector,style])=>[selector,{...style,fontFamily:style.fontFamily.replace(/["']/g,'')}]));
 
@@ -20,7 +21,9 @@ async function snapshot(page) {
 // Recorded visual baseline: application colors, spacing and table typography.
 // Intrinsic heights depend on row content, fonts and browser, so only CSS is fixed.
 export async function assertBrowserLayout(browser, url) {
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  await routePncp(context);
+  const page = await context.newPage();
   try {
     await page.goto(url);
     for (const [type, title] of [['edital','64 contratações'], ['ata','24 atas'], ['contrato','32 contratos']]) {
@@ -38,5 +41,5 @@ export async function assertBrowserLayout(browser, url) {
       }
     }
     console.log('PASS Layout estático preserva cores, espaçamento e tipografia: três tipos e três tamanhos de tela');
-  } finally { await page.close(); }
+  } finally { await context.close(); }
 }

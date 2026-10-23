@@ -3,11 +3,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PncpClient} from '../src/pncp-core.js';
 import {QueryService} from '../src/query-core.js';
-import {demoFetch} from '../src/demo.js';
+import {demoFetch} from './demo-fixtures.js';
 import {config,query,service,document,json} from './helpers.js';
 
 const booleans=['indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','exigencia_conteudo_nacional'];
-const demo=()=>{const cfg=config({DEMO_MODE:true});return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
+const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
 
 test('DOCUMENTARY-01: origem e modo de disputa aceitam IDs únicos e união de opções',async()=>{
   const s=demo();

@@ -1,5 +1,5 @@
-import {domainAliases} from './filter-domains.js';
-import {compareDecimal} from './validation.js';
+import {domainAliases} from '../src/filter-domains.js';
+import {compareDecimal} from '../src/validation.js';
 const objects = [
   'Contratação de solução de firewall com licenciamento, implantação e suporte técnico.',
   'Subscrição Microsoft 365, Azure e licenças de uso de software para 36 meses.',

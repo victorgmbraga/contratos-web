@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { project } from '../src/adapter.js';
 import { indexedDocumentFields } from '../src/document-details.js';
-import { demoDocuments, demoAtas, demoContracts, demoFetch } from '../src/demo.js';
+import { demoDocuments, demoAtas, demoContracts, demoFetch } from './demo-fixtures.js';
 import { PncpClient } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
 import { config, query } from './helpers.js';
 
 const demoService = () => {
-  const cfg = config({ DEMO_MODE: true });
+  const cfg = config();
   return new QueryService(cfg, new PncpClient(cfg, { fetcher: demoFetch }));
 };
 

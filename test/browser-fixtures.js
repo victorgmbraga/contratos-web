@@ -1,4 +1,4 @@
-import { demoFetch, demoDocuments } from '../src/demo.js';
+import { demoFetch, demoDocuments } from './demo-fixtures.js';
 export async function uiDemoFetch(url,init) {
   const u=new URL(url);
   if(u.pathname.endsWith('/contratos/2026/2/historico/quantidade'))return Response.json(1);

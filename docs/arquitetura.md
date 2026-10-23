@@ -9,7 +9,6 @@ flowchart LR
     Worker --> Core[Núcleo de consultas e validações]
     Core --> Native[fetch do navegador]
     Native --> PNCP[APIs Search, Consulta v1 e PNCP v1]
-    Core -. demonstração explícita .-> Demo[Dados sintéticos]
     Worker -->|Buffers transferíveis| UI
     UI --> CSV[Blob e download local]
 ```
@@ -47,7 +46,6 @@ flowchart LR
 | [`public/browser-entry.js`](../public/browser-entry.js) | Configuração pública e inicialização da distribuição estática |
 | [`public/theme-boot.js`](../public/theme-boot.js), [`theme.js`](../public/theme.js), [`theme.css`](../public/theme.css) | Tema aplicado antes da primeira pintura, preferência, integração com o sistema, sincronização entre abas e paleta escura |
 | [`public/sw.js`](../public/sw.js) | Cache de assets com hash em HTTPS, sem interceptar HTML, configuração ou chamadas ao PNCP |
-| [`src/demo.js`](../src/demo.js) | Fonte fictícia escolhida explicitamente |
 | [`vite.config.js`](../vite.config.js) | Aplicação e diagnóstico, Worker ES module, assets relativos, CSP e saída `dist-browser/` |
 | [`test/`](../test/) | Núcleo, DOM, runtime/RPC, layout, acessibilidade com axe e build estático no navegador |
 
@@ -143,7 +141,7 @@ Estado de consultas, fila, contadores e resultados de pesquisa, detalhes e CSV s
 
 Listas com JSON a partir de 65.536 caracteres são compactadas com `CompressionStream('gzip')` e armazenadas em base64, mantendo opções, IDs, rótulos, estados e metadados. A leitura aceita JSON ou gzip/base64 e usa `DecompressionStream` no segundo caso. A pré-carga processa cada entrada antes da próxima. Conteúdo inválido é descartado e recarregado.
 
-Falhas não são armazenadas e não impedem a pré-carga das demais listas. Armazenamento bloqueado ou sem quota usa IndexedDB quando disponível e, em último caso, mantém o cache em memória com a mesma validade. Sem as APIs nativas de compactação, o navegador mantém o formato JSON. Novas abas podem reutilizar entradas persistidas na mesma origem, mas não há coordenação de chamadas concorrentes entre abas. Resultados de pesquisa ficam apenas em memória por 30 segundos e não sobrevivem ao recarregamento. Um Service Worker opcional, registrado somente em HTTPS, mantém assets com hash em cache; ele não intercepta HTML, `browser-config.json`, a API do PNCP nem dados de pesquisa. Não há banco de dados, login nem consultas reais offline. A demonstração usa chaves separadas e nunca substitui automaticamente falhas reais.
+Falhas não são armazenadas e não impedem a pré-carga das demais listas. Armazenamento bloqueado ou sem quota usa IndexedDB quando disponível e, em último caso, mantém o cache em memória com a mesma validade. Sem as APIs nativas de compactação, o navegador mantém o formato JSON. Novas abas podem reutilizar entradas persistidas na mesma origem, mas não há coordenação de chamadas concorrentes entre abas. Resultados de pesquisa ficam apenas em memória por 30 segundos e não sobrevivem ao recarregamento. Um Service Worker opcional, registrado somente em HTTPS, mantém assets com hash em cache; ele não intercepta HTML, `browser-config.json`, a API do PNCP nem dados de pesquisa. Não há banco de dados, login nem consultas reais offline. A suíte usa dados sintéticos próprios, isolados do código de distribuição.
 
 A configuração estática só aceita chaves públicas e bases fixas do PNCP. Consultas nativas são GET com CORS, sem credenciais, com `cache: no-store` no transporte HTTP e sem seguir redirecionamentos; o cache de opções é controlado pela aplicação. TLS e CORS são controles do navegador e da fonte; a aplicação não os contorna. A CSP permite conexões PNCP e Worker da própria origem. Textos da fonte são exibidos como texto, e links são validados.
 

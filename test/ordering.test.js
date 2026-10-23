@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { schema } from '../src/schema.js';
 import { validateQuery, compareDecimal } from '../src/validation.js';
 import { readQueryUrl, writeQueryUrl } from '../src/browser/query-url.js';
-import { demoFetch } from '../src/demo.js';
+import { demoFetch } from './demo-fixtures.js';
 import { PncpClient } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
 import { config, document, service, query, csvBytes } from './helpers.js';
@@ -54,7 +54,7 @@ test('ORDER-04: ordenações nativas chegam ao PNCP sem reordenar a página ou o
 });
 
 test('ORDER-05: demonstração ordena valores com precisão decimal e mantém ausências no fim',async()=>{
-  const cfg=config({DEMO_MODE:true}),s=new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));
+  const cfg=config(),s=new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));
   for(const [document_type,order,field,direction] of [
     ['edital','-valor_total_estimado','valor_total_estimado',-1],['ata','valor','valor_total_estimado',-1],
     ['ata','-valor','valor_total_estimado',1],['contrato','valor_global','valor_global',1],

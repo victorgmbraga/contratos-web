@@ -4,7 +4,8 @@ import { readdir, readFile } from 'node:fs/promises';
 import { createStaticServer } from './static-server.js';
 import { launchTestBrowser } from './browser-launch.js';
 import { assertBrowserLayout } from './browser-layout.js';
-import { demoFetch, demoDocument } from '../src/demo.js';
+import { demoDocument } from './demo-fixtures.js';
+import { routePncp } from './pncp-route.js';
 const manifest=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
 assert.deepEqual(Object.keys(manifest.dependencies || {}),[], 'O artefato deve permanecer sem dependências de produção.');
 const headersFile=await readFile(new URL('../dist-browser/_headers',import.meta.url),'utf8');
@@ -26,11 +27,15 @@ try {
   for(const prefix of ['/','/compras-web/']) {
     const app = createStaticServer(new URL('../dist-browser/',import.meta.url),prefix);
     await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
-    const page = await browser.newPage(), api = [], errors = [];
-    page.on('request',r=>{if(new URL(r.url()).pathname.includes('/api/'))api.push(r.url());});
+    const context = await browser.newContext();
+  const pncpRequests = [];
+  await routePncp(context, pncpRequests);
+  await context.route('**/browser-config.json', route => route.fulfill({ json: { PNCP_REQUESTS_PER_SECOND: 100000, PNCP_MAX_RETRIES: 0 } }));
+  const page = await context.newPage(), api = [], errors = [];
+    page.on('request',r=>{const u=new URL(r.url());if(u.hostname==='127.0.0.1' && u.pathname.includes('/api/'))api.push(r.url());});
     page.on('pageerror',e=>errors.push(e.message));
     try {
-      await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}?demo=1`);
+      await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}`);
       await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
       for(const [type,title] of [['ata','24 atas'],['contrato','32 contratos'],['edital','64 contratações']]) {
         await page.locator('#document-type').selectOption(type);
@@ -45,22 +50,12 @@ try {
       assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
       await page.locator('#theme-button').click();
       console.log('PASS Artefato de produção, assets e Worker em '+prefix);
-      await assertBrowserLayout(browser, `http://127.0.0.1:${app.server.address().port}${prefix}?demo=1`);
-      await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}?demo=1&tipos_documento=contrato&possui_nfe=false&ordenacao=data&pagina=1#resultados`);
+      await assertBrowserLayout(browser, `http://127.0.0.1:${app.server.address().port}${prefix}`);
+      await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}?tipos_documento=contrato&possui_nfe=false&ordenacao=data&pagina=1#resultados`);
       await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
       assert.equal(await page.locator('#document-type').inputValue(),'contrato');assert.equal(await page.locator('#order').inputValue(),'data');assert.equal(new URL(page.url()).searchParams.get('possui_nfe'),'false');assert.equal(new URL(page.url()).hash,'#resultados');
-      console.log('PASS Link compartilhado no build de produção preserva filtro Não, ordenação, demonstração e caminho em '+prefix);
-      const pncpRequests=[],nativeDetail=demoDocument('edital','1');
-      await page.context().route('**/browser-config.json',route=>route.fulfill({json:{DEMO_MODE:false,PNCP_REQUESTS_PER_SECOND:100000,PNCP_MAX_RETRIES:0}}));
-      await page.context().route('https://pncp.gov.br/**',async route=>{
-        const url=route.request().url();pncpRequests.push(url);
-        if(new URL(url).pathname==='/api/pncp/v1/orgaos/00000000000000/compras/2026/1') {
-          await route.fulfill({status:301,json:{status:'301',message:'Este endpoint foi movido para: https://pncp.gov.br/api/consulta/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}'}});
-        }else{
-          const response=await demoFetch(url);
-          await route.fulfill({status:response.status,headers:{...Object.fromEntries(response.headers),'Access-Control-Allow-Origin':'*'},body:await response.text()});
-        }
-      });
+      console.log('PASS Link compartilhado no build de produção preserva filtro Não, ordenação e caminho em '+prefix);
+      const nativeDetail=demoDocument('edital','1');
       await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}?detalhe=edital/00000000000000/2026/1&aba=arquivos&ufs=GO`);
       const waitDirect=()=>page.waitForFunction(()=>document.querySelector('#details-dialog').open && [...document.querySelectorAll('.detail-tab')].every(tab=>tab.dataset.state==='loaded') && !document.querySelector('#export-button').disabled);
       await waitDirect();
@@ -74,7 +69,6 @@ try {
       assert(pncpRequests.some(url=>new URL(url).pathname==='/api/pncp/v1/orgaos/00000000000000/compras/2026/1/arquivos'));
       await page.reload();await waitDirect();
       assert.equal(await page.locator('#detail-tab-arquivos').getAttribute('aria-selected'),'true');assert.deepEqual(errors,[]);
-      await page.context().unroute('https://pncp.gov.br/**');await page.context().unroute('**/browser-config.json');
       console.log('PASS Link direto no build de produção usa a API de consulta sem acessar a rota antiga com HTTP 301 em '+prefix);
       // Separate minimal origin: the application's CSP intentionally only permits PNCP.
       await page.goto(`http://127.0.0.1:${cors.address().port}/origin`);
@@ -104,7 +98,7 @@ try {
       worker.onmessage=({data})=>{const task=pending.get(data.id);if(!task)return;if(data.progress){task.progress?.(data.progress);return;}pending.delete(data.id);data.error?task.reject(data.error):task.resolve(data.result);};
       function call(message,progress){const id=String(++seq);return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject,progress});worker.postMessage({...message,id});});}
       try {
-        await call({type:'init',version:1,config:{DEMO_MODE:true,PNCP_REQUESTS_PER_SECOND:100000,PNCP_PAGE_SIZE:100}});
+        await call({type:'init',version:1,config:{PNCP_REQUESTS_PER_SECOND:100000,PNCP_PAGE_SIZE:100}});
         const started=performance.now(),progress=[];
         const result=await call({method:'export',payload:{query:{q:'benchmark-ui'}}},p=>progress.push(p));
         const report={rows:result.metadata.exported_rows,bytes:result.chunks.reduce((n,c)=>n+c.byteLength,0),requests:result.metadata.upstream_requests,pages:progress.length,elapsed_ms:Math.round(performance.now()-started),interface_ticks:beats,metadata_has_documents:'data' in result.metadata,worker_heap_measurement:'unavailable'};

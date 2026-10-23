@@ -5,7 +5,7 @@ import { createFilterOptionsCache, FILTER_OPTIONS_TTL, FILTER_OPTIONS_PREFIX } f
 import { schema } from '../src/schema.js';
 import { config, memoryStorage } from './helpers.js';
 
-const catalog=schema(config({DEMO_MODE:true}));
+const catalog=schema(config());
 function fixture({storage=memoryStorage(),now=()=>1000,handler,definition=catalog}={}) {
   const calls=[];
   const service={async call(method,payload,options){
@@ -85,10 +85,10 @@ test('OPTIONS-08: amparos são separados por tipo e conjunto de normativos, dema
   await f.cache.get({type:'contrato',field:'amparos_legais',normatives:['1']});assert.equal(f.calls.length,11);
 });
 
-test('OPTIONS-09: fonte real e demonstração não compartilham listas e contexto inválido não faz chamada',async()=>{
-  const storage=memoryStorage(),demo=fixture({storage});await demo.cache.preload();
-  const live=fixture({storage,definition:schema(config())});await live.cache.preload();assert.equal(live.calls.length,8);assert.equal(storage.data.size,16);
-  for(const payload of [{type:'unknown'},{type:'ata',field:'paises_fornecedor'},{type:'edital',field:'invalid'},{type:'edital',normatives:['not-an-id']}])await assert.rejects(live.cache.get(payload),e=>e.code==='INVALID_DOMAIN');assert.equal(live.calls.length,8);
+test('OPTIONS-09: instâncias da mesma fonte compartilham listas e contexto inválido não faz chamada',async()=>{
+  const storage=memoryStorage(),first=fixture({storage});await first.cache.preload();
+  const live=fixture({storage,definition:schema(config())});await live.cache.preload();assert.equal(live.calls.length,0);assert.equal(storage.data.size,8);
+  for(const payload of [{type:'unknown'},{type:'ata',field:'paises_fornecedor'},{type:'edital',field:'invalid'},{type:'edital',normatives:['not-an-id']}])await assert.rejects(live.cache.get(payload),e=>e.code==='INVALID_DOMAIN');assert.equal(live.calls.length,0);
 });
 
 test('OPTIONS-10: encerramento cancela a chamada ativa e os trabalhos enfileirados sem persistir respostas',async()=>{

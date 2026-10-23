@@ -6,7 +6,7 @@ import { defaults } from '../src/settings.js';
 import { createStaticServer } from './static-server.js';
 import { schema } from '../src/schema.js';
 import { FILTER_OPTIONS_PREFIX, FILTER_OPTIONS_TTL } from '../src/browser/filter-options-cache.js';
-const config={...defaults,DEMO_MODE:true,PNCP_REQUESTS_PER_SECOND:100000};
+const config={...defaults,PNCP_REQUESTS_PER_SECOND:100000};
 const app=createStaticServer(new URL('../dist-browser-test/',import.meta.url));
 await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
 const browser=await launchTestBrowser(),context=await browser.newContext({viewport:{width:1440,height:1000}}),page=await context.newPage(),errors=[],checks=[];
@@ -55,7 +55,7 @@ async function addEveryFilter(type) {
 try {
   await page.goto(`http://127.0.0.1:${app.server.address().port}`,{waitUntil:'load'});
   await page.waitForFunction(()=>document.querySelector('.results-table'));
-  assert.match(await page.locator('#source-badge').innerText(),/dados fictícios/);check('Demonstração marcada e interface disponível');
+  assert.equal(await page.locator('#source-badge').count(),0);check('Interface disponível sem aviso de demonstração');
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');check('Pesquisa inicial sem filtros executada automaticamente');
   await page.waitForFunction(prefix=>Object.keys(localStorage).filter(key=>key.startsWith(prefix)).length===8,FILTER_OPTIONS_PREFIX);
   assert.equal(initialDomains.length,8);
@@ -159,7 +159,7 @@ try {
     await sharedPage.exposeFunction('__observeSharedQuery',message=>{if(message.method==='execute')sharedQueries.push(message.payload.query);});
     await sharedPage.addInitScript(()=>{const NativeWorker=window.Worker;window.Worker=class extends NativeWorker {postMessage(message,...args){window.__observeSharedQuery(message);return super.postMessage(message,...args);}};});
     const sharedBase=`http://127.0.0.1:${app.server.address().port}/`;
-    await sharedPage.goto(sharedBase+'?demo=1&tipos_documento=edital&q=pagina-ui&ordenacao=data&pagina=2&ufs=SP%7CDF&srp=false&ordem_classificacao_min=0&item_quantidade_min=0.00#resultados');
+    await sharedPage.goto(sharedBase+'?tipos_documento=edital&q=pagina-ui&ordenacao=data&pagina=2&ufs=SP%7CDF&srp=false&ordem_classificacao_min=0&item_quantidade_min=0.00#resultados');
     const waitSecond=()=>sharedPage.waitForFunction(()=>document.querySelector('.results-page.active')?.dataset.page==='2' && /101\s*[-–]\s*164/.test(document.querySelector('.results-page-counter')?.textContent || '') && !document.querySelector('#refresh-button').disabled);
     await waitSecond();assert.equal(sharedQueries.length,1);assert.equal(sharedQueries[0].page,2);assert.equal(sharedQueries[0].order,'data');assert.deepEqual(sharedQueries[0].pncp_filters,{ufs:['SP','DF'],srp:false,ordem_classificacao_min:0,item_quantidade_min:'0.00'});
     assert.equal(await sharedPage.locator('#search').inputValue(),'pagina-ui');assert.equal(new URL(sharedPage.url()).hash,'#resultados');check('Link compartilhado restaura critérios tipados e abre diretamente a segunda página');
@@ -190,7 +190,7 @@ try {
     });
     const orderedBase=`http://127.0.0.1:${app.server.address().port}/`;
     const waitOrdered=(type,order)=>orderedPage.waitForFunction(({type,order})=>window.__orderRequests.at(-1)?.document_type===type && window.__orderRequests.at(-1)?.order===order && !document.querySelector('#export-button').disabled,{type,order});
-    await orderedPage.goto(orderedBase+'?demo=1');await waitOrdered('edital','-data');
+    await orderedPage.goto(orderedBase+'');await waitOrdered('edital','-data');
     for(const [type,orders] of Object.entries(expectedOrders)) {
       if(type!=='edital'){await orderedPage.locator('#document-type').selectOption(type);await waitOrdered(type,'-data');}
       assert.deepEqual(await orderedPage.locator('#order option').evaluateAll(options=>options.map(option=>option.value)),orders);
@@ -204,7 +204,7 @@ try {
       }
     }
     check('Relevância sem texto e oito opções adicionais acompanham o tipo, o Worker, a URL e o recarregamento');
-    await orderedPage.goto(orderedBase+'?demo=1&tipos_documento=ata&ordenacao=valor_global');
+    await orderedPage.goto(orderedBase+'?tipos_documento=ata&ordenacao=valor_global');
     await orderedPage.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Ordenação não disponível'));
     assert.equal(await orderedPage.evaluate(()=>window.__orderRequests.length),0);check('Link com ordenação incompatível é rejeitado antes de consultar o PNCP');
   } finally {await orderedPage.close();}
@@ -287,7 +287,7 @@ try {
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/details-tabs-mobile.png`});
   await page.setViewportSize(previousViewport);check('Abas, listagens e links cabem no painel em telas menores');
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeTabs);
-  const downloadPromise=page.waitForEvent('download');await page.locator('#export-button').click();const download=await downloadPromise;assert.match(download.suggestedFilename(),/^compras-demo-/);assert.equal(await page.locator('#export-dialog').count(),0);check('CSV baixado diretamente por nova coleta, sem confirmação');
+  const downloadPromise=page.waitForEvent('download');await page.locator('#export-button').click();const download=await downloadPromise;assert.match(download.suggestedFilename(),/^compras-pncp-/);assert.equal(await page.locator('#export-dialog').count(),0);check('CSV baixado diretamente por nova coleta, sem confirmação');
   await page.locator('#filters-button').click();await selectFilterOptions('ufs','GO');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='0 contratações');check('Filtro nativo UF aplicado no serviço');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();await filter('srp').selectOption('false');
@@ -407,7 +407,7 @@ try {
   for(const width of [320,390,768,1057,1440]) {
     await page.setViewportSize({width,height:844});await page.waitForTimeout(150);
     await page.locator('#header-content').evaluate(node=>{node.scrollLeft=0;});
-    const fit=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,centers:[...document.querySelectorAll('#app-header .brand,#app-header input,#app-header button,#app-header select,#source-badge,#repository-link')].filter(node=>node.getClientRects().length).map(node=>{const rect=node.getBoundingClientRect();return rect.top+rect.height/2;})}));
+    const fit=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,centers:[...document.querySelectorAll('#app-header .brand,#app-header input,#app-header button,#app-header select,#repository-link')].filter(node=>node.getClientRects().length).map(node=>{const rect=node.getBoundingClientRect();return rect.top+rect.height/2;})}));
     assert(fit.scroll<=fit.width,`Overflow da página em ${width}px`);
     if(width<=700){
       assert.equal(await page.locator('#header-content').evaluate(node=>node.scrollWidth<=node.clientWidth),true);

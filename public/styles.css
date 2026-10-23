@@ -18,11 +18,6 @@ svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .brand img{width:28px;height:28px;flex-shrink:0}
 .brand:hover{text-decoration:none}
 .brand>span strong{font-weight:750}
-.source-badge{flex-shrink:0;min-width:0;font-size:.75rem;color:var(--text-muted,#50667c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.source-badge::before{content:'';display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--success-dot,#3d876a);vertical-align:middle}
-.source-badge.demo{color:var(--warning-text,#805410);background:var(--warning-bg,#fff2cd);border:1px solid var(--warning-border,#ebd294);border-radius:5px;padding:3px 8px}
-.source-badge.demo::before{background:var(--warning-text,#b48026)}
-#source-label-compact{display:none}
 .icon-button{height:34px;min-width:34px;border:1px solid var(--line);border-radius:7px;background:var(--surface,white);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:1.15rem}
 .icon-button:hover:not(:disabled){background:var(--blue-soft);color:var(--blue-hover)}
 .workspace{flex:1;min-height:0;min-width:0;padding:8px;display:grid;grid-template-rows:minmax(0,1fr)}
@@ -259,10 +254,6 @@ dialog select[multiple]{min-height:155px}
   .repository-link{flex-basis:34px;width:34px;height:34px}
   .brand{font-size:.9375rem}
   .brand img{width:26px;height:26px}
-  .source-badge{font-size:.6875rem;max-width:46vw}
-  .source-badge.demo{padding:4px 6px}
-  #source-label{display:none}
-  #source-label-compact{display:inline}
   .workspace{padding:5px}
   .search-row{flex-basis:260px;min-width:260px}
   .search-field input{font-size:.8125rem}

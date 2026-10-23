@@ -70,7 +70,7 @@ Listas aceitam `ufs=SP%7CDF` ou parâmetros repetidos como `ufs=SP&ufs=DF`; a UR
 
 A inicialização e o recarregamento consultam diretamente a página indicada. Aplicar texto/filtros, trocar ordenação ou tipo começa na página 1 e fecha os detalhes; paginação atualiza `pagina`. A URL muda ao iniciar a consulta, inclusive quando ela falha ou é cancelada. Atualizar usa a página da última consulta concluída; repetir uma falha usa a página solicitada. Consultas idênticas não criam entradas duplicadas. Voltar/Avançar leem a URL e restauram controles/colunas e o painel sem inserir outra entrada no histórico. A pesquisa só se repete quando seus critérios ou página mudam; respostas tardias não alteram a URL nem os resultados atuais.
 
-`tipos_documento`, `ordenacao` e `pagina` ficam explícitos na URL; texto vazio, status `todos` e filtros ausentes são omitidos. O caminho da hospedagem, o fragmento e parâmetros externos são preservados, incluindo `demo=1`; somente os controles e filtros reconhecidos tornam-se critérios do PNCP. A validação de pertencimento aos domínios continua no Worker. A URL compartilha critérios e página, sem garantir uma fotografia dos resultados da fonte.
+`tipos_documento`, `ordenacao` e `pagina` ficam explícitos na URL; texto vazio, status `todos` e filtros ausentes são omitidos. O caminho da hospedagem, o fragmento e parâmetros externos são preservados; somente os controles e filtros reconhecidos tornam-se critérios do PNCP. A validação de pertencimento aos domínios continua no Worker. A URL compartilha critérios e página, sem garantir uma fotografia dos resultados da fonte.
 
 Abrir um documento escreve `detalhe` e `aba`; clicar em outra aba ou selecioná-la pelo teclado atualiza `aba`. Fechar o painel remove ambos os parâmetros. Um link direto carrega o documento e todas as primeiras páginas das listagens em segundo plano, independentemente dos resultados da busca. Se `tipos_documento` estiver ausente, a busca assume o tipo de `detalhe`; quando explícito, o tipo da busca é preservado. Um link sem `aba` abre **Detalhes**. Trocar de aba pelo histórico do navegador não repete consultas do documento já aberto.
 
@@ -142,7 +142,7 @@ Filtros de itens, resultados e características de fornecedores nessa tabela sã
 
 As listas devem conter de 1 a 100 strings; não envie nomes de órgãos no lugar dos IDs nem caracteres `|` dentro dos valores. Os intervalos devem ter início ou mínimo menor ou igual ao fim ou máximo. `status` representa o período de recebimento de propostas em editais e a vigência em atas/contratos; `situacoes` é um filtro separado de situação da contratação.
 
-Booleanos exigem valores JSON, sem aspas: `false` é enviado ao PNCP como `false`. Omitir o argumento não restringe por aquela condição. Ausência de informação não é convertida em `false`; na demonstração, registros com `null` ficam fora tanto de Sim quanto de Não. `tem_nfe_contrato` é um vínculo da contratação; `possui_nfe` é exclusivo de contratos. Os critérios de modo de disputa e modalidade são enviados juntos à fonte.
+Booleanos exigem valores JSON, sem aspas: `false` é enviado ao PNCP como `false`. Omitir o argumento não restringe por aquela condição. Ausência de informação não é convertida em `false`; registros com `null` ficam fora tanto de Sim quanto de Não. `tem_nfe_contrato` é um vínculo da contratação; `possui_nfe` é exclusivo de contratos. Os critérios de modo de disputa e modalidade são enviados juntos à fonte.
 
 ```json
 {"api_version":"2.0","document_type":"edital","q":"firewall","pncp_filters":{"fontes":["3","5"],"modos_disputa":["1","3"],"indicador_orcamento_sigiloso":false,"tem_contrato_empenho":true},"page":1,"size":10}
@@ -170,7 +170,7 @@ Cada capacidade também informa `label`, `group`, `input_hint`, `help_text`, `ca
 | `window_limited` | Indica que o total ultrapassa a janela de 10.000 documentos |
 | `collection_complete` | `false` na resposta de uma página de pesquisa |
 | `snapshot_guaranteed` | `false`: a fonte pode mudar entre chamadas |
-| `source`, `demo` | Fonte utilizada (`pncp` ou `demo`) e indicação de demonstração |
+| `source` | Fonte utilizada (`pncp`) |
 | `request_id`, `api_version` | Identificação da operação e versão do contrato |
 | `started_at`, `finished_at`, `elapsed_ms` | Início, término e duração da operação |
 | `upstream_requests` | Número de chamadas à fonte, incluindo domínios e tentativas |
@@ -240,7 +240,7 @@ A resposta de `documentRelated` contém `api_version`, `request_id`, `document_t
 
 O histórico apresenta o evento, o nome do documento quando fornecido, a data/hora e a justificativa. Uma justificativa ausente ou vazia é apresentada como `Exigência Legal`, seguindo o portal oficial. Textos são exibidos como texto; downloads aceitam apenas HTTP/HTTPS sem credenciais, e os links de atas e contratos apontam para o PNCP. Listagens não são consultadas durante pesquisa ou exportação. Quando faltam identificadores originais válidos, as seções mostram essa informação e não fazem requisições.
 
-A demonstração fornece arquivos, atas, contratos/empenhos e eventos fictícios, incluindo listas vazias, cancelamento, mais de uma página e valores monetários exatos. Seus links de documentos/registro são ilustrativos e não garantem a existência desses dados no PNCP.
+A suíte de navegador usa dados sintéticos próprios (`test/demo-fixtures.js`), incluindo arquivos, atas, contratos/empenhos e eventos, listas vazias, cancelamento, mais de uma página e valores monetários exatos. Os links desses registros são ilustrativos e não correspondem a documentos reais do PNCP.
 
 ## Detalhes completos de editais, atas e contratos
 

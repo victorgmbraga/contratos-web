@@ -1,7 +1,6 @@
 import { PncpClient } from '../pncp-core.js';
 import { defaults, validateSettings } from '../settings.js';
 import { assert } from '../errors.js';
-import { demoFetch } from '../demo.js';
 
 export function browserSettings(input = {}) {
   const config = validateSettings(input);
@@ -11,9 +10,9 @@ export function browserSettings(input = {}) {
   return config;
 }
 
-export function createBrowserClient(config, { fetcher = globalThis.fetch.bind(globalThis), demoFetcher = demoFetch } = {}) {
+export function createBrowserClient(config, { fetcher = globalThis.fetch.bind(globalThis) } = {}) {
   return new PncpClient(config, {
-    fetcher: config.DEMO_MODE ? demoFetcher : fetcher,
+    fetcher,
     fetchOptions: { mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error', headers: { Accept: 'application/json' } },
   });
 }

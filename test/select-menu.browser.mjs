@@ -28,7 +28,7 @@ async function contrast(){
   }),true,'Textos dos seletores mantêm contraste de pelo menos 4,5:1');
 }
 try {
-  const url=`http://127.0.0.1:${app.server.address().port}/?demo=1`;
+  const url=`http://127.0.0.1:${app.server.address().port}/`;
   await page.goto(url);await ready();
   for(const id of ['document-type','order'])assert((await control(id).boundingBox()).width<=180,'Seletores fechados preservam a largura do cabeçalho');
   assert.equal(await page.locator('#document-type').getAttribute('aria-hidden'),'true');

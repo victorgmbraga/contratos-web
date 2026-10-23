@@ -13,7 +13,7 @@ export default defineConfig(({ command, mode }) => {
   const headers = { 'Content-Security-Policy': csp + "; frame-ancestors 'self'", 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
   const config = async () => {
     const input = JSON.parse(await readFile(new URL('./public/browser-config.json', import.meta.url), 'utf8'));
-    const publicConfig = mode === 'test' ? { ...input, DEMO_MODE: true, PNCP_REQUESTS_PER_SECOND: 100000 } : mode === 'demo' ? { ...input, DEMO_MODE: true } : input;
+    const publicConfig = mode === 'test' ? { ...input, PNCP_REQUESTS_PER_SECOND: 100000 } : input;
     browserSettings(publicConfig); return JSON.stringify(publicConfig, null, 2) + '\n';
   };
   return {
@@ -25,7 +25,7 @@ export default defineConfig(({ command, mode }) => {
       load(id) {
         const normalize = value => value.replaceAll('\\', '/').split('?')[0];
         if (normalize(id) === normalize(fileURLToPath(new URL('./src/browser/worker.js', import.meta.url)))) {
-          return `import { attachWorker } from './runtime.js';\nimport { uiDemoFetch } from ${JSON.stringify(fileURLToPath(new URL('./test/browser-fixtures.js', import.meta.url)))};\nattachWorker(globalThis, { demoFetcher: uiDemoFetch });`;
+          return `import { attachWorker } from './runtime.js';\nimport { uiDemoFetch } from ${JSON.stringify(fileURLToPath(new URL('./test/browser-fixtures.js', import.meta.url)))};\nattachWorker(globalThis, { fetcher: uiDemoFetch });`;
         }
       },
     }] : [] },

@@ -322,7 +322,6 @@ async function init() {
   try {if(window.location?.href)state.query=readLocationState().query;}
   catch(error){urlError=error;}
   state.schema.columns=state.schema.columns_by_document[state.query.document_type];
-  $('source-badge').hidden=!state.schema.demo;
   filters.renderStatuses();
   state.placeholder=el('div','Informe uma pesquisa e consulte as contratações do PNCP.');
   const resultInfo=$('result-info');

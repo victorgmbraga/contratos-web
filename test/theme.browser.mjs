@@ -10,7 +10,7 @@ await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
 const browser=await launchTestBrowser(),context=await browser.newContext({colorScheme:'dark',viewport:{width:1440,height:1000}});
 const page=await context.newPage(),errors=[];
 page.on('pageerror',error=>errors.push(error.message));
-const url=`http://127.0.0.1:${app.server.address().port}/?demo=1`;
+const url=`http://127.0.0.1:${app.server.address().port}/`;
 const theme=()=>page.locator('html').getAttribute('data-theme');
 const ready=()=>page.waitForFunction(()=>!document.querySelector('#export-button').disabled);
 async function contrast(selectors) {

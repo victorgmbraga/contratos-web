@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PncpClient } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
-import { demoFetch, demoRelated } from '../src/demo.js';
+import { demoFetch, demoRelated } from './demo-fixtures.js';
 import { config } from './helpers.js';
 
 const purchase={cnpj:'00000000000000',ano:'2026',sequencial:'1'};
 function fixture(handler=demoFetch) {
-  const requests=[],cfg=config({DEMO_MODE:true});
+  const requests=[],cfg=config();
   const client=new PncpClient(cfg,{fetcher:(url,init)=>{requests.push(new URL(url));return handler(url,init);}});
   return {requests,client,service:new QueryService(cfg,client)};
 }
@@ -16,7 +16,7 @@ test('RELATED-01: as quatro listagens usam os serviços oficiais e mantêm pagin
   for(const resource of ['arquivos','atas','contratos','historico']){
     const result=await f.service.related(purchase,resource,1,10);
     assert.equal(result.resource,resource);assert.equal(result.total,demoRelated(purchase,resource).length);assert.equal(result.data.length,Math.min(10,result.total));
-    assert.equal(result.snapshot_guaranteed,false);assert.equal(result.source,'demo');
+    assert.equal(result.snapshot_guaranteed,false);assert.equal(result.source,'pncp');
     if(result.has_more){const last=await f.service.related(purchase,resource,2,10);assert.equal(last.data.length,2);assert.equal(last.has_more,false);assert.equal(last.complete,true);}
   }
   const contracts=f.requests.find(u=>u.pathname.includes('/contratos/contratacao/'));

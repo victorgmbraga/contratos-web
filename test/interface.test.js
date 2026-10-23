@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as tick } from 'node:timers/promises';
 import { schema } from '../src/schema.js';
-import { demoFetch,demoContracts,demoAtas,demoDocuments } from '../src/demo.js';
+import { demoFetch,demoContracts,demoAtas,demoDocuments } from './demo-fixtures.js';
 import { PncpClient } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
 import { config, service, document, memoryStorage } from './helpers.js';
@@ -38,7 +38,7 @@ async function interfaceFixture(options={}) {
   const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
   for(const match of html.matchAll(/<([a-z]+)[^>]*\bid="([^"]+)"[^>]*>/g)){const node=new Element(match[1]);node.id=match[2];node.hidden=match[0].includes(' hidden');}
   const dom={body:new Element('body'),getElementById:id=>nodes.get(id),createElement:tag=>new Element(tag),createTextNode:text=>text,addEventListener(){},querySelectorAll:selector=>selector==='dialog'?all.filter(n=>n.tagName==='dialog'):[],querySelector(){return null;}};
-  const cfg=config({DEMO_MODE:true,...options.config});
+  const cfg=config({...options.config});
   const provider=async(url,init)=>{
     const result=await (options.itemFetcher || demoFetch)(url,init);
     return result instanceof Response?result:Response.json(result);
@@ -77,7 +77,7 @@ async function interfaceFixture(options={}) {
     }
     callOptions.signal?.throwIfAborted();
     if(result?.error)throw Object.assign(new Error(result.error.message),result.error);
-    return method==='export'?{mime:'text/csv; charset=utf-8',filename:'compras-demo.csv',...result}:result;
+    return method==='export'?{mime:'text/csv; charset=utf-8',filename:'compras-pncp.csv',...result}:result;
   }};
   let finishReady;
   const tableFactory=options=>({options,columns:options.columns,rows:[],page:1,lastPage:1,
@@ -392,7 +392,7 @@ test('EXPORT-UI-01: um clique baixa o CSV dos últimos critérios concluídos se
   await ui.nodes.get('export-button').fire('click');
   assert.equal(ui.nodes.has('export-dialog'),false);assert.equal(ui.nodes.has('download-csv'),false);
   assert.equal(ui.exportRequests.length,1);assert.deepEqual(ui.exportRequests[0],{query:completed});
-  assert.equal(ui.downloads.length,1);assert.equal(ui.downloads[0].filename,'compras-demo.csv');
+  assert.equal(ui.downloads.length,1);assert.equal(ui.downloads[0].filename,'compras-pncp.csv');
   assert.match(ui.nodes.get('notice-message').textContent,/6 linhas exportadas/);
   assert.equal(ui.nodes.get('export-button').disabled,false);assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'false');
 });

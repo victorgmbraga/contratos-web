@@ -46,7 +46,7 @@ export function createRuntime(input, options = {}) {
             const { chunks, metadata } = await service.export(payload.query, signal, id, { onProgress, scope: payload.scope });
             const stamp = metadata.finished_at.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
             const pageSuffix = metadata.export_scope === 'page' ? `-pagina-${metadata.page}` : '';
-            result = { chunks: chunks.map(c => c.buffer), metadata, mime: 'text/csv; charset=utf-8', filename: `compras-${config.DEMO_MODE ? 'demo' : 'pncp'}-${stamp}${pageSuffix}.csv` };
+            result = { chunks: chunks.map(c => c.buffer), metadata, mime: 'text/csv; charset=utf-8', filename: `compras-pncp-${stamp}${pageSuffix}.csv` };
             break;
           }
         }

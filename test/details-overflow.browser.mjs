@@ -21,7 +21,7 @@ try {
   };
  },text);
  for(const type of ['edital','ata','contrato']){
-  await page.goto(`http://127.0.0.1:${app.server.address().port}/?demo=1&tipos_documento=${type}`);
+  await page.goto(`http://127.0.0.1:${app.server.address().port}/?tipos_documento=${type}`);
   await page.waitForFunction(()=>!document.querySelector('#export-button').disabled);
   assert.equal(await page.locator('.result-card').count(),0,'Desktop não monta cartões ocultos');
   await page.locator('.results-open').first().click();
@@ -44,7 +44,7 @@ try {
   await page.locator('#description-dialog').waitFor({state:'hidden'});await page.locator('#details-dialog').waitFor({state:'hidden'});
  }
  // Switching views always renders the latest rows, and releases hidden card nodes.
- await page.goto(`http://127.0.0.1:${app.server.address().port}/?demo=1&q=pagina-ui`);await page.waitForFunction(()=>!document.querySelector('#export-button').disabled);
+ await page.goto(`http://127.0.0.1:${app.server.address().port}/?q=pagina-ui`);await page.waitForFunction(()=>!document.querySelector('#export-button').disabled);
  assert.equal(await page.locator('.result-card').count(),0);
  await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>document.querySelectorAll('.result-card').length===100);
  await page.getByRole('button',{name:'Próxima página',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.result-card').length===64);

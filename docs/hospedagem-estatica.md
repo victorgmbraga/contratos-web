@@ -15,7 +15,7 @@ npm run build
 npm run preview
 ```
 
-Abra `http://localhost:8000` para a fonte real ou `http://localhost:8000/?demo=1` para demonstração. O preview usa os arquivos compilados.
+Abra `http://localhost:8000` para consultar a fonte real. O preview usa os arquivos compilados.
 
 Publique **todo o conteúdo de `dist-browser/`**, incluindo `assets/`. Os caminhos relativos permitem servir na raiz ou em um diretório como `/contratos-web/`; abra a URL do diretório com barra final. A hospedagem precisa fornecer MIME apropriado: `text/javascript` para módulos e Worker, `text/css` e `application/json`. Use HTTPS; a abertura por `file://` não é suportada.
 
@@ -46,7 +46,7 @@ O build gera `_headers` com a política de segurança definida em [`vite.config.
 - `X-Content-Type-Options: nosniff` e `Referrer-Policy: no-referrer`.
 - `Cache-Control: no-cache` para os arquivos e cache imutável de um ano para `/assets/*`.
 
-O servidor de desenvolvimento (`npm run dev`, `npm run demo`) acrescenta `'unsafe-inline'` a `style-src` e `ws:` a `connect-src`, porque o Vite injeta CSS e o cliente de HMR por WebSocket. O artefato publicado não recebe essas permissões.
+O servidor de desenvolvimento (`npm run dev`) acrescenta `'unsafe-inline'` a `style-src` e `ws:` a `connect-src`, porque o Vite injeta CSS e o cliente de HMR por WebSocket. O artefato publicado não recebe essas permissões.
 
 Provedores que aceitam `_headers` podem aplicá-lo diretamente na raiz. Em subdiretórios, ajuste a regra de assets para o prefixo publicado. Nos demais servidores, configure cabeçalhos equivalentes. A CSP em `<meta>` não substitui `frame-ancestors 'self'` nem os cabeçalhos da resposta do Worker.
 

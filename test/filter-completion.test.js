@@ -7,10 +7,10 @@ import {validateQuery} from '../src/validation.js';
 import {PncpClient} from '../src/pncp-core.js';
 import {QueryService} from '../src/query-core.js';
 import {project} from '../src/adapter.js';
-import {demoFetch} from '../src/demo.js';
+import {demoFetch} from './demo-fixtures.js';
 import {config,document,service,query,json} from './helpers.js';
 
-const demo=()=>{const cfg=config({DEMO_MODE:true});return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
+const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
 const sample=c=>c.type==='boolean'?false:c.type==='date'?'2026-09-01':c.type==='integer'?0:c.type==='decimal'?'0.00':c.type==='enum'?c.name==='tipos_item'?'S':'1':c.name==='codigo_ibge'?'5300108':c.name==='ufs'?['DF']:c.name==='esferas'?['F']:c.name==='poderes'?['E']:c.name==='anos'?['2026']:c.name==='unidades_medida'?['Unidade ']:c.name==='paises_fornecedor'?['BRA']:['1'];
 
 test('COMPLETE-01: todos os 80 filtros chegam à pesquisa e ao CSV com seu nome e valor nativos',async()=>{

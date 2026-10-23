@@ -26,7 +26,7 @@ try {
   ]) {
     requests.length=0;
     // The selected document is in DF; the background search contains only GO.
-    await page.goto(base+`?demo=1&ufs=GO&detalhe=${identity}&aba=${tab}#resultados`);
+    await page.goto(base+`?ufs=GO&detalhe=${identity}&aba=${tab}#resultados`);
     await waitLoaded();await waitTab(tab);
     assert.equal(await page.locator('#document-type').inputValue(),type);
     assert.equal(new URL(page.url()).searchParams.get('tipos_documento'),type);
@@ -59,7 +59,7 @@ try {
     console.log(`PASS Link direto de ${type}: item fora da busca, aba, recarregamento, teclado e histórico sem repetir a busca`);
   }
 
-  await page.goto(base+'?demo=1&detalhe=contrato/00000000000000/2026/1');
+  await page.goto(base+'?detalhe=contrato/00000000000000/2026/1');
   await waitLoaded();await waitTab('detalhes');
   await page.locator('#details-dialog .close-dialog').click();
   await page.waitForFunction(()=>!new URL(location.href).searchParams.has('detalhe'));
@@ -80,7 +80,7 @@ try {
   console.log('PASS Clique na tabela escreve o link; nova busca remove a seleção e Voltar restaura o painel');
 
   const queries=calls('execute'),details=calls('documentDetails');
-  await page.goto(base+'?demo=1&detalhe=ata/00000000000000/2026/1/1&aba=empenhos');
+  await page.goto(base+'?detalhe=ata/00000000000000/2026/1/1&aba=empenhos');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Parâmetros inválidos na URL'));
   assert.equal(calls('execute'),queries);assert.equal(calls('documentDetails'),details);
   assert.equal(await page.locator('#details-dialog').isVisible(),false);

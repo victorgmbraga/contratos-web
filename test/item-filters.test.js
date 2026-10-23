@@ -3,11 +3,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PncpClient} from '../src/pncp-core.js';
 import {QueryService} from '../src/query-core.js';
-import {demoFetch} from '../src/demo.js';
+import {demoFetch} from './demo-fixtures.js';
 import {config,query,service,document,json} from './helpers.js';
 
 const itemBooleans=['incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional'];
-const demo=()=>{const cfg=config({DEMO_MODE:true});return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
+const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
 
 test('ITEM-FILTER-01: emenda parlamentar distingue omissão, Sim, Não e informação ausente',async()=>{
   const s=demo(),all=await s.execute(query({size:100}));assert.equal(all.total,64);assert(all.data.some(d=>d._raw.possui_emenda_parlamentar===null));

@@ -131,11 +131,11 @@ npm run build
 npm run preview
 ```
 
-Abra `http://localhost:8000/?demo=1`. O modo de demonstração por link é explícito, marcado pelo aviso **Demonstração · dados fictícios** no cabeçalho (anunciado como status) e nunca substitui falhas da fonte real. Confira a troca dos três tipos, aplicação de filtros, compartilhamento/recarregamento da URL, detalhes, paginação e CSV. Abra um documento, escolha uma aba e copie a URL em outra janela: documento e aba devem ser restaurados, inclusive quando o item não aparece nos resultados. Confira também fechamento e Voltar/Avançar, sem repetir a busca ao trocar apenas a aba. O ícone do GitHub deve abrir o repositório em nova aba; em até 700 px, fica no menu **Mais**.
+Abra `http://localhost:8000` e confira a consulta à fonte real. Confira a troca dos três tipos, aplicação de filtros, compartilhamento/recarregamento da URL, detalhes, paginação e CSV. Abra um documento, escolha uma aba e copie a URL em outra janela: documento e aba devem ser restaurados, inclusive quando o item não aparece nos resultados. Confira também fechamento e Voltar/Avançar, sem repetir a busca ao trocar apenas a aba. O ícone do GitHub deve abrir o repositório em nova aba; em até 700 px, fica no menu **Mais**.
 
 Em um celular, confira que busca, filtros, tipo documental e ordenação permanecem visíveis, sem rolagem horizontal do cabeçalho. Alterne cartões/tabela em **Mais**, abra detalhes, selecione outra seção e compartilhe a URL. Confira a rolagem entre os grupos de filtros, a aplicação/cancelamento e os botões fixos com o teclado virtual aberto. Verifique orientação retrato/paisagem, áreas seguras, zoom e o retorno dos controles ao cabeçalho ao ampliar a tela. O teste [`mobile.browser.mjs`](../test/mobile.browser.mjs) cobre os fluxos com viewport e toque emulados; a altura reduzida simula espaço limitado e não abre um teclado virtual real.
 
-A demonstração contém 64 contratações, 24 atas e 32 contratos. Todos os filtros têm simulação, mas os status de vigência usam a data fixa `2026-10-07`; a simulação de relevância e recebimento de propostas não reproduz integralmente a fonte. Os links dos registros fictícios são ilustrativos.
+Os testes de navegador usam dados sintéticos de [`test/demo-fixtures.js`](../test/demo-fixtures.js): 64 contratações, 24 atas e 32 contratos. Os status de vigência usam a data fixa `2026-10-07`; relevância e recebimento de propostas não reproduzem integralmente a fonte. Os links são ilustrativos.
 
 ## Diagnóstico do PNCP
 

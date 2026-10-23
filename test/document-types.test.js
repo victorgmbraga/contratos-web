@@ -7,12 +7,12 @@ import {project,documentIdentity} from '../src/adapter.js';
 import {projectDocument,controlLink,nativeDocumentPath,indexedDocumentFields} from '../src/document-details.js';
 import {PncpClient} from '../src/pncp-core.js';
 import {QueryService} from '../src/query-core.js';
-import {demoFetch,demoAtas,demoContracts} from '../src/demo.js';
+import {demoFetch,demoAtas,demoContracts} from './demo-fixtures.js';
 import {config,query,json,service,document} from './helpers.js';
 
 const ata={type:'ata',cnpj:'01234567000189',ano:'2025',sequencial_compra:'57',sequencial:'9'},contract={type:'contrato',cnpj:ata.cnpj,ano:'2026',sequencial:'44'};
 const fixture=(handler,settings={})=>{const cfg=config(settings),requests=[],client=new PncpClient(cfg,{fetcher:async(url,init)=>{const u=new URL(url);requests.push(u);return handler(u,init);}});return {client,requests,service:new QueryService(cfg,client)};};
-const demo=()=>{const cfg=config({DEMO_MODE:true});return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
+const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
 
 test('DOCUMENTS-01: os três tipos publicam colunas, status e os 16 filtros compatíveis com atas',async()=>{
   const catalog=schema(config());assert.deepEqual(catalog.document_types.filter(d=>d.enabled).map(d=>d.id),['edital','ata','contrato']);

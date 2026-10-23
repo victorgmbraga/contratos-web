@@ -25,11 +25,10 @@ npm ci
 npm run dev
 ```
 
-Abra [http://localhost:8000](http://localhost:8000). As consultas reais precisam de acesso à internet; use o modo de demonstração para trabalhar com dados fictícios.
+Abra [http://localhost:8000](http://localhost:8000). As consultas exigem acesso à internet ao PNCP. Os dados sintéticos usados pela suíte ficam em [`test/demo-fixtures.js`](test/demo-fixtures.js).
 
 | Comando | Finalidade |
 | --- | --- |
-| `npm run demo` | Iniciar com dados fictícios |
 | `npm run lint` | Verificar o código com ESLint |
 | `npm run typecheck` | Verificar os tipos com TypeScript (`checkJs`) |
 | `npm test` | Executar os testes automatizados |

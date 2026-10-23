@@ -52,7 +52,7 @@ export class QueryService {
     if(sourceTotal>10000)warnings.push({code:'WINDOW_LIMITED',message:'Refine a pesquisa para acessar todos os resultados. A janela acessível é de 10000 documentos.'});
     if(documents.some(d=>!d._identity))warnings.push({code:'MISSING_IDENTITY',message:'Há documentos sem identidade de negócio na página.'});
     const now=Date.now();
-    return {api_version:'2.0',document_type:query.document_type,source:this.config.DEMO_MODE?'demo':'pncp',demo:this.config.DEMO_MODE,request_id:op.id,data:documents,page:query.page,size:query.size,last_page:lastPage,last_row:accessible,source_total:sourceTotal,accessible_total:accessible,total:sourceTotal,window_limited:sourceTotal>10000,collection_complete:allRows,snapshot_guaranteed:false,started_at:op.started_at,finished_at:new Date(now).toISOString(),elapsed_ms:now-op.started,upstream_requests:op.requests,effective_filters:{tipos_documento:query.document_type,status:query.status,...(query.q?{q:query.q}:{}),ordenacao:query.order,...query.pncp_filters},warnings};
+    return {api_version:'2.0',document_type:query.document_type,source:'pncp',request_id:op.id,data:documents,page:query.page,size:query.size,last_page:lastPage,last_row:accessible,source_total:sourceTotal,accessible_total:accessible,total:sourceTotal,window_limited:sourceTotal>10000,collection_complete:allRows,snapshot_guaranteed:false,started_at:op.started_at,finished_at:new Date(now).toISOString(),elapsed_ms:now-op.started,upstream_requests:op.requests,effective_filters:{tipos_documento:query.document_type,status:query.status,...(query.q?{q:query.q}:{}),ordenacao:query.order,...query.pncp_filters},warnings};
   }
   async execute(input,signal,requestId) {
     const query=validateQuery(input,this.config),op=operation(this.config,signal,requestId);
@@ -111,7 +111,7 @@ export class QueryService {
       assert(page<=pages,'PAGE_OUT_OF_RANGE','Página além da quantidade atual de itens.',422,{last_page:pages,total_items:total});
       const items=total===0?[]:await this.client.itemPage(purchase,page,size,op);
       assert(items.length===Math.min(size,total-(page-1)*size),'SOURCE_CHANGED','A página de itens não corresponde à quantidade informada pelo PNCP. Atualize os itens.',409,{},true);
-      return {api_version:'2.0',request_id:op.id,source:this.config.DEMO_MODE?'demo':'pncp',data:plain(items),page,size,total_items:total,total_pages:pages,has_more:page<pages,complete:page===pages,snapshot_guaranteed:false,queried_at:new Date().toISOString(),upstream_requests:op.requests,pagination_note:'Paginação baseada na quantidade de itens informada pelo PNCP nesta consulta.'};
+      return {api_version:'2.0',request_id:op.id,source:'pncp',data:plain(items),page,size,total_items:total,total_pages:pages,has_more:page<pages,complete:page===pages,snapshot_guaranteed:false,queried_at:new Date().toISOString(),upstream_requests:op.requests,pagination_note:'Paginação baseada na quantidade de itens informada pelo PNCP nesta consulta.'};
     }finally{op.finish();}
   }
   async related(purchase,resource,page,size,signal,requestId) {
@@ -119,7 +119,7 @@ export class QueryService {
     const op=operation(this.config,signal,requestId);
     try {
       const result=await this.client.relatedPage(purchase,resource,page,size,op);
-      return {api_version:'2.0',request_id:op.id,source:this.config.DEMO_MODE?'demo':'pncp',resource,...result,page,size,has_more:page<result.total_pages,complete:page===result.total_pages,snapshot_guaranteed:false,queried_at:new Date().toISOString(),upstream_requests:op.requests};
+      return {api_version:'2.0',request_id:op.id,source:'pncp',resource,...result,page,size,has_more:page<result.total_pages,complete:page===result.total_pages,snapshot_guaranteed:false,queried_at:new Date().toISOString(),upstream_requests:op.requests};
     }finally{op.finish();}
   }
   async documentDetails(document,signal,requestId) {
@@ -133,7 +133,7 @@ export class QueryService {
     const op=operation(this.config,signal,requestId);
     try {
       const result=await this.client.documentRelatedPage(document,resource,page,size,op,paginationMode);
-      return {api_version:'2.0',request_id:op.id,document_type:document.type,source:this.config.DEMO_MODE?'demo':'pncp',resource,...result,page,size,has_more:result.has_more ?? page<result.total_pages,complete:result.complete ?? page===result.total_pages,snapshot_guaranteed:false,queried_at:new Date().toISOString(),upstream_requests:op.requests};
+      return {api_version:'2.0',request_id:op.id,document_type:document.type,source:'pncp',resource,...result,page,size,has_more:result.has_more ?? page<result.total_pages,complete:result.complete ?? page===result.total_pages,snapshot_guaranteed:false,queried_at:new Date().toISOString(),upstream_requests:op.requests};
     }finally{op.finish();}
   }
   async contractChild(document,resource,sequence,signal,requestId) {

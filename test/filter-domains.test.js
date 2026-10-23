@@ -5,10 +5,10 @@ import { schema } from '../src/schema.js';
 import { validateQuery } from '../src/validation.js';
 import { PncpClient, operation, normalizeCatalog } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
-import { demoFetch } from '../src/demo.js';
+import { demoFetch } from './demo-fixtures.js';
 import { config, query, service, document, json } from './helpers.js';
 
-const demo=()=>{const cfg=config({DEMO_MODE:true});return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
+const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
 
 test('FILTER-01: catálogo completo habilitado com contextos e proveniência explícitos',()=>{
   const s=schema(config()),caps=s.capabilities;
