@@ -35,7 +35,7 @@ test('BROWSER-19: edital usa a API de consulta mesmo quando a rota antiga retorn
   }});
   try {
     const result=await runtime.run('1','documentDetails',{document:purchase});
-    assert((result.fields.length)>8);assert(result.fields.some(field=>field.field==='numeroControlePNCP'));assert(!result.fields.some(field=>['numeroCompra','anoCompra','sequencialCompra'].includes(field.field)));assert.match(result.objeto,/firewall/);assert.equal(result.titulo,'Edital nº 1/2026');assert.deepEqual(requests,[current]);
+    assert((result.fields.length)>8);assert(result.fields.some(field=>field.field==='numeroControlePNCP'));assert.equal(result.fields[1].field,'usuarioNome');assert.equal(result.fields[1].title,'Fonte');assert(!result.fields.some(field=>['numeroCompra','anoCompra','sequencialCompra'].includes(field.field)));assert.match(result.objeto,/firewall/);assert.equal(result.titulo,'Edital nº 1/2026');assert.deepEqual(requests,[current]);
     for(const resource of ['arquivos','historico']) {
       const fake=createRuntime(settings(),{fetcher:async url=>{assert(new URL(url).pathname.startsWith('/api/pncp/v1/'));return json(new URL(url).pathname.endsWith('/quantidade')?0:[]);}});
       try{assert.equal((await fake.run(resource,'documentRelated',{document:purchase,resource,page:1,size:10})).total,0);}finally{await fake.close();}
