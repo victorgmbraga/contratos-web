@@ -234,3 +234,17 @@ test('DOCUMENTS-21: limite de detalhes considera registros recebidos, inclusive 
   const limited=fixture(()=>json(records.slice(0,10)),settings);
   assert.equal((await limited.service.documentRelated(contract,'instrumentocobranca',1,10)).data.length,10);
 });
+
+test('DETAIL-CONTROL-01: Controle PNCP abre o portal nos três tipos de documento',()=>{
+  const cases=[
+    ['edital','01234567000189-1-000044/2026','https://pncp.gov.br/app/editais/01234567000189/2026/44'],
+    ['ata','01234567000189-1-000057/2025-000009','https://pncp.gov.br/app/atas/01234567000189/2025/57/9'],
+    ['contrato','10221786000120-2-000728/2025','https://pncp.gov.br/app/contratos/10221786000120/2025/728'],
+  ];
+  for(const [type,control,url] of cases){
+    const field=projectDocument(type,{numeroControlePNCP:control}).fields.find(entry=>entry.field==='numeroControlePNCP');
+    assert.equal(field.type,'control',type);assert.equal(field.value,control,type);assert.equal(field.url,url,type);
+  }
+  const invalid=projectDocument('contrato',{numeroControlePNCP:'sem-identidade'}).fields.find(entry=>entry.field==='numeroControlePNCP');
+  assert.equal(invalid.type,'control');assert.equal(invalid.url,null,'identidade inválida não gera link');
+});
