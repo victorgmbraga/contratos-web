@@ -37,7 +37,7 @@ try {
     assert.match(await page.locator('#details-kind').innerText(),/nº 1\/2026/);
     assert.match(await page.locator('.detail-object').innerText(),/firewall/);
     assert.equal(await page.locator('.results-row').filter({hasText:'nº 1/2026'}).count(),0);
-    assert.match(await page.locator('#details-links a').first().getAttribute('href'),new RegExp(`/app/${type==='edital'?'editais':type==='ata'?'atas':'contratos'}/00000000000000/2026/1`));
+    assert.equal(await page.locator('#details-links').count(),0);
 
     const shared=page.url();await page.reload();await waitLoaded();await waitTab(tab);
     assert.equal(page.url(),shared);assert.equal(calls('execute'),2);assert.equal(calls('documentDetails'),2);

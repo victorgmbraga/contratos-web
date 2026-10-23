@@ -6,8 +6,6 @@ export function initializeMobileLayout({document, window}) {
   const panel = document.getElementById('more-actions'), trigger = document.getElementById('more-actions-button');
   const toolbar = document.querySelector('.header-toolbar'), triggerMarker = document.createComment('more-actions-button');
   trigger.before(triggerMarker);
-  const detailLinks = document.getElementById('details-links'), detailLinksMarker = document.createComment('details-links');
-  detailLinks.before(detailLinksMarker);
   const controls = ['refresh-button','columns-button','clear-button','retry-button','cancel-export-button','export-page-button','export-button','theme-button','repository-link'].map(id => {
     const element = document.getElementById(id), marker = document.createComment(id);
     element.before(marker);
@@ -29,9 +27,7 @@ export function initializeMobileLayout({document, window}) {
       else marker.after(element);
     }
     if (media.matches) toolbar.after(trigger);else triggerMarker.after(trigger);
-    if (media.matches) document.getElementById('details-content').prepend(detailLinks);else detailLinksMarker.after(detailLinks);
     if (focused===trigger && media.matches) trigger.focus({preventScroll:true});
-    if (detailLinks.contains(focused)) focused.focus({preventScroll:true});
   }
   function viewport() {
     const view = window.visualViewport;
@@ -52,7 +48,6 @@ export function initializeMobileLayout({document, window}) {
     close(); lifetime.abort();
     for (const {element,marker} of controls) {marker.after(element);marker.remove();}
     triggerMarker.after(trigger);triggerMarker.remove();
-    detailLinksMarker.after(detailLinks);detailLinksMarker.remove();
     document.documentElement.style.removeProperty('--viewport-height');
     document.documentElement.style.removeProperty('--viewport-top');
   }

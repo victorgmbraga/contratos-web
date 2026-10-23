@@ -169,8 +169,8 @@ test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho cor
   assert.deepEqual(labels.slice(0,3),['Controle PNCP','Fonte','Processo eletrônico']);const sourceLink=grid.children[1].children[1].children[0];assert.equal(sourceLink.textContent,'Compras.gov.br');assert.equal(sourceLink.href,'https://example.test/compra/1');const processLink=grid.children[2].children[1].children[0];assert.equal(processLink.textContent,'Link');assert.equal(processLink.href,'https://example.test/processo/1');
   for(const label of ['Controle PNCP','Fonte','Processo eletrônico','Situação','Modalidade','Publicação no PNCP','Órgão','CNPJ do órgão','ID da esfera','Valor total estimado'])assert(labels.includes(label),label);
   for(const label of ['Título','Objeto','Ano','Sequencial','Índice','Tipo de registro','Tipo de documento','Link PNCP','Link do sistema de origem'])assert(!labels.includes(label),label);
-  assert.deepEqual(ui.nodes.get('details-links').children.map(n=>n.textContent),['Abrir no PNCP','Sistema de origem']);assert(!ui.nodes.get('details-content').children.some(n=>n.className==='detail-links'));
-  await ui.openDocument(project(document(2,{title:'Edital nº 2/2026'})));assert.equal(ui.nodes.get('details-kind').textContent,'Edital nº 2/2026');assert.equal(ui.nodes.get('details-links').children.length,1);assert(!ui.nodes.get('details-links').children.some(n=>n.href==='https://example.test/compra/1'));
+  assert.equal(ui.nodes.get('details-links'),undefined);assert(!ui.nodes.get('details-content').children.some(n=>n.className==='detail-links'));
+  await ui.openDocument(project(document(2,{title:'Edital nº 2/2026'})));assert.equal(ui.nodes.get('details-kind').textContent,'Edital nº 2/2026');assert.equal(ui.nodes.get('details-links'),undefined);
 });
 test('DETAIL-TABS-02: teclado percorre abas sem novas chamadas e mantém apenas um painel visível',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(document(1)));const initial=ui.relatedRequests.length+ui.itemRequests.length;
@@ -646,12 +646,12 @@ test('FILTERS-UI-03: datas removidas do formulário não permanecem na requisiç
   await ui.nodes.get('apply-filters').fire('click');assert.deepEqual(ui.requests[1].pncp_filters,{});
 });
 
-test('DETAILS-UI-01: abrir uma linha carrega itens automaticamente e usa o link /app/editais',async()=>{
+test('DETAILS-UI-01: abrir uma linha carrega itens automaticamente e projeta o link /app/editais',async()=>{
   const ui=await interfaceFixture(),doc=project(document(1,{item_url:'/compras/00000000000000/2026/1'}));
   const columns=ui.tableColumns();assert.equal(columns[0].field,'titulo');assert.equal(columns[0].visible,true);assert.equal(columns.find(c=>c.field==='municipio_nome').visible,true);
   await ui.openDocument(doc);assert.equal(ui.nodes.get('details-dialog').open,true);assert.equal(ui.itemRequests.length,1);
   assert.deepEqual(ui.itemRequests[0],{document:{type:'edital',cnpj:'00000000000000',ano:'2026',sequencial:'1'},page:1,size:10});
-  assert(ui.all.some(n=>n.className==='item-card'));assert.equal(ui.all.find(n=>n.textContent==='Abrir no PNCP').href,'https://pncp.gov.br/app/editais/00000000000000/2026/1');
+  assert(ui.all.some(n=>n.className==='item-card'));assert.equal(doc.url_pncp,'https://pncp.gov.br/app/editais/00000000000000/2026/1');
   assert(!ui.all.some(n=>n.textContent==='Atualizar itens'));
   assert.equal(ui.all.find(n=>n.textContent==='Tentar consultar itens').hidden,true);
 });

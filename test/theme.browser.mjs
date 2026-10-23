@@ -51,7 +51,7 @@ try {
     await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
     await page.locator('.results-open').first().click();
     await page.waitForFunction(()=>[...document.querySelectorAll('.detail-tab')].every(tab=>tab.dataset.state==='loaded'));
-    await contrast(['#details-kind','.detail-object','.detail-tab[aria-selected="true"]','.detail-grid dt','.detail-grid dd','.detail-links a']);
+    await contrast(['#details-kind','.detail-object','.detail-tab[aria-selected="true"]','.detail-grid dt','.detail-grid dd']);
     assert.equal(await page.locator('#details-dialog').evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(23, 35, 49)');
     await page.locator('.detail-tab').nth(1).click();
     await contrast(['.detail-tab[aria-selected="true"]']);

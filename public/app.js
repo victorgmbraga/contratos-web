@@ -787,7 +787,7 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   const detailController=new AbortController();state.detailAbort=detailController;
   const identity=detailIdentity(doc);state.detailDoc=doc;state.detailSelection=identity?{document:identity,tab}:null;
   const schedule=detailScheduler(),loads=[],tabs=[];
-  const content=$('details-content'),links=$('details-links');content.replaceChildren(...(links.parentElement===content?[links]:[]));
+  const content=$('details-content');content.replaceChildren();
   const objectSummary=el('p',doc.objeto_compra ?? (doc._detail_from_url?'Carregando detalhes do documento…':'Objeto não informado.'),'detail-object');content.append(objectSummary);
   const more=el('button','Ver descrição completa','text-button detail-object-more');more.type='button';more.hidden=true;more.setAttribute('aria-haspopup','dialog');more.setAttribute('aria-controls','description-dialog');content.append(more);
   const updateSummary=()=>{more.hidden=!(window.matchMedia?.('(min-width:701px)').matches && objectSummary.scrollHeight>objectSummary.clientHeight+1);};
@@ -797,8 +797,6 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   const kind=doc.tipo_documento,names=documentName(kind);
   $('details-kind').textContent=doc.titulo ?? '—';
   $('details-dialog').setAttribute('aria-label',`Detalhes: ${names.singular}`);
-  links.replaceChildren();
-  for(const [label,url]of [['Abrir no PNCP',doc.url_pncp],['Sistema de origem',doc.link_sistema_origem]]){const link=safeAnchor(label,url);if(link)links.append(link);}
   const nav=el('div',undefined,'detail-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label',`Seções: ${names.singular}`);content.append(nav);
   const sectionLabel=el('label',undefined,'detail-section-choice'),sectionSelect=el('select'),sectionSpinner=el('span',undefined,'detail-tab-spinner');
   sectionSelect.id='details-section';sectionSelect.setAttribute('aria-label','Seção dos detalhes');sectionSpinner.hidden=true;sectionSpinner.setAttribute('aria-hidden','true');
@@ -853,7 +851,6 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
         const holder=el('div');grid=appendFields(holder,data.fields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);
         updateDetails(data.fields.length,'loaded');if(data.objeto)objectSummary.textContent=data.objeto;else if(doc._detail_from_url)objectSummary.textContent='Objeto não informado.';updateSummary();
         if(forceDetails){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=data.titulo || indexed?.titulo || doc.titulo;}
-        if(data.link_sistema_origem && !doc.link_sistema_origem){const link=safeAnchor('Sistema de origem',data.link_sistema_origem);if(link)links.append(link);}
         detailStatus.textContent='';detailStatus.hidden=true;
       }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){
         if(forceDetails){
@@ -864,7 +861,6 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
             if(fallbackFields.length){const holder=el('div');grid=appendFields(holder,fallbackFields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);}
             if(row.titulo)$('details-kind').textContent=row.titulo;
             if(row.objeto_compra){objectSummary.textContent=row.objeto_compra;updateSummary();}
-            if(row.link_sistema_origem && !doc.link_sistema_origem){const link=safeAnchor('Sistema de origem',row.link_sistema_origem);if(link)links.append(link);}
             updateDetails(fallbackFields.length || fields.length,'loaded');
             detailStatus.textContent='O PNCP não retornou os detalhes completos. Exibindo os dados da busca.';
             detailStatus.hidden=false;retryDetails.hidden=false;

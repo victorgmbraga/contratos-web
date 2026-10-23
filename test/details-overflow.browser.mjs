@@ -37,7 +37,7 @@ try {
   await page.locator('#description-content').evaluate(node=>{node.scrollTop=node.scrollHeight;});
   const close=await page.getByRole('button',{name:'Fechar descrição',exact:true}).boundingBox();assert(close.y>=0&&close.y+close.height<=630);
   await page.keyboard.press('Escape');await page.locator('#description-dialog').waitFor({state:'hidden'});assert.equal(await page.locator('#details-dialog').isVisible(),true);
-  await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>document.querySelector('#details-links').parentElement.id==='details-content');
+  await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>getComputedStyle(document.querySelector('.detail-tabs')).display==='none');
   await more.waitFor({state:'hidden'});assert.equal(await page.locator('.detail-object').innerText(),text);
   await page.setViewportSize({width:1068,height:630});await more.waitFor();
   await more.click();await page.goBack();await page.waitForFunction(()=>!document.querySelector('#details-dialog').open&&!document.querySelector('#description-dialog').open);

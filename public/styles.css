@@ -210,9 +210,6 @@ dialog select[multiple]{min-height:155px}
 .details-actions{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0}
 .details-actions>.close-dialog{flex-shrink:0}
 .detail-object{font-size:1rem;line-height:1.7;color:var(--text,#1e3b57);border-left:3px solid #61b8bf;padding-left:16px;margin:0 0 26px;overflow-wrap:anywhere}
-.detail-links{display:flex;gap:8px;min-width:0}
-.detail-links a{display:inline-flex;align-items:center;min-height:34px;font-size:.8125rem;white-space:nowrap;border:1px solid var(--border,#c9d7e7);border-radius:6px;padding:7px 11px;background:var(--surface,white)}
-.detail-links a:hover{background:var(--blue-soft);color:var(--blue-hover);text-decoration:none;border-color:var(--blue)}
 .detail-tabs{display:flex;gap:3px;overflow-x:auto;scrollbar-width:thin;border-bottom:1px solid var(--line);padding-top:3px;padding-bottom:0}
 .detail-tab{flex-shrink:0;border:0;border-bottom:3px solid transparent;border-radius:5px 5px 0 0;background:transparent;color:var(--blue);font-size:.8125rem;font-weight:500;line-height:1.5;white-space:nowrap;padding:11px 10px;min-height:44px;font-variant-numeric:tabular-nums}
 .detail-tab:hover{background:var(--blue-soft);color:var(--blue-hover)}
@@ -289,8 +286,6 @@ dialog select[multiple]{min-height:155px}
   .details-header{flex-wrap:wrap;gap:12px;margin-bottom:20px}
   .details-header>.eyebrow{flex-basis:100%}
   .details-actions{width:100%;justify-content:flex-end;gap:8px}
-  .detail-links{gap:6px}
-  .detail-links a{font-size:.75rem;padding:7px 9px}
   .detail-object{font-size:.9375rem;padding-left:12px;margin-bottom:20px}
   .detail-tab{padding:10px 9px;font-size:.75rem}
   .detail-grid{gap:15px}

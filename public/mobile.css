@@ -62,9 +62,6 @@
   .details-header>.eyebrow{grid-row:1;grid-column:1;line-height:1.5}
   .details-actions{display:contents}
   .details-actions>.close-dialog{grid-row:1;grid-column:2}
-  .detail-links{gap:8px;flex-wrap:wrap;margin:0 0 14px}
-  .detail-links:empty{display:none}
-  .detail-links a{min-height:44px;font-size:.8125rem;padding:9px 11px}
   .related-card a{display:inline-flex;align-items:center;min-height:44px}
   #details-content{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
   .detail-object{font-size:.9375rem;margin-bottom:14px;padding-left:12px}
