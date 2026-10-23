@@ -7,6 +7,8 @@ const node = (tag, text, className) => ({ tag, textContent: text, className, tit
 test('MASK-01: CNPJ de 14 dígitos recebe a máscara brasileira', () => {
   assert.equal(formatCnpj('01234567000189'), '01.234.567/0001-89');
   assert.equal(formatCnpj('01.234.567/0001-89'), '01.234.567/0001-89', 'máscara é idempotente');
+  assert.equal(formatCnpj('01234567000189 - Órgão público'), '01.234.567/0001-89 - Órgão público');
+  assert.equal(formatCnpj('01.234.567/0001-89 - Órgão público'), '01.234.567/0001-89 - Órgão público', 'nome preservado e máscara idempotente');
 });
 
 test('MASK-02: valores que não são CNPJ permanecem como vieram', () => {

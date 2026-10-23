@@ -256,6 +256,8 @@ A pesquisa fornece `_document` com os identificadores originais e o tipo. Em ata
 
 As respostas completas contêm `api_version`, `document_type`, `fields`, `objeto`, `titulo`, `link_sistema_origem`, `queried_at` e `upstream_requests`. Cada entrada de `fields` tem `field`, `title`, `type` e `value`; vínculos têm também `url`. Valores monetários são strings exatas, IDs preservam zeros e booleanos mantêm ausência distinta de `false`. Campos opcionais ausentes são omitidos. O controle PNCP precisa corresponder ao documento solicitado.
 
+Como no portal PNCP, órgão e unidade aparecem em um único campo: **Órgão** usa `<CNPJ> - <razão social>` e **Unidade** usa `<código> - <nome>`. Os campos separados de CNPJ do órgão e código da unidade não são repetidos; o mesmo critério vale para os vínculos sub-rogados, para o órgão participante e para as partes envolvidas. Quando só um dos valores existe, o campo disponível é mantido.
+
 Editais exibem todos os campos não vazios do registro da busca, exceto **Título** (já exibido no cabeçalho), **Objeto** (já exibido em destaque), **Site** (usado apenas para compor o link do PNCP), os campos de **Número**, **Ano** e **Sequencial** da contratação (não exibidos no detalhamento do PNCP), **Índice**, **Tipo de registro**, **Tipo de documento** e os links **Link PNCP** e **Link do sistema de origem**. O campo **Fonte** aparece logo após **Controle PNCP** e, quando disponível, aponta para o sistema de origem. Em seguida, **Processo eletrônico** exibe o texto **Link** quando há um endereço válido. A consulta nativa de edital é necessária ao abrir um link direto sem a linha disponível na busca; abrir uma linha da tabela aproveita seus campos, sem essa chamada adicional. Links diretos consultam os detalhes nativos mesmo quando a linha está disponível e, se a fonte não os retornar, exibem os dados da busca, inclusive por uma consulta exata pelo controle PNCP quando o documento não está nos resultados atuais, mantendo a opção de tentar novamente. A resposta nativa também acrescenta os campos documentais e os campos adicionais presentes no retorno, sem descartar dados extras. Os campos de edital usam diretamente a API de consulta; itens, arquivos e demais listagens continuam usando a API PNCP. Sem a linha, `titulo` combina instrumento/tipo documental, número e ano informados pela fonte, com o controle PNCP como alternativa. Uma falha conserva a identificação do link e oferece nova tentativa.
 
 Nos detalhes de contratos, `emendaParlamentar` é booleano: `false` exibe **Não** e `true` exibe **Sim** no campo **Emenda parlamentar**. Ausência ou `null` omite o campo opcional, sem assumir **Não**.
@@ -266,7 +268,7 @@ Atas mostram identificação, órgão/unidade, modalidade, assinatura, vigência
 
 | Tipo | Recursos | Dados e formato externo |
 | --- | --- | --- |
-| Ata | `partesenvolvidas` | `fields`: tipo de parte, órgão/CNPJ, unidade/código, município/UF e inclusão; envelope paginado |
+| Ata | `partesenvolvidas` | `fields`: tipo de parte, órgão (`CNPJ - nome`), unidade (`código - nome`), município/UF e inclusão; envelope paginado |
 | Ata | `contratos` | Identificação, órgão, fornecedor, assinatura, vigência, valor e link dos contratos vinculados; envelope paginado |
 | Ata e contrato | `arquivos`, `historico` | Mesmo formato dos arquivos/histórico de contratações; contagem em `/{recurso}/quantidade` |
 | Contrato | `termos` | `fields` e `sequencial`: número, tipo, assinatura, objeto, prazo, vigência, valores, parcelas e observações; lista e contagem separada |

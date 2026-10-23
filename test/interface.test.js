@@ -167,7 +167,8 @@ test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho cor
   for(const [index,button]of tabs.children.entries()){const panel=ui.nodes.get(button.getAttribute('aria-controls'));assert.equal(panel.getAttribute('role'),'tabpanel');assert.equal(panel.getAttribute('aria-labelledby'),button.id);assert.equal(panel.hidden,index!==0);assert.equal(button.getAttribute('aria-selected'),String(index===0));assert.equal(button.tabIndex,index===0?0:-1);}
   const grid=ui.nodes.get('detail-panel-detalhes').children[0],labels=grid.children.map(n=>n.children[0].textContent);
   assert.deepEqual(labels.slice(0,3),['Controle PNCP','Fonte','Processo eletrônico']);const sourceLink=grid.children[1].children[1].children[0];assert.equal(sourceLink.textContent,'Compras.gov.br');assert.equal(sourceLink.href,'https://example.test/compra/1');const processLink=grid.children[2].children[1].children[0];assert.equal(processLink.textContent,'Link');assert.equal(processLink.href,'https://example.test/processo/1');
-  for(const label of ['Controle PNCP','Fonte','Processo eletrônico','Situação','Modalidade','Publicação no PNCP','Órgão','CNPJ do órgão','ID da esfera','Valor total estimado'])assert(labels.includes(label),label);
+  for(const label of ['Controle PNCP','Fonte','Processo eletrônico','Situação','Modalidade','Publicação no PNCP','Órgão','ID da esfera','Valor total estimado'])assert(labels.includes(label),label);
+  const organization=grid.children.find(node=>node.children[0].textContent==='Órgão');assert.equal(organization.children[1].textContent,'00.000.000/0000-00 - Órgão sintético');assert(!labels.includes('CNPJ do órgão'));
   for(const label of ['Título','Objeto','Ano','Sequencial','Índice','Tipo de registro','Tipo de documento','Link PNCP','Link do sistema de origem'])assert(!labels.includes(label),label);
   assert.equal(ui.nodes.get('details-links'),undefined);assert(!ui.nodes.get('details-content').children.some(n=>n.className==='detail-links'));
   await ui.openDocument(project(document(2,{title:'Edital nº 2/2026'})));assert.equal(ui.nodes.get('details-kind').textContent,'Edital nº 2/2026');assert.equal(ui.nodes.get('details-links'),undefined);
@@ -1044,7 +1045,7 @@ test('ATAS-UI-02: o painel de ata carrega detalhes completos e quatro listas com
   const ui=await interfaceFixture();await ui.openDocument(project(demoAtas[2]));
   assert.equal(ui.itemRequests.length,0);assert.equal(ui.documentRequests.length,1);assert.equal(ui.relatedRequests.length,4);assert.deepEqual(ui.documentRequests[0],{document:{type:'ata',cnpj:'00000000000000',ano:'2026',sequencial_compra:'3',sequencial:'3'}});
   assert(ui.relatedRequests.every(r=>r.document.type==='ata' && r.document.sequencial_compra==='3' && r.document.sequencial==='3' && r.size===10));
-  const tabs=ui.nodes.get('details-content').children.find(n=>n.className==='detail-tabs');assert.deepEqual(tabs.children.map(b=>b.textContent),['Detalhes (22)','Partes envolvidas (1)','Contratos (2)','Arquivos (12)','Histórico (12)']);
+  const tabs=ui.nodes.get('details-content').children.find(n=>n.className==='detail-tabs');assert.deepEqual(tabs.children.map(b=>b.textContent),['Detalhes (20)','Partes envolvidas (1)','Contratos (2)','Arquivos (12)','Histórico (12)']);
   assert.equal(ui.nodes.get('details-kind').textContent,demoAtas[2].title);
   const titles=ui.nodes.get('detail-panel-detalhes').children[0].children.map(f=>f.children[0].textContent);assert(titles.includes('Número da ata'));assert(titles.includes('Permite adesão'));assert(!titles.includes('Valor estimado'));assert(!titles.includes('Fornecedor'));
   const origin=ui.nodes.get('detail-panel-detalhes').children[0].children.find(f=>f.children[0].textContent==='Contratação de origem');const originControl=origin.children[1].children[0];assert.equal(originControl.tagName,'button');assert.equal(originControl.getAttribute('aria-label'),'Abrir 00000000000000-1-000003/2026 no Contratos Web');
@@ -1054,7 +1055,7 @@ test('ATAS-UI-02: o painel de ata carrega detalhes completos e quatro listas com
 test('CONTRACTS-UI-04: os dados nativos e cinco listas do contrato carregam antes da seleção das abas',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(demoContracts[0]));
   assert.equal(ui.documentRequests.length,1);assert.equal(ui.relatedRequests.length,5);assert.equal(ui.itemRequests.length,0);
-  const tabs=ui.nodes.get('details-content').children.find(n=>n.className==='detail-tabs');assert.deepEqual(tabs.children.map(b=>b.textContent),['Detalhes (34)','Empenhos (1)','Instrumentos de cobrança (1)','Termos (1)','Arquivos (12)','Histórico (12)']);
+  const tabs=ui.nodes.get('details-content').children.find(n=>n.className==='detail-tabs');assert.deepEqual(tabs.children.map(b=>b.textContent),['Detalhes (32)','Empenhos (1)','Instrumentos de cobrança (1)','Termos (1)','Arquivos (12)','Histórico (12)']);
   assert(ui.relatedRequests.every(r=>r.document.type==='contrato' && r.document.sequencial==='1' && r.size===10));
   const fields=ui.nodes.get('detail-panel-detalhes').children[0].children.map(w=>[w.children[0].textContent,w.children[1].textContent]);assert(fields.some(([label,value])=>label==='Valor da parcela' && value==='R$ 100,0000'));assert(fields.some(([label,value])=>label==='Processo' && value==='DEMO-1/2026'));assert(!fields.some(([label])=>label==='Modalidade'));
 });
@@ -1116,8 +1117,8 @@ test('CONTRACTS-UI-08: histórico com total desconhecido preserva navegação ma
 
 test('DOCUMENTS-UI-01: falha de detalhes conserva a busca, permite tentar novamente e não impede as listas',async()=>{
   let failed=true;const ui=await interfaceFixture({documentHandler:async(url,options,core)=>{if(failed)return ({error:{message:'Falha de detalhes.'}});return (await core.documentDetails(project(demoAtas[0])._document,options.signal));}});
-  await ui.openDocument(project(demoAtas[0]));const panel=ui.nodes.get('detail-panel-detalhes');assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'error');assert.equal(panel.children[0].children.length,14);assert.match(panel.children[1].textContent,/Falha de detalhes/);assert.equal(panel.children[2].hidden,false);assert.equal(ui.relatedRequests.length,4);assert.equal(ui.nodes.get('detail-tab-arquivos').dataset.state,'loaded');
-  failed=false;await panel.children[2].fire('click');assert.equal(ui.nodes.get('detail-tab-detalhes').textContent,'Detalhes (22)');assert.equal(ui.documentRequests.length,2);assert.equal(ui.relatedRequests.length,4);
+  await ui.openDocument(project(demoAtas[0]));const panel=ui.nodes.get('detail-panel-detalhes');assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'error');assert.equal(panel.children[0].children.length,13);assert.match(panel.children[1].textContent,/Falha de detalhes/);assert.equal(panel.children[2].hidden,false);assert.equal(ui.relatedRequests.length,4);assert.equal(ui.nodes.get('detail-tab-arquivos').dataset.state,'loaded');
+  failed=false;await panel.children[2].fire('click');assert.equal(ui.nodes.get('detail-tab-detalhes').textContent,'Detalhes (20)');assert.equal(ui.documentRequests.length,2);assert.equal(ui.relatedRequests.length,4);
 });
 
 test('DOCUMENTS-UI-02: fechar ou trocar o documento cancela detalhes pendentes e ignora respostas antigas',async()=>{
@@ -1129,7 +1130,7 @@ test('DOCUMENTS-UI-02: fechar ou trocar o documento cancela detalhes pendentes e
 test('DOCUMENTS-UI-03: ausência de identificadores originais preserva campos da busca sem fazer consultas',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project({...demoAtas[0],numero_sequencial_compra_ata:null}));
   assert.equal(ui.documentRequests.length,0);assert.equal(ui.relatedRequests.length,0);assert.equal(ui.itemRequests.length,0);
-  assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'unavailable');assert.equal(ui.nodes.get('detail-panel-detalhes').children[0].children.length,14);
+  assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state,'unavailable');assert.equal(ui.nodes.get('detail-panel-detalhes').children[0].children.length,13);
   for(const name of ['partesenvolvidas','contratos','arquivos','historico'])assert.equal(ui.nodes.get(`detail-tab-${name}`).dataset.state,'unavailable');
 });
 

@@ -1,7 +1,7 @@
 import { createPagination } from './pagination.js';
 import { money, date, time, fmtInt, quantity, formatCnpj, formatCpfCnpj } from './format.js';
 import { detailDocumentPath } from '../src/browser/detail-url.js';
-import { controlLink, indexedDocumentFields } from '../src/document-details.js';
+import { controlLink, indexedDocumentFields, joinOrganizationFields } from '../src/document-details.js';
 
 const DETAIL_PAGE_SIZE = 10;
 
@@ -212,9 +212,9 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
     };
     update(null,'loading');return update;
   }
-  const common=['numero_controle_pncp','orgao_nome','orgao_cnpj','unidade_orgao_nome_unidade','uf','municipio_nome'];
+  const common=['numero_controle_pncp','orgao_nome','orgao_cnpj','unidade_orgao_nome_unidade','unidade_orgao_codigo_unidade','uf','municipio_nome'];
   const fieldNames=[...common,...(kind==='edital'?['modalidade_nome','situacao_compra_nome_pncp','data_publicacao_pncp','data_atualizacao_pncp','valor_total_estimado','valor_total_homologado']:kind==='ata'?['modalidade_nome','data_publicacao_pncp','data_atualizacao_pncp','data_assinatura','data_inicio_vigencia','data_fim_vigencia','cancelado','permite_adesao']:['tipo_contrato_nome','fornecedor_nome','fornecedor_ni','valor_global','data_assinatura','data_inicio_vigencia','data_fim_vigencia','data_publicacao_pncp','data_atualizacao_pncp'])];
-  const fields=kind==='edital' && doc._raw?indexedDocumentFields(doc._raw):fieldNames.map(name=>{const column=state.schema.columns_by_document[kind].find(c=>c.field===name);return {title:column.title,type:column.type,value:doc[name]};});
+  const fields=kind==='edital' && doc._raw?indexedDocumentFields(doc._raw):joinOrganizationFields(fieldNames.map(name=>{const column=state.schema.columns_by_document[kind].find(c=>c.field===name);return {field:name,title:column.title,type:column.type,value:doc[name]};}),'schema');
   const detailPanel=el('section',undefined,'detail-information');
   let grid=appendFields(detailPanel,fields,'detail-grid');
   const updateDetails=addTab('detalhes','Detalhes',detailPanel);updateDetails(fields.length,'loaded');

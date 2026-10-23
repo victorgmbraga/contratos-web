@@ -124,6 +124,45 @@ function promoteElectronicProcess(fields,name) {
   const source=fields.findIndex(field=>['usuario_nome','usuarioNome'].includes(field.field));
   fields.splice(Math.min(source>=0?source+1:1,fields.length),0,process);
 }
+// PNCP presents the organization and the unit as a single "code - name" field.
+function joinFieldValues(fields,pairs) {
+  for(const [code,name,title,type='text'] of pairs){
+    const codeIndex=fields.findIndex(field=>field.field===code);
+    const nameIndex=fields.findIndex(field=>field.field===name);
+    if(codeIndex<0 || nameIndex<0)continue;
+    const codeValue=fields[codeIndex].value,nameValue=fields[nameIndex].value;
+    if(codeValue==null || codeValue==='' || nameValue==null || nameValue==='')continue;
+    const position=Math.min(codeIndex,nameIndex);
+    fields.splice(Math.max(codeIndex,nameIndex),1);
+    fields[position]={field:code,title,type,value:`${codeValue} - ${nameValue}`};
+  }
+  return fields;
+}
+const organizationJoins={
+  indexed:[
+    ['orgao_cnpj','orgao_nome','Órgão','cnpj'],
+    ['unidade_codigo','unidade_nome','Unidade'],
+    ['orgao_subrogado_cnpj','orgao_subrogado_nome','Órgão sub-rogado','cnpj'],
+    ['unidade_subrogada_codigo','unidade_subrogada_nome','Unidade sub-rogada'],
+  ],
+  schema:[
+    ['orgao_cnpj','orgao_nome','Órgão','cnpj'],
+    ['unidade_orgao_codigo_unidade','unidade_orgao_nome_unidade','Unidade'],
+  ],
+  native:[
+    ['orgaoEntidade.cnpj','orgaoEntidade.razaoSocial','Órgão','cnpj'],
+    ['unidadeOrgao.codigoUnidade','unidadeOrgao.nomeUnidade','Unidade'],
+    ['orgaoSubRogado.cnpj','orgaoSubRogado.razaoSocial','Órgão sub-rogado','cnpj'],
+    ['unidadeSubRogada.codigoUnidade','unidadeSubRogada.nomeUnidade','Unidade sub-rogada'],
+    ['orgaoParteEnvolvida.cnpj','orgaoParteEnvolvida.razaoSocial','Órgão participante','cnpj'],
+    ['unidadeOrgaoParteEnvolvida.codigoUnidade','unidadeOrgaoParteEnvolvida.nomeUnidade','Unidade participante'],
+    ['orgao.cnpj','orgao.nome','Órgão','cnpj'],
+    ['unidade.codigo','unidade.nomeUnidade','Unidade'],
+  ],
+};
+export function joinOrganizationFields(fields,source='indexed') {
+  return joinFieldValues(fields,organizationJoins[source]);
+}
 export function indexedDocumentFields(record) {
   assert(record && typeof record==='object' && !Array.isArray(record),'INVALID_UPSTREAM','Documento PNCP inválido.',502);
   const type=scalarText(record.document_type),fields=[],seen=new Set();
@@ -147,7 +186,7 @@ export function indexedDocumentFields(record) {
   }
   promoteSource(fields,'usuario_nome',safeLink(record.link_sistema_origem));
   promoteElectronicProcess(fields,'link_processo_eletronico');
-  return fields;
+  return joinOrganizationFields(fields);
 }
 const organizationFields=[field('numeroControlePNCP','Controle PNCP','control',true),field('orgaoEntidade.razaoSocial','Órgão','text',true),field('orgaoEntidade.cnpj','CNPJ do órgão','cnpj',true),field('unidadeOrgao.nomeUnidade','Unidade','text',true),field('unidadeOrgao.codigoUnidade','Código da unidade'),field('unidadeOrgao.ufSigla','UF','text',true),field('unidadeOrgao.municipioNome','Município','text',true),field('orgaoEntidade.esferaId','Esfera'),field('orgaoEntidade.poderId','Poder'),field('orgaoSubRogado.razaoSocial','Órgão sub-rogado'),field('orgaoSubRogado.cnpj','CNPJ do órgão sub-rogado','cnpj'),field('unidadeSubRogada.nomeUnidade','Unidade sub-rogada'),field('unidadeSubRogada.codigoUnidade','Código da unidade sub-rogada'),field('unidadeSubRogada.municipioNome','Município da unidade sub-rogada'),field('unidadeSubRogada.ufSigla','UF da unidade sub-rogada')];
 const dates=[field('dataAssinatura','Assinatura','date',true),field('dataVigenciaInicio','Início da vigência','date',true),field('dataVigenciaFim','Fim da vigência','date',true),field('dataPublicacaoPncp','Publicação','date',true),field('dataAtualizacao','Atualização','date',true),field('usuarioNome','Sistema publicador')];
@@ -240,7 +279,7 @@ export function recordFields(kind,record) {
     promoteSource(fields,'usuarioNome',safeLink(record.linkSistemaOrigem));
     promoteElectronicProcess(fields,'linkProcessoEletronico');
   }
-  return fields;
+  return joinOrganizationFields(fields,'native');
 }
 export function projectDocument(type,record) {
   const fields=recordFields(type,record);

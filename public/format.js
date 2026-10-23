@@ -41,8 +41,12 @@ export function createCellRenderer(el) {
 const cnpjDigits = value => String(value ?? '').replace(/\D/g, '');
 export function formatCnpj(value) {
   if (value === null || value === undefined) return value;
-  const digits = cnpjDigits(value);
-  return digits.length === 14 ? digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : String(value);
+  const text = String(value);
+  // "CNPJ - nome" mantém o nome e mascara somente o identificador.
+  const joined = text.match(/^(.*?)(\s+-\s+[\s\S]*)$/);
+  if (joined) return formatCnpj(joined[1]) + joined[2];
+  const digits = cnpjDigits(text);
+  return digits.length === 14 ? digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : text;
 }
 export function formatCpf(value) {
   if (value === null || value === undefined) return value;

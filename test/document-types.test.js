@@ -58,6 +58,21 @@ test('DOCUMENTS-04: detalhes completos mantêm datas, booleanos, códigos, valor
   for(const record of [[],null,{valorGlobal:false},{orgaoEntidade:[]},{frutoAdesao:'false'}])assert.throws(()=>projectDocument('contrato',record),e=>e.code==='INVALID_UPSTREAM');
 });
 
+test('DOCUMENTS-24: órgão e unidade são exibidos como código - nome, como no PNCP',()=>{
+  const native=projectDocument('contrato',{numeroControlePNCP:'01234567000189-2-000044/2026',orgaoEntidade:{cnpj:'01234567000189',razaoSocial:'Órgão público'},unidadeOrgao:{codigoUnidade:'0001',nomeUnidade:'Unidade gestora'},orgaoSubRogado:{cnpj:'98765432000100',razaoSocial:'Órgão sub-rogado'},unidadeSubRogada:{codigoUnidade:'0002',nomeUnidade:'Unidade sub-rogada'},tipoContrato:{nome:'Contrato'},objetoContrato:'Objeto'});
+  const byTitle=title=>native.fields.find(field=>field.title===title);
+  assert.deepEqual([byTitle('Órgão').value,byTitle('Órgão').type],['01234567000189 - Órgão público','cnpj']);
+  assert.equal(byTitle('Unidade').value,'0001 - Unidade gestora');
+  assert.equal(byTitle('Órgão sub-rogado').value,'98765432000100 - Órgão sub-rogado');
+  assert.equal(byTitle('Unidade sub-rogada').value,'0002 - Unidade sub-rogada');
+  for(const title of ['CNPJ do órgão','Código da unidade','CNPJ do órgão sub-rogado','Código da unidade sub-rogada'])assert(!byTitle(title),title);
+  const indexed=indexedDocumentFields({document_type:'edital',orgao_nome:'Órgão público',orgao_cnpj:'01234567000189',unidade_nome:'Unidade gestora',unidade_codigo:'0001',orgao_subrogado_nome:'Órgão sub-rogado',orgao_subrogado_cnpj:'98765432000100',unidade_subrogada_nome:'Unidade sub-rogada',unidade_subrogada_codigo:'0002'});
+  assert.equal(indexed.find(field=>field.title==='Órgão').value,'01234567000189 - Órgão público');
+  assert.equal(indexed.find(field=>field.title==='Unidade').value,'0001 - Unidade gestora');
+  assert.equal(indexed.find(field=>field.title==='Órgão sub-rogado').value,'98765432000100 - Órgão sub-rogado');
+  assert.equal(indexed.find(field=>field.title==='Unidade sub-rogada').value,'0002 - Unidade sub-rogada');
+});
+
 test('DOCUMENTS-05: arquivos, histórico e termos consultam o documento correto, com contagem e paginação independente',async()=>{
   const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(12):json(Array.from({length:u.searchParams.get('pagina')==='1'?10:2},()=>({titulo:'Arquivo',tipoDocumentoNome:'Outros',dataPublicacaoPncp:'2026-09-01',numeroTermoContrato:'001',tipoTermoContratoNome:'Aditivo'}))));
   for(const d of [ata,contract])for(const resource of ['arquivos','historico',...(d.type==='contrato'?['termos']:[])]){
@@ -69,7 +84,9 @@ test('DOCUMENTS-05: arquivos, histórico e termos consultam o documento correto,
 
 test('DOCUMENTS-06: partes envolvidas e contratos da ata usam envelope e vínculos dos próprios registros',async()=>{
   const f=fixture(u=>json({data:u.pathname.endsWith('/partesenvolvidas')?[{tipoParteEnvolvida:{nome:'Gerenciadora'},orgao:{cnpj:'00012345000189',nome:'Órgão'},unidade:{codigo:'0001',nomeUnidade:'Unidade',localidade:{uf:'SP',nomeMunicipio:'São Paulo'}},dataInclusao:'2026-09-01T10:00:00'}]:[{orgaoEntidade:{cnpj:'00987654000100'},anoContrato:2026,sequencialContrato:44,valorGlobal:'9007199254740993.0000',numeroControlePNCP:'00987654000100-2-000044/2026'}],totalRegistros:1,numeroPagina:1}));
-  const parties=await f.service.documentRelated(ata,'partesenvolvidas',1,10);assert.equal(parties.data[0].fields.find(x=>x.title==='Código da unidade').value,'0001');assert.match(f.requests.at(-1).pathname,/compras\/2025\/57\/atas\/9\/partesenvolvidas$/);
+  const parties=await f.service.documentRelated(ata,'partesenvolvidas',1,10),party=parties.data[0].fields;
+  assert.equal(party.find(x=>x.title==='Órgão').value,'00012345000189 - Órgão');assert.equal(party.find(x=>x.title==='Unidade').value,'0001 - Unidade');
+  assert(!party.some(x=>['CNPJ do órgão','Código da unidade'].includes(x.title)));assert.match(f.requests.at(-1).pathname,/compras\/2025\/57\/atas\/9\/partesenvolvidas$/);
   const linked=await f.service.documentRelated(ata,'contratos',1,10);assert.equal(linked.data[0].url,'https://pncp.gov.br/app/contratos/00987654000100/2026/44');assert.equal(linked.data[0].valor_global,'9007199254740993.0000');
 });
 
