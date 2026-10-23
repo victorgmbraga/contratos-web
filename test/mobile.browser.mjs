@@ -53,6 +53,9 @@ try {
     await page.setViewportSize({width,height:844});
     assert.equal(await page.evaluate(()=>document.activeElement.id),'document-type-control','Redimensionar preserva o foco do seletor');
     await headerLayout(width);
+    assert.equal(await page.locator('#result-info').evaluate(node=>getComputedStyle(node).justifyContent),'center','Rodapé de resultados centralizado');
+    assert.equal(await page.locator('#result-info').evaluate(node=>getComputedStyle(node).textAlign),'center','Texto do rodapé centralizado');
+    assert.equal(await page.locator('#result-info .result-count').evaluate(node=>getComputedStyle(node).justifyContent),'center','Contador de resultados centralizado');
     assert.equal(await page.locator('#header-content').evaluate(node=>node.scrollWidth<=node.clientWidth),true);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     for(const selector of ['#search','#search-button','#filters-button','#document-type','#order','#more-actions-button','.results-paginator'])await fits(selector,{height:true});

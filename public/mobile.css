@@ -30,8 +30,8 @@
   .criteria-row select{width:100%;max-width:none;min-width:0;min-height:44px;font-size:1rem;padding:8px 6px;text-overflow:ellipsis}
   .source-badge{grid-row:3;grid-column:1/-1;justify-self:start;max-width:100%}
   .workspace{padding:5px max(5px,env(safe-area-inset-right)) max(5px,env(safe-area-inset-bottom)) max(5px,env(safe-area-inset-left))}
-  .result-info{font-size:.75rem;flex-wrap:wrap}
-  .result-count{white-space:normal;flex-wrap:wrap}
+  .result-info{font-size:.75rem;flex-wrap:wrap;justify-content:center;text-align:center}
+  .result-count{white-space:normal;flex-wrap:wrap;justify-content:center}
   .result-info h2{white-space:normal}
   .filter-chip{min-height:32px;display:flex;align-items:center;max-width:calc(100vw - 40px)}
   .icon-button{min-width:44px;height:44px}
