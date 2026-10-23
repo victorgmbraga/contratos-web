@@ -82,6 +82,8 @@ const omittedFields=new Set([
   'item_url','link_sistema_origem','itemUrl','linkSistemaOrigem','site_url','siteUrl',
   'document_type','documentType','description','index','doc_type','docType',
   'objeto_compra','objetoCompra','title',
+  // Internal purchase identifiers are not shown by the PNCP detail page.
+  'numeroCompra','anoCompra','sequencialCompra','numero','ano','numero_sequencial',
 ]);
 const hasIndexedValue=value=>value!=null && value!=='' && (!Array.isArray(value) || value.length>0);
 function indexedField(path,title,type,value) {
@@ -139,7 +141,7 @@ function read(record,path) {
   return value;
 }
 const nativeLabels={
-  numeroCompra:'Número da contratação',anoCompra:'Ano da contratação',tipoInstrumentoConvocatorioNome:'Tipo de instrumento convocatório',objetoCompra:'Objeto',
+  tipoInstrumentoConvocatorioNome:'Tipo de instrumento convocatório',objetoCompra:'Objeto',
   orcamentoSigilosoDescricao:'Orçamento sigiloso',modoDisputaNome:'Modo de disputa',
   numeroControlePncpCompra:'Contratação de origem',numeroControlePncpAta:'Ata de origem',usuarioNome:'Sistema publicador',
   'orgaoEntidade.esferaId':'Esfera','orgaoEntidade.poderId':'Poder','unidadeOrgao.codigoUnidade':'Código da unidade',
