@@ -6,11 +6,11 @@ import { controlLink, indexedDocumentFields } from '../src/document-details.js';
 const DETAIL_PAGE_SIZE = 10;
 
 // Painel de detalhes: seleção do documento, abas, itens e listagens vinculadas.
-export function createDetailsPanel({ document, window, service, state, $: getElementById, el, documentName, openDialog, syncDetailUrl, refreshSelects }) {
+export function createDetailsPanel({ document, window, service, state, session, $: getElementById, el, documentName, openDialog, syncDetailUrl, refreshSelects }) {
 const $ = getElementById;
 function closeDetails(sync=true) {
   const previous=state.detailSelection;
-  state.detailAbort?.abort();state.detailSeq++;state.detailSelection=null;state.detailDoc=null;state.detailActivate=null;
+  state.detailAbort?.abort();session.next('detail');state.detailSelection=null;state.detailDoc=null;state.detailActivate=null;
   if($('details-dialog').open)$('details-dialog').close();
   if(sync && previous)syncDetailUrl();
 }
@@ -93,7 +93,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
   const showFields=(card,fields)=>{const values=el('dl',undefined,'related-values');for(const [name,value]of fields){const field=el('div');field.append(el('dt',name),el('dd',value ?? '—'));values.append(field);}card.append(values);};
   async function load(target) {
     controller?.abort();controller=new AbortController();const request=++seq;
-    const current=()=>token===state.detailSeq && request===seq && !signal.aborted;
+    const current=()=>session.current('detail',token) && request===seq && !signal.aborted;
     retry.hidden=true;pagination.setBusy(true);section.setAttribute('aria-busy','true');status.textContent='Preparando consulta…';
     if(!loaded)updateCount(null,'loading');
     try {
@@ -155,7 +155,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
   return {section,load:()=>detailIdentity(doc)?load(1):Promise.resolve()};
 }
 async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.resolve()}={}) {
-  state.detailAbort?.abort();state.detailSeq++;const token=state.detailSeq;
+  state.detailAbort?.abort();const token=session.next('detail');
   const detailController=new AbortController();state.detailAbort=detailController;
   const identity=detailIdentity(doc);state.detailDoc=doc;state.detailSelection=identity?{document:identity,tab}:null;
   const schedule=detailScheduler(),loads=[],tabs=[];
@@ -219,15 +219,15 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
       retryDetails.hidden=true;detailStatus.hidden=false;detailPanel.setAttribute('aria-busy','true');
       try {
         const data=await schedule(async()=>{detailStatus.textContent='Consultando detalhes no PNCP…';return service.call('documentDetails',{document:detailIdentity(doc)},{signal:detailController.signal});},detailController.signal);
-        if(token!==state.detailSeq)return;
+        if(!session.current('detail',token))return;
         const holder=el('div');grid=appendFields(holder,data.fields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);
         updateDetails(data.fields.length,'loaded');if(data.objeto)objectSummary.textContent=data.objeto;else if(doc._detail_from_url)objectSummary.textContent='Objeto não informado.';updateSummary();
         if(forceDetails){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=data.titulo || indexed?.titulo || doc.titulo;}
         detailStatus.textContent='';detailStatus.hidden=true;
-      }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){
+      }catch(error){if(session.current('detail',token) && error.name!=='AbortError'){
         if(forceDetails){
           const row=await searchRowFor(identity,searchReady,doc,detailController.signal);
-          if(token!==state.detailSeq)return;
+          if(!session.current('detail',token))return;
           if(row){
             const fallbackFields=row._raw?indexedDocumentFields(row._raw):[];
             if(fallbackFields.length){const holder=el('div');grid=appendFields(holder,fallbackFields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);}
@@ -241,7 +241,7 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
         }
         detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)objectSummary.textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');
       }}
-      finally{if(token===state.detailSeq)detailPanel.setAttribute('aria-busy','false');}
+      finally{if(session.current('detail',token))detailPanel.setAttribute('aria-busy','false');}
     }
     if(detailIdentity(doc)){retryDetails.addEventListener('click',loadDetails);loads.push({resource:'detalhes',load:loadDetails});updateDetails(null,'loading');}
     else {detailStatus.textContent='A fonte não forneceu os identificadores originais para consultar os detalhes completos.';updateDetails(null,'unavailable');}
@@ -254,7 +254,7 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   let page=1,controller=null,itemsLoaded=false,itemSeq=0;
   async function itemPage(target) {
     controller?.abort();controller=new AbortController();const request=++itemSeq;
-    const current=()=>token===state.detailSeq && request===itemSeq && !detailController.signal.aborted;
+    const current=()=>session.current('detail',token) && request===itemSeq && !detailController.signal.aborted;
     retry.hidden=true;pagination.setBusy(true);itemStatus.textContent='Consultando itens no PNCP…';
     section.setAttribute('aria-busy','true');if(!itemsLoaded)updateItems(null,'loading');
     try {

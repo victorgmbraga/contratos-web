@@ -10,6 +10,7 @@ import { createColumnLayout } from './column-layout.js';
 import { createTooltips } from './tooltips.js';
 import { createDetailsPanel } from './details-panel.js';
 import { createFiltersPanel } from './filters-panel.js';
+import { createSession } from './session.js';
 
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
 const $ = id => document.getElementById(id);
@@ -21,7 +22,8 @@ const RESULT_CACHE_TTL = 30000;
 const RESULT_CACHE_LIMIT = 20;
 const filterHeaderIcon='<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M7 12h10m-7 5h4"/></svg>';
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
-const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,detailSelection:null,detailDoc:null,detailActivate:null,exportAbort:null,exportSeq:0,resultCache:new Map()};
+const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,legalAbort:null,legalPending:false,legalError:false,detailAbort:null,detailSelection:null,detailDoc:null,detailActivate:null,exportAbort:null,resultCache:new Map()};
+const session=createSession();
 let filterOptionsCache;
 let selectMenus;
 let urlMode='replace',urlError=null,tableReady=false,queryRequested=false,exportWarning=false;
@@ -29,8 +31,8 @@ const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-
 const renderCell=createCellRenderer(el);
 const columnLayout=createColumnLayout({window,state});
 const tooltips=createTooltips({window,state,$,toolbarButtonIds});
-const details=createDetailsPanel({document,window,service,state,$,el,documentName,openDialog,syncDetailUrl,refreshSelects:node=>selectMenus?.refresh(node)});
-const filters=createFiltersPanel({document,window,service,state,$,el,documentName,openDialog,refreshSelects:node=>selectMenus?.refresh(node),getCache:()=>filterOptionsCache});
+const details=createDetailsPanel({document,window,service,state,session,$,el,documentName,openDialog,syncDetailUrl,refreshSelects:node=>selectMenus?.refresh(node)});
+const filters=createFiltersPanel({document,window,service,state,session,$,el,documentName,openDialog,refreshSelects:node=>selectMenus?.refresh(node),getCache:()=>filterOptionsCache});
 function resultCacheKey(query) { return writeQueryUrl('https://cache.invalid/',query,state.schema); }
 function pruneResultCache() {
   const now=Date.now();
@@ -124,7 +126,7 @@ function updateCriteria() {
   const q=state.query,order=$('order');order.replaceChildren();
   for(const value of state.schema.orders_by_document[q.document_type]){const option=el('option',state.schema.order_labels[value]);option.value=value;order.append(option);}
   order.value=q.order;
-  $('document-type').value=q.document_type;
+  $('document-type').value=q.document_type;$('search').value=q.q;
   const count=Object.keys(q.pncp_filters).length+(q.status==='todos'?0:1);
   $('filter-count').hidden=!count;$('filter-count').textContent=String(count);$('clear-button').hidden=!count && !q.q;
   if($('clear-button').hidden)$('clear-button-tooltip').hidden=true;
@@ -168,7 +170,7 @@ function renderPlaceholder(query,empty) {
   if(!empty)return;
   const actions=el('div',undefined,'empty-actions');
   if(hasActiveCriteria(query)) {
-    const clear=el('button','Limpar filtros','button');clear.type='button';clear.addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();execute();});actions.append(clear);
+    const clear=el('button','Limpar filtros','button');clear.type='button';clear.addEventListener('click',()=>{state.query=defaultQuery();updateCriteria();execute();});actions.append(clear);
   }
   const refresh=el('button','Atualizar','button');refresh.type='button';refresh.addEventListener('click',()=>loadPage(state.query.page,'push',{force:true}));actions.append(refresh);
   state.placeholder.append(actions);
@@ -200,9 +202,9 @@ async function loadResultsPage(targetPage,{force=false,cache=false}={}) {
   query.page=Number(targetPage || 1);query.size=TABLE_PAGE_SIZE;
   state.query.page=query.page;urlError=null;
   const supersededExport=!!state.exportAbort;
-  state.abort?.abort();state.exportAbort?.abort();state.exportSeq++;state.exportAbort=null;
+  state.abort?.abort();state.exportAbort?.abort();session.next('export');state.exportAbort=null;
   if(supersededExport)exportWarning=true;
-  const seq=++state.seq;const controller=new AbortController();state.abort=controller;
+  const seq=session.next('query');const controller=new AbortController();state.abort=controller;
   const cached=cache && !force?takeCachedResult(query):null;
   if(cached){state.abort=null;syncQueryUrl(query);renderResult(cached,query);return cached;}
   status('loading',query);
@@ -210,16 +212,16 @@ async function loadResultsPage(targetPage,{force=false,cache=false}={}) {
   try {
     syncQueryUrl(query);
     const result=await service.call('execute',{query},{signal:controller.signal});
-    if(seq!==state.seq)throw new DOMException('Resposta anterior descartada.','AbortError');
+    if(!session.current('query',seq))throw new DOMException('Resposta anterior descartada.','AbortError');
     storeCachedResult(query,result);renderResult(result,query);setConnectivity('');return result;
   }catch(error) {
-    if(seq===state.seq) {
+    if(session.current('query',seq)) {
       exportWarning=false;
       if(error.name==='AbortError'){status('cancelled');notice('Consulta cancelada. Nenhum novo resultado foi aplicado.','warning');}
       else {status('error');$('notice').dataset.code=error.code || '';notice(`${error.message}${state.lastResult?'\nA tabela mantém o resultado anterior.':''}`,'error');if(error.retryable || ['PNCP_UNAVAILABLE','PNCP_TRANSPORT_ERROR','PNCP_TIMEOUT','OPERATION_TIMEOUT'].includes(error.code))setConnectivity('O PNCP está instável. A tabela mantém o último resultado confirmado.','warning');}
     }
     throw error;
-  }finally{if(seq===state.seq)state.abort=null;}
+  }finally{if(session.current('query',seq))state.abort=null;}
 }
 function loadPage(page,mode='push',options={cache:true}) {
   state.query.page=page;urlMode=mode;
@@ -254,10 +256,9 @@ function renderColumnChoices() {
 function applyQuery(query,{preserveDetails=false}={}) {
   const type=query.document_type,typeChanged=type!==state.query.document_type;
   state.abort?.abort();state.exportAbort?.abort();filters.stop();state.legalAbort?.abort();
-  state.seq++;state.domainSeq++;state.legalSeq++;
+  session.next('query');session.next('domains');session.next('legal');
   $('filters-dialog').close();if(!preserveDetails)details.close(false);
   state.query=clone(query);state.domains=null;state.draft=null;urlError=null;
-  $('search').value=query.q;
   if(typeChanged) {
     state.lastQuery=null;state.lastResult=null;
     $('result-info').hidden=true;$('result-title').textContent='Resultados';$('window-warning').hidden=true;tooltips.hideWindowTooltip();
@@ -283,7 +284,7 @@ async function restoreQueryUrl() {
     if(!changed)syncDetailUrl('replace');
     await Promise.all([results,detailRestore]);
   } catch(error) {
-    details.close(false);state.abort?.abort();state.exportAbort?.abort();state.seq++;state.exportSeq++;state.exportAbort=null;
+    details.close(false);state.abort?.abort();state.exportAbort?.abort();session.next('query');session.next('export');state.exportAbort=null;
     invalidQueryUrl(error);
   }
 }
@@ -291,21 +292,21 @@ async function exportCsv(scope='all') {
   if(!state.lastQuery || state.exportAbort || !['success','empty'].includes(state.status))return;
   if(scope==='page' && !state.lastResult?.data?.length)return;
   const query=clone(state.lastQuery);if(scope==='page')query.page=state.lastResult.page;
-  const seq=++state.exportSeq;const controller=new AbortController();state.exportAbort=controller;
+  const seq=session.next('export');const controller=new AbortController();state.exportAbort=controller;
   const started=Date.now();
   updateExportButton();notice(scope==='page'?'Consultando o PNCP e gerando CSV da página atual. Os dados podem diferir da tabela.':'Consultando o PNCP e gerando CSV dos últimos critérios concluídos. Os dados podem diferir da tabela.');
   try {
     const result=await service.call('export',scope==='page'?{query,scope:'page'}:{query},{signal:controller.signal,onProgress:progress=>{
-      if(seq!==state.exportSeq)return;
+      if(!session.current('export',seq))return;
       const elapsed=(Date.now()-started)/1000,remaining=progress.rows>0 && progress.total>progress.rows?Math.max(1,Math.ceil((progress.total-progress.rows)/(progress.rows/elapsed))):0;
       notice(`Coletando ${fmtInt(progress.rows)} de ${fmtInt(progress.total)} documentos para CSV…${remaining?` Cerca de ${remaining} s restantes.`:''}`);
     }});
-    if(seq!==state.exportSeq || controller.signal.aborted)return;
+    if(!session.current('export',seq) || controller.signal.aborted)return;
     const blob=new Blob(result.chunks,{type:result.mime});
     const href=URL.createObjectURL(blob),link=el('a');link.href=href;link.download=result.filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(href),10000);
     notice(`${result.metadata.exported_rows} linhas exportadas${scope==='page'?` (página ${result.metadata.page})`:''}.`);
-  }catch(error){if(seq===state.exportSeq && error.name!=='AbortError'){$('notice').dataset.code=error.code || '';notice(`Falha ao exportar CSV: ${error.message}`,'error');}}
-  finally{if(seq===state.exportSeq){state.exportAbort=null;updateExportButton();}}
+  }catch(error){if(session.current('export',seq) && error.name!=='AbortError'){$('notice').dataset.code=error.code || '';notice(`Falha ao exportar CSV: ${error.message}`,'error');}}
+  finally{if(session.current('export',seq)){state.exportAbort=null;updateExportButton();}}
 }
 async function init() {
   state.schema=await service.call('schema');
@@ -315,7 +316,6 @@ async function init() {
   try {if(window.location?.href)state.query=readLocationState().query;}
   catch(error){urlError=error;}
   state.schema.columns=state.schema.columns_by_document[state.query.document_type];
-  $('search').value=state.query.q;
   $('source-badge').hidden=!state.schema.demo;
   filters.renderStatuses();
   state.placeholder=el('div','Informe uma pesquisa e consulte as contratações do PNCP.');
@@ -339,7 +339,7 @@ async function init() {
   $('filters-button').addEventListener('click',()=>filters.open());$('columns-button').addEventListener('click',()=>openDialog('columns-dialog'));
   $('refresh-button').addEventListener('click',async()=>{
     if(!state.lastQuery)return;
-    const {page}=state.lastQuery;state.query=clone(state.lastQuery);$('search').value=state.query.q;updateCriteria();
+    const {page}=state.lastQuery;state.query=clone(state.lastQuery);updateCriteria();
     await loadPage(page,'push',{force:true});
   });
   $('retry-button').addEventListener('click',()=>loadPage(state.query.page,'push',{force:true}));
@@ -347,8 +347,8 @@ async function init() {
   $('cancel-export-button').addEventListener('click',()=>{state.exportAbort?.abort();notice('Exportação cancelada.');});
   $('notice-close').addEventListener('click',()=>{notice('');});
   $('order').addEventListener('change',()=>{state.query.order=$('order').value;return execute();});
-  $('clear-button').addEventListener('click',()=>{state.query=defaultQuery();$('search').value='';updateCriteria();return execute();});
-  $('apply-filters').addEventListener('click',()=>{const draft=filters.apply();if(!draft)return;state.query=draft;$('search').value=state.query.q;$('filters-dialog').close();updateCriteria();return execute();});
+  $('clear-button').addEventListener('click',()=>{state.query=defaultQuery();updateCriteria();return execute();});
+  $('apply-filters').addEventListener('click',()=>{const draft=filters.apply();if(!draft)return;state.query=draft;$('filters-dialog').close();updateCriteria();return execute();});
   $('filters-dialog').addEventListener('close',()=>filters.onDialogClose());
   $('details-dialog').addEventListener('close',()=>{if(!$('details-dialog').open)details.close();});
   $('export-button').addEventListener('click',exportCsv);

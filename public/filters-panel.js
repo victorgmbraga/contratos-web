@@ -1,7 +1,7 @@
 import { compareDecimal } from '../src/validation.js';
 
 // Modal de filtros: rascunho, editores de domínio, sugestões e amparos por normativo.
-export function createFiltersPanel({ document, window, service, state, $: getElementById, el, documentName, openDialog, refreshSelects, getCache }) {
+export function createFiltersPanel({ document, window, service, state, session, $: getElementById, el, documentName, openDialog, refreshSelects, getCache }) {
 const $ = getElementById;
 const filterFields=new Map();
 let openFilterEditor=null;
@@ -13,11 +13,11 @@ function renderFilterStatuses() {
 
 function stopFilterEditors() {
   closeFilterDropdown();
-  state.domainAbort?.abort();state.domainSeq++;
+  state.domainAbort?.abort();session.next('domains');
   for(const editor of filterFields.values()){editor.suggestAbort?.abort();clearTimeout(editor.suggestTimer);editor.suggestSeq++;}
 }
 function currentEditor(editor) {
-  return editor.draft===state.draft && editor.seq===state.domainSeq && $('filters-dialog').open;
+  return editor.draft===state.draft && session.current('domains',editor.seq) && $('filters-dialog').open;
 }
 function syncFilterEditor(editor) {
   if(!editor)return;
@@ -37,7 +37,7 @@ function updateDraftActions() {
 }
 function clearDraftFilters() {
   if(!state.draft)return;
-  state.legalAbort?.abort();state.legalSeq++;state.legalPending=false;state.legalError=false;
+  state.legalAbort?.abort();session.next('legal');state.legalPending=false;state.legalError=false;
   if($('legal-error'))$('legal-error').hidden=true;if($('apply-filters'))$('apply-filters').disabled=false;
   state.draft.pncp_filters={};
   for(const editor of filterFields.values())syncFilterEditor(editor);
@@ -49,17 +49,17 @@ async function setDraftFilter(name,value) {
   syncFilterEditor(filterFields.get(name));
   if(name==='amparos_legais') {
     if(state.legalPending)return;
-    state.legalAbort?.abort();state.legalSeq++;state.legalPending=false;state.legalError=false;$('apply-filters').disabled=false;$('legal-error').hidden=true;
+    state.legalAbort?.abort();session.next('legal');state.legalPending=false;state.legalError=false;$('apply-filters').disabled=false;$('legal-error').hidden=true;
     return;
   }
   if(name!=='normativos_base' || (previous===JSON.stringify(value) && !state.legalError && !filterFields.get('amparos_legais')?.input.disabled))return;
-  state.legalAbort?.abort();const seq=++state.legalSeq,controller=new AbortController();state.legalAbort=controller;
+  state.legalAbort?.abort();const seq=session.next('legal'),controller=new AbortController();state.legalAbort=controller;
   const editor=filterFields.get('amparos_legais');
   state.legalPending=true;state.legalError=false;$('apply-filters').disabled=true;$('legal-error').hidden=true;
   if(editor){if(openFilterEditor===editor)closeFilterDropdown();editor.input.disabled=true;editor.loadSeq++;}
   try {
     const domains=await getDomains(controller.signal,'amparos_legais');
-    if(seq!==state.legalSeq || draft!==state.draft)return;
+    if(!session.current('legal',seq) || draft!==state.draft)return;
     const options=domains.filters.amparos_legais;
     if(!Array.isArray(options))throw new Error('O PNCP não forneceu os amparos deste normativo.');
     const ids=new Set(options.map(o=>o.id)),before=draft.pncp_filters.amparos_legais || [];
@@ -68,14 +68,14 @@ async function setDraftFilter(name,value) {
     if(editor)populateFilterOptions(editor,domains);
     $('legal-error').hidden=valid.length===before.length;
     $('legal-error').textContent='Amparos incompatíveis foram removidos. Confira a seleção antes de pesquisar.';
-  }catch(error){if(seq===state.legalSeq && error.name!=='AbortError'){
+  }catch(error){if(session.current('legal',seq) && error.name!=='AbortError'){
     state.legalError=!!draft.pncp_filters.amparos_legais?.length;
     $('legal-error').textContent='Não foi possível conferir os amparos. Remova o filtro de amparo ou selecione novamente o normativo para tentar outra vez.';$('legal-error').hidden=false;
     if(editor)filterDomainError(editor,error);
-  }}finally{if(seq===state.legalSeq){state.legalPending=false;$('apply-filters').disabled=state.legalError;}}
+  }}finally{if(session.current('legal',seq)){state.legalPending=false;$('apply-filters').disabled=state.legalError;}}
 }
 async function openFilters(column=null) {
-  stopFilterEditors();state.legalAbort?.abort();state.legalSeq++;state.legalPending=false;state.legalError=false;$('apply-filters').disabled=false;
+  stopFilterEditors();state.legalAbort?.abort();session.next('legal');state.legalPending=false;state.legalError=false;$('apply-filters').disabled=false;
   $('legal-error').hidden=true;
   state.draft=structuredClone(state.query);state.draft.q=$('search').value;
   renderFilterStatuses();
@@ -120,7 +120,7 @@ function createFilterEditor(cap) {
   clear.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>';
   const help=el('p',cap.help_text || '','filter-help');help.id=`filter-help-${cap.name}`;help.hidden=!help.textContent;
   const error=el('p',undefined,'inline-error');error.id=`filter-error-${cap.name}`;error.setAttribute('role','status');error.hidden=true;
-  const editor={cap,area,input,help,error,clear,draft:state.draft,seq:state.domainSeq,loadSeq:0,suggestSeq:0};
+  const editor={cap,area,input,help,error,clear,draft:state.draft,seq:session.last('domains'),loadSeq:0,suggestSeq:0};
   if(cap.domain && cap.cardinality==='multiple') {
     editor.input=el('input');editor.input.type='search';editor.input.placeholder=cap.domain_kind==='suggest'?'Digite ao menos 3 caracteres':'Buscar e selecionar opções';editor.input.autocomplete='off';
     editor.selected=[];
@@ -289,7 +289,7 @@ function apply() {
   return structuredClone(state.draft);
 }
 function onDialogClose() {
-  stopFilterEditors();state.legalAbort?.abort();state.legalSeq++;
+  stopFilterEditors();state.legalAbort?.abort();session.next('legal');
 }
 document.addEventListener('select-menu-open',closeFilterDropdown);
 document.addEventListener('pointerdown',event=>{if(openFilterEditor && event.target!==openFilterEditor.input && !openFilterEditor.suggestions.contains(event.target))closeFilterDropdown();});

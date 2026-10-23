@@ -39,6 +39,7 @@ flowchart LR
 | [`public/format.js`](../public/format.js) | Formatação de datas, quantidades e valores; células da tabela e classes de situação |
 | [`public/tooltips.js`](../public/tooltips.js) | Tooltips da barra de ferramentas e do aviso de janela de resultados |
 | [`public/column-layout.js`](../public/column-layout.js) | Persistência de visibilidade, ordem e largura das colunas por tipo documental |
+| [`public/session.js`](../public/session.js) | Contadores de operação por tipo; um token novo invalida respostas pendentes do token anterior |
 | [`public/results-table.js`](../public/results-table.js), [`results-table.css`](../public/results-table.css) | Tabela semântica, cartões móveis, menus, visibilidade, ordem e largura de colunas |
 | [`public/pagination.js`](../public/pagination.js), [`pagination.css`](../public/pagination.css) | Paginação compartilhada entre resultados e detalhes; números, limites, foco, carregamento e modo sem total conhecido |
 | [`public/mobile-layout.js`](../public/mobile-layout.js), [`mobile.css`](../public/mobile.css) | Cabeçalho móvel, ações em popover, adaptação ao viewport visível, áreas seguras e painéis responsivos |
@@ -51,6 +52,8 @@ flowchart LR
 | [`test/`](../test/) | Núcleo, DOM, runtime/RPC, layout, acessibilidade com axe e build estático no navegador |
 
 Vite, Playwright, ESLint e Prettier são ferramentas de desenvolvimento. O ESLint é executado na validação e não participa da distribuição; o Prettier atende arquivos alterados. A aplicação não tem dependências de produção, CDN, imports de pacote pendentes ou polyfills de Node.js na distribuição estática.
+
+`state.query` é a fonte única dos critérios: `updateCriteria` projeta a consulta nos controles do cabeçalho, e a interface só relê os campos ao pesquisar. Os contadores de operação ficam em `session.js`; cada módulo recebe o mesmo registro e invalida respostas antigas com um token novo, sem campos de sequência espalhados pelo estado.
 
 ## Serviço e fluxo de dados
 
