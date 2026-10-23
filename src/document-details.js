@@ -9,6 +9,16 @@ export function nativeDocumentPath(document,base) {
   assert(Object.hasOwn(documentResources,type) && /^\d{14}$/.test(cnpj || '') && /^\d{4}$/.test(ano || '') && positive(sequencial) && (type!=='ata' || positive(sequencial_compra)), 'INVALID_DOCUMENT_IDENTITY','Identificadores originais do documento inválidos.');
   return `${base}/orgaos/${cnpj}/${type==='contrato'?'contratos':'compras'}/${ano}/${type==='ata'?`${sequencial_compra}/atas/`:''}${sequencial}`;
 }
+export function controlDocument(control) {
+  const match=scalarText(control)?.match(/^(\d{14})-([12])-(\d+)\/(\d{4})(?:-(\d+))?$/);
+  if(!match || BigInt(match[3])===0n)return null;
+  const [,cnpj,kind,sequence,year,ataSequence]=match;
+  if(ataSequence){
+    if(kind!=='1' || BigInt(ataSequence)===0n)return null;
+    return {type:'ata',cnpj,ano:year,sequencial:BigInt(ataSequence).toString(),sequencial_compra:BigInt(sequence).toString()};
+  }
+  return {type:kind==='2'?'contrato':'edital',cnpj,ano:year,sequencial:BigInt(sequence).toString()};
+}
 export function controlLink(control) {
   const match=scalarText(control)?.match(/^(\d{14})-([12])-(\d+)\/(\d{4})(?:-(\d+))?$/);
   if(!match || BigInt(match[3])===0n || match[5] && (match[2]!=='1' || BigInt(match[5])===0n))return null;
@@ -144,7 +154,7 @@ const dates=[field('dataAssinatura','Assinatura','date',true),field('dataVigenci
 const definitions={
   edital:[...organizationFields.filter(f=>['numeroControlePNCP','orgaoEntidade.razaoSocial','orgaoEntidade.cnpj','unidadeOrgao.nomeUnidade','unidadeOrgao.ufSigla','unidadeOrgao.municipioNome'].includes(f.path)),field('modalidadeNome','Modalidade','text',true),field('situacaoCompraNome','Situação','text',true),field('dataPublicacaoPncp','Publicação','date',true),field('dataAtualizacao','Atualização','date',true),field('valorTotalEstimado','Valor estimado','decimal',true),field('valorTotalHomologado','Valor homologado','decimal',true)],
   partesenvolvidas:[field('tipoParteEnvolvida.nome','Tipo','text',true),field('orgao.nome','Órgão','text',true),field('orgao.cnpj','CNPJ do órgão','cnpj',true),field('unidade.nomeUnidade','Unidade','text',true),field('unidade.codigo','Código da unidade','text',true),field('unidade.localidade.nomeMunicipio','Município','text',true),field('unidade.localidade.uf','UF','text',true),field('dataInclusao','Inclusão','datetime',true)],
-  ata:[...organizationFields,field('numeroAtaRegistroPreco','Número da ata','text',true),field('anoAta','Ano da ata'),field('modalidadeNome','Modalidade','text',true),...dates,field('cancelado','Cancelada','boolean',true),field('dataCancelamento','Cancelamento','date'),field('possibilidadeAdesao','Permite adesão','boolean',true),field('numeroControlePncpCompra','Contratação de origem','control'),field('informacaoComplementarCompra','Informações complementares')],
+  ata:[...organizationFields,field('numeroAtaRegistroPreco','Número da ata','text',true),field('anoAta','Ano da ata'),field('modalidadeNome','Modalidade','text',true),...dates,field('cancelado','Cancelada','boolean',true),field('dataCancelamento','Cancelamento','date'),field('possibilidadeAdesao','Permite adesão','boolean',true),field('numeroControlePncpCompra','Contratação de origem','purchase'),field('informacaoComplementarCompra','Informações complementares')],
   contrato:[...organizationFields,field('numeroContratoEmpenho','Número do contrato/empenho','text',true),field('anoContrato','Ano do contrato'),field('tipoContrato.nome','Tipo de contrato','text',true),field('processo','Processo'),field('categoriaProcesso.nome','Categoria do processo'),field('receita','Receita','boolean'),...dates,
     field('nomeRazaoSocialFornecedor','Fornecedor','text',true),field('niFornecedor','CPF/CNPJ do fornecedor','cpf-cnpj',true),field('tipoPessoa','Tipo de pessoa do fornecedor'),field('codigoPaisFornecedor','País do fornecedor'),field('nomeFornecedorSubContratado','Fornecedor subcontratado'),field('niFornecedorSubContratado','CPF/CNPJ do subcontratado','cpf-cnpj'),field('tipoPessoaSubContratada','Tipo de pessoa do subcontratado'),
     field('valorInicial','Valor inicial','decimal',true),field('valorGlobal','Valor global','decimal',true),field('valorAcumulado','Valor acumulado','decimal'),field('valorParcela','Valor da parcela','decimal'),field('numeroParcelas','Número de parcelas'),field('frutoAdesao','Fruto de adesão','boolean'),field('temRemanejamento','Tem remanejamento','boolean'),field('emendaParlamentar','Emenda parlamentar','boolean'),field('numeroRetificacao','Número de retificações'),field('tipoParteEnvolvida.nome','Tipo de parte envolvida'),field('orgaoParteEnvolvida.razaoSocial','Órgão participante'),field('orgaoParteEnvolvida.cnpj','CNPJ do órgão participante','cnpj'),field('unidadeOrgaoParteEnvolvida.nomeUnidade','Unidade participante'),
@@ -223,7 +233,7 @@ export function recordFields(kind,record) {
       assert(value==null || scalarText(value)!==null,'INVALID_UPSTREAM',`Campo ${path} inválido no PNCP.`,502);
       value=scalarText(value);
     }
-    return [{field:path,title,type,value,...(type==='control'?{url:controlLink(value)}:type==='link'?{url:safeLink(value)}:{})}];
+    return [{field:path,title,type,value,...(type==='control'?{url:controlLink(value)}:type==='link'?{url:safeLink(value)}:type==='purchase'?(controlDocument(value)?{document:controlDocument(value)}:{}):{})}];
   });
   if(kind==='edital'){
     fields.push(...nativeExtraFields(record,new Set(definitions.edital.map(definition=>definition.path))));

@@ -71,12 +71,18 @@ function detailIdentity(doc) {
   if(!d)return null;
   return d;
 }
+function internalControlAnchor(label,document) {
+  const button=el('button',label,'text-button');
+  button.type='button';button.setAttribute('aria-label',`Abrir ${label} no Contratos Web`);
+  button.addEventListener('click',()=>{openDetails(directDetailRow(document));});
+  return button;
+}
 function appendFields(container,fields,className='related-values') {
   const values=el('dl',undefined,className);
   for(const field of fields){
     const wrap=el('div'),value=el('dd');
     const text=field.value==null?'—':field.type==='decimal'?money(field.value):field.type==='date'?date(field.value):field.type==='datetime'?time(field.value):field.type==='boolean'?(field.value?'Sim':'Não'):field.type==='cnpj'?formatCnpj(field.value):field.type==='cpf-cnpj'?formatCpfCnpj(field.value):String(field.value);
-    const link=field.url?safeAnchor(text,field.url):null;
+    const link=field.document?internalControlAnchor(text,field.document):field.url?safeAnchor(text,field.url):null;
     if(link)value.append(link);else value.textContent=text;
     wrap.append(el('dt',field.title),value);values.append(wrap);
   }

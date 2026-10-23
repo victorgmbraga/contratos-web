@@ -1047,7 +1047,7 @@ test('ATAS-UI-02: o painel de ata carrega detalhes completos e quatro listas com
   const tabs=ui.nodes.get('details-content').children.find(n=>n.className==='detail-tabs');assert.deepEqual(tabs.children.map(b=>b.textContent),['Detalhes (22)','Partes envolvidas (1)','Contratos (2)','Arquivos (12)','Histórico (12)']);
   assert.equal(ui.nodes.get('details-kind').textContent,demoAtas[2].title);
   const titles=ui.nodes.get('detail-panel-detalhes').children[0].children.map(f=>f.children[0].textContent);assert(titles.includes('Número da ata'));assert(titles.includes('Permite adesão'));assert(!titles.includes('Valor estimado'));assert(!titles.includes('Fornecedor'));
-  const origin=ui.nodes.get('detail-panel-detalhes').children[0].children.find(f=>f.children[0].textContent==='Contratação de origem');assert.match(origin.children[1].children[0].href,/\/editais\/00000000000000\/2026\/3$/);
+  const origin=ui.nodes.get('detail-panel-detalhes').children[0].children.find(f=>f.children[0].textContent==='Contratação de origem');const originControl=origin.children[1].children[0];assert.equal(originControl.tagName,'button');assert.equal(originControl.getAttribute('aria-label'),'Abrir 00000000000000-1-000003/2026 no Contratos Web');
   await ui.nodes.get('detail-tab-partesenvolvidas').fire('click');const parties=ui.nodes.get('detail-panel-partesenvolvidas');assert.equal(parties.hidden,false);assert.equal(ui.relatedRequests.length,4);
 });
 

@@ -248,3 +248,11 @@ test('DETAIL-CONTROL-01: Controle PNCP abre o portal nos três tipos de document
   const invalid=projectDocument('contrato',{numeroControlePNCP:'sem-identidade'}).fields.find(entry=>entry.field==='numeroControlePNCP');
   assert.equal(invalid.type,'control');assert.equal(invalid.url,null,'identidade inválida não gera link');
 });
+
+test('DETAIL-ORIGIN-01: Contratação de origem da ata identifica o edital para navegação interna',()=>{
+  const fields=projectDocument('ata',{numeroControlePncpCompra:'01234567000189-1-000057/2025'}).fields;
+  const origin=fields.find(field=>field.field==='numeroControlePncpCompra');
+  assert.equal(origin.type,'purchase');assert.deepEqual(origin.document,{type:'edital',cnpj:'01234567000189',ano:'2025',sequencial:'57'});
+  const invalid=projectDocument('ata',{numeroControlePncpCompra:'sem-identidade'}).fields.find(field=>field.field==='numeroControlePncpCompra');
+  assert.equal(invalid.document,undefined,'identidade inválida não navega');
+});
