@@ -26,7 +26,7 @@ function money(value) {
 // Cells render source text as text and nodes; the table only appends them.
 export function createCellRenderer(el) {
   return function renderCell(value,column) {
-    const node=el('span',value===null || value===undefined?'—':column.type==='date'?date(value):column.type==='decimal'?money(value):column.type==='boolean'?(value?'Sim':'Não'):String(value));
+    const node=el('span',value===null || value===undefined?'—':column.type==='date'?date(value):column.type==='decimal'?money(value):column.type==='boolean'?(value?'Sim':'Não'):column.mask==='cnpj'?formatCnpj(value):column.mask==='cpf-cnpj'?formatCpfCnpj(value):String(value));
     if(column.field==='objeto_compra'){node.className='object-text';node.title=value ?? '';}
     if(column.type==='decimal')node.className='money-cell';
     if(column.field==='situacao_compra_nome_pncp') {
@@ -37,5 +37,23 @@ export function createCellRenderer(el) {
     }
     return node;
   };
+}
+const cnpjDigits = value => String(value ?? '').replace(/\D/g, '');
+export function formatCnpj(value) {
+  if (value === null || value === undefined) return value;
+  const digits = cnpjDigits(value);
+  return digits.length === 14 ? digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : String(value);
+}
+export function formatCpf(value) {
+  if (value === null || value === undefined) return value;
+  const digits = cnpjDigits(value);
+  return digits.length === 11 ? digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : String(value);
+}
+export function formatCpfCnpj(value) {
+  if (value === null || value === undefined) return value;
+  const digits = cnpjDigits(value);
+  if (digits.length === 14) return formatCnpj(digits);
+  if (digits.length === 11) return formatCpf(digits);
+  return String(value);
 }
 export { fmtInt, time, date, quantity, money };

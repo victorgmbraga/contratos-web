@@ -1020,7 +1020,7 @@ test('CONTRACTS-UI-02: detalhes de contratos exibem os campos próprios sem busc
   const ui=await interfaceFixture();ui.nodes.get('document-type').value='contrato';await ui.nodes.get('document-type').fire('change');await ui.openDocument(project(demoContracts[0]));
   assert.equal(ui.nodes.get('details-kind').textContent,demoContracts[0].title);
   assert.equal(ui.itemRequests.length,0);assert(!ui.all.some(n=>n.className==='items-section'));
-  const values=ui.nodes.get('detail-panel-detalhes').children[0].children.map(wrap=>wrap.children[1].textContent);assert(values.includes('R$ 10.000,50'));assert(values.includes('01234567000189'));
+  const values=ui.nodes.get('detail-panel-detalhes').children[0].children.map(wrap=>wrap.children[1].textContent);assert(values.includes('R$ 10.000,50'));assert(values.includes('01.234.567/0001-89'),'CNPJ do fornecedor com máscara');
 });
 
 test('CONTRACTS-UI-03: resposta de contrato atrasada não substitui a pesquisa após voltar a edital',async()=>{

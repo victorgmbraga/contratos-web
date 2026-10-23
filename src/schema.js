@@ -7,7 +7,7 @@ const column = (field, title, type = 'text', extra = {}) => ({ field, title, typ
 export const columns = [
   column('id', 'ID'), column('tipo_documento', 'Tipo'), column('numero_controle_pncp', 'Controle PNCP'),
   column('objeto_compra', 'Objeto', 'text', { visible: true, width: 470 }),
-  column('titulo', 'Título', 'text', { visible: true, width: 260 }), column('orgao_cnpj', 'CNPJ do órgão'),
+  column('titulo', 'Título', 'text', { visible: true, width: 260 }), column('orgao_cnpj', 'CNPJ do órgão', 'text', { mask: 'cnpj' }),
   column('orgao_nome', 'Órgão', 'text', { visible: true, width: 285, domain: 'orgaos' }),
   column('unidade_orgao_nome_unidade', 'Unidade', 'text', { visible: true, width: 240, domain: 'unidades' }),
   column('unidade_orgao_codigo_unidade', 'Código da unidade'),
@@ -38,7 +38,7 @@ export const documentNames={edital:{singular:'contratação',plural:'contrataç�
 const commonColumns=columns.filter(c=>!['modalidade_nome','situacao_compra_nome_pncp','valor_total_estimado','valor_total_homologado','tem_resultado'].includes(c.field));
 const contractColumns=[...commonColumns,
   column('tipo_contrato_nome','Tipo de contrato','text',{visible:true,domain:'tipos_contrato'}),
-  column('fornecedor_nome','Fornecedor','text',{visible:true,domain:'fornecedores'}),column('fornecedor_ni','CPF/CNPJ do fornecedor'),
+  column('fornecedor_nome','Fornecedor','text',{visible:true,domain:'fornecedores'}),column('fornecedor_ni','CPF/CNPJ do fornecedor','text',{mask:'cpf-cnpj'}),
   column('valor_global','Valor global','decimal',{visible:true,native_range:['valor_global_min','valor_global_max']}),
   column('data_assinatura','Assinatura','date',{visible:true,native_range:['data_assinatura_inicio','data_assinatura_fim']}),
   column('data_inicio_vigencia','Início da vigência','date',{visible:true,native_range:['data_inicio_vigencia_inicio','data_inicio_vigencia_fim']}),

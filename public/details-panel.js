@@ -1,5 +1,5 @@
 import { createPagination } from './pagination.js';
-import { money, date, time, fmtInt, quantity } from './format.js';
+import { money, date, time, fmtInt, quantity, formatCnpj, formatCpfCnpj } from './format.js';
 import { detailDocumentPath } from '../src/browser/detail-url.js';
 import { controlLink, indexedDocumentFields } from '../src/document-details.js';
 
@@ -75,7 +75,7 @@ function appendFields(container,fields,className='related-values') {
   const values=el('dl',undefined,className);
   for(const field of fields){
     const wrap=el('div'),value=el('dd');
-    const text=field.value==null?'—':field.type==='decimal'?money(field.value):field.type==='date'?date(field.value):field.type==='datetime'?time(field.value):field.type==='boolean'?(field.value?'Sim':'Não'):String(field.value);
+    const text=field.value==null?'—':field.type==='decimal'?money(field.value):field.type==='date'?date(field.value):field.type==='datetime'?time(field.value):field.type==='boolean'?(field.value?'Sim':'Não'):field.type==='cnpj'?formatCnpj(field.value):field.type==='cpf-cnpj'?formatCpfCnpj(field.value):String(field.value);
     const link=field.url?safeAnchor(text,field.url):null;
     if(link)value.append(link);else value.textContent=text;
     wrap.append(el('dt',field.title),value);values.append(wrap);
