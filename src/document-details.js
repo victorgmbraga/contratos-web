@@ -22,7 +22,7 @@ const indexedDefinitions=[
   ['data_publicacao_pncp','Publicação no PNCP','date'],['data_atualizacao_pncp','Última atualização','date'],['data_assinatura','Assinatura','date'],['data_inicio_vigencia','Início da vigência','date'],['data_fim_vigencia','Fim da vigência','date'],['data_inicio_recebimento_propostas','Início do recebimento de propostas (campo PNCP)','datetime'],['data_fim_recebimento_propostas','Fim do recebimento de propostas (campo PNCP)','datetime'],['prazo_manifestacao_interesse','Prazo de manifestação de interesse','date'],
   ['valor_total_estimado','Valor total estimado','decimal'],['valor_total_homologado','Valor total homologado','decimal'],['valor_global','Valor global','decimal'],['srp','Sistema de Registro de Preços','boolean'],['tem_resultado','Tem resultado','boolean'],['tem_ata_registro_preco','Tem ata de registro de preços','boolean'],['tem_contrato_empenho','Tem contrato/empenho','boolean'],['tem_nfe_contrato','Tem NF-e de contrato','boolean'],['possui_nfe','Possui NF-e','boolean'],['cancelado','Cancelado','boolean'],['permite_adesao','Permite adesão','boolean'],['indicador_orcamento_sigiloso','Orçamento sigiloso','boolean'],['exigencia_conteudo_nacional','Exigência de conteúdo nacional','boolean'],['possui_emenda_parlamentar','Possui emenda parlamentar','boolean'],['incentivo_produtivo_basico','Incentivo produtivo básico','boolean'],['aplicabilidade_margem_preferencia','Aplicabilidade da margem de preferência','boolean'],['aplicabilidade_margem_preferencia_normal','Margem de preferência normal','boolean'],['aplicabilidade_margem_preferencia_adicional','Margem de preferência adicional','boolean'],['tipo_item_irp','Tipo de item do IRP'],
   ['amparo_legal_nome','Amparo legal'],['amparo_legal_id','ID do amparo legal'],['normativo_base_nome','Normativo base'],['normativo_base_id','ID do normativo base'],['modo_disputa_nome','Modo de disputa'],['modo_disputa_id','ID do modo de disputa'],['criterio_julgamento_nome','Critério de julgamento'],['criterio_julgamento_id','ID do critério de julgamento'],['tipo_margem_preferencia_nome','Tipo de margem de preferência'],['tipo_margem_preferencia_id','ID do tipo de margem de preferência'],['tipo_margem_preferencia','Tipo de margem de preferência'],
-  ['fonte_orcamentaria_nome','Fonte orçamentária'],['fonte_orcamentaria_id','ID da fonte orçamentária'],['usuario_nome','Fonte'],['usuario_id','ID da fonte/plataforma'],['link_processo_eletronico','Link do processo eletrônico','link'],
+  ['fonte_orcamentaria_nome','Fonte orçamentária'],['fonte_orcamentaria_id','ID da fonte orçamentária'],['usuario_nome','Fonte'],['usuario_id','ID da fonte/plataforma'],['link_processo_eletronico','Processo eletrônico','link'],
   ['orgao_nome','Órgão'],['orgao_cnpj','CNPJ do órgão'],['orgao_id','ID do órgão'],['unidade_nome','Unidade'],['unidade_codigo','Código da unidade'],['unidade_id','ID da unidade'],['uf','UF'],['municipio_nome','Município'],['municipio_id','ID do município'],['codigo_ibge','Código IBGE'],['esfera_nome','Esfera'],['esfera_id','ID da esfera'],['poder_nome','Poder'],['poder_id','ID do poder'],
   ['orgao_subrogado_nome','Órgão sub-rogado'],['orgao_subrogado_cnpj','CNPJ do órgão sub-rogado'],['orgao_subrogado_id','ID do órgão sub-rogado'],['unidade_subrogada_nome','Unidade sub-rogada'],['unidade_subrogada_codigo','Código da unidade sub-rogada'],['unidade_subrogada_id','ID da unidade sub-rogada'],['unidade_subrogada_municipio_nome','Município da unidade sub-rogada'],['unidade_subrogada_municipio_id','ID do município da unidade sub-rogada'],['unidade_subrogada_uf','UF da unidade sub-rogada'],
   ['fornecedor_nome','Fornecedor'],['fornecedor_ni','CPF/CNPJ do fornecedor'],['fornecedor_tipo_pessoa','Tipo de pessoa do fornecedor'],['fornecedor_id','ID do fornecedor'],['fornecedor_subcontratado_nome','Fornecedor subcontratado'],['fornecedor_subcontratado_ni','CPF/CNPJ do fornecedor subcontratado'],['fornecedor_subcontratado_tipo_pessoa','Tipo de pessoa do fornecedor subcontratado'],['fornecedor_subcontratado_id','ID do fornecedor subcontratado'],
@@ -103,6 +103,15 @@ function promoteSource(fields,name,url) {
   if(url)source.url=url;else delete source.url;
   fields.splice(Math.min(1,fields.length),0,source);
 }
+function promoteElectronicProcess(fields,name) {
+  const index=fields.findIndex(field=>field.field===name);
+  if(index<0)return;
+  const [process]=fields.splice(index,1);
+  process.title='Processo eletrônico';
+  if(process.url)process.value='Link';
+  const source=fields.findIndex(field=>['usuario_nome','usuarioNome'].includes(field.field));
+  fields.splice(Math.min(source>=0?source+1:1,fields.length),0,process);
+}
 export function indexedDocumentFields(record) {
   assert(record && typeof record==='object' && !Array.isArray(record),'INVALID_UPSTREAM','Documento PNCP inválido.',502);
   const type=scalarText(record.document_type),fields=[],seen=new Set();
@@ -125,6 +134,7 @@ export function indexedDocumentFields(record) {
     fields.push(indexedField(key,indexedLabel(key),indexedType(key,normalized),normalized));
   }
   promoteSource(fields,'usuario_nome',safeLink(record.link_sistema_origem));
+  promoteElectronicProcess(fields,'link_processo_eletronico');
   return fields;
 }
 const organizationFields=[field('numeroControlePNCP','Controle PNCP','text',true),field('orgaoEntidade.razaoSocial','Órgão','text',true),field('orgaoEntidade.cnpj','CNPJ do órgão','text',true),field('unidadeOrgao.nomeUnidade','Unidade','text',true),field('unidadeOrgao.codigoUnidade','Código da unidade'),field('unidadeOrgao.ufSigla','UF','text',true),field('unidadeOrgao.municipioNome','Município','text',true),field('orgaoEntidade.esferaId','Esfera'),field('orgaoEntidade.poderId','Poder'),field('orgaoSubRogado.razaoSocial','Órgão sub-rogado'),field('orgaoSubRogado.cnpj','CNPJ do órgão sub-rogado'),field('unidadeSubRogada.nomeUnidade','Unidade sub-rogada'),field('unidadeSubRogada.codigoUnidade','Código da unidade sub-rogada'),field('unidadeSubRogada.municipioNome','Município da unidade sub-rogada'),field('unidadeSubRogada.ufSigla','UF da unidade sub-rogada')];
@@ -153,7 +163,7 @@ function read(record,path) {
 const nativeLabels={
   tipoInstrumentoConvocatorioNome:'Tipo de instrumento convocatório',objetoCompra:'Objeto',
   srp:'Sistema de Registro de Preços',orcamentoSigilosoDescricao:'Orçamento sigiloso',modoDisputaNome:'Modo de disputa',
-  numeroControlePncpCompra:'Contratação de origem',numeroControlePncpAta:'Ata de origem',usuarioNome:'Fonte',
+  numeroControlePncpCompra:'Contratação de origem',numeroControlePncpAta:'Ata de origem',usuarioNome:'Fonte',linkProcessoEletronico:'Processo eletrônico',
   'orgaoEntidade.esferaId':'Esfera','orgaoEntidade.poderId':'Poder','unidadeOrgao.codigoUnidade':'Código da unidade',
   'orgaoSubRogado.razaoSocial':'Órgão sub-rogado','orgaoSubRogado.cnpj':'CNPJ do órgão sub-rogado','unidadeSubRogada.nomeUnidade':'Unidade sub-rogada','unidadeSubRogada.codigoUnidade':'Código da unidade sub-rogada','unidadeSubRogada.municipioNome':'Município da unidade sub-rogada','unidadeSubRogada.ufSigla':'UF da unidade sub-rogada',
 };
@@ -216,6 +226,7 @@ export function recordFields(kind,record) {
   if(kind==='edital'){
     fields.push(...nativeExtraFields(record,new Set(definitions.edital.map(definition=>definition.path))));
     promoteSource(fields,'usuarioNome',safeLink(record.linkSistemaOrigem));
+    promoteElectronicProcess(fields,'linkProcessoEletronico');
   }
   return fields;
 }
