@@ -63,7 +63,21 @@ function indexedLabel(path) {
     id:'ID',url:'URL',pncp:'PNCP',nfe:'NF-e',cnpj:'CNPJ',cpf:'CPF',uf:'UF',srp:'SRP',ibge:'IBGE',irp:'IRP',
   })[part.toLocaleLowerCase('pt-BR')] || part.charAt(0).toLocaleUpperCase('pt-BR')+part.slice(1)).join(' ');
 }
-const indexedPair=path=>path.endsWith('_id')?path.slice(0,-3)+'_nome':null;
+// A domain code or identifier is redundant when its name/description is available.
+const descriptionPairs=[
+  ['_codigo',['_descricao']],['_code',['_description']],['_id',['_nome','_descricao']],
+  ['Codigo',['Descricao','Nome']],['Código',['Descrição','Nome']],['Code',['Description','Name']],
+  ['Id',['Nome','Descricao']],['ID',['Nome','Descricao']],
+  ['.codigo',['.descricao','.nome']],['.id',['.nome','.descricao']],
+];
+function descriptionCounterparts(path){
+  for(const [suffix,candidates]of descriptionPairs){
+    if(path.length<=suffix.length || !path.endsWith(suffix))continue;
+    const prefix=path.slice(0,-suffix.length);
+    return candidates.map(candidate=>prefix+candidate);
+  }
+  return [];
+}
 const omittedFields=new Set([
   'item_url','link_sistema_origem','itemUrl','linkSistemaOrigem','site_url','siteUrl',
   'document_type','documentType','description','index','doc_type','docType',
@@ -81,11 +95,11 @@ function indexedField(path,title,type,value) {
 export function indexedDocumentFields(record) {
   assert(record && typeof record==='object' && !Array.isArray(record),'INVALID_UPSTREAM','Documento PNCP inválido.',502);
   const type=scalarText(record.document_type),fields=[],seen=new Set();
+  const hasDescription=path=>descriptionCounterparts(path).some(pair=>hasIndexedValue(record[pair]));
   for(const definition of indexedDefinitions){
     seen.add(definition.path);
     if(definition.path==='id' || omittedFields.has(definition.path))continue;
-    const pair=indexedPair(definition.path);
-    if(pair && hasIndexedValue(record[pair]))continue;
+    if(hasDescription(definition.path))continue;
     const value=indexedValue(record[definition.path]);
     if(value==null)continue;
     const fieldType=indexedTypes[definition.path]?.[type] || definition.type,resolvedType=fieldType==='datetime' && !/\d{1,2}:\d{2}/.test(String(value))?'date':fieldType;
@@ -94,8 +108,7 @@ export function indexedDocumentFields(record) {
   }
   for(const [key,value] of Object.entries(record)){
     if(seen.has(key) || key.startsWith('_') || key==='id' || omittedFields.has(key))continue;
-    const pair=indexedPair(key);
-    if(pair && hasIndexedValue(record[pair]))continue;
+    if(hasDescription(key))continue;
     const normalized=indexedValue(value);
     if(normalized==null)continue;
     fields.push(indexedField(key,indexedLabel(key),indexedType(key,normalized),normalized));
@@ -127,6 +140,7 @@ function read(record,path) {
 }
 const nativeLabels={
   numeroCompra:'Número da contratação',anoCompra:'Ano da contratação',tipoInstrumentoConvocatorioNome:'Tipo de instrumento convocatório',objetoCompra:'Objeto',
+  orcamentoSigilosoDescricao:'Orçamento sigiloso',modoDisputaNome:'Modo de disputa',
   numeroControlePncpCompra:'Contratação de origem',numeroControlePncpAta:'Ata de origem',usuarioNome:'Sistema publicador',
   'orgaoEntidade.esferaId':'Esfera','orgaoEntidade.poderId':'Poder','unidadeOrgao.codigoUnidade':'Código da unidade',
   'orgaoSubRogado.razaoSocial':'Órgão sub-rogado','orgaoSubRogado.cnpj':'CNPJ do órgão sub-rogado','unidadeSubRogada.nomeUnidade':'Unidade sub-rogada','unidadeSubRogada.codigoUnidade':'Código da unidade sub-rogada','unidadeSubRogada.municipioNome':'Município da unidade sub-rogada','unidadeSubRogada.ufSigla':'UF da unidade sub-rogada',
@@ -155,24 +169,24 @@ function nativeExtraField(path,value) {
 }
 function nativeExtraFields(record,curated) {
   record=displayValue(record);
-  const fields=[];
+  const leaves=[];
   const walk=(value,path)=>{
     if(path && omittedFields.has(path))return;
-    if(value==null || value==='')return;
+    if(value==null || value==='' || Array.isArray(value) && !value.length)return;
     if(Array.isArray(value) || typeof value==='object'){
-      if(Array.isArray(value) && value.every(item=>item==null || typeof item!=='object')){
-        if(!curated.has(path)){const item=nativeExtraField(path,value);if(item)fields.push(item);}
-        return;
-      }
-      if(Array.isArray(value)){if(!curated.has(path)){const item=nativeExtraField(path,value);if(item)fields.push(item);}return;}
+      if(Array.isArray(value)){leaves.push({path,value});return;}
       for(const [key,item] of Object.entries(value))walk(item,path?`${path}.${key}`:key);
       return;
     }
-    if(curated.has(path))return;
-    const item=nativeExtraField(path,value);if(item)fields.push(item);
+    leaves.push({path,value});
   };
   walk(record,'');
-  return fields;
+  // Curated fields are still considered as descriptions for their code pairs.
+  const described=new Set(leaves.map(({path})=>path));
+  return leaves
+    .filter(({path})=>!curated.has(path) && !descriptionCounterparts(path).some(pair=>described.has(pair)))
+    .map(({path,value})=>nativeExtraField(path,value))
+    .filter(Boolean);
 }
 export function recordFields(kind,record) {
   assert(record && typeof record==='object' && !Array.isArray(record),'INVALID_UPSTREAM','Documento PNCP inválido.',502);
