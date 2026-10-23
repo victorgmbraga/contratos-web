@@ -100,7 +100,9 @@ export function project(raw) {
     return [key,scalarText(value)];
   }));
   if(raw.tem_resultado!==undefined && raw.tem_resultado!==null && typeof raw.tem_resultado!=='boolean')fail('INVALID_UPSTREAM','tem_resultado não é booleano no PNCP.',502);
-  Object.assign(result, { valor_total_estimado: decimalText(raw.valor_total_estimado), valor_total_homologado: decimalText(raw.valor_total_homologado), tem_resultado: typeof raw.tem_resultado === 'boolean' ? raw.tem_resultado : null, link_sistema_origem: safeLink(raw.link_sistema_origem), url_pncp: safeLink(raw.item_url, true), _identity: identity(raw), _purchase: purchaseIdentity(raw), _document:documentIdentity(raw), _raw: plain(raw) });
+  Object.assign(result, { valor_total_estimado: decimalText(raw.valor_total_estimado), valor_total_homologado: decimalText(raw.valor_total_homologado), tem_resultado: typeof raw.tem_resultado === 'boolean' ? raw.tem_resultado : null, link_sistema_origem: safeLink(raw.link_sistema_origem), url_pncp: safeLink(raw.item_url, true), _identity: identity(raw), _purchase: purchaseIdentity(raw), _document:documentIdentity(raw) });
+  // Somente editais consomem o registro bruto no painel; os demais tipos não o transportam.
+  if(raw.document_type==='edital')result._raw=plain(raw);
   if(raw.document_type==='ata')for(const field of ['cancelado','permite_adesao']){
     assert(raw[field]==null || typeof raw[field]==='boolean','INVALID_UPSTREAM',`${field} não é booleano no PNCP.`,502);
     result[field]=raw[field] ?? null;

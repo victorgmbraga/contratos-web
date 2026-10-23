@@ -179,7 +179,7 @@ Cada capacidade também informa `label`, `group`, `input_hint`, `help_text`, `ca
 
 Com zero resultados, `data` é vazio e `last_page` é `1`. Uma página além do resultado atual gera `PAGE_OUT_OF_RANGE`.
 
-Os campos documentais são definidos em [`src/schema.js`](../src/schema.js). Cada documento também contém `_identity`, `_document`, `_purchase` e `_raw`: identidade de negócio, identificadores originais por tipo, identificadores de itens (somente editais) e registro original normalizado. Valores monetários projetados são strings decimais, e ausências são `null`. Na projeção, o tipo fica em `tipo_documento`, derivado de `document_type` da fonte; `doc_type` é apenas metadado do índice. Nos dados originais e itens, inteiros seguros podem ser números; decimais e inteiros fora da faixa segura são preservados como strings.
+Os campos documentais são definidos em [`src/schema.js`](../src/schema.js). Cada documento também contém `_identity`, `_document`, `_purchase` e, somente nos editais, `_raw`: identidade de negócio, identificadores originais por tipo, identificadores de itens (somente editais) e registro original normalizado, que alimenta os campos indexados do painel. Atas e contratos carregam os detalhes nativos e não transportam o registro bruto; com a falha dessa consulta, o painel mantém os campos projetados pela busca. Valores monetários projetados são strings decimais, e ausências são `null`. Na projeção, o tipo fica em `tipo_documento`, derivado de `document_type` da fonte; `doc_type` é apenas metadado do índice. Nos dados originais e itens, inteiros seguros podem ser números; decimais e inteiros fora da faixa segura são preservados como strings.
 
 ## Domínios e sugestões
 
