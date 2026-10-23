@@ -426,7 +426,9 @@ test('EXPORT-UI-04: uma nova consulta cancela a exportação e descarta seu down
   const ui=await interfaceFixture({exportHandler:(input,options)=>{signal=options.signal;return new Promise(resolve=>{finish=()=>resolve({chunks:[new TextEncoder().encode('csv antigo')],metadata:{exported_rows:1}});});}});
   const exporting=ui.nodes.get('export-button').fire('click');await settle();
   await ui.request({page:1});assert.equal(signal.aborted,true);assert.equal(ui.nodes.get('export-button').disabled,false);
-  finish();await exporting;assert.equal(ui.downloads.length,0);assert.equal(ui.nodes.get('notice').hidden,true);
+  assert.match(ui.nodes.get('notice-message').textContent,/exportação em andamento foi cancelada pela nova consulta/i);
+  assert.equal(ui.nodes.get('notice').className,'notice warning');
+  finish();await exporting;assert.equal(ui.downloads.length,0);assert.equal(ui.nodes.get('notice').hidden,false);
   assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'false');
 });
 

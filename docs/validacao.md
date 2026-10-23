@@ -18,6 +18,14 @@ O Prettier fica disponível para uso pontual em arquivos alterados ([`.prettierr
 npm test
 ```
 
+A cobertura é conferida pelo mesmo conjunto:
+
+```sh
+npm run test:coverage
+```
+
+O runner mede linhas, branches e funções de `src/` e `public/` e falha abaixo de 78%, 88% e 84%. O workflow de validação executa essa etapa depois dos testes.
+
 O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 
 - Critérios, tipos documentais, os 80 filtros, domínios, formatos, intervalos, precisão decimal e identificadores.

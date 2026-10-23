@@ -26,7 +26,7 @@ let filterOptionsCache;
 let selectMenus;
 const filterFields=new Map();
 let openFilterEditor=null;
-let urlMode='replace',urlError=null,tableReady=false,queryRequested=false;
+let urlMode='replace',urlError=null,tableReady=false,queryRequested=false,exportWarning=false;
 const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-page-button','export-button','cancel-export-button'];
 const renderCell=createCellRenderer(el);
 const columnLayout=createColumnLayout({window,state});
@@ -190,6 +190,7 @@ function renderResult(result,query) {
   tooltips.hideWindowTooltip();
   const warnings=result.warnings.filter(w=>w.code!=='WINDOW_LIMITED');
   notice(warnings.map(w=>w.message).join('\n'),warnings.length?'warning':'');
+  if(exportWarning){notice('A exportação em andamento foi cancelada pela nova consulta.','warning');exportWarning=false;}
   state.table.renderPage({rows:result.data,page:result.page,pageSize:result.size,lastPage:result.last_page});
   status(result.data.length?'success':'empty');
 }
@@ -199,7 +200,9 @@ async function loadResultsPage(targetPage,{force=false,cache=false}={}) {
   const query=clone(state.query);
   query.page=Number(targetPage || 1);query.size=TABLE_PAGE_SIZE;
   state.query.page=query.page;urlError=null;
+  const supersededExport=!!state.exportAbort;
   state.abort?.abort();state.exportAbort?.abort();state.exportSeq++;state.exportAbort=null;
+  if(supersededExport)exportWarning=true;
   const seq=++state.seq;const controller=new AbortController();state.abort=controller;
   const cached=cache && !force?takeCachedResult(query):null;
   if(cached){state.abort=null;syncQueryUrl(query);renderResult(cached,query);return cached;}
@@ -212,8 +215,9 @@ async function loadResultsPage(targetPage,{force=false,cache=false}={}) {
     storeCachedResult(query,result);renderResult(result,query);setConnectivity('');return result;
   }catch(error) {
     if(seq===state.seq) {
+      exportWarning=false;
       if(error.name==='AbortError'){status('cancelled');notice('Consulta cancelada. Nenhum novo resultado foi aplicado.','warning');}
-      else {status('error');notice(`${error.message}${error.code?' ['+error.code+']':''}${state.lastResult?'\nA tabela mantém o resultado anterior.':''}`,'error');if(error.retryable || ['PNCP_UNAVAILABLE','PNCP_TRANSPORT_ERROR','PNCP_TIMEOUT','OPERATION_TIMEOUT'].includes(error.code))setConnectivity('O PNCP está instável. A tabela mantém o último resultado confirmado.','warning');}
+      else {status('error');$('notice').dataset.code=error.code || '';notice(`${error.message}${state.lastResult?'\nA tabela mantém o resultado anterior.':''}`,'error');if(error.retryable || ['PNCP_UNAVAILABLE','PNCP_TRANSPORT_ERROR','PNCP_TIMEOUT','OPERATION_TIMEOUT'].includes(error.code))setConnectivity('O PNCP está instável. A tabela mantém o último resultado confirmado.','warning');}
     }
     throw error;
   }finally{if(seq===state.seq)state.abort=null;}
@@ -577,7 +581,7 @@ async function exportCsv(scope='all') {
     const blob=new Blob(result.chunks,{type:result.mime});
     const href=URL.createObjectURL(blob),link=el('a');link.href=href;link.download=result.filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(href),10000);
     notice(`${result.metadata.exported_rows} linhas exportadas${scope==='page'?` (página ${result.metadata.page})`:''}.`);
-  }catch(error){if(seq===state.exportSeq && error.name!=='AbortError')notice(`Falha ao exportar CSV: ${error.message}${error.code?' ['+error.code+']':''}`,'error');}
+  }catch(error){if(seq===state.exportSeq && error.name!=='AbortError'){$('notice').dataset.code=error.code || '';notice(`Falha ao exportar CSV: ${error.message}`,'error');}}
   finally{if(seq===state.exportSeq){state.exportAbort=null;updateExportButton();}}
 }
 async function init() {

@@ -32,6 +32,7 @@ Abra [http://localhost:8000](http://localhost:8000). As consultas reais precisam
 | `npm run demo` | Iniciar com dados fictícios |
 | `npm run lint` | Verificar o código com ESLint |
 | `npm test` | Executar os testes automatizados |
+| `npm run test:coverage` | Executar os testes e conferir a cobertura mínima |
 | `npm run build` | Gerar a distribuição estática em `dist-browser/` |
 | `npm run preview` | Servir o build localmente |
 | `npm run test:budget` | Conferir os limites de tamanho do build (requer `npm run build`) |

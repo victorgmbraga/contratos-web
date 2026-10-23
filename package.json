@@ -13,6 +13,7 @@
     "dev": "vite",
     "demo": "vite --mode demo",
     "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=78 --test-coverage-branches=88 --test-coverage-functions=84 test/*.test.js",
     "test:budget": "node test/performance-budget.mjs",
     "lint": "eslint .",
     "format": "prettier --write \"{src,public,test}/**/*.{js,mjs,css,html}\" \"vite.config.js\" \"eslint.config.js\"",
