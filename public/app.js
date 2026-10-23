@@ -1,12 +1,15 @@
 import { createFilterOptionsCache } from '../src/browser/filter-options-cache.js';
 import { readQueryUrl, writeQueryUrl } from '../src/browser/query-url.js';
-import { readDetailUrl, writeDetailUrl, detailDocumentPath } from '../src/browser/detail-url.js';
-import { controlLink, indexedDocumentFields } from '../src/document-details.js';
+import { readDetailUrl, writeDetailUrl } from '../src/browser/detail-url.js';
 import { compareDecimal } from '../src/validation.js';
 import { createResultsTable } from './results-table.js';
-import { createPagination, paginationIcons } from './pagination.js';
+import { paginationIcons } from './pagination.js';
 import { initializeMobileLayout } from './mobile-layout.js';
 import { initializeSelectMenus } from './select-menu.js';
+import { fmtInt, createCellRenderer } from './format.js';
+import { createColumnLayout } from './column-layout.js';
+import { createTooltips } from './tooltips.js';
+import { createDetailsPanel } from './details-panel.js';
 
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
 const $ = id => document.getElementById(id);
@@ -14,35 +17,9 @@ const el = (tag, text, className) => { const node=document.createElement(tag); i
 const clone = value => structuredClone(value);
 const documentName=(type=state.query.document_type)=>state.schema.document_types.find(d=>d.id===type);
 const TABLE_PAGE_SIZE = 100;
-const DETAIL_PAGE_SIZE = 10;
 const RESULT_CACHE_TTL = 30000;
 const RESULT_CACHE_LIMIT = 20;
-const COLUMN_LAYOUT_PREFIX = 'contratos-web:columns:v1:';
-// Situação da Contratação: PNCP, Manual de Integração, tabela de domínio 7.13.
-const purchaseStatusClasses=new Map([
-  ['divulgada no pncp','status-cell--divulgada'],
-  ['revogada','status-cell--revogada'],
-  ['anulada','status-cell--anulada'],
-  ['suspensa','status-cell--suspensa'],
-]);
 const filterHeaderIcon='<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M7 12h10m-7 5h4"/></svg>';
-const integerFormatter=new Intl.NumberFormat('pt-BR'),timeFormatter=new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'medium'});
-const fmtInt = value => integerFormatter.format(value);
-const time = value => {if(!value)return '—';const parsed=new Date(value);return Number.isNaN(parsed.getTime())?String(value):timeFormatter.format(parsed);};
-const date = value => value ? (/^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0,10).split('-').reverse().join('/') : value) : '—';
-function quantity(value) {
-  if(value===null || value===undefined)return '—';
-  const match=String(value).match(/^(-?)(\d+)(?:\.(\d+))?$/);
-  if(!match)return String(value);
-  const fraction=(match[3] || '').replace(/0+$/,'');
-  return `${match[1]}${match[2].replace(/\B(?=(\d{3})+(?!\d))/g,'.')}${fraction?','+fraction:''}`;
-}
-function money(value) {
-  if(value===null || value===undefined)return '—';
-  const match=String(value).match(/^(-?)(\d+)(?:\.(\d+))?$/);
-  if(!match)return String(value);
-  return `${match[1]}R$ ${match[2].replace(/\B(?=(\d{3})+(?!\d))/g,'.')},${(match[3] || '').padEnd(2,'0')}`;
-}
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
 const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,seq:0,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,domainSeq:0,legalAbort:null,legalSeq:0,legalPending:false,legalError:false,detailAbort:null,detailSeq:0,detailSelection:null,detailDoc:null,detailActivate:null,exportAbort:null,exportSeq:0,resultCache:new Map()};
 let filterOptionsCache;
@@ -51,24 +28,10 @@ const filterFields=new Map();
 let openFilterEditor=null;
 let urlMode='replace',urlError=null,tableReady=false,queryRequested=false;
 const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-page-button','export-button','cancel-export-button'];
-function storageArea() { try { return window.localStorage; } catch { return null; } }
-function columnLayoutKey(type) { return COLUMN_LAYOUT_PREFIX + type; }
-function readColumnLayout(type) {
-  try {
-    const raw=storageArea()?.getItem(columnLayoutKey(type));
-    if(!raw)return null;
-    const value=JSON.parse(raw);
-    if(!value || !Array.isArray(value.order) || typeof value.visible!=='object' || typeof value.width!=='object')return null;
-    return value;
-  } catch { return null; }
-}
-function saveColumnLayout(columns) {
-  const type=state.query?.document_type;if(!type)return;
-  try {
-    storageArea()?.setItem(columnLayoutKey(type),JSON.stringify({order:columns.map(column=>column.field),visible:Object.fromEntries(columns.map(column=>[column.field,!!column.visible])),width:Object.fromEntries(columns.map(column=>[column.field,column.width]))}));
-  } catch { /* Storage may be blocked; the layout remains valid for this page. */ }
-}
-function clearColumnLayout(type) { try { storageArea()?.removeItem(columnLayoutKey(type)); } catch { /* Ignore unavailable storage. */ } }
+const renderCell=createCellRenderer(el);
+const columnLayout=createColumnLayout({window,state});
+const tooltips=createTooltips({window,state,$,toolbarButtonIds});
+const details=createDetailsPanel({document,window,service,state,$,el,documentName,openDialog,syncDetailUrl,refreshSelects:node=>selectMenus?.refresh(node)});
 function resultCacheKey(query) { return writeQueryUrl('https://cache.invalid/',query,state.schema); }
 function pruneResultCache() {
   const now=Date.now();
@@ -100,76 +63,11 @@ function readLocationState() {
   if(selection && !href.searchParams.has('tipos_documento'))href.searchParams.set('tipos_documento',selection.document.type);
   return {query:readQueryUrl(href.href,state.schema,TABLE_PAGE_SIZE),selection};
 }
-function closeDetails(sync=true) {
-  const previous=state.detailSelection;
-  state.detailAbort?.abort();state.detailSeq++;state.detailSelection=null;state.detailDoc=null;state.detailActivate=null;
-  if($('details-dialog').open)$('details-dialog').close();
-  if(sync && previous)syncDetailUrl();
-}
-function sameDocument(left,right) {
-  return !!left && !!right && detailDocumentPath(left)===detailDocumentPath(right);
-}
-function directDetailRow(document) {
-  const {type,cnpj,ano,sequencial,sequencial_compra}=document;
-  const control=cnpj+'-'+(type==='contrato'?'2':'1')+'-'+String(type==='ata'?sequencial_compra:sequencial).padStart(6,'0')+'/'+ano+(type==='ata'?'-'+sequencial.padStart(6,'0'):'');
-  return {tipo_documento:type,titulo:control,numero_controle_pncp:control,orgao_cnpj:cnpj,url_pncp:controlLink(control),_document:document,_purchase:type==='edital'?{cnpj,ano,sequencial}:null,_detail_from_url:true,_direct_link:true};
-}
-function restoreDetailSelection(selection,searchReady=Promise.resolve()) {
-  if(!selection){closeDetails(false);return Promise.resolve();}
-  if($('details-dialog').open && sameDocument(state.detailSelection?.document,selection.document)) {
-    state.detailActivate(selection.tab);return Promise.resolve();
-  }
-  const indexed=state.lastResult?.data.find(doc=>sameDocument(detailIdentity(doc),selection.document));
-  const row=indexed?{...indexed,_direct_link:true}:directDetailRow(selection.document);
-  return openDetails(row,{tab:selection.tab,sync:false,searchReady});
-}
-async function searchRowFor(identity,searchReady,doc,signal) {
-  const control=doc.numero_controle_pncp;
-  const matches=row=>sameDocument(detailIdentity(row),identity) || !!(control && row.numero_controle_pncp===control);
-  const find=()=>state.lastResult?.data.find(matches) || null;
-  const found=find();if(found)return found;
-  await Promise.resolve(searchReady).catch(()=>{});
-  const indexed=find();if(indexed)return indexed;
-  if(!control)return null;
-  try {
-    const query={api_version:'2.0',document_type:doc.tipo_documento,q:control,status:'todos',pncp_filters:{},order:'-data',page:1,size:10};
-    const result=await service.call('execute',{query},{signal});
-    return result.data.find(matches) || null;
-  } catch { return null; }
-}
 function invalidQueryUrl(error) {
   urlError=error;status('error');$('retry-button').hidden=true;$('clear-button').hidden=false;
   notice(`Parâmetros inválidos na URL: ${error.message} Corrija o link ou ajuste os critérios e pesquise novamente.`,'error');
 }
 function notice(message,kind='') { $('notice-message').textContent=message;$('notice').className='notice '+kind;$('notice').hidden=!message; }
-function hideWindowTooltip() { $('window-warning-tooltip').hidden=true; }
-function hideTooltips() {
-  hideWindowTooltip();
-  for(const id of toolbarButtonIds)$(`${id}-tooltip`).hidden=true;
-  $('repository-link-tooltip').hidden=true;
-}
-function bindTooltip(marker,tooltip) {
-  const show=()=>showTooltip(marker,tooltip),hide=()=>{tooltip.hidden=true;};
-  marker.addEventListener('mouseenter',show);marker.addEventListener('mouseleave',hide);
-  marker.addEventListener('focus',show);marker.addEventListener('blur',hide);
-  marker.addEventListener('click',hide);
-}
-function showTooltip(marker,tooltip) {
-  if(marker.hidden || !tooltip.textContent)return;
-  hideTooltips();
-  tooltip.hidden=false;
-  positionTooltip(marker,tooltip);
-}
-function positionTooltip(marker,tooltip) {
-  const anchor=marker.getBoundingClientRect(),box=tooltip.getBoundingClientRect(),gap=8;
-  const left=Math.max(gap,Math.min(anchor.left+(anchor.width-box.width)/2,window.innerWidth-box.width-gap));
-  const above=anchor.top-box.height-gap;
-  const top=above>=gap?above:Math.min(anchor.bottom+gap,window.innerHeight-box.height-gap);
-  tooltip.style.left=`${left}px`;tooltip.style.top=`${Math.max(gap,top)}px`;
-}
-function showWindowTooltip() {
-  if(state.status!=='loading')showTooltip($('window-warning'),$('window-warning-tooltip'));
-}
 function setMobileView(view) {
   if(!['cards','table'].includes(view))return;
   state.table?.setMobileView?.(view);
@@ -199,7 +97,7 @@ function updateExportButton() {
 function status(value,query=state.query) {
   state.status=value;
   const busy=value==='loading';
-  if(busy)hideTooltips();
+  if(busy)tooltips.hideTooltips();
   $('table-loader').hidden=!busy;
   $('results-table').setAttribute('aria-busy',String(busy));$('results-table').inert=busy;
   state.table?.setStatus(value);
@@ -214,10 +112,10 @@ function status(value,query=state.query) {
   updateExportButton();
   $('search-button').disabled=false;
 }
-function openDialog(id) { hideTooltips();const dialog=$(id);if(!dialog.open)dialog.showModal(); }
+function openDialog(id) { tooltips.hideTooltips();const dialog=$(id);if(!dialog.open)dialog.showModal(); }
 function closeDialog(dialog) { dialog.close(); }
 document.addEventListener('keydown',event=>{
-  if(event.key==='Escape')hideTooltips();
+  if(event.key==='Escape')tooltips.hideTooltips();
 });
 for(const dialog of document.querySelectorAll('dialog')) {
   dialog.addEventListener('click',event=>{if(event.target===dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom)closeDialog(dialog);}});
@@ -238,18 +136,6 @@ function updateCriteria() {
     $('native-chips').append(el('span',`${filterLabel(key)}: ${label}`,'filter-chip'));
   }
   selectMenus?.refresh();
-}
-function renderCell(value,column) {
-    const node=el('span',value===null || value===undefined?'—':column.type==='date'?date(value):column.type==='decimal'?money(value):column.type==='boolean'?(value?'Sim':'Não'):String(value));
-    if(column.field==='objeto_compra'){node.className='object-text';node.title=value ?? '';}
-    if(column.type==='decimal')node.className='money-cell';
-    if(column.field==='situacao_compra_nome_pncp') {
-      const label=String(value ?? '').normalize('NFC').trim().replace(/\s+/g,' ');
-      node.className=`status-cell ${purchaseStatusClasses.get(label.toLocaleLowerCase('pt-BR')) || 'status-cell--unknown'}`;
-      if(!label)node.textContent='—';
-      node.title=label || 'Situação não informada';
-    }
-    return node;
 }
 function renderCard(doc) {
   const content=el('div'),heading=el('h2'),open=el('button',doc.titulo || 'Documento sem título','result-card-open');
@@ -301,7 +187,7 @@ function renderResult(result,query) {
   const windowWarning=result.warnings.find(w=>w.code==='WINDOW_LIMITED');
   $('window-warning').hidden=!windowWarning;
   $('window-warning-tooltip').textContent=windowWarning?.message || '';
-  hideWindowTooltip();
+  tooltips.hideWindowTooltip();
   const warnings=result.warnings.filter(w=>w.code!=='WINDOW_LIMITED');
   notice(warnings.map(w=>w.message).join('\n'),warnings.length?'warning':'');
   state.table.renderPage({rows:result.data,page:result.page,pageSize:result.size,lastPage:result.last_page});
@@ -337,7 +223,7 @@ function loadPage(page,mode='push',options={cache:true}) {
   return loadResultsPage(page,options).catch(()=>{});
 }
 function execute() {
-  closeDetails(false);
+  details.close(false);
   state.query.q=$('search').value;state.query.order=$('order').value;
   urlError=null;
   updateCriteria();
@@ -350,7 +236,7 @@ function renderFilterStatuses() {
 }
 function tableColumnDefinitions() {
   const columns=state.schema.columns,base=[columns.find(c=>c.field==='titulo'),...columns.filter(c=>c.field!=='titulo')].filter(Boolean);
-  const layout=readColumnLayout(state.query?.document_type),byField=new Map(base.map(column=>[column.field,column])),ordered=[];
+  const layout=columnLayout.read(state.query?.document_type),byField=new Map(base.map(column=>[column.field,column])),ordered=[];
   for(const field of layout?.order || []){const column=byField.get(field);if(column){ordered.push(column);byField.delete(field);}}
   ordered.push(...byField.values());
   return ordered.map(column=>{
@@ -370,12 +256,12 @@ function applyQuery(query,{preserveDetails=false}={}) {
   const type=query.document_type,typeChanged=type!==state.query.document_type;
   state.abort?.abort();state.exportAbort?.abort();stopFilterEditors();state.legalAbort?.abort();
   state.seq++;state.domainSeq++;state.legalSeq++;
-  $('filters-dialog').close();if(!preserveDetails)closeDetails(false);
+  $('filters-dialog').close();if(!preserveDetails)details.close(false);
   state.query=clone(query);state.domains=null;state.draft=null;urlError=null;
   $('search').value=query.q;
   if(typeChanged) {
     state.lastQuery=null;state.lastResult=null;
-    $('result-info').hidden=true;$('result-title').textContent='Resultados';$('window-warning').hidden=true;hideWindowTooltip();
+    $('result-info').hidden=true;$('result-title').textContent='Resultados';$('window-warning').hidden=true;tooltips.hideWindowTooltip();
     state.schema.columns=state.schema.columns_by_document[type];state.table.clear();
     state.table.setColumns(tableColumnDefinitions());renderColumnChoices();
   }
@@ -392,13 +278,13 @@ async function restoreQueryUrl() {
     const changed=!queryRequested || writeQueryUrl('https://query.invalid/',query,state.schema)!==writeQueryUrl('https://query.invalid/',state.query,state.schema);
     if(changed)applyQuery(query,{preserveDetails:true});
     let finishResults;const resultsReady=new Promise(resolve=>{finishResults=resolve;});
-    const details=restoreDetailSelection(selection,resultsReady);
+    const detailRestore=details.restore(selection,resultsReady);
     const results=changed?loadPage(query.page,'replace'):Promise.resolve();
     results.then(finishResults,finishResults);
     if(!changed)syncDetailUrl('replace');
-    await Promise.all([results,details]);
+    await Promise.all([results,detailRestore]);
   } catch(error) {
-    closeDetails(false);state.abort?.abort();state.exportAbort?.abort();state.seq++;state.exportSeq++;state.exportAbort=null;
+    details.close(false);state.abort?.abort();state.exportAbort?.abort();state.seq++;state.exportSeq++;state.exportAbort=null;
     invalidQueryUrl(error);
   }
 }
@@ -674,258 +560,6 @@ function renderSelectedOptions(editor) {
   const area=editor.selectedArea;area.replaceChildren();
   for(const option of editor.selected){const button=el('button',option.label+' ×','selected-option');button.type='button';button.setAttribute('aria-label',`Remover ${option.label} de ${editor.cap.label}`);button.addEventListener('click',async()=>{editor.selected=editor.selected.filter(o=>o.id!==option.id);await editFilter(editor);});area.append(button);}
 }
-function safeAnchor(label,value) {
-  try{const url=new URL(value);if(!['https:','http:'].includes(url.protocol) || url.username || url.password)return null;const link=el('a',label);link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';return link;}catch{return null;}
-}
-function detailScheduler() {
-  let active=0;const waiting=[];
-  function pump() {
-    while(active<2 && waiting.length) {
-      const job=waiting.shift();job.cleanup();
-      if(job.signal.aborted){job.reject(job.signal.reason);continue;}
-      active++;
-      Promise.resolve().then(()=>{job.signal.throwIfAborted();return job.task();}).then(job.resolve,job.reject).finally(()=>{active--;pump();});
-    }
-  }
-  return (task,signal)=>new Promise((resolve,reject)=>{
-    if(signal.aborted){reject(signal.reason);return;}
-    const job={task,signal,resolve,reject,cleanup:()=>signal.removeEventListener('abort',abort)};
-    const abort=()=>{const index=waiting.indexOf(job);if(index>=0){waiting.splice(index,1);job.cleanup();reject(signal.reason);}};
-    signal.addEventListener('abort',abort,{once:true});waiting.push(job);pump();
-  });
-}
-function detailIdentity(doc) {
-  const d=doc._document || (doc.tipo_documento==='edital' && doc._purchase?{type:'edital',...doc._purchase}:null);
-  if(!d)return null;
-  return d;
-}
-function appendFields(container,fields,className='related-values') {
-  const values=el('dl',undefined,className);
-  for(const field of fields){
-    const wrap=el('div'),value=el('dd');
-    const text=field.value==null?'—':field.type==='decimal'?money(field.value):field.type==='date'?date(field.value):field.type==='datetime'?time(field.value):field.type==='boolean'?(field.value?'Sim':'Não'):String(field.value);
-    const link=field.url?safeAnchor(text,field.url):null;
-    if(link)value.append(link);else value.textContent=text;
-    wrap.append(el('dt',field.title),value);values.append(wrap);
-  }
-  container.append(values);return values;
-}
-function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
-  const section=el('section',undefined,'related-section');section.dataset.resource=resource;
-  const heading=el('h3',title,'detail-panel-title'),toolbar=el('div',undefined,'items-toolbar'),retry=el('button','Tentar novamente','button small'),status=el('p','Preparando consulta…','items-status'),list=el('div',undefined,'related-list');
-  retry.hidden=true;toolbar.append(retry);
-  const pagination=createPagination({document,className:'item-pager',label:`Paginação de ${title}`,subject:title,hideSinglePage:true,onPageChange:load}),pager=pagination.element;
-  retry.setAttribute('aria-label',`Consultar ${title} novamente`);
-  status.setAttribute('role','status');section.append(heading,toolbar,list,status,pager);
-  let loaded=false,page=1,untilEmpty=false,controller=null,seq=0;
-  const showFields=(card,fields)=>{const values=el('dl',undefined,'related-values');for(const [name,value]of fields){const field=el('div');field.append(el('dt',name),el('dd',value ?? '—'));values.append(field);}card.append(values);};
-  async function load(target) {
-    controller?.abort();controller=new AbortController();const request=++seq;
-    const current=()=>token===state.detailSeq && request===seq && !signal.aborted;
-    retry.hidden=true;pagination.setBusy(true);section.setAttribute('aria-busy','true');status.textContent='Preparando consulta…';
-    if(!loaded)updateCount(null,'loading');
-    try {
-      const requestSignal=AbortSignal.any([signal,controller.signal]);
-      const result=await schedule(async()=>{status.textContent='Consultando o PNCP…';return service.call('documentRelated',{document:detailIdentity(doc),resource,page:target,size:DETAIL_PAGE_SIZE,...(untilEmpty?{pagination_mode:'until_empty'}:{})},{signal:requestSignal});},requestSignal);
-      if(!current())return;loaded=true;page=result.page;untilEmpty ||= result.pagination_mode==='until_empty';list.replaceChildren();
-      for(const record of result.data) {
-        const card=el('article',undefined,'related-card');
-        if(record.fields) {
-          card.append(el('h4',`${{partesenvolvidas:'Parte envolvida',termos:'Termo',empenhos:'Empenho',instrumentocobranca:'Instrumento de cobrança'}[resource]}`));
-          appendFields(card,record.fields);
-          if(record.sequencial && ['termos','empenhos','instrumentocobranca'].includes(resource)){
-            const button=el('button',resource==='termos'?'Arquivos do termo':'Ver detalhes','button small'),extra=el('div',undefined,'related-extra');extra.hidden=true;
-            button.setAttribute('aria-expanded','false');card.append(button,extra);let fetched=false,busy=false,failed=false;
-            button.addEventListener('click',async()=>{
-              if(busy)return;extra.hidden=failed?false:!extra.hidden;failed=false;button.setAttribute('aria-expanded',String(!extra.hidden));
-              if(extra.hidden || fetched)return;
-              busy=true;button.disabled=true;extra.replaceChildren(el('p','Consultando o PNCP…','panel-note'));
-              try {
-                const data=await schedule(async()=>{return service.call('contractChild',{document:detailIdentity(doc),resource,sequence:record.sequencial},{signal:requestSignal});},requestSignal);
-                if(!current())return;extra.replaceChildren();
-                if(data.fields)appendFields(extra,data.fields);
-                if(data.files){for(const file of data.files){const fileCard=el('article',undefined,'related-card');fileCard.append(el('h4',file.titulo ?? 'Arquivo sem título'));appendFields(fileCard,[{title:'Tipo',value:file.tipo},{title:'Publicação',type:'datetime',value:file.data_publicacao}]);const link=safeAnchor('Baixar arquivo',file.url);if(link)fileCard.append(link);extra.append(fileCard);}if(!data.files.length)extra.append(el('p','Este termo não possui arquivos.','panel-note'));}
-                fetched=true;
-              }catch(error){if(current() && error.name!=='AbortError'){extra.replaceChildren(el('p',error.message,'inline-error'));failed=true;button.textContent='Tentar novamente';}}
-              finally{busy=false;button.disabled=false;}
-            });
-          }
-        } else if(resource==='arquivos') {
-          card.append(el('h4',record.titulo ?? 'Arquivo sem título'));
-          showFields(card,[['Tipo',record.tipo],['Inclusão',time(record.data_publicacao)]]);
-        } else if(resource==='historico') {
-          card.append(el('h4',record.evento ?? 'Evento não informado'));
-          showFields(card,[['Nome',record.nome],['Data/Hora do evento',time(record.data_evento)],['Justificativa',record.justificativa]]);
-        } else {
-          card.append(el('h4',`${resource==='atas'?'Ata':'Contrato/Empenho'} ${record.numero ?? '—'}${record.ano?'/'+record.ano:''}`));
-          showFields(card,[['Controle PNCP',record.numero_controle_pncp],...(record.orgao_nome?[['Órgão',record.orgao_nome]]:[]),['Assinatura',date(record.data_assinatura)],['Vigência',`${date(record.vigencia_inicio)} a ${date(record.vigencia_fim)}`],...(resource==='atas'?[['Cancelamento',record.data_cancelamento?time(record.data_cancelamento):'—']]:[['Fornecedor',record.fornecedor_nome],['Valor global',money(record.valor_global)]])]);
-        }
-        if(!record.fields && resource!=='historico') {const link=safeAnchor(resource==='arquivos'?'Baixar arquivo':'Abrir no PNCP',record.url);if(link)card.append(link);else card.append(el('p','Link não disponível.','panel-note'));}
-        list.append(card);
-      }
-      if(!result.data.length)list.append(el('p',`Nenhum registro em ${title}.`,'panel-note'));
-      const unknownTotal=result.total===null;
-      heading.textContent=`${title} (${unknownTotal?'?':fmtInt(result.total)})`;
-      updateCount(result.total,'loaded');
-      const first=result.data.length?(page-1)*result.size+1:0,last=result.data.length?first+result.data.length-1:0;
-      const summary=unknownTotal?`${result.data.length?`${fmtInt(result.data.length)} ${result.data.length===1?'registro':'registros'} nesta página`:'Fim do histórico: nenhum registro nesta página'} · Quantidade desconhecida: contagem inconsistente do PNCP` : result.total===0?'0 registros':`Registros ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total)}`;
-      status.textContent=summary;
-      pagination.render({page,lastPage:unknownTotal?null:result.total_pages,hasMore:result.has_more});
-    }catch(error){if(current() && error.name!=='AbortError'){
-      if(error.code==='PAGE_OUT_OF_RANGE' && Number.isSafeInteger(error.details?.last_page) && error.details.last_page>=1 && error.details.last_page<target)return load(error.details.last_page);
-      status.textContent=error.message;retry.hidden=false;
-      if(!loaded)updateCount(null,'error');
-    }}finally{if(current()){pagination.setBusy(false);section.setAttribute('aria-busy','false');}}
-  }
-  if(detailIdentity(doc)) {
-    retry.addEventListener('click',()=>load(page));
-  } else {status.textContent='A fonte não forneceu CNPJ, ano e sequencial originais suficientes para consultar esta listagem.';updateCount(null,'unavailable');}
-  return {section,load:()=>detailIdentity(doc)?load(1):Promise.resolve()};
-}
-async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.resolve()}={}) {
-  state.detailAbort?.abort();state.detailSeq++;const token=state.detailSeq;
-  const detailController=new AbortController();state.detailAbort=detailController;
-  const identity=detailIdentity(doc);state.detailDoc=doc;state.detailSelection=identity?{document:identity,tab}:null;
-  const schedule=detailScheduler(),loads=[],tabs=[];
-  const content=$('details-content');content.replaceChildren();
-  const objectSummary=el('p',doc.objeto_compra ?? (doc._detail_from_url?'Carregando detalhes do documento…':'Objeto não informado.'),'detail-object');content.append(objectSummary);
-  const more=el('button','Ver descrição completa','text-button detail-object-more');more.type='button';more.hidden=true;more.setAttribute('aria-haspopup','dialog');more.setAttribute('aria-controls','description-dialog');content.append(more);
-  const updateSummary=()=>{more.hidden=!(window.matchMedia?.('(min-width:701px)').matches && objectSummary.scrollHeight>objectSummary.clientHeight+1);};
-  const summaryObserver=window.ResizeObserver?new window.ResizeObserver(updateSummary):null;summaryObserver?.observe(objectSummary);
-  detailController.signal.addEventListener('abort',()=>{summaryObserver?.disconnect();if($('description-dialog').open)$('description-dialog').close();},{once:true});
-  more.addEventListener('click',()=>{$('description-content').textContent=objectSummary.textContent;openDialog('description-dialog');});
-  const kind=doc.tipo_documento,names=documentName(kind);
-  $('details-kind').textContent=doc.titulo ?? '—';
-  $('details-dialog').setAttribute('aria-label',`Detalhes: ${names.singular}`);
-  const nav=el('div',undefined,'detail-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label',`Seções: ${names.singular}`);content.append(nav);
-  const sectionLabel=el('label',undefined,'detail-section-choice'),sectionSelect=el('select'),sectionSpinner=el('span',undefined,'detail-tab-spinner');
-  sectionSelect.id='details-section';sectionSelect.setAttribute('aria-label','Seção dos detalhes');sectionSpinner.hidden=true;sectionSpinner.setAttribute('aria-hidden','true');
-  sectionLabel.append(sectionSelect,sectionSpinner);content.append(sectionLabel);
-  function activate(index,focus=false,write=true) {
-    tabs.forEach((tab,i)=>{tab.button.setAttribute('aria-selected',String(i===index));tab.button.tabIndex=i===index?0:-1;tab.panel.hidden=i!==index;});
-    if(state.detailSelection){state.detailSelection.tab=tabs[index].button.dataset.resource;if(write)syncDetailUrl();}
-    sectionSelect.value=tabs[index].button.dataset.resource;sectionSelect.setAttribute('aria-controls',tabs[index].panel.id);
-    sectionSelect.setAttribute('aria-busy',tabs[index].button.getAttribute('aria-busy'));
-    sectionSpinner.hidden=tabs[index].button.getAttribute('aria-busy')!=='true';
-    selectMenus?.refresh(sectionSelect);
-    if(focus){tabs[index].button.focus();tabs[index].button.scrollIntoView({block:'nearest',inline:'nearest'});}
-  }
-  sectionSelect.addEventListener('change',()=>{const index=tabs.findIndex(tab=>tab.button.dataset.resource===sectionSelect.value);if(index>=0)activate(index);});
-  function addTab(resource,title,panel) {
-    const button=el('button',title,'detail-tab'),index=tabs.length;button.type='button';button.id=`detail-tab-${resource}`;button.dataset.resource=resource;
-    panel.id=`detail-panel-${resource}`;panel.hidden=true;panel.tabIndex=0;panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',button.id);
-    button.setAttribute('role','tab');button.setAttribute('aria-controls',panel.id);button.setAttribute('aria-selected','false');button.tabIndex=-1;
-    button.addEventListener('click',()=>activate(index));
-    button.addEventListener('keydown',event=>{
-      let target;
-      if(event.key==='ArrowRight')target=(index+1)%tabs.length;else if(event.key==='ArrowLeft')target=(index-1+tabs.length)%tabs.length;else if(event.key==='Home')target=0;else if(event.key==='End')target=tabs.length-1;else return;
-      event.preventDefault();activate(target,true);
-    });
-    const option=el('option',title);option.value=resource;sectionSelect.append(option);
-    nav.append(button);content.append(panel);tabs.push({button,panel});
-    const update=(count,phase)=>{
-      const loading=count===null && phase==='loading';
-      button.textContent=loading?title:`${title} (${count===null?phase==='loaded'?'?':'—':fmtInt(count)})`;
-      if(loading){const spinner=el('span',undefined,'detail-tab-spinner');spinner.setAttribute('aria-hidden','true');button.append(spinner);}
-      button.setAttribute('aria-label',loading?`${title}: carregando`:button.textContent);
-      button.setAttribute('aria-busy',String(loading));button.dataset.state=phase;
-      option.textContent=loading?`${title} — carregando`:button.textContent;
-      if(sectionSelect.value===resource){sectionSpinner.hidden=!loading;sectionSelect.setAttribute('aria-busy',String(loading));}
-    };
-    update(null,'loading');return update;
-  }
-  const common=['numero_controle_pncp','orgao_nome','orgao_cnpj','unidade_orgao_nome_unidade','uf','municipio_nome'];
-  const fieldNames=[...common,...(kind==='edital'?['modalidade_nome','situacao_compra_nome_pncp','data_publicacao_pncp','data_atualizacao_pncp','valor_total_estimado','valor_total_homologado']:kind==='ata'?['modalidade_nome','data_publicacao_pncp','data_atualizacao_pncp','data_assinatura','data_inicio_vigencia','data_fim_vigencia','cancelado','permite_adesao']:['tipo_contrato_nome','fornecedor_nome','fornecedor_ni','valor_global','data_assinatura','data_inicio_vigencia','data_fim_vigencia','data_publicacao_pncp','data_atualizacao_pncp'])];
-  const fields=kind==='edital' && doc._raw?indexedDocumentFields(doc._raw):fieldNames.map(name=>{const column=state.schema.columns_by_document[kind].find(c=>c.field===name);return {title:column.title,type:column.type,value:doc[name]};});
-  const detailPanel=el('section',undefined,'detail-information');
-  let grid=appendFields(detailPanel,fields,'detail-grid');
-  const updateDetails=addTab('detalhes','Detalhes',detailPanel);updateDetails(fields.length,'loaded');
-  const forceDetails=!!(doc._detail_from_url || doc._direct_link);
-  if(kind!=='edital' || forceDetails){
-    const detailStatus=el('p','Preparando consulta dos detalhes…','items-status'),retryDetails=el('button','Tentar novamente','button small');retryDetails.hidden=true;detailStatus.setAttribute('role','status');detailPanel.append(detailStatus,retryDetails);
-    async function loadDetails(){
-      retryDetails.hidden=true;detailStatus.hidden=false;detailPanel.setAttribute('aria-busy','true');
-      try {
-        const data=await schedule(async()=>{detailStatus.textContent='Consultando detalhes no PNCP…';return service.call('documentDetails',{document:detailIdentity(doc)},{signal:detailController.signal});},detailController.signal);
-        if(token!==state.detailSeq)return;
-        const holder=el('div');grid=appendFields(holder,data.fields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);
-        updateDetails(data.fields.length,'loaded');if(data.objeto)objectSummary.textContent=data.objeto;else if(doc._detail_from_url)objectSummary.textContent='Objeto não informado.';updateSummary();
-        if(forceDetails){const indexed=state.lastResult?.data.find(row=>sameDocument(detailIdentity(row),identity));$('details-kind').textContent=data.titulo || indexed?.titulo || doc.titulo;}
-        detailStatus.textContent='';detailStatus.hidden=true;
-      }catch(error){if(token===state.detailSeq && error.name!=='AbortError'){
-        if(forceDetails){
-          const row=await searchRowFor(identity,searchReady,doc,detailController.signal);
-          if(token!==state.detailSeq)return;
-          if(row){
-            const fallbackFields=row._raw?indexedDocumentFields(row._raw):[];
-            if(fallbackFields.length){const holder=el('div');grid=appendFields(holder,fallbackFields,'detail-grid');detailPanel.replaceChildren(grid,detailStatus,retryDetails);}
-            if(row.titulo)$('details-kind').textContent=row.titulo;
-            if(row.objeto_compra){objectSummary.textContent=row.objeto_compra;updateSummary();}
-            updateDetails(fallbackFields.length || fields.length,'loaded');
-            detailStatus.textContent='O PNCP não retornou os detalhes completos. Exibindo os dados da busca.';
-            detailStatus.hidden=false;retryDetails.hidden=false;
-            return;
-          }
-        }
-        detailStatus.textContent=`${error.message}${doc._detail_from_url?' Tente carregar os detalhes novamente.':' Os dados disponíveis na busca permanecem visíveis.'}`;if(doc._detail_from_url)objectSummary.textContent='Objeto indisponível.';retryDetails.hidden=false;updateDetails(null,'error');
-      }}
-      finally{if(token===state.detailSeq)detailPanel.setAttribute('aria-busy','false');}
-    }
-    if(detailIdentity(doc)){retryDetails.addEventListener('click',loadDetails);loads.push({resource:'detalhes',load:loadDetails});updateDetails(null,'loading');}
-    else {detailStatus.textContent='A fonte não forneceu os identificadores originais para consultar os detalhes completos.';updateDetails(null,'unavailable');}
-  }
-  if(kind==='edital'){
-  const section=el('section',undefined,'items-section'),toolbar=el('div',undefined,'items-toolbar'),retry=el('button','Tentar consultar itens','button small'),itemsTitle=el('h3','Itens da contratação');retry.hidden=true;toolbar.append(itemsTitle,retry);section.append(toolbar);
-  const itemStatus=el('p','Preparando consulta de itens…','items-status'),list=el('div',undefined,'items-list'),pagination=createPagination({document,className:'item-pager',label:'Paginação de Itens',subject:'Itens',hideSinglePage:true,onPageChange:itemPage}),pager=pagination.element;section.append(list,itemStatus,pager);
-  itemStatus.setAttribute('role','status');
-  const updateItems=addTab('itens','Itens',section);
-  let page=1,controller=null,itemsLoaded=false,itemSeq=0;
-  async function itemPage(target) {
-    controller?.abort();controller=new AbortController();const request=++itemSeq;
-    const current=()=>token===state.detailSeq && request===itemSeq && !detailController.signal.aborted;
-    retry.hidden=true;pagination.setBusy(true);itemStatus.textContent='Consultando itens no PNCP…';
-    section.setAttribute('aria-busy','true');if(!itemsLoaded)updateItems(null,'loading');
-    try {
-      const p=doc._purchase,signal=AbortSignal.any([detailController.signal,controller.signal]);
-      const result=await schedule(async()=>{return service.call('details',{document:{type:'edital',...p},page:target,size:DETAIL_PAGE_SIZE},{signal});},signal);
-      if(!current())return;page=result.page;list.replaceChildren();
-      itemsLoaded=true;updateItems(result.total_items,'loaded');
-      for(const item of result.data) {
-        const card=el('article',undefined,'item-card');card.append(el('h4',`Item ${item.numeroItem ?? '—'}`),el('p',item.descricao ?? 'Descrição não informada.'),el('div',`${item.materialOuServico==='S'?'Serviço':item.materialOuServico==='M'?'Material':'Tipo não informado'} · ${item.situacaoCompraItemNome ?? 'Situação não informada'} · Catálogo: ${item.catalogo?.nome ?? '—'} / ${item.catalogoCodigoItem ?? '—'}`,'item-meta'));
-        const values=el('dl',undefined,'item-values');
-        for(const [label,value] of [['Quantidade',quantity(item.quantidade)],['Valor unitário estimado',money(item.valorUnitarioEstimado)],['Valor total estimado',money(item.valorTotal)]]) {
-          const field=el('div');field.append(el('dt',label),el('dd',value));values.append(field);
-        }
-        card.append(values);list.append(card);
-      }
-      if(!result.data.length)list.append(el('p','Esta contratação não possui itens.','panel-note'));
-      const first=result.data.length?(page-1)*result.size+1:0,last=result.data.length?first+result.data.length-1:0;
-      itemsTitle.textContent=`Itens da contratação (${fmtInt(result.total_items)})`;
-      itemStatus.textContent=result.total_items===0?'0 itens':`Itens ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total_items)}`;pagination.render({page,lastPage:result.total_pages,hasMore:result.has_more});
-    }catch(error){if(current() && error.name!=='AbortError'){
-      if(error.code==='PAGE_OUT_OF_RANGE' && Number.isSafeInteger(error.details?.last_page) && error.details.last_page>=1 && error.details.last_page<target)return itemPage(error.details.last_page);
-      itemStatus.textContent=error.message;retry.hidden=false;
-      if(!itemsLoaded)updateItems(null,'error');
-    }}finally{if(current()){pagination.setBusy(false);section.setAttribute('aria-busy','false');}}
-  }
-  if(!doc._purchase){itemStatus.textContent='A fonte não forneceu CNPJ, ano e sequencial originais suficientes para consultar itens.';updateItems(null,'unavailable');}
-  else {retry.addEventListener('click',()=>itemPage(page));loads.push({resource:'itens',load:()=>itemPage(1)});}
-  }
-  const sections={edital:[['arquivos','Arquivos'],['atas','Atas de Registro de Preço'],['contratos','Contratos/Empenhos'],['historico','Histórico']],ata:[['partesenvolvidas','Partes envolvidas'],['contratos','Contratos'],['arquivos','Arquivos'],['historico','Histórico']],contrato:[['empenhos','Empenhos'],['instrumentocobranca','Instrumentos de cobrança'],['termos','Termos'],['arquivos','Arquivos'],['historico','Histórico']]};
-  for(const [resource,title]of sections[kind]){
-    let updateCount=()=>{};
-    const related=relatedSection(resource,title,doc,token,detailController.signal,schedule,(...args)=>updateCount(...args));
-    updateCount=addTab(resource,title,related.section);if(!detailIdentity(doc))updateCount(null,'unavailable');
-    loads.push({resource,load:related.load});
-  }
-  state.detailActivate=resource=>activate(Math.max(0,tabs.findIndex(tab=>tab.button.dataset.resource===resource)),false,false);
-  state.detailActivate(tab);openDialog('details-dialog');if(sync)syncDetailUrl();
-  // Start the visible tab first; the remaining first pages continue in background.
-  const priority=[tab,'detalhes','itens',...sections[kind].map(([resource])=>resource)],seen=new Set(),ordered=[];
-  for(const resource of priority){const entry=loads.find(item=>item.resource===resource);if(entry && !seen.has(entry)){seen.add(entry);ordered.push(entry);}}
-  for(const entry of loads)if(!seen.has(entry))ordered.push(entry);
-  await Promise.all(ordered.map(entry=>entry.load()));
-}
 async function exportCsv(scope='all') {
   if(!state.lastQuery || state.exportAbort || !['success','empty'].includes(state.status))return;
   if(scope==='page' && !state.lastResult?.data?.length)return;
@@ -962,14 +596,14 @@ async function init() {
   state.table=tableFactory({
     container:$('results-table'),columns:tableColumnDefinitions(),renderCell,renderCard,footerContent:resultInfo,
     placeholder:state.placeholder,paginationIcons,menuIcon:filterHeaderIcon,
-    onPageChange:page=>loadPage(page),onOpenDocument:doc=>openDetails(doc),onColumnAction:columnAction,onColumnChange:saveColumnLayout,onSort:columnAction,
+    onPageChange:page=>loadPage(page),onOpenDocument:doc=>details.open(doc),onColumnAction:columnAction,onColumnChange:columnLayout.save,onSort:columnAction,
   });
   resultInfo.hidden=false;
   initializeMobileLayout({document,window});
   selectMenus=initializeSelectMenus({document,window});
   $('results-view').addEventListener('change',()=>setMobileView($('results-view').value));
   $('export-page-button').addEventListener('click',()=>exportCsv('page'));
-  $('reset-columns').addEventListener('click',()=>{clearColumnLayout(state.query.document_type);state.table.setColumns(tableColumnDefinitions());renderColumnChoices();});
+  $('reset-columns').addEventListener('click',()=>{columnLayout.clear(state.query.document_type);state.table.setColumns(tableColumnDefinitions());renderColumnChoices();});
   $('clear-draft-filters').addEventListener('click',clearDraftFilters);
   renderColumnChoices();
   $('document-type').addEventListener('change',changeDocumentType);
@@ -993,15 +627,15 @@ async function init() {
   document.addEventListener('pointerdown',event=>{if(openFilterEditor && event.target!==openFilterEditor.input && !openFilterEditor.suggestions.contains(event.target))closeFilterDropdown();});
   $('filters-dialog').querySelector('.filters-body')?.addEventListener('scroll',positionFilterDropdown);
   window.addEventListener('resize',closeFilterDropdown);
-  $('details-dialog').addEventListener('close',()=>{if(!$('details-dialog').open)closeDetails();});
+  $('details-dialog').addEventListener('close',()=>{if(!$('details-dialog').open)details.close();});
   $('export-button').addEventListener('click',exportCsv);
-  for(const id of toolbarButtonIds)bindTooltip($(id),$(`${id}-tooltip`));
-  bindTooltip($('repository-link'),$('repository-link-tooltip'));
-  $('window-warning').addEventListener('mouseenter',showWindowTooltip);
-  $('window-warning').addEventListener('mouseleave',hideWindowTooltip);
-  $('window-warning').addEventListener('focus',showWindowTooltip);
-  $('window-warning').addEventListener('blur',hideWindowTooltip);
-  window.addEventListener('resize',hideTooltips);
+  for(const id of toolbarButtonIds)tooltips.bindTooltip($(id),$(`${id}-tooltip`));
+  tooltips.bindTooltip($('repository-link'),$('repository-link-tooltip'));
+  $('window-warning').addEventListener('mouseenter',tooltips.showWindowTooltip);
+  $('window-warning').addEventListener('mouseleave',tooltips.hideWindowTooltip);
+  $('window-warning').addEventListener('focus',tooltips.showWindowTooltip);
+  $('window-warning').addEventListener('blur',tooltips.hideWindowTooltip);
+  window.addEventListener('resize',tooltips.hideTooltips);
   window.addEventListener('popstate',restoreQueryUrl);
   window.addEventListener('online',updateOnlineStatus);window.addEventListener('offline',updateOnlineStatus);updateOnlineStatus();
   document.addEventListener('keydown',event=>{
@@ -1018,10 +652,10 @@ async function init() {
     if(event.target===$('header-content') && (toolbarButtonIds.includes(button?.id) || button?.id==='repository-link')) {
       const tooltip=$(`${button.id}-tooltip`),anchor=button.getBoundingClientRect();
       if(!tooltip.hidden && anchor.left>=0 && anchor.right<=window.innerWidth) {
-        positionTooltip(button,tooltip);return;
+        tooltips.positionTooltip(button,tooltip);return;
       }
     }
-    hideTooltips();
+    tooltips.hideTooltips();
   },true);
   updateCriteria();setMobileView('cards');status('idle');
   state.started=Promise.resolve(state.table.ready).then(()=>{

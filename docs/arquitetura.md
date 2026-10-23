@@ -33,7 +33,11 @@ flowchart LR
 | [`src/browser/filter-options-cache.js`](../src/browser/filter-options-cache.js), [`options-db.js`](../src/browser/options-db.js) | Pré-carregamento dos domínios dos três tipos, cache local com validade de 4 horas, deduplicação, opções dependentes de normativos e fallback em IndexedDB quando o `localStorage` não está disponível |
 | [`src/browser/query-url.js`](../src/browser/query-url.js) | Leitura e escrita de parâmetros GET, conversão de filtros tipados e validação compartilhada de links de pesquisa |
 | [`src/browser/detail-url.js`](../src/browser/detail-url.js) | Identidade documental e aba nos parâmetros GET, com validação por tipo de documento |
-| [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, DOM, histórico da URL, painéis e download |
+| [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, filtros, DOM, histórico da URL e download |
+| [`public/details-panel.js`](../public/details-panel.js) | Seleção do documento em detalhe, abas, itens e listagens vinculadas, com paginação, cancelamento e descarte de respostas antigas |
+| [`public/format.js`](../public/format.js) | Formatação de datas, quantidades e valores; células da tabela e classes de situação |
+| [`public/tooltips.js`](../public/tooltips.js) | Tooltips da barra de ferramentas e do aviso de janela de resultados |
+| [`public/column-layout.js`](../public/column-layout.js) | Persistência de visibilidade, ordem e largura das colunas por tipo documental |
 | [`public/results-table.js`](../public/results-table.js), [`results-table.css`](../public/results-table.css) | Tabela semântica, cartões móveis, menus, visibilidade, ordem e largura de colunas |
 | [`public/pagination.js`](../public/pagination.js), [`pagination.css`](../public/pagination.css) | Paginação compartilhada entre resultados e detalhes; números, limites, foco, carregamento e modo sem total conhecido |
 | [`public/mobile-layout.js`](../public/mobile-layout.js), [`mobile.css`](../public/mobile.css) | Cabeçalho móvel, ações em popover, adaptação ao viewport visível, áreas seguras e painéis responsivos |
@@ -45,7 +49,7 @@ flowchart LR
 | [`vite.config.js`](../vite.config.js) | Aplicação e diagnóstico, Worker ES module, assets relativos, CSP e saída `dist-browser/` |
 | [`test/`](../test/) | Núcleo, DOM, runtime/RPC, layout e build estático no navegador |
 
-Vite e Playwright são ferramentas de desenvolvimento. A aplicação não tem dependências de produção, CDN, imports de pacote pendentes ou polyfills de Node.js na distribuição estática.
+Vite, Playwright, ESLint e Prettier são ferramentas de desenvolvimento. O ESLint é executado na validação e não participa da distribuição; o Prettier atende arquivos alterados. A aplicação não tem dependências de produção, CDN, imports de pacote pendentes ou polyfills de Node.js na distribuição estática.
 
 ## Serviço e fluxo de dados
 
