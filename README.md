@@ -39,16 +39,6 @@ Para os testes de navegador, instale o Chromium com `npx playwright install chro
 
 A configuração pública fica em [`public/browser-config.json`](public/browser-config.json). O conteúdo de `dist-browser/` pode ser publicado em uma hospedagem estática.
 
-## Sitezinho
-
-A pasta [`sitezinho/`](sitezinho/) guarda um laboratório independente, feito com HTML, CSS e JavaScript puro. São quatro experimentos interativos, sem build e sem dependências, que não fazem parte do build desta aplicação.
-
-```sh
-python3 -m http.server 4173 --directory sitezinho
-```
-
-Depois abra [http://localhost:4173](http://localhost:4173). Também é possível abrir `sitezinho/index.html` diretamente.
-
 ## Documentação técnica
 
 - [Arquitetura e organização do código](docs/arquitetura.md)
