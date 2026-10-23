@@ -1,6 +1,7 @@
 import { createWorkerService } from '../src/browser/service.js';
 import { catalogDomains } from '../src/filter-domains.js';
 
+/** @type {{name: string, method: string, payload: any}[]} */
 const samples = [
   ...['edital','ata','contrato'].map(type => ({ name: 'Busca ' + type, method: 'execute', payload: { query: { document_type: type, q: 'software', size: 10 } } })),
   { name: 'Paginação', method: 'execute', payload: { query: { q: 'software', page: 2, size: 10 } } },
@@ -23,7 +24,9 @@ samples.push(
   { name: 'Contratação com atas vinculadas', method: 'documentRelated', payload: { document: { type: 'edital', cnpj: '88585518000185', ano: '2026', sequencial: '469' }, resource: 'atas', page: 1, size: 10 } },
   { name: 'Contratação com contrato vinculado', method: 'documentRelated', payload: { document: { type: 'edital', cnpj: '18629840000183', ano: '2026', sequencial: '51' }, resource: 'contratos', page: 1, size: 10 } },
 );
-let controller, evidence;
+/** @type {AbortController} */ let controller;
+/** @type {any} */ let evidence;
+/** @param {string} id @returns {any} */
 const $ = id => document.getElementById(id);
 $('diagnostic-run').addEventListener('click', async () => {
   const service = createWorkerService({ PNCP_MAX_RETRIES: 0, PNCP_READ_TIMEOUT_SECONDS: 15 });

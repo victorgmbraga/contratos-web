@@ -285,8 +285,9 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   }
   const sections={edital:[['arquivos','Arquivos'],['atas','Atas de Registro de Preço'],['contratos','Contratos/Empenhos'],['historico','Histórico']],ata:[['partesenvolvidas','Partes envolvidas'],['contratos','Contratos'],['arquivos','Arquivos'],['historico','Histórico']],contrato:[['empenhos','Empenhos'],['instrumentocobranca','Instrumentos de cobrança'],['termos','Termos'],['arquivos','Arquivos'],['historico','Histórico']]};
   for(const [resource,title]of sections[kind]){
+    /** @type {(count: any, phase: any) => void} */
     let updateCount=()=>{};
-    const related=relatedSection(resource,title,doc,token,detailController.signal,schedule,(...args)=>updateCount(...args));
+    const related=relatedSection(resource,title,doc,token,detailController.signal,schedule,(count,phase)=>updateCount(count,phase));
     updateCount=addTab(resource,title,related.section);if(!detailIdentity(doc))updateCount(null,'unavailable');
     loads.push({resource,load:related.load});
   }

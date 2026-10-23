@@ -133,6 +133,10 @@ export function createFilterOptionsCache(service, schema, { getStorage = () => g
     pending.set(key, promise); pump();
     return promise;
   }
+  /**
+   * @param {any} payload
+   * @param {{signal?: AbortSignal}} [options]
+   */
   async function get(payload, { signal } = {}) {
     signal?.throwIfAborted(); controller.signal.throwIfAborted();
     const { key, payload: request } = describe(payload), cached = await read(key);

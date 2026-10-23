@@ -34,6 +34,7 @@ export const demoResults=Array.from({length:64},(_,i)=>[
     indicadorSubcontratacao:null,indicadorAplicacaoMargemPreferencia:null,indicadorAplicacaoBeneficioMeEpp:null,indicadorAplicacaoCriterioDesempate:null,
     fornecedorId:'200',municipioFornecedorId:null,codigoPais:null,porteFornecedorId:null,naturezaJuridicaId:null},
 ]);
+/** @type {Record<string, any>[]} */
 export const demoDocuments = Array.from({length:64},(_,i)=>({
   id:`demo-${i+1}`,doc_type:'_doc',document_type:'edital',numero_controle_pncp:`00000000000000-1-${String(i+1).padStart(6,'0')}/2026`,
   description:objects[i%objects.length],title:`Edital de demonstração nº ${i+1}/2026`,orgao_cnpj:'00000000000000',orgao_id:String(i%4+1),orgao_nome:orgs[i%4],
@@ -58,12 +59,14 @@ export const demoDocuments = Array.from({length:64},(_,i)=>({
   valor_total_estimado:`${120000+i*47813}.25`,valor_total_homologado:i%3===0?`${108000+i*45342}.50`:null,
   tem_resultado:i%3===0,item_url:null,link_sistema_origem:null,ano:'2026',numero_sequencial:String(i+1),
 }));
+/** @type {Record<string, any>[]} */
 export const demoContracts=demoDocuments.slice(0,32).map((doc,i)=>({...doc,id:`demo-contract-${i+1}`,document_type:'contrato',numero_controle_pncp:`00000000000000-2-${String(i+1).padStart(6,'0')}/2026`,
   numero_contratacao:doc.numero_controle_pncp,
   title:`Contrato de demonstração nº ${i+1}/2026`,item_url:`/contratos/00000000000000/2026/${i+1}`,tipo_contrato_id:i%2===0?'1':'7',tipo_contrato_nome:i%2===0?'Contrato (termo inicial)':'Empenho',
   fornecedor_id:i%2===0?'15566':'40491',fornecedor_nome:i%2===0?'Fornecedor sintético A':'Fornecedor sintético B',fornecedor_ni:i%2===0?'01234567000189':'12345678901',fornecedor_subcontratado_id:i%4===3?null:'200',
   data_assinatura:`2026-08-${String(i%28+1).padStart(2,'0')}`,data_inicio_vigencia:`2026-09-${String(i%28+1).padStart(2,'0')}`,data_fim_vigencia:i%2===0?'2027-09-30':'2026-09-30',
   valor_global:i===31?'9007199254740993.12345':i===30?null:`${10000+i*1000}.50`,possui_nfe:itemCondition(i)}));
+/** @type {Record<string, any>[]} */
 export const demoAtas=demoDocuments.slice(0,24).map((doc,i)=>({...doc,id:`demo-ata-${i+1}`,document_type:'ata',
   numero_controle_pncp:`00000000000000-1-${String(i+1).padStart(6,'0')}/2026-${String(i%3+1).padStart(6,'0')}`,
   title:`Ata de demonstração nº ${i+1}/2026`,numero:String(i+1),numero_sequencial:String(i%3+1),numero_sequencial_compra_ata:String(i+1),
@@ -179,7 +182,7 @@ export function demoFetch(url) {
       item_quantidade:['item','quantidade'],item_valor_unitario_estimado:['item','valorUnitarioEstimado'],item_valor_total_estimado:['item','valorTotal'],
       ordem_classificacao:['result','ordemClassificacaoSrp'],resultado_quantidade_homologado:['result','quantidadeHomologada'],resultado_valor_unitario_homologado:['result','valorUnitarioHomologado'],resultado_valor_total_homologado:['result','valorTotalHomologado'],resultado_percentual_desconto:['result','percentualDesconto'],
       data_assinatura:['document','data_assinatura'],data_inicio_vigencia:['document','data_inicio_vigencia'],data_homologacao:['result','dataResultado']};
-    for(const [name,[source,field]]of Object.entries(ranges))for(const [suffix,direction]of name.startsWith('data_')?[['inicio',1],['fim',-1]]:[['min',1],['max',-1]]) {
+    for(const [name,[source,field]]of Object.entries(ranges))for(const [suffix,direction]of/** @type {[string, number][]} */(name.startsWith('data_')?[['inicio',1],['fim',-1]]:[['min',1],['max',-1]])) {
       if(!p.has(name+'_'+suffix))continue;const value=p.get(name+'_'+suffix);
       docs=docs.filter(d=>{const rows=source==='document'?[d]:source==='item'?demoItems[Number(d.numero_sequencial)-1]:demoResults[Number(d.numero_sequencial)-1];return rows.some(row=>row[field]!=null && (name.startsWith('data_')?String(row[field]).slice(0,10).localeCompare(value)*direction>=0:compareDecimal(String(row[field]),value)*direction>=0));});
     }

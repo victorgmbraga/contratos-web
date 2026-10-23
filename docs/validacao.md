@@ -12,6 +12,14 @@ O [ESLint](../eslint.config.js) verifica `src/`, `public/` e `test/` com as regr
 
 O Prettier fica disponível para uso pontual em arquivos alterados ([`.prettierrc.json`](../.prettierrc.json)), mas não é aplicado ao repositório inteiro: o estilo compacto atual é intencional e um recuo global produziria um diff sem mudança de comportamento.
 
+## Tipos
+
+```sh
+npm run typecheck
+```
+
+O [TypeScript](../tsconfig.json) verifica `src/` e `public/` com `checkJs` e `allowJs`, sem emitir arquivos. As anotações JSDoc descrevem os contratos que o lint não alcança: configuração pública, erros da aplicação, opções do cliente PNCP, progresso da exportação e paginação compartilhada. Elementos do DOM são tratados como `any` nos pontos de acesso (`$` e `el`); seus contratos são verificados pelos testes de navegador. `public/sw.js` fica fora da verificação porque roda no escopo de Service Worker, incompatível com as bibliotecas de DOM usadas pelo restante.
+
 ## Núcleo e interface
 
 ```sh

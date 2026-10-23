@@ -13,7 +13,11 @@ import { createFiltersPanel } from './filters-panel.js';
 import { createSession } from './session.js';
 
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
+// Elementos variam entre input, select, button e dialog; os contratos do DOM
+// são verificados nos testes de navegador, não pelo verificador de tipos.
+/** @param {string} id @returns {any} */
 const $ = id => document.getElementById(id);
+/** @param {string} tag @param {string} [text] @param {string} [className] @returns {any} */
 const el = (tag, text, className) => { const node=document.createElement(tag); if(text!==undefined)node.textContent=text; if(className)node.className=className; return node; };
 const clone = value => structuredClone(value);
 const documentName=(type=state.query.document_type)=>state.schema.document_types.find(d=>d.id===type);
@@ -223,6 +227,7 @@ async function loadResultsPage(targetPage,{force=false,cache=false}={}) {
     throw error;
   }finally{if(session.current('query',seq))state.abort=null;}
 }
+/** @param {number} page @param {string} [mode] @param {{cache?: boolean, force?: boolean}} [options] */
 function loadPage(page,mode='push',options={cache:true}) {
   state.query.page=page;urlMode=mode;
   return loadResultsPage(page,options).catch(()=>{});
@@ -334,7 +339,7 @@ async function init() {
   $('clear-draft-filters').addEventListener('click',()=>filters.clearDraft());
   renderColumnChoices();
   $('document-type').addEventListener('change',changeDocumentType);
-  $('app-header').addEventListener('focusin',event=>event.target.scrollIntoView({block:'nearest',inline:'nearest'}));
+  $('app-header').addEventListener('focusin',event=>/** @type {any} */ (event.target).scrollIntoView({block:'nearest',inline:'nearest'}));
   $('search-form').addEventListener('submit',event=>{event.preventDefault();return execute();});
   $('filters-button').addEventListener('click',()=>filters.open());$('columns-button').addEventListener('click',()=>openDialog('columns-dialog'));
   $('refresh-button').addEventListener('click',async()=>{
@@ -351,7 +356,7 @@ async function init() {
   $('apply-filters').addEventListener('click',()=>{const draft=filters.apply();if(!draft)return;state.query=draft;$('filters-dialog').close();updateCriteria();return execute();});
   $('filters-dialog').addEventListener('close',()=>filters.onDialogClose());
   $('details-dialog').addEventListener('close',()=>{if(!$('details-dialog').open)details.close();});
-  $('export-button').addEventListener('click',exportCsv);
+  $('export-button').addEventListener('click',()=>exportCsv());
   for(const id of toolbarButtonIds)tooltips.bindTooltip($(id),$(`${id}-tooltip`));
   tooltips.bindTooltip($('repository-link'),$('repository-link-tooltip'));
   $('window-warning').addEventListener('mouseenter',tooltips.showWindowTooltip);
@@ -362,7 +367,7 @@ async function init() {
   window.addEventListener('popstate',restoreQueryUrl);
   window.addEventListener('online',updateOnlineStatus);window.addEventListener('offline',updateOnlineStatus);updateOnlineStatus();
   document.addEventListener('keydown',event=>{
-    const target=event.target,editable=target && (target.closest?.('input,textarea,select,[contenteditable="true"]') || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName) || target.isContentEditable);
+    const target=/** @type {any} */ (event.target),editable=target && (target.closest?.('input,textarea,select,[contenteditable="true"]') || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName) || target.isContentEditable);
     const dialogOpen=[...document.querySelectorAll('dialog')].some(dialog=>dialog.open);
     const shortcut=(event.key==='/' && !event.ctrlKey && !event.metaKey && !event.altKey) || ((event.ctrlKey||event.metaKey) && !event.altKey && event.key.toLowerCase()==='k');
     if(!shortcut || editable || dialogOpen)return;

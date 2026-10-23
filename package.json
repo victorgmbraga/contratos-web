@@ -16,6 +16,7 @@
     "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=78 --test-coverage-branches=88 --test-coverage-functions=84 test/*.test.js",
     "test:budget": "node test/performance-budget.mjs",
     "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
     "format": "prettier --write \"{src,public,test}/**/*.{js,mjs,css,html}\" \"vite.config.js\" \"eslint.config.js\"",
     "build": "vite build",
     "preview": "vite preview",
@@ -29,6 +30,7 @@
     "globals": "17.13.0",
     "playwright": "1.64.1",
     "prettier": "3.9.10",
+    "typescript": "5.9.3",
     "vite": "8.3.4"
   }
 }

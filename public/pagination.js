@@ -11,6 +11,9 @@ export function paginationPages(page, lastPage, limit = 5) {
   return Array.from({length:count}, (_, index) => first + index);
 }
 
+/**
+ * @param {{document: Document, element?: HTMLElement, className?: string, label?: string, subject?: string, icons?: Record<string, string>, hideSinglePage?: boolean, legacyClasses?: boolean, onPageChange?: (page: number) => any}} options
+ */
 export function createPagination({document, element = document.createElement('nav'), className = '', label = 'Paginação',
   subject = '', icons = paginationIcons, hideSinglePage = false, legacyClasses = false, onPageChange}) {
   element.className = [element.className,'pagination',className].filter(Boolean).join(' ');

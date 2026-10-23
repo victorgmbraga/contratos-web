@@ -1,7 +1,17 @@
 export class AppError extends Error {
+  /**
+   * @param {string} code
+   * @param {string} message
+   * @param {number} [status]
+   * @param {Record<string, any>} [details]
+   * @param {boolean} [retryable]
+   */
   constructor(code, message, status = 400, details = {}, retryable = false) {
     super(message);
-    Object.assign(this, { code, status, details, retryable });
+    this.code = code;
+    this.status = status;
+    this.details = details;
+    this.retryable = retryable;
   }
 }
 export function fail(code, message, status = 400, details = {}, retryable = false) {

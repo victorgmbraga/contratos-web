@@ -40,7 +40,11 @@ export function normalizeCatalog(value) {
   });
 }
 export class PncpClient {
-  constructor(config, { fetcher, logger = () => {}, fetchOptions = {} } = {}) {
+  /**
+   * @param {any} config
+   * @param {{fetcher: (url: string, init?: RequestInit) => Promise<Response>, logger?: (entry: Record<string, any>) => void, fetchOptions?: RequestInit}} options
+   */
+  constructor(config, { fetcher, logger = () => {}, fetchOptions = {} }) {
     assert(typeof fetcher === 'function', 'INVALID_CONFIG', 'Transporte PNCP não configurado.');
     this.config = config; this.logger = logger; this.active = 0; this.queue = []; this.nextSlot = 0; this.lastCall = null;
     this.fetcher = fetcher; this.fetchOptions = fetchOptions;
@@ -79,6 +83,7 @@ export class PncpClient {
     } catch (error) { await reader.cancel().catch(() => {}); throw error; }
     finally { signal.removeEventListener('abort', abort); reader.releaseLock(); }
   }
+  /** @returns {Promise<any>} */
   async get(url, op, allowNoContent = false) {
     const origin = new URL(url).origin;
     for (let attempt = 0; attempt <= this.config.PNCP_MAX_RETRIES; attempt++) {

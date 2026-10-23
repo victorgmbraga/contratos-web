@@ -64,6 +64,7 @@ function indexedLabel(path) {
   })[part.toLocaleLowerCase('pt-BR')] || part.charAt(0).toLocaleUpperCase('pt-BR')+part.slice(1)).join(' ');
 }
 // A domain code or identifier is redundant when its name/description is available.
+/** @type {[string, string[]][]} */
 const descriptionPairs=[
   ['_codigo',['_descricao']],['_code',['_description']],['_id',['_nome','_descricao']],
   ['Codigo',['Descricao','Nome']],['Código',['Descrição','Nome']],['Code',['Description','Name']],

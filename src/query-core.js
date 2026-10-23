@@ -58,6 +58,12 @@ export class QueryService {
     const query=validateQuery(input,this.config),op=operation(this.config,signal,requestId);
     try{return await this.process(query,op);}finally{op.finish();}
   }
+  /**
+   * @param {any} input
+   * @param {AbortSignal} signal
+   * @param {string} requestId
+   * @param {{onProgress?: (progress: Record<string, any>) => void, scope?: string}} [options]
+   */
   async export(input,signal,requestId,{onProgress=()=>{},scope='all'}={}) {
     assert(scope==='all' || scope==='page','INVALID_EXPORT_SCOPE','Escopo de exportação inválido.',422);
     const query=validateQuery({...input,...(scope==='all'?{page:1}:{}),size:this.config.PNCP_EXPORT_PAGE_SIZE},this.config),op=operation(this.config,signal,requestId);

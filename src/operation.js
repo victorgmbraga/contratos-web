@@ -7,6 +7,12 @@ export const delay = (ms, signal) => new Promise((resolve, reject) => {
   const abort = () => { clearTimeout(timer); cleanup(); reject(signal.reason); };
   signal?.addEventListener('abort', abort, { once: true });
 });
+/**
+ * @param {any} config
+ * @param {AbortSignal} [parentSignal]
+ * @param {string} [requestId]
+ * @param {string} [priority]
+ */
 export function operation(config, parentSignal, requestId = globalThis.crypto.randomUUID(), priority = 'foreground') {
   const controller = new AbortController();
   const started = Date.now();
