@@ -4,10 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { browserSettings } from './src/browser/client.js';
 
 const root = fileURLToPath(new URL('./public/', import.meta.url));
-const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://pncp.gov.br; worker-src 'self'; object-src 'none'; base-uri 'self'";
-const headers = { 'Content-Security-Policy': csp + "; frame-ancestors 'self'", 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
+  // O servidor de desenvolvimento injeta CSS e o cliente de HMR por <style> e WebSocket.
+  // O artefato publicado usa CSS externo e mantém a política restritiva.
+  const development = command === 'serve' && mode !== 'production';
+  const csp = "default-src 'self'; script-src 'self'; style-src 'self'" + (development ? " 'unsafe-inline'" : '') + "; img-src 'self' data:; connect-src 'self' https://pncp.gov.br" + (development ? ' ws:' : '') + "; worker-src 'self'; object-src 'none'; base-uri 'self'";
+  const headers = { 'Content-Security-Policy': csp + "; frame-ancestors 'self'", 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
   const config = async () => {
     const input = JSON.parse(await readFile(new URL('./public/browser-config.json', import.meta.url), 'utf8'));
     const publicConfig = mode === 'test' ? { ...input, DEMO_MODE: true, PNCP_REQUESTS_PER_SECOND: 100000 } : mode === 'demo' ? { ...input, DEMO_MODE: true } : input;

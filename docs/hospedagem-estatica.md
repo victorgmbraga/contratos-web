@@ -46,6 +46,8 @@ O build gera `_headers` com a política de segurança definida em [`vite.config.
 - `X-Content-Type-Options: nosniff` e `Referrer-Policy: no-referrer`.
 - `Cache-Control: no-cache` para os arquivos e cache imutável de um ano para `/assets/*`.
 
+O servidor de desenvolvimento (`npm run dev`, `npm run demo`) acrescenta `'unsafe-inline'` a `style-src` e `ws:` a `connect-src`, porque o Vite injeta CSS e o cliente de HMR por WebSocket. O artefato publicado não recebe essas permissões.
+
 Provedores que aceitam `_headers` podem aplicá-lo diretamente na raiz. Em subdiretórios, ajuste a regra de assets para o prefixo publicado. Nos demais servidores, configure cabeçalhos equivalentes. A CSP em `<meta>` não substitui `frame-ancestors 'self'` nem os cabeçalhos da resposta do Worker.
 
 O acesso às APIs exige CORS autorizado pelo PNCP. O transporte usa GET sem credenciais e sem seguir redirecionamentos.
