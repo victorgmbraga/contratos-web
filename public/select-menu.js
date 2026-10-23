@@ -48,7 +48,7 @@ export function initializeSelectMenus({document, window}) {
   }
   function active(control,index,scroll = true) {
     control.active = index;
-    control.items.forEach((item,i)=>item.element.dataset.active = String(i===index));
+    control.items.forEach((item,i)=>{item.element.dataset.active = String(i===index);});
     const option = control.items[index]?.element;
     if (option) {
       control.button.setAttribute('aria-activedescendant',option.id);
@@ -159,7 +159,7 @@ export function initializeSelectMenus({document, window}) {
     const c = {source,wrapper,button,value,menu,labels,items:[],active:-1,typed:'',typedAt:0,tabIndex:source.getAttribute('tabindex'),ariaHidden:source.getAttribute('aria-hidden'),lifetime:new window.AbortController()};
     const local = {signal:c.lifetime.signal};controls.set(source,c);
     source.before(wrapper);wrapper.append(source,button,menu);source.classList.add('select-source');
-    source.tabIndex=-1;source.setAttribute('aria-hidden','true');labels.forEach(({element})=>element.htmlFor=button.id);
+    source.tabIndex=-1;source.setAttribute('aria-hidden','true');labels.forEach(({element})=>{element.htmlFor=button.id;});
     source.addEventListener('focus',()=>{if(!button.disabled)button.focus();},local);
     source.addEventListener('input',()=>refresh(source),local);source.addEventListener('change',()=>refresh(source),local);
     button.addEventListener('click',()=>open(c),local);button.addEventListener('keydown',event=>keydown(c,event),local);

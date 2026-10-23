@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {parseExactJson as parse} from '../src/exact-json.js';
 import {schema,capabilities,columnsFor} from '../src/schema.js';
 import {project,documentIdentity} from '../src/adapter.js';
-import {recordFields,projectDocument,controlLink,nativeDocumentPath,indexedDocumentFields} from '../src/document-details.js';
+import {projectDocument,controlLink,nativeDocumentPath,indexedDocumentFields} from '../src/document-details.js';
 import {PncpClient} from '../src/pncp-core.js';
 import {QueryService} from '../src/query-core.js';
 import {demoFetch,demoAtas,demoContracts} from '../src/demo.js';
@@ -59,7 +59,7 @@ test('DOCUMENTS-04: detalhes completos mantêm datas, booleanos, códigos, valor
 });
 
 test('DOCUMENTS-05: arquivos, histórico e termos consultam o documento correto, com contagem e paginação independente',async()=>{
-  const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(12):json(Array.from({length:u.searchParams.get('pagina')==='1'?10:2},(_,i)=>({numeroTermoContrato:String(i+1),titulo:'Arquivo',tipoDocumentoNome:'Outros',dataPublicacaoPncp:'2026-09-01',numeroTermoContrato:'001',tipoTermoContratoNome:'Aditivo'}))));
+  const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(12):json(Array.from({length:u.searchParams.get('pagina')==='1'?10:2},()=>({titulo:'Arquivo',tipoDocumentoNome:'Outros',dataPublicacaoPncp:'2026-09-01',numeroTermoContrato:'001',tipoTermoContratoNome:'Aditivo'}))));
   for(const d of [ata,contract])for(const resource of ['arquivos','historico',...(d.type==='contrato'?['termos']:[])]){
     const r=await f.service.documentRelated(d,resource,2,10);assert.equal(r.total,12);assert.equal(r.data.length,2);assert.equal(r.total_pages,2);assert.equal(r.has_more,false);
     const path=nativeDocumentPath(d,'/api/pncp/v1')+'/'+resource;assert.equal(f.requests.at(-2).pathname,path+'/quantidade');assert.equal(f.requests.at(-1).pathname,path);assert.equal(f.requests.at(-1).searchParams.get('pagina'),'2');

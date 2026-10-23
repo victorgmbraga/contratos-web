@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { schema } from '../src/schema.js';
 import { validateQuery } from '../src/validation.js';
-import { serializeSearch, operation } from '../src/pncp-core.js';
+import { serializeSearch } from '../src/pncp-core.js';
 import { project, safeLink } from '../src/adapter.js';
 import { parseExactJson as parse } from '../src/exact-json.js';
 import { config,document,service,query,json } from './helpers.js';

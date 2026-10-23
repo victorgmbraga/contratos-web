@@ -2,6 +2,16 @@
 
 Execute os comandos na raiz com Node.js 22.12 ou superior e dependências instaladas por `npm ci`. As versões das ferramentas estão em [`package.json`](../package.json) e [`package-lock.json`](../package-lock.json).
 
+## Lint
+
+```sh
+npm run lint
+```
+
+O [ESLint](../eslint.config.js) verifica `src/`, `public/` e `test/` com as regras recomendadas e ajustes próprios do projeto: código de distribuição não pode usar `console`, comparações usam `===` (exceto com `null`), não há `var`, `catch` vazio é permitido e o parser de JSON pode inspecionar caracteres de controle. O workflow de validação executa o lint antes dos testes.
+
+O Prettier fica disponível para uso pontual em arquivos alterados ([`.prettierrc.json`](../.prettierrc.json)), mas não é aplicado ao repositório inteiro: o estilo compacto atual é intencional e um recuo global produziria um diff sem mudança de comportamento.
+
 ## Núcleo e interface
 
 ```sh
@@ -66,7 +76,7 @@ Esses ensaios servem arquivos estáticos e verificam a ausência de chamadas a u
 
 O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results-table.browser.mjs). A referência visual mantém cores, fontes e espaçamentos; os papéis de display nativos da tabela e as bordas por célula representam sua estrutura semântica. Os testes de navegação utilizam identificadores da aplicação e papéis acessíveis.
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`. Usa instalação reproduzível, `npm test`, build com orçamento de performance e a suíte completa de navegador em Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. Pushes para `main` acionam [`static-pages.yml`](../.github/workflows/static-pages.yml), que executa `npm test` e o build antes de publicar; esse workflow não executa a suíte de navegador.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`. Usa instalação reproduzível, `npm run lint`, `npm test`, build com orçamento de performance e a suíte completa de navegador em Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. Pushes para `main` acionam [`static-pages.yml`](../.github/workflows/static-pages.yml), que executa `npm test` e o build antes de publicar; esse workflow não executa a suíte de navegador.
 
 ### Medir tamanho e renderização
 

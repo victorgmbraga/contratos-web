@@ -1,3 +1,4 @@
+/* global tableFixture */
 import assert from 'node:assert/strict';
 import {createStaticServer} from './static-server.js';
 import {launchTestBrowser} from './browser-launch.js';

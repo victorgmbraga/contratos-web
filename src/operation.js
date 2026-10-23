@@ -1,7 +1,7 @@
 import { AppError } from './errors.js';
 
 export const delay = (ms, signal) => new Promise((resolve, reject) => {
-  if (signal?.aborted) return reject(signal.reason);
+  if (signal?.aborted) { reject(signal.reason); return; }
   const cleanup = () => signal?.removeEventListener('abort', abort);
   const timer = setTimeout(() => { cleanup(); resolve(); }, ms);
   const abort = () => { clearTimeout(timer); cleanup(); reject(signal.reason); };

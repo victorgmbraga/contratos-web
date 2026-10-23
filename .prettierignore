@@ -1,0 +1,7 @@
+node_modules/
+dist-browser/
+dist-browser-test/
+.npm-cache/
+package-lock.json
+test/layout-baseline.json
+test/fixtures/

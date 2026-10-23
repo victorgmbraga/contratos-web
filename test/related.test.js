@@ -56,6 +56,6 @@ test('RELATED-05: números JSON monetários são exatos e links inseguros ou sem
 });
 
 test('RELATED-07: número de controle real de ata usa o ano da compra e preserva o sequencial da ata',async()=>{
-  const f=fixture(url=>Response.json({data:[{numeroAtaRegistroPreco:'100',anoAta:2026,numeroControlePNCP:'00000000000000-1-000001/2025-000010',sequencialAta:10}],totalRegistros:11,numeroPagina:2}));
+  const f=fixture(()=>Response.json({data:[{numeroAtaRegistroPreco:'100',anoAta:2026,numeroControlePNCP:'00000000000000-1-000001/2025-000010',sequencialAta:10}],totalRegistros:11,numeroPagina:2}));
   const result=await f.service.related(purchase,'atas',2,10);assert.equal(result.data.length,1);assert.equal(result.has_more,false);assert.equal(result.data[0].url,'https://pncp.gov.br/app/atas/00000000000000/2025/1/10');
 });

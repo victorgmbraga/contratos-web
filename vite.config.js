@@ -37,7 +37,7 @@ export default defineConfig(({ mode }) => {
       configureServer(server) {
         server.middlewares.use('/browser-config.json', async (_req, res) => {
           try { res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(await config()); }
-          catch (error) { res.statusCode = 500; res.end('Configuração pública inválida.'); }
+          catch { res.statusCode = 500; res.end('Configuração pública inválida.'); }
         });
       },
       async generateBundle() {

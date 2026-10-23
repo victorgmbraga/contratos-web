@@ -7,7 +7,7 @@ import { schema } from '../src/schema.js';
 import { demoFetch,demoContracts,demoAtas,demoDocuments } from '../src/demo.js';
 import { PncpClient } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
-import { config, service, document, query, memoryStorage } from './helpers.js';
+import { config, service, document, memoryStorage } from './helpers.js';
 import { FILTER_OPTIONS_TTL } from '../src/browser/filter-options-cache.js';
 import { project } from '../src/adapter.js';
 
@@ -283,7 +283,7 @@ test('HEADER-UI-02: busca, filtros e ações usam somente ícones com nomes aces
     assert.ok(button);assert.match(button[1],/class="[^"]*\bicon-only\b/);
     assert.match(button[1],new RegExp(`aria-label="${label}"`));assert.doesNotMatch(button[1],/\btitle=/);
     assert.match(button[1],new RegExp(`aria-describedby="${id}-tooltip"`));
-    assert.match(html,new RegExp(`<div id="${id}-tooltip" class="tooltip" role="tooltip" hidden>${label}<\/div>`));
+    assert.match(html,new RegExp(`<div id="${id}-tooltip" class="tooltip" role="tooltip" hidden>${label}</div>`));
     assert.match(button[2],/^<svg\b[^>]*aria-hidden="true"[^>]*>[\s\S]*<\/svg>(?:<span id="filter-count"[^>]*><\/span>)?$/);
     assert.equal(button[2].replace(/<[^>]+>/g,''),'');
   }

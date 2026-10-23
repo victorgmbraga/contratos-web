@@ -30,10 +30,12 @@ Abra [http://localhost:8000](http://localhost:8000). As consultas reais precisam
 | Comando | Finalidade |
 | --- | --- |
 | `npm run demo` | Iniciar com dados fictícios |
+| `npm run lint` | Verificar o código com ESLint |
 | `npm test` | Executar os testes automatizados |
 | `npm run build` | Gerar a distribuição estática em `dist-browser/` |
 | `npm run preview` | Servir o build localmente |
 | `npm run test:budget` | Conferir os limites de tamanho do build (requer `npm run build`) |
+| `npm run format` | Formatar os arquivos alterados com Prettier |
 
 Para os testes de navegador, instale o Chromium com `npx playwright install chromium` e execute `npm run test:browser`. Mais opções estão no [guia de validação](docs/validacao.md).
 
