@@ -11,6 +11,7 @@ import { createTooltips } from './tooltips.js';
 import { createDetailsPanel } from './details-panel.js';
 import { createFiltersPanel } from './filters-panel.js';
 import { createSession } from './session.js';
+import { createProgressEstimator } from './progress.js';
 
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
 // Elementos variam entre input, select, button e dialog; os contratos do DOM
@@ -298,12 +299,12 @@ async function exportCsv(scope='all') {
   if(scope==='page' && !state.lastResult?.data?.length)return;
   const query=clone(state.lastQuery);if(scope==='page')query.page=state.lastResult.page;
   const seq=session.next('export');const controller=new AbortController();state.exportAbort=controller;
-  const started=Date.now();
+  const estimator=createProgressEstimator();
   updateExportButton();notice(scope==='page'?'Consultando o PNCP e gerando CSV da página atual. Os dados podem diferir da tabela.':'Consultando o PNCP e gerando CSV dos últimos critérios concluídos. Os dados podem diferir da tabela.');
   try {
     const result=await service.call('export',scope==='page'?{query,scope:'page'}:{query},{signal:controller.signal,onProgress:progress=>{
       if(!session.current('export',seq))return;
-      const elapsed=(Date.now()-started)/1000,remaining=progress.rows>0 && progress.total>progress.rows?Math.max(1,Math.ceil((progress.total-progress.rows)/(progress.rows/elapsed))):0;
+      const remaining=estimator.update({rows:progress.rows,total:progress.total});
       notice(`Coletando ${fmtInt(progress.rows)} de ${fmtInt(progress.total)} documentos para CSV…${remaining?` Cerca de ${remaining} s restantes.`:''}`);
     }});
     if(!session.current('export',seq) || controller.signal.aborted)return;

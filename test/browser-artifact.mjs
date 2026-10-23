@@ -7,6 +7,12 @@ import { assertBrowserLayout } from './browser-layout.js';
 import { demoFetch, demoDocument } from '../src/demo.js';
 const manifest=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
 assert.deepEqual(Object.keys(manifest.dependencies || {}),[], 'O artefato deve permanecer sem dependências de produção.');
+const headersFile=await readFile(new URL('../dist-browser/_headers',import.meta.url),'utf8');
+assert.match(headersFile,/Content-Security-Policy: [^\n]*frame-ancestors 'self'/, 'Cabeçalhos preservam frame-ancestors');
+assert.match(headersFile,/X-Content-Type-Options: nosniff/);
+assert.match(headersFile,/Referrer-Policy: no-referrer/);
+assert.match(headersFile,/\/assets\/\*\n {2}Cache-Control: public, max-age=31536000, immutable/);
+console.log('PASS Cabeçalhos de segurança do artefato (CSP, nosniff, referrer e cache imutável)');
 const browser = await launchTestBrowser();
 const cors = http.createServer((req, res) => {
   if(req.url.startsWith('/allow'))res.setHeader('Access-Control-Allow-Origin','*');

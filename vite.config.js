@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { browserSettings } from './src/browser/client.js';
 
 const root = fileURLToPath(new URL('./public/', import.meta.url));
-const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://pncp.gov.br; worker-src 'self'; object-src 'none'; base-uri 'self'";
+const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://pncp.gov.br; worker-src 'self'; object-src 'none'; base-uri 'self'";
 const headers = { 'Content-Security-Policy': csp + "; frame-ancestors 'self'", 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 
 export default defineConfig(({ mode }) => {

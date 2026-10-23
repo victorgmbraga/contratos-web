@@ -291,3 +291,6 @@ dialog select[multiple]{min-height:155px}
   .detail-grid{gap:15px}
   .dialog-header h2{font-size:1.1rem}
 }
+/* Página de diagnóstico: estilos próprios substituem atributos inline bloqueados pela CSP. */
+.diagnostic{max-width:1000px;margin:2rem auto;padding:1rem}
+#diagnostic-output{white-space:pre-wrap;overflow-wrap:anywhere}
