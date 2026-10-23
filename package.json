@@ -22,7 +22,9 @@
     "test:browser": "node test/browser-smoke.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@eslint/js": "10.0.1",
+    "axe-core": "4.14.0",
     "eslint": "10.13.0",
     "globals": "17.13.0",
     "playwright": "1.64.1",

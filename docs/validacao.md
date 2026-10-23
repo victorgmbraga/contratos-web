@@ -73,6 +73,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Layout móvel | 320, 352, 358, 360, 390, 430, 560 e 700 px; três tipos, cartões/tabela, menu de ações, campos e alvos de toque, filtros, seções/URL, paginação, paisagem e viewport reduzido |
 | Links diretos de detalhes | [`test/detail-links.browser.mjs`](../test/detail-links.browser.mjs): documento e aba, recarregamento, Voltar/Avançar, resultados ausentes e cancelamento |
 | Descrições e cartões | [`test/details-overflow.browser.mjs`](../test/details-overflow.browser.mjs): abas acessíveis com descrições extensas, leitura completa segura, fechamento/histórico e cartões criados somente quando visíveis |
+| Acessibilidade | [`test/accessibility.browser.mjs`](../test/accessibility.browser.mjs): axe-core nas regras WCAG 2.0, 2.1 e 2.2 A/AA sobre a busca em desktop, o modal de filtros, o painel de detalhes e a visualização móvel; falha em violações críticas ou sérias |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), em 1440, 1068 e 390 pixels |

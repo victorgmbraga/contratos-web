@@ -9,5 +9,6 @@ await import('./mobile.browser.mjs');
 await import('./detail-links.browser.mjs');
 await import('./details-overflow.browser.mjs');
 await import('./filter-options-cache.browser.mjs');
+await import('./accessibility.browser.mjs');
 await build();
 await import('./browser-artifact.mjs');

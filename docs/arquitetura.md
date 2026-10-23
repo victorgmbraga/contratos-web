@@ -33,7 +33,8 @@ flowchart LR
 | [`src/browser/filter-options-cache.js`](../src/browser/filter-options-cache.js), [`options-db.js`](../src/browser/options-db.js) | Pré-carregamento dos domínios dos três tipos, cache local com validade de 4 horas, deduplicação, opções dependentes de normativos e fallback em IndexedDB quando o `localStorage` não está disponível |
 | [`src/browser/query-url.js`](../src/browser/query-url.js) | Leitura e escrita de parâmetros GET, conversão de filtros tipados e validação compartilhada de links de pesquisa |
 | [`src/browser/detail-url.js`](../src/browser/detail-url.js) | Identidade documental e aba nos parâmetros GET, com validação por tipo de documento |
-| [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, filtros, DOM, histórico da URL e download |
+| [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, DOM, histórico da URL e download |
+| [`public/filters-panel.js`](../public/filters-panel.js) | Modal de filtros: rascunho, editores de domínio, sugestões, amparos por normativo e critérios aplicados |
 | [`public/details-panel.js`](../public/details-panel.js) | Seleção do documento em detalhe, abas, itens e listagens vinculadas, com paginação, cancelamento e descarte de respostas antigas |
 | [`public/format.js`](../public/format.js) | Formatação de datas, quantidades e valores; células da tabela e classes de situação |
 | [`public/tooltips.js`](../public/tooltips.js) | Tooltips da barra de ferramentas e do aviso de janela de resultados |
@@ -47,7 +48,7 @@ flowchart LR
 | [`public/sw.js`](../public/sw.js) | Cache de assets com hash em HTTPS, sem interceptar HTML, configuração ou chamadas ao PNCP |
 | [`src/demo.js`](../src/demo.js) | Fonte fictícia escolhida explicitamente |
 | [`vite.config.js`](../vite.config.js) | Aplicação e diagnóstico, Worker ES module, assets relativos, CSP e saída `dist-browser/` |
-| [`test/`](../test/) | Núcleo, DOM, runtime/RPC, layout e build estático no navegador |
+| [`test/`](../test/) | Núcleo, DOM, runtime/RPC, layout, acessibilidade com axe e build estático no navegador |
 
 Vite, Playwright, ESLint e Prettier são ferramentas de desenvolvimento. O ESLint é executado na validação e não participa da distribuição; o Prettier atende arquivos alterados. A aplicação não tem dependências de produção, CDN, imports de pacote pendentes ou polyfills de Node.js na distribuição estática.
 

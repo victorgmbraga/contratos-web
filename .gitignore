@@ -5,3 +5,4 @@ dist-browser-test/
 .env
 coverage/
 *.log
+.npm-cache/
