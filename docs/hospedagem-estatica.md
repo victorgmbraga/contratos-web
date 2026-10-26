@@ -6,7 +6,7 @@ O artefato de produção é `dist-browser/`. A hospedagem entrega HTML, JavaScri
 
 ## Gerar e verificar
 
-Use Node.js 22.12 ou superior na máquina de build. Antes de compilar, ajuste [`public/browser-config.json`](../public/browser-config.json) conforme [Configuração](configuracao.md). `{}` usa o PNCP real e os limites padrão. O arquivo é público.
+Use Node.js 24 (LTS) ou superior na máquina de build. Antes de compilar, ajuste [`public/browser-config.json`](../public/browser-config.json) conforme [Configuração](configuracao.md). `{}` usa o PNCP real e os limites padrão. O arquivo é público.
 
 ```sh
 npm ci

@@ -54,7 +54,7 @@ export class PncpClient {
     if (signal.aborted) throw signal.reason;
     if (this.active < this.config.PNCP_MAX_CONCURRENT_REQUESTS) { this.active++; return; }
     await new Promise((resolve,reject) => {
-      const waiter = { priority, resolve: () => { signal.removeEventListener('abort', abort); resolve(); } };
+      const waiter = { priority, resolve: () => { signal.removeEventListener('abort', abort); resolve(undefined); } };
       const abort = () => { this.queue = this.queue.filter(w => w !== waiter); reject(signal.reason); };
       signal.addEventListener('abort', abort, { once: true }); this.queue.push(waiter);
     });

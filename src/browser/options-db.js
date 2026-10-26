@@ -27,7 +27,7 @@ export function openOptionsDatabase(indexedDB = globalThis.indexedDB) {
           return new Promise((done, fail) => {
             const tx = transaction('readwrite');
             tx.objectStore(STORE).put(value, key);
-            tx.oncomplete = () => done();
+            tx.oncomplete = () => done(undefined);
             tx.onerror = () => fail(tx.error);
           });
         },
@@ -35,7 +35,7 @@ export function openOptionsDatabase(indexedDB = globalThis.indexedDB) {
           return new Promise((done, fail) => {
             const tx = transaction('readwrite');
             tx.objectStore(STORE).delete(key);
-            tx.oncomplete = () => done();
+            tx.oncomplete = () => done(undefined);
             tx.onerror = () => fail(tx.error);
           });
         },

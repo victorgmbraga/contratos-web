@@ -1,6 +1,6 @@
 # Testes e validação
 
-Execute os comandos na raiz com Node.js 22.12 ou superior e dependências instaladas por `npm ci`. As versões das ferramentas estão em [`package.json`](../package.json) e [`package-lock.json`](../package-lock.json).
+Execute os comandos na raiz com Node.js 24 (LTS) ou superior e dependências instaladas por `npm ci`. As versões das ferramentas estão em [`package.json`](../package.json) e [`package-lock.json`](../package-lock.json).
 
 ## Lint
 

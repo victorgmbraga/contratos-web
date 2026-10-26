@@ -3,7 +3,7 @@ import { AppError } from './errors.js';
 export const delay = (ms, signal) => new Promise((resolve, reject) => {
   if (signal?.aborted) { reject(signal.reason); return; }
   const cleanup = () => signal?.removeEventListener('abort', abort);
-  const timer = setTimeout(() => { cleanup(); resolve(); }, ms);
+  const timer = setTimeout(() => { cleanup(); resolve(undefined); }, ms);
   const abort = () => { clearTimeout(timer); cleanup(); reject(signal.reason); };
   signal?.addEventListener('abort', abort, { once: true });
 });

@@ -1,12 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import viteConfig from '../vite.config.js';
 
+const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const cspOf = (command, mode) => viteConfig({ command, mode }).server.headers['Content-Security-Policy'];
 const metaOf = (command, mode) => {
   const plugin = viteConfig({ command, mode }).plugins.find(entry => entry.transformIndexHtml);
   return plugin.transformIndexHtml.handler('<head></head>').match(/content="([^"]+)"/)[1];
 };
+
+test('PKG-01: o projeto exige Node.js 24 LTS ou superior', () => {
+  assert.equal(manifest.engines.node, '>=24.0.0');
+});
 
 test('CSP-01: o servidor de desenvolvimento permite os estilos injetados e o WebSocket de HMR', () => {
   const dev = cspOf('serve', 'development');

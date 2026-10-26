@@ -16,7 +16,7 @@ Aplicação para pesquisar editais e avisos de contratações, atas de registro 
 
 ## Desenvolvimento local
 
-Requisitos: **Node.js 22.12 ou superior** e **npm**. O projeto usa Node.js 24 na integração contínua.
+Requisitos: **Node.js 24 (LTS) ou superior** e **npm**. O [`.nvmrc`](.nvmrc) fixa a versão 24 usada no desenvolvimento e na integração contínua.
 
 ```sh
 git clone https://github.com/victorgmbraga/contratos-web.git
