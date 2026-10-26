@@ -70,6 +70,7 @@
   .detail-grid{gap:16px}
   .items-section,.related-section{grid-template-columns:minmax(0,1fr)}
   .items-status{margin:10px 0 8px}
+  .items-list,.related-list{scroll-margin-top:64px}
   .item-pager{margin:0 0 13px}
   [role="tabpanel"]{padding-top:18px}
 }

@@ -81,6 +81,13 @@ function joinedValue(code,name,format=value=>value) {
   const left=code?format(code):null;
   return left&&name?`${left} - ${name}`:left||name||'—';
 }
+function setLoadStatus(status,text,busy=false) {
+  status.textContent=text;
+  status.dataset.loading=String(busy);
+}
+function scrollListToStart(list) {
+  list.scrollIntoView?.({block:'start'});
+}
 function appendFields(container,fields,className='related-values') {
   const values=el('dl',undefined,className);
   for(const field of fields){
@@ -104,12 +111,12 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
   const showFields=(card,fields)=>{const values=el('dl',undefined,'related-values');for(const [name,value]of fields){const field=el('div');field.append(el('dt',name),el('dd',value ?? '—'));values.append(field);}card.append(values);};
   async function load(target) {
     controller?.abort();controller=new AbortController();const request=++seq;
-    const current=()=>session.current('detail',token) && request===seq && !signal.aborted;
-    retry.hidden=true;pagination.setBusy(true);section.setAttribute('aria-busy','true');status.textContent='Preparando consulta…';
+    const current=()=>session.current('detail',token) && request===seq && !signal.aborted,pageChanged=loaded && target!==page;
+    retry.hidden=true;pagination.setBusy(true);section.setAttribute('aria-busy','true');setLoadStatus(status,'Preparando consulta…',loaded);
     if(!loaded)updateCount(null,'loading');
     try {
       const requestSignal=AbortSignal.any([signal,controller.signal]);
-      const result=await schedule(async()=>{status.textContent='Consultando o PNCP…';return service.call('documentRelated',{document:detailIdentity(doc),resource,page:target,size:DETAIL_PAGE_SIZE,...(untilEmpty?{pagination_mode:'until_empty'}:{})},{signal:requestSignal});},requestSignal);
+      const result=await schedule(async()=>{setLoadStatus(status,'Consultando o PNCP…',loaded);return service.call('documentRelated',{document:detailIdentity(doc),resource,page:target,size:DETAIL_PAGE_SIZE,...(untilEmpty?{pagination_mode:'until_empty'}:{})},{signal:requestSignal});},requestSignal);
       if(!current())return;loaded=true;page=result.page;untilEmpty ||= result.pagination_mode==='until_empty';list.replaceChildren();
       for(const record of result.data) {
         const card=el('article',undefined,'related-card');
@@ -152,11 +159,12 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
       updateCount(result.total,'loaded');
       const first=result.data.length?(page-1)*result.size+1:0,last=result.data.length?first+result.data.length-1:0;
       const summary=unknownTotal?`${result.data.length?`${fmtInt(result.data.length)} ${result.data.length===1?'registro':'registros'} nesta página`:'Fim do histórico: nenhum registro nesta página'} · Quantidade desconhecida: contagem inconsistente do PNCP` : result.total===0?'0 registros':`Registros ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total)}`;
-      status.textContent=summary;
+      setLoadStatus(status,summary,false);
       pagination.render({page,lastPage:unknownTotal?null:result.total_pages,hasMore:result.has_more});
+      if(pageChanged)scrollListToStart(list);
     }catch(error){if(current() && error.name!=='AbortError'){
       if(error.code==='PAGE_OUT_OF_RANGE' && Number.isSafeInteger(error.details?.last_page) && error.details.last_page>=1 && error.details.last_page<target)return load(error.details.last_page);
-      status.textContent=error.message;retry.hidden=false;
+      setLoadStatus(status,error.message,false);retry.hidden=false;
       if(!loaded)updateCount(null,'error');
     }}finally{if(current()){pagination.setBusy(false);section.setAttribute('aria-busy','false');}}
   }
@@ -272,8 +280,8 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   let page=1,controller=null,itemsLoaded=false,itemSeq=0;
   async function itemPage(target) {
     controller?.abort();controller=new AbortController();const request=++itemSeq;
-    const current=()=>session.current('detail',token) && request===itemSeq && !detailController.signal.aborted;
-    retry.hidden=true;pagination.setBusy(true);itemStatus.textContent='Consultando itens no PNCP…';
+    const current=()=>session.current('detail',token) && request===itemSeq && !detailController.signal.aborted,pageChanged=itemsLoaded && target!==page;
+    retry.hidden=true;pagination.setBusy(true);setLoadStatus(itemStatus,'Consultando itens no PNCP…',itemsLoaded);
     section.setAttribute('aria-busy','true');if(!itemsLoaded)updateItems(null,'loading');
     try {
       const p=doc._purchase,signal=AbortSignal.any([detailController.signal,controller.signal]);
@@ -291,10 +299,11 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
       if(!result.data.length)list.append(el('p','Esta contratação não possui itens.','panel-note'));
       const first=result.data.length?(page-1)*result.size+1:0,last=result.data.length?first+result.data.length-1:0;
       itemsTitle.textContent=`Itens da contratação (${fmtInt(result.total_items)})`;
-      itemStatus.textContent=result.total_items===0?'0 itens':`Itens ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total_items)}`;pagination.render({page,lastPage:result.total_pages,hasMore:result.has_more});
+      setLoadStatus(itemStatus,result.total_items===0?'0 itens':`Itens ${fmtInt(first)}–${fmtInt(last)} de ${fmtInt(result.total_items)}`,false);pagination.render({page,lastPage:result.total_pages,hasMore:result.has_more});
+      if(pageChanged)scrollListToStart(list);
     }catch(error){if(current() && error.name!=='AbortError'){
       if(error.code==='PAGE_OUT_OF_RANGE' && Number.isSafeInteger(error.details?.last_page) && error.details.last_page>=1 && error.details.last_page<target)return itemPage(error.details.last_page);
-      itemStatus.textContent=error.message;retry.hidden=false;
+      setLoadStatus(itemStatus,error.message,false);retry.hidden=false;
       if(!itemsLoaded)updateItems(null,'error');
     }}finally{if(current()){pagination.setBusy(false);section.setAttribute('aria-busy','false');}}
   }

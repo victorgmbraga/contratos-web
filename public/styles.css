@@ -233,6 +233,7 @@ dialog select[multiple]{min-height:155px}
 .item-values dd{font-size:.875rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--heading,#295575);margin:0;overflow-wrap:anywhere;line-height:1.5}
 .item-pager{margin:13px 0}
 .items-status{font-size:.8125rem;color:var(--text-muted,#61768b);margin:13px 0;line-height:1.5;min-width:0;overflow-wrap:anywhere}
+.items-status[data-loading="true"]::before{content:"";display:inline-block;width:.85em;height:.85em;margin-right:.45em;vertical-align:-.1em;border:1.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:table-loader-spin .8s linear infinite}
 .items-toolbar{justify-content:flex-end}
 .items-toolbar:has(button:not([hidden])){margin-bottom:12px}
 .related-card{border:1px solid var(--border,#d4dfeb);border-radius:7px;padding:13px;margin:10px 0;overflow-wrap:anywhere}

@@ -255,18 +255,22 @@ test('RELATED-PAGES-01: páginas numeradas, limites e falha preservam a página 
     return {page:payload.page,size:10,total:92,total_pages:10,has_more:payload.page<10,data:[{titulo:`Arquivo da página ${payload.page}`} ]};
   }});
   await ui.openDocument(project(document(1)));await ui.nodes.get('detail-tab-arquivos').fire('click');
-  const section=ui.nodes.get('detail-panel-arquivos'),pager=section.children[4];
+  const section=ui.nodes.get('detail-panel-arquivos'),pager=section.children[4],list=section.children[2],scrolls=[];
+  list.scrollIntoView=options=>scrolls.push(options);
   const pages=()=>pager.children[2].children.map(button=>button.dataset.page);
+  assert.equal(section.children[3].dataset.loading,'false');assert.equal(scrolls.length,0);
   assert.deepEqual(pages(),['1','2','3','4','5']);assert.equal(paginationButton(pager,'first').disabled,true);
   await paginationButton(pager,5).fire('click');assert.deepEqual(pages(),['3','4','5','6','7']);
   assert.match(section.children[2].children[0].children[0].textContent,/página 5/);
+  assert.equal(scrolls.length,1);assert.deepEqual(scrolls[0],{block:'start'});
   fail=true;const pending=paginationButton(pager,6).fire('click');await tick();
-  assert.equal(pager.getAttribute('aria-busy'),'true');assert.equal(paginationButton(pager,'last').disabled,true);assert.equal(paginationButton(pager,5).disabled,true);
+  assert.equal(pager.getAttribute('aria-busy'),'true');assert.equal(section.children[3].dataset.loading,'true');assert.equal(paginationButton(pager,'last').disabled,true);assert.equal(paginationButton(pager,5).disabled,true);
   release();await pending;
   assert.equal(paginationButton(pager,5).getAttribute('aria-current'),'page');assert.equal(paginationButton(pager,'next').disabled,false);assert.equal(pager.getAttribute('aria-busy'),'false');
-  assert.equal(section.children[3].textContent,'Página indisponível.');
+  assert.equal(section.children[3].textContent,'Página indisponível.');assert.equal(section.children[3].dataset.loading,'false');assert.equal(scrolls.length,1);
   fail=false;await paginationButton(pager,'last').fire('click');assert.deepEqual(pages(),['6','7','8','9','10']);
   assert.equal(paginationButton(pager,10).getAttribute('aria-current'),'page');assert.equal(paginationButton(pager,'next').disabled,true);assert.equal(paginationButton(pager,'last').disabled,true);
+  assert.equal(scrolls.length,2);assert.deepEqual(scrolls[1],{block:'start'});
   await paginationButton(pager,'first').fire('click');assert.equal(paginationButton(pager,1).getAttribute('aria-current'),'page');
   assert.equal(ui.relatedRequests.filter(request=>request.resource==='historico').length,1);
 });
@@ -753,6 +757,30 @@ test('DETAIL-PAGES-01: itens permitem saltar páginas e alcançar os limites man
   await paginationButton(pager,'last').fire('click');assert.deepEqual(pages(),['6','7','8','9','10']);assert.equal(section.children[1].children.length,5);assert.equal(paginationButton(pager,'last').disabled,true);
   await paginationButton(pager,'prev').fire('click');assert.equal(paginationButton(pager,9).getAttribute('aria-current'),'page');
   await paginationButton(pager,'first').fire('click');assert.equal(paginationButton(pager,'prev').disabled,true);assert.deepEqual(requests,[1,5,10,9,1]);
+});
+
+test('DETAIL-PAGES-02: troca de página dos itens mostra spinner e volta ao início da lista',async()=>{
+  let release,startPage;
+  const started=new Promise(resolve=>{startPage=resolve;});
+  const ui=await interfaceFixture({itemFetcher:url=>{
+    const u=new URL(url);
+    if(u.pathname.endsWith('/itens/quantidade'))return Promise.resolve(95);
+    if(u.pathname.endsWith('/itens')){
+      const page=Number(u.searchParams.get('pagina')),size=Number(u.searchParams.get('tamanhoPagina'));
+      if(page===2)return new Promise(resolve=>{release=()=>resolve(Response.json(Array.from({length:10},(_,i)=>({numeroItem:size+i+1,descricao:'Item controlado'}))));startPage();});
+      return Promise.resolve(Response.json(Array.from({length:size},(_,i)=>({numeroItem:i+1,descricao:'Item de teste'}))));
+    }
+    return demoFetch(url);
+  }});
+  await ui.openDocument(project(document(1)));
+  const section=ui.nodes.get('detail-panel-itens'),list=section.children[1],status=section.children[2],pager=section.children[3],scrolls=[];
+  list.scrollIntoView=options=>scrolls.push(options);
+  assert.equal(scrolls.length,0);assert.equal(status.dataset.loading,'false');
+  const pending=paginationButton(pager,2).fire('click');await started;
+  assert.equal(pager.getAttribute('aria-busy'),'true');assert.equal(status.dataset.loading,'true');assert.equal(status.textContent,'Consultando itens no PNCP…');
+  release();await pending;
+  assert.equal(pager.getAttribute('aria-busy'),'false');assert.equal(status.dataset.loading,'false');assert.match(status.textContent,/Itens 11–20 de 95/);
+  assert.equal(scrolls.length,1);assert.deepEqual(scrolls[0],{block:'start'});
 });
 
 test('DETAILS-UI-06: quantidade e valores do PNCP preservam precisão, zero e ausência de informação',async()=>{
