@@ -139,7 +139,8 @@ try {
   await more();await page.locator('#theme-button').click();assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
   await more();const github=page.locator('#repository-link');await fits('#repository-link',{touch:true,height:true});assert.match(await github.getAttribute('href'),/github.com\/victorgmbraga\/contratos-web$/);
   await page.keyboard.press('Escape');assert.equal(await page.locator('#more-actions').evaluate(node=>node.matches(':popover-open')),false);
-  await more();const download=page.waitForEvent('download');await page.locator('#export-button').click();assert.match((await download).suggestedFilename(),/\.csv$/);await ready();
+  await more();const download=page.waitForEvent('download');await page.locator('#export-button').click();await page.locator('#export-menu').waitFor({state:'visible'});
+  assert.equal(await page.locator('#more-actions').evaluate(node=>node.matches(':popover-open')),false);await fits('#export-menu');await fits('#export-all-button',{touch:true});await page.locator('#export-all-button').click();assert.match((await download).suggestedFilename(),/\.csv$/);await ready();
   await more();await page.locator('#refresh-button').click();await ready();assert.equal(requests.at(-1).q,'pagina-ui');
   const selectedType=await page.locator('#document-type').inputValue(),selectedOrder=await page.locator('#order').inputValue();
   await page.locator('#document-type-control').focus();

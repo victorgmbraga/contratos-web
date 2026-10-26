@@ -25,6 +25,11 @@ function waitQuery(predicate){
 }
 const check=name=>{checks.push(name);console.log('PASS '+name);};
 async function search(text) {await page.locator('#search').fill(text);await page.locator('#search-button').click();}
+async function exportCsv(scope='all') {
+  await page.locator('#export-button').click();
+  await page.locator('#export-menu').waitFor({state:'visible'});
+  await page.locator(scope==='page'?'#export-page-button':'#export-all-button').click();
+}
 const filter=name=>page.locator(`#filter-${name}`);
 async function selectFilterOptions(name,values) {
   for(const value of Array.isArray(values)?values:[values]) {
@@ -211,9 +216,9 @@ try {
   assert.equal(await page.locator('.results-page-size').count(),0);check('Seletor de linhas removido');
   assert.equal(await page.locator('#app-header .header-toolbar .criteria-row').count(),1);
   for(const id of ['order','clear-button','cancel-button','retry-button','refresh-button','columns-button','export-button','repository-link'])assert.equal(await page.locator(`#app-header #${id}`).count(),1);
-  assert.deepEqual(await page.locator('.header-toolbar > .result-actions').first().evaluate(node=>[...node.querySelectorAll('button')].map(button=>button.id)),['refresh-button','columns-button','export-page-button','export-button','theme-button']);
+  assert.deepEqual(await page.locator('.header-toolbar > .result-actions').first().evaluate(node=>[...node.querySelectorAll('button')].map(button=>button.id)),['refresh-button','columns-button','export-button','theme-button']);
   assert.equal(await page.locator('.results-footer .repository-link').count(),0);
-  for(const [id,label,accessibleLabel=label] of [['search-button','Pesquisar'],['filters-button','Filtros'],['refresh-button','Atualizar resultados'],['columns-button','Selecionar colunas'],['export-button','Exportar CSV'],['repository-link','Repositório no GitHub','Repositório do Contratos Web no GitHub (abre em nova aba)']]){
+  for(const [id,label,accessibleLabel=label] of [['search-button','Pesquisar'],['filters-button','Filtros'],['refresh-button','Atualizar resultados'],['columns-button','Selecionar colunas'],['export-button','Exportar'],['repository-link','Repositório no GitHub','Repositório do Contratos Web no GitHub (abre em nova aba)']]){
     const button=page.locator(`#${id}`),tooltip=page.locator(`#${id}-tooltip`);
     assert.equal(await button.getAttribute('aria-label'),accessibleLabel);assert.equal(await button.getAttribute('title'),null);assert.equal(await button.locator('svg').count(),1);assert.equal(await button.locator('span:not(.count-badge)').count(),0);
     assert.equal(await button.getAttribute('aria-describedby'),`${id}-tooltip`);
@@ -226,6 +231,16 @@ try {
     await page.locator('#search').focus();
   }
   check('Ações do cabeçalho e link do GitHub usam tooltips neutros com mouse, foco e Escape');
+  await page.locator('#export-button').click();await page.locator('#export-menu').waitFor({state:'visible'});
+  assert.equal(await page.locator('#export-button').getAttribute('aria-expanded'),'true');
+  assert.deepEqual(await page.locator('#export-menu [role="menuitem"]').evaluateAll(nodes=>nodes.map(node=>node.id)),['export-all-button','export-page-button']);
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'export-all-button');
+  await page.keyboard.press('End');assert.equal(await page.evaluate(()=>document.activeElement.id),'export-page-button');
+  await page.keyboard.press('Home');assert.equal(await page.evaluate(()=>document.activeElement.id),'export-all-button');
+  await page.keyboard.press('Escape');await page.locator('#export-menu').waitFor({state:'hidden'});
+  assert.equal(await page.locator('#export-button').getAttribute('aria-expanded'),'false');assert.equal(await page.evaluate(()=>document.activeElement.id),'export-button');
+  await page.keyboard.press('ArrowDown');await page.locator('#export-menu').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>document.activeElement.id),'export-all-button');await page.keyboard.press('Escape');
+  check('Menu Exportar reúne consulta completa e página atual com teclado');
   assert.equal(await page.locator('.result-toolbar').count(),0);
   assert.equal(await page.locator('.results-footer .result-info').count(),1);
   const popupFields=await page.locator('.results-header-menu').evaluateAll(buttons=>buttons.map(button=>button.closest('.results-col')?.getAttribute('data-field')));
@@ -254,6 +269,8 @@ try {
   await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Consulta nativa e primeira página de 100 documentos');
   await page.locator('.results-page[data-page="last"]').click();await page.waitForFunction(()=>/101\s*[-–]\s*164\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Ícone de última página abre a segunda página com 64 documentos');
   await page.locator('#refresh-button').click();await page.waitForFunction(()=>!document.querySelector('#refresh-button').disabled);assert.equal(await page.locator('.results-page.active').getAttribute('data-page'),'2');assert.match(await page.locator('.results-page-counter').innerText(),/101\s*[-–]\s*164/);check('Atualizar mantém a segunda página');
+  const pageDownloadPromise=page.waitForEvent('download');await exportCsv('page');const pageDownload=await pageDownloadPromise;
+  assert.equal((await readFile(await pageDownload.path(),'utf8')).split('\r\n').length,66);await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('(página 2)'));check('Exportar página atual baixa somente os 64 registros visíveis');
   await page.locator('.results-page[data-page="first"]').click();await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Ícone de primeira página retorna ao início');
   await page.locator('.results-page[data-page="next"]').click();await page.waitForFunction(()=>/101\s*[-–]\s*164\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Ícone de próxima página avança');
   await page.locator('.results-page[data-page="prev"]').click();await page.waitForFunction(()=>/1\s*[-–]\s*100\s+de\s+164/.test(document.querySelector('.results-page-counter')?.textContent || ''));check('Ícone de página anterior retorna');
@@ -287,7 +304,7 @@ try {
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/details-tabs-mobile.png`});
   await page.setViewportSize(previousViewport);check('Abas, listagens e links cabem no painel em telas menores');
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeTabs);
-  const downloadPromise=page.waitForEvent('download');await page.locator('#export-button').click();const download=await downloadPromise;assert.match(download.suggestedFilename(),/^compras-pncp-/);assert.equal(await page.locator('#export-dialog').count(),0);check('CSV baixado diretamente por nova coleta, sem confirmação');
+  const downloadPromise=page.waitForEvent('download');await exportCsv();const download=await downloadPromise;assert.match(download.suggestedFilename(),/^compras-pncp-/);assert.equal(await page.locator('#export-dialog').count(),0);check('CSV baixado por nova coleta, sem confirmação');
   await page.locator('#filters-button').click();await selectFilterOptions('ufs','GO');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='0 contratações');check('Filtro nativo UF aplicado no serviço');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();await filter('srp').selectOption('false');
@@ -308,7 +325,7 @@ try {
   await page.locator('#filters-button').click();
   for(const name of conditions){assert.equal(await filter(name).inputValue(),'false');}
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Editar filtros documentais preserva Não');
-  const documentaryDownload=page.waitForEvent('download');await page.locator('#export-button').click();const exported=await documentaryDownload;
+  const documentaryDownload=page.waitForEvent('download');await exportCsv();const exported=await documentaryDownload;
   const documentaryCsv=await readFile(await exported.path(),'utf8');assert.equal(documentaryCsv.split('\r\n').length,13);check('CSV usa os mesmos filtros documentais e exporta todas as onze contratações');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();
@@ -323,7 +340,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='6 contratações');check('Emenda e seis filtros de itens são aplicados juntos');
   await page.locator('.results-row').first().click();await page.locator('#details-dialog').waitFor({state:'visible'});await page.locator('#detail-tab-itens').click();await page.waitForFunction(()=>document.querySelectorAll('.item-card').length===2);
   assert.match(await page.locator('.item-card').nth(1).innerText(),/Item complementar/);await page.locator('#details-dialog .close-dialog').click();check('Detalhes preservam os dois itens após a pesquisa filtrada');
-  const itemDownload=page.waitForEvent('download');await page.locator('#export-button').click();const itemExport=await itemDownload;assert.equal((await readFile(await itemExport.path(),'utf8')).split('\r\n').length,8);check('CSV exporta seis contratações, sem multiplicar linhas pelos itens');
+  const itemDownload=page.waitForEvent('download');await exportCsv();const itemExport=await itemDownload;assert.equal((await readFile(await itemExport.path(),'utf8')).split('\r\n').length,8);check('CSV exporta seis contratações, sem multiplicar linhas pelos itens');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();await filter('codigo_ibge').fill('5300108');
   const ibgeRequest=waitQuery(input=>input.pncp_filters.codigo_ibge==='5300108');
@@ -365,7 +382,7 @@ try {
   await page.setViewportSize({width:390,height:844});assert.equal(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);await page.setViewportSize({width:1440,height:1000});
   await page.locator('#details-dialog .close-dialog').click();check('Histórico de contrato com contagem divergente exibe total desconhecido e permite avançar até uma página vazia');
   await page.locator('#filters-button').click();await selectFilterOptions('tipos_contrato','1');await filter('possui_nfe').selectOption('true');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
-  const contractDownload=page.waitForEvent('download');await page.locator('#export-button').click();const exportedContracts=await contractDownload,contractCsv=await readFile(await exportedContracts.path(),'utf8');assert.equal(contractCsv.split('\r\n').length,10);assert(contractCsv.split('\r\n')[0].includes('"valor_global"'));check('Filtros exclusivos de contratos e CSV de oito contratos usam os mesmos critérios');
+  const contractDownload=page.waitForEvent('download');await exportCsv();const exportedContracts=await contractDownload,contractCsv=await readFile(await exportedContracts.path(),'utf8');assert.equal(contractCsv.split('\r\n').length,10);assert(contractCsv.split('\r\n')[0].includes('"valor_global"'));check('Filtros exclusivos de contratos e CSV de oito contratos usam os mesmos critérios');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');assert.equal(await addEveryFilter('contrato'),31);check('Todos os 31 filtros de contratos podem ser preenchidos e aplicados no navegador');
   assert.deepEqual(await page.locator('#document-type option').evaluateAll(nodes=>nodes.map(n=>n.textContent)),['Editais e Avisos de Contratações','Atas de Registro de Preços','Contratos']);
   await page.locator('#document-type').selectOption('ata');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');
@@ -383,13 +400,13 @@ try {
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/ata-details-mobile.png`});await page.setViewportSize({width:1440,height:1000});check('Detalhes de ata conservam vínculos seguros e layout em telas menores');
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeAta);
   await page.locator('#filters-button').click();await page.locator('#draft-status').selectOption('vigente');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='12 atas');
-  const ataDownload=page.waitForEvent('download');await page.locator('#export-button').click();const exportedAtas=await ataDownload,ataCsv=await readFile(await exportedAtas.path(),'utf8');assert.equal(ataCsv.split('\r\n').length,14);assert(ataCsv.split('\r\n')[0].includes('"cancelado"'));assert(!ataCsv.split('\r\n')[0].includes('"valor_global"'));check('Vigência e CSV de atas conservam os mesmos critérios e colunas');
+  const ataDownload=page.waitForEvent('download');await exportCsv();const exportedAtas=await ataDownload,ataCsv=await readFile(await exportedAtas.path(),'utf8');assert.equal(ataCsv.split('\r\n').length,14);assert(ataCsv.split('\r\n')[0].includes('"cancelado"'));assert(!ataCsv.split('\r\n')[0].includes('"valor_global"'));check('Vigência e CSV de atas conservam os mesmos critérios e colunas');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');assert.equal(await addEveryFilter('ata'),16);check('Todos os 16 filtros de atas podem ser preenchidos e aplicados no navegador');
   await page.locator('#document-type').selectOption('edital');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');check('Voltar a contratações restaura colunas e critérios do tipo escolhido');
   await page.locator('#columns-button').click();const checkbox=page.locator('#column-list label').filter({hasText:'CNPJ do órgão'}).locator('input');await checkbox.check();await page.locator('#columns-dialog .close-dialog').click();assert(await page.locator('.results-col[data-field="orgao_cnpj"]').isVisible());check('Seleção de colunas');
   await search('csv-lenta-ui');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='164 contratações');
   let cancelledDownloads=0;const observeDownload=()=>cancelledDownloads++;page.on('download',observeDownload);
-  await page.locator('#export-button').click();
+  await exportCsv();
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Coletando'));
   assert(await page.locator('#cancel-export-button').isVisible());await page.locator('#cancel-export-button').click();
   await page.waitForFunction(()=>!document.querySelector('#export-button').disabled);await page.waitForTimeout(600);

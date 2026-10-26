@@ -297,12 +297,13 @@ test('HEADER-UI-01: ordenação e todas as ações dos resultados ficam no cabe�
     assert.match(header,new RegExp(`id="${id}"`));
     assert.equal([...html.matchAll(new RegExp(`id="${id}"`,'g'))].length,1);
   }
+  assert.doesNotMatch(header,/id="export-page-button"/);
 });
 
 test('HEADER-UI-02: busca, filtros e ações usam somente ícones com nomes acessíveis',async()=>{
   const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/id="columns-dialog"[^>]*aria-labelledby="columns-title"/);assert.match(html,/id="columns-title">Colunas da tabela/);
-  for(const [id,label]of [['search-button','Pesquisar'],['cancel-button','Cancelar pesquisa'],['filters-button','Filtros'],['clear-button','Limpar filtros'],['refresh-button','Atualizar resultados'],['columns-button','Selecionar colunas'],['export-button','Exportar CSV'],['cancel-export-button','Cancelar CSV']]) {
+  for(const [id,label]of [['search-button','Pesquisar'],['cancel-button','Cancelar pesquisa'],['filters-button','Filtros'],['clear-button','Limpar filtros'],['refresh-button','Atualizar resultados'],['columns-button','Selecionar colunas'],['export-button','Exportar'],['cancel-export-button','Cancelar CSV']]) {
     const button=html.match(new RegExp(`<button(?=[^>]*id="${id}")([^>]*)>([\\s\\S]*?)<\\/button>`));
     assert.ok(button);assert.match(button[1],/class="[^"]*\bicon-only\b/);
     assert.match(button[1],new RegExp(`aria-label="${label}"`));assert.doesNotMatch(button[1],/\btitle=/);
@@ -311,6 +312,17 @@ test('HEADER-UI-02: busca, filtros e ações usam somente ícones com nomes aces
     assert.match(button[2],/^<svg\b[^>]*aria-hidden="true"[^>]*>[\s\S]*<\/svg>(?:<span id="filter-count"[^>]*><\/span>)?$/);
     assert.equal(button[2].replace(/<[^>]+>/g,''),'');
   }
+});
+
+test('EXPORT-MENU-UI-01: um botão Exportar controla o menu com os dois escopos de CSV',async()=>{
+  const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
+  const trigger=html.match(/<button(?=[^>]*id="export-button")([^>]*)>/);
+  assert.ok(trigger);assert.match(trigger[1],/aria-haspopup="menu"/);assert.match(trigger[1],/aria-controls="export-menu"/);assert.match(trigger[1],/aria-expanded="false"/);assert.match(trigger[1],/popovertarget="export-menu"/);
+  const menu=html.match(/<div(?=[^>]*id="export-menu")([^>]*)>([\s\S]*?)<\/div>/);
+  assert.ok(menu);assert.match(menu[1],/popover="auto"/);assert.match(menu[1],/role="menu"/);
+  assert.match(menu[2],/id="export-all-button"[^>]*role="menuitem"[^>]*>.*Toda a consulta.*Todos os resultados dos critérios atuais/);
+  assert.match(menu[2],/id="export-page-button"[^>]*role="menuitem"[^>]*>.*Página atual.*Somente os registros desta página/);
+  assert.match(menu[2],/Toda a consulta[\s\S]*Página atual/);
 });
 
 test('HEADER-UI-03: botão de menu do cabeçalho aparece somente em colunas filtráveis',async()=>{
@@ -410,15 +422,25 @@ test('ORDER-UI-02: relevância sem texto funciona nos três tipos pela URL e pel
   }
 });
 
-test('EXPORT-UI-01: um clique baixa o CSV dos últimos critérios concluídos sem modal',async()=>{
+test('EXPORT-UI-01: o menu baixa o CSV completo dos últimos critérios concluídos sem modal',async()=>{
   const ui=await interfaceFixture();ui.nodes.get('search').value='firewall';await ui.nodes.get('search-form').fire('submit');
   const completed=ui.state();ui.nodes.get('search').value='texto ainda não pesquisado';
-  await ui.nodes.get('export-button').fire('click');
+  assert.equal(ui.nodes.get('export-all-button').disabled,false);assert.equal(ui.nodes.get('export-page-button').disabled,false);
+  await ui.nodes.get('export-all-button').fire('click');
   assert.equal(ui.nodes.has('export-dialog'),false);assert.equal(ui.nodes.has('download-csv'),false);
   assert.equal(ui.exportRequests.length,1);assert.deepEqual(ui.exportRequests[0],{query:completed});
   assert.equal(ui.downloads.length,1);assert.equal(ui.downloads[0].filename,'compras-pncp.csv');
   assert.match(ui.nodes.get('notice-message').textContent,/6 linhas exportadas/);
   assert.equal(ui.nodes.get('export-button').disabled,false);assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'false');
+  assert.equal(ui.nodes.get('export-all-button').disabled,false);assert.equal(ui.nodes.get('export-page-button').disabled,false);
+});
+
+test('EXPORT-UI-01B: consulta vazia mantém a exportação completa e desabilita somente a página atual',async()=>{
+  const ui=await interfaceFixture();ui.nodes.get('search').value='benchmark-ui';await ui.nodes.get('search-form').fire('submit');
+  assert.equal(ui.state().q,'benchmark-ui');
+  assert.equal(ui.nodes.get('export-button').disabled,false);
+  assert.equal(ui.nodes.get('export-all-button').disabled,false);
+  assert.equal(ui.nodes.get('export-page-button').disabled,true);
 });
 
 test('EXPORT-UI-02: geração desabilita o botão e impede exportações duplicadas',async()=>{
@@ -427,28 +449,30 @@ test('EXPORT-UI-02: geração desabilita o botão e impede exportações duplica
     const result=await core.export(input.query,options.signal);
     resolve(result);
   };})});
-  const exporting=ui.nodes.get('export-button').fire('click');await settle();
+  const exporting=ui.nodes.get('export-all-button').fire('click');await settle();
   assert.equal(ui.nodes.get('export-button').disabled,true);assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'true');
+  assert.equal(ui.nodes.get('export-all-button').disabled,true);assert.equal(ui.nodes.get('export-page-button').disabled,true);
   assert.match(ui.nodes.get('notice-message').textContent,/gerando CSV/);
-  await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.length,1);
+  await ui.nodes.get('export-all-button').fire('click');assert.equal(ui.exportRequests.length,1);
   await finish();await exporting;assert.equal(ui.downloads.length,1);assert.equal(ui.nodes.get('export-button').disabled,false);
-  assert.equal(ui.nodes.get('export-button-tooltip').textContent,'Exportar CSV');
+  assert.equal(ui.nodes.get('export-button-tooltip').textContent,'Exportar');assert.equal(ui.nodes.get('export-button').getAttribute('aria-label'),'Exportar');
+  assert.equal(ui.nodes.get('export-all-button').disabled,false);assert.equal(ui.nodes.get('export-page-button').disabled,false);
   assert.equal(ui.nodes.get('export-button').getAttribute('title'),null);
 });
 
 test('EXPORT-UI-03: falha é exibida acima da tabela e permite tentar exportar novamente',async()=>{
   const ui=await interfaceFixture({exportHandler:()=>({error:{code:'EXPORT_TOO_BROAD',message:'Delimite a pesquisa.'}})});
-  await ui.nodes.get('export-button').fire('click');
+  await ui.nodes.get('export-all-button').fire('click');
   assert.equal(ui.downloads.length,0);assert.equal(ui.nodes.get('notice').className,'notice error');
   assert.match(ui.nodes.get('notice-message').textContent,/Falha ao exportar CSV: Delimite a pesquisa/);
   assert.equal(ui.nodes.get('export-button').disabled,false);assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'false');
-  await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.length,2);
+  await ui.nodes.get('export-all-button').fire('click');assert.equal(ui.exportRequests.length,2);
 });
 
 test('EXPORT-UI-04: uma nova consulta cancela a exportação e descarta seu download tardio',async()=>{
   let finish,signal;
   const ui=await interfaceFixture({exportHandler:(input,options)=>{signal=options.signal;return new Promise(resolve=>{finish=()=>resolve({chunks:[new TextEncoder().encode('csv antigo')],metadata:{exported_rows:1}});});}});
-  const exporting=ui.nodes.get('export-button').fire('click');await settle();
+  const exporting=ui.nodes.get('export-all-button').fire('click');await settle();
   await ui.request({page:1});assert.equal(signal.aborted,true);assert.equal(ui.nodes.get('export-button').disabled,false);
   assert.match(ui.nodes.get('notice-message').textContent,/exportação em andamento foi cancelada pela nova consulta/i);
   assert.equal(ui.nodes.get('notice').className,'notice warning');
@@ -530,7 +554,7 @@ test('QUERY-URL-UI-04: atualizar, repetir falha e exportar preservam a página e
   assert.equal(ui.requests[0].page,2);assert.equal(ui.browser.entries.length,1);failed=false;
   await ui.nodes.get('retry-button').fire('click');assert.equal(ui.requests.at(-1).page,2);assert.equal(ui.state().page,2);
   await ui.nodes.get('refresh-button').fire('click');assert.equal(ui.requests.at(-1).page,2);assert.equal(ui.browser.entries.length,1);
-  await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.at(-1).query.page,2);assert.equal(ui.exportRequests.at(-1).query.q,'firewall');assert.equal(ui.browser.entries.length,1);
+  await ui.nodes.get('export-all-button').fire('click');assert.equal(ui.exportRequests.at(-1).query.page,2);assert.equal(ui.exportRequests.at(-1).query.q,'firewall');assert.equal(ui.browser.entries.length,1);
 });
 
 test('QUERY-URL-UI-05: URL inválida mostra erro sem pesquisa inicial e pode ser corrigida pela interface',async()=>{
@@ -1077,7 +1101,7 @@ test('CONTRACTS-UI-01: trocar o tipo reinicia critérios, colunas e status e per
   const domainsBefore=ui.domainRequests.length;await ui.nodes.get('filters-button').fire('click');assert(ui.field('tipos_contrato'));assert.equal(ui.field('item_quantidade_min'),undefined);assert.equal(ui.domainRequests.length,domainsBefore);assert(ui.domainRequests.some(request=>request.type==='contrato' && request.field===null));
   await ui.editFilter('tipos_contrato',['1']);
   await ui.editFilter('possui_nfe',true);await ui.nodes.get('apply-filters').fire('click');assert.equal(ui.nodes.get('result-title').textContent,'8 contratos');
-  await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.at(-1).query.document_type,'contrato');assert.deepEqual(ui.exportRequests.at(-1).query.pncp_filters,{tipos_contrato:['1'],possui_nfe:true});
+  await ui.nodes.get('export-all-button').fire('click');assert.equal(ui.exportRequests.at(-1).query.document_type,'contrato');assert.deepEqual(ui.exportRequests.at(-1).query.pncp_filters,{tipos_contrato:['1'],possui_nfe:true});
   await ui.nodes.get('clear-button').fire('click');assert.equal(ui.state().document_type,'contrato');assert.equal(ui.nodes.get('result-title').textContent,'32 contratos');
   ui.nodes.get('document-type').value='edital';await ui.nodes.get('document-type').fire('change');assert.equal(ui.nodes.get('result-title').textContent,'64 contratações');assert(ui.tableColumns().some(c=>c.field==='valor_total_estimado'));
 });
@@ -1102,7 +1126,7 @@ test('ATAS-UI-01: trocar para atas ajusta status, colunas, filtros, contagem e C
   assert(ui.tableColumns().some(c=>c.field==='cancelado'));assert(!ui.tableColumns().some(c=>c.field==='valor_total_estimado'));
   assert.deepEqual(ui.nodes.get('draft-status').children.map(c=>c.value),['todos','vigente','nao_vigente']);
   await ui.nodes.get('filters-button').fire('click');assert.equal(ui.fieldNames().length,16);assert.equal(ui.field('situacoes_item'),undefined);ui.nodes.get('draft-status').value='vigente';await ui.nodes.get('apply-filters').fire('click');assert.equal(ui.nodes.get('result-title').textContent,'12 atas');
-  await ui.nodes.get('export-button').fire('click');assert.equal(ui.exportRequests.at(-1).query.document_type,'ata');assert.equal(ui.exportRequests.at(-1).query.status,'vigente');
+  await ui.nodes.get('export-all-button').fire('click');assert.equal(ui.exportRequests.at(-1).query.document_type,'ata');assert.equal(ui.exportRequests.at(-1).query.status,'vigente');
   await ui.nodes.get('clear-button').fire('click');assert.equal(ui.state().document_type,'ata');assert.equal(ui.nodes.get('result-title').textContent,'24 atas');
 });
 
@@ -1349,6 +1373,7 @@ test('NOTICE-UI-01: fecha o aviso e o reexibe em uma nova mensagem',async()=>{
 
 test('EXPORT-PAGE-UI-01: exporta somente a página atual sem alterar o CSV completo',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('search-form').fire('submit');const completed=ui.state();
+  assert.equal(ui.nodes.get('export-page-button').disabled,false);
   await ui.nodes.get('export-page-button').fire('click');
   assert.equal(ui.exportRequests.length,1);assert.deepEqual(ui.exportRequests[0],{query:{...completed,page:1},scope:'page'});assert.equal(ui.downloads.length,1);
 });

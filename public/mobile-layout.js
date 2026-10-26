@@ -6,7 +6,7 @@ export function initializeMobileLayout({document, window}) {
   const panel = document.getElementById('more-actions'), trigger = document.getElementById('more-actions-button');
   const toolbar = document.querySelector('.header-toolbar'), triggerMarker = document.createComment('more-actions-button');
   trigger.before(triggerMarker);
-  const controls = ['refresh-button','columns-button','clear-button','retry-button','cancel-export-button','export-page-button','export-button','theme-button','repository-link'].map(id => {
+  const controls = ['refresh-button','columns-button','clear-button','retry-button','cancel-export-button','export-button','theme-button','repository-link'].map(id => {
     const element = document.getElementById(id), marker = document.createComment(id);
     element.before(marker);
     return {element, marker};

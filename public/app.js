@@ -32,7 +32,7 @@ const session=createSession();
 let filterOptionsCache;
 let selectMenus;
 let urlMode='replace',urlError=null,tableReady=false,queryRequested=false,exportWarning=false,searchFocusReturn=false;
-const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-page-button','export-button','cancel-export-button'];
+const toolbarButtonIds=['theme-button','search-button','cancel-button','filters-button','clear-button','refresh-button','columns-button','export-button','cancel-export-button'];
 const renderCell=createCellRenderer(el);
 const columnLayout=createColumnLayout({window,state});
 const tooltips=createTooltips({window,state,$,toolbarButtonIds});
@@ -93,18 +93,42 @@ function updateOnlineStatus() {
   if(window.navigator?.onLine===false)setConnectivity('Sem conexão. Verifique a rede para consultar o PNCP.','offline');
   else if($('connectivity-notice')?.dataset.kind==='offline')setConnectivity('');
 }
+function isMobileViewport() {
+  return window.matchMedia?.('(max-width:700px)')?.matches===true;
+}
+function exportMenuOpen() {
+  return $('export-menu')?.matches?.(':popover-open')===true;
+}
+function closeExportMenu() {
+  const menu=$('export-menu');
+  if(exportMenuOpen())menu.hidePopover();
+  $('export-button').setAttribute('aria-expanded','false');
+}
+function positionExportMenu() {
+  const menu=$('export-menu'),anchor=isMobileViewport()?$('more-actions-button'):$('export-button');
+  if(!menu || !anchor)return;
+  const anchorRect=anchor.getBoundingClientRect(),viewportWidth=window.innerWidth;
+  const width=menu.getBoundingClientRect().width || parseFloat(window.getComputedStyle?.(menu).width) || 290;
+  menu.style.top=`${anchorRect.bottom+6}px`;
+  menu.style.left=`${Math.max(8,Math.min(anchorRect.right-width,viewportWidth-width-8))}px`;
+  menu.style.right='auto';
+  menu.style.maxHeight=`${Math.max(120,(window.visualViewport?.height || window.innerHeight)-anchorRect.bottom-14)}px`;
+}
+function enabledExportOptions() {
+  return [$('export-all-button'),$('export-page-button')].filter(option=>option && !option.disabled);
+}
 function updateExportButton() {
   const busy=!!state.exportAbort,ready=['success','empty'].includes(state.status),hasPage=!!state.lastResult?.data?.length;
   $('export-button').disabled=busy || !ready;
+  $('export-all-button').disabled=busy || !ready;
   $('export-page-button').disabled=busy || !ready || !hasPage;
-  $('export-button').setAttribute('aria-busy',String(busy));$('export-page-button').setAttribute('aria-busy',String(busy));
+  $('export-button').setAttribute('aria-busy',String(busy));
   $('cancel-export-button').hidden=!busy;
   if(!busy)$('cancel-export-button-tooltip').hidden=true;
-  $('export-button-tooltip').textContent=busy?'Consultando e gerando CSV…':'Exportar CSV';
-  $('export-page-button-tooltip').textContent=busy?'Consultando e gerando CSV…':'Exportar página atual';
-  if(busy){$('export-button-tooltip').hidden=true;$('export-page-button-tooltip').hidden=true;}
-  $('export-button').setAttribute('aria-label',busy?'Gerando CSV':'Exportar CSV');
-  $('export-page-button').setAttribute('aria-label',busy?'Gerando CSV':'Exportar página atual');
+  $('export-button-tooltip').textContent=busy?'Consultando e gerando CSV…':'Exportar';
+  if(busy)$('export-button-tooltip').hidden=true;
+  $('export-button').setAttribute('aria-label',busy?'Gerando CSV':'Exportar');
+  if(busy || !ready)closeExportMenu();
 }
 function status(value,query=state.query) {
   const searchHadFocus=document.activeElement===$('search-button'),cancelHadFocus=document.activeElement===$('cancel-button');
@@ -366,7 +390,37 @@ async function init() {
   initializeMobileLayout({document,window});
   selectMenus=initializeSelectMenus({document,window});
   $('results-view').addEventListener('change',()=>setMobileView($('results-view').value));
-  $('export-page-button').addEventListener('click',()=>exportCsv('page'));
+  const exportMenu=$('export-menu');
+  $('export-all-button').addEventListener('click',()=>{closeExportMenu();return exportCsv();});
+  $('export-page-button').addEventListener('click',()=>{closeExportMenu();return exportCsv('page');});
+  $('export-button').addEventListener('keydown',event=>{
+    if(!['ArrowDown','ArrowUp'].includes(event.key) || $('export-button').disabled || exportMenuOpen())return;
+    event.preventDefault();exportMenu.showPopover?.();enabledExportOptions()[0]?.focus({preventScroll:true});
+  });
+  exportMenu.addEventListener('beforetoggle',event=>{if(event.newState==='open')positionExportMenu();});
+  exportMenu.addEventListener('toggle',()=>{
+    const open=exportMenuOpen();$('export-button').setAttribute('aria-expanded',String(open));
+    if(open){positionExportMenu();enabledExportOptions()[0]?.focus({preventScroll:true});}
+    else if(document.activeElement===document.body || exportMenu.contains?.(document.activeElement)){
+      const trigger=isMobileViewport()?$('more-actions-button'):$('export-button');
+      if(trigger && !trigger.disabled)trigger.focus({preventScroll:true});
+    }
+  });
+  exportMenu.addEventListener('keydown',event=>{
+    const options=enabledExportOptions();if(!options.length)return;
+    const current=options.indexOf(document.activeElement),focus=option=>option.focus({preventScroll:true});
+    if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+      event.preventDefault();
+      const next=current<0?(event.key==='ArrowDown'?0:options.length-1):(current+(event.key==='ArrowDown'?1:-1)+options.length)%options.length;
+      focus(options[next]);
+    } else if(event.key==='Home'){event.preventDefault();focus(options[0]);}
+    else if(event.key==='End'){event.preventDefault();focus(options[options.length-1]);}
+    else if(event.key==='Escape'){
+      event.preventDefault();closeExportMenu();const trigger=isMobileViewport()?$('more-actions-button'):$('export-button');
+      if(trigger && !trigger.disabled)trigger.focus({preventScroll:true});
+    } else if(event.key==='Tab')closeExportMenu();
+  });
+  window.addEventListener('resize',closeExportMenu);
   $('reset-columns').addEventListener('click',()=>{columnLayout.clear(state.query.document_type);state.table.setColumns(tableColumnDefinitions());renderColumnChoices();});
   $('clear-draft-filters').addEventListener('click',()=>filters.clearDraft());
   renderColumnChoices();
@@ -388,7 +442,6 @@ async function init() {
   $('apply-filters').addEventListener('click',()=>{const draft=filters.apply();if(!draft)return;state.query=draft;$('filters-dialog').close();updateCriteria();return execute();});
   $('filters-dialog').addEventListener('close',()=>filters.onDialogClose());
   $('details-dialog').addEventListener('close',()=>{if(!$('details-dialog').open)details.close();});
-  $('export-button').addEventListener('click',()=>exportCsv());
   for(const id of toolbarButtonIds)tooltips.bindTooltip($(id),$(`${id}-tooltip`));
   tooltips.bindTooltip($('repository-link'),$('repository-link-tooltip'));
   $('window-warning').addEventListener('mouseenter',tooltips.showWindowTooltip);

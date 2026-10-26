@@ -39,6 +39,12 @@ try {
   await settle(page);
   assert.deepEqual(describe(await analyze(page)), [], 'violações no diálogo de colunas');
   await page.locator('#columns-dialog .close-dialog').first().click();
+  await page.locator('#export-button').click();
+  await page.locator('#export-menu').waitFor({ state: 'visible' });
+  await settle(page);
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no menu de exportação');
+  await page.keyboard.press('Escape');
+  await page.locator('#export-menu').waitFor({ state: 'hidden' });
   await page.locator('#results-table tbody .results-open').first().click();
   await page.waitForFunction(() => document.querySelector('#details-dialog')?.open === true);
   await page.locator('#details-dialog .detail-tab').first().waitFor();
@@ -52,7 +58,7 @@ try {
   assert.deepEqual(describe(await analyze(page)), [], 'violações na visualização móvel');
 
   assert.deepEqual(errors, [], 'erros JavaScript durante a verificação');
-  console.log('PASS Acessibilidade: axe sem violações críticas ou sérias em busca, filtros, detalhes e mobile');
+  console.log('PASS Acessibilidade: axe sem violações críticas ou sérias em busca, filtros, menu de exportação, detalhes e mobile');
 } finally {
   await browser.close();
   app.server.close();
