@@ -279,6 +279,7 @@ test('HEADER-UI-01: ordenação e todas as ações dos resultados ficam no cabe�
 
 test('HEADER-UI-02: busca, filtros e ações usam somente ícones com nomes acessíveis',async()=>{
   const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/id="columns-dialog"[^>]*aria-labelledby="columns-title"/);assert.match(html,/id="columns-title">Colunas da tabela/);
   for(const [id,label]of [['search-button','Pesquisar'],['cancel-button','Cancelar pesquisa'],['filters-button','Filtros'],['clear-button','Limpar filtros'],['refresh-button','Atualizar resultados'],['columns-button','Selecionar colunas'],['export-button','Exportar CSV'],['cancel-export-button','Cancelar CSV']]) {
     const button=html.match(new RegExp(`<button(?=[^>]*id="${id}")([^>]*)>([\\s\\S]*?)<\\/button>`));
     assert.ok(button);assert.match(button[1],/class="[^"]*\bicon-only\b/);
@@ -440,6 +441,7 @@ test('STARTUP-UI-01: abrir a aplicação consulta a primeira página sem texto o
     pncp_filters:{},order:'-data',page:1,size:100,
   });
   assert.equal(ui.nodes.get('result-title').textContent,'64 contratações');
+  assert.equal(ui.nodes.get('result-status').textContent,'64 contratações. Exibindo 1 a 64.');
   assert.equal(ui.nodes.get('table-loader').hidden,true);assert.equal(ui.nodes.get('export-button').disabled,false);
 });
 
@@ -454,6 +456,15 @@ test('STARTUP-UI-02: falha da pesquisa inicial usa o aviso de consulta e permite
   fail=false;await ui.nodes.get('retry-button').fire('click');
   assert.equal(ui.requests.length,2);assert.equal(ui.nodes.get('result-title').textContent,'64 contratações');
   assert.equal(ui.nodes.get('notice').hidden,true);
+});
+
+test('SEARCH-FOCUS-01: o foco acompanha Pesquisar, Cancelar e a conclusão da consulta',async()=>{
+  let finish;
+  const ui=await interfaceFixture({queryHandler:async(input,options,core)=>input.q==='lenta'?new Promise(resolve=>{finish=()=>resolve(core.execute(input,options.signal));}):core.execute(input,options.signal)});
+  ui.nodes.get('search').value='lenta';ui.nodes.get('search-button').focus();
+  const submitting=ui.nodes.get('search-form').fire('submit');await settle();
+  assert.equal(ui.focusedField(),'cancel-button');finish();await submitting;await settle();
+  assert.equal(ui.focusedField(),'search-button');
 });
 
 test('QUERY-URL-UI-01: link inicial restaura contrato, texto, filtros, status, ordenação e página sem consultar a primeira',async()=>{
@@ -629,6 +640,7 @@ test('FILTERS-UI-01: aplicar texto, período e status envia apenas critérios na
   ui.nodes.get('draft-status').value='recebendo_proposta';await ui.nodes.get('apply-filters').fire('click');
   assert.equal(ui.requests.length,2);
   assert.deepEqual(ui.requests[1],{api_version:'2.0',document_type:'edital',q:'Oracle',status:'recebendo_proposta',pncp_filters:{data_publicacao_inicio:'2026-09-01',data_publicacao_fim:'2026-09-30'},order:'-data',page:1,size:100});
+  assert.equal(ui.nodes.get('filters-button').getAttribute('aria-label'),'Filtros (3 ativos)');
   assert.equal(ui.itemRequests.length,0);
 });
 
@@ -768,6 +780,13 @@ test('FILTER-OPTIONS-UI-01: inicializa todas as listas e reabrir filtros dos tr�
     for(let i=0;i<2;i++){await ui.nodes.get('filters-button').fire('click');assert.equal(ui.field('ufs').disabled,false);assert((await ui.options('ufs')).length>0);ui.nodes.get('filters-dialog').close();}
   }
   assert.equal(ui.domainRequests.length,8);
+});
+
+test('FILTER-OPTIONS-UI-01B: chips usam o nome da opção assim que o cache de domínios é hidratado',async()=>{
+  const ui=await interfaceFixture({href:'https://example.test/contratos-web/?orgaos=1'});
+  let chip=ui.nodes.get('native-chips').children[0]?.textContent || '';
+  for(let i=0;i<40 && !chip.includes('Ministério');i++){await tick();chip=ui.nodes.get('native-chips').children[0]?.textContent || '';}
+  assert.match(chip,/^Órgão: Ministério da Gestão e da Inovação$/);
 });
 
 test('FILTER-OPTIONS-UI-02: nova inicialização reusa o armazenamento até quatro horas e atualiza depois',async()=>{
@@ -1134,6 +1153,14 @@ test('DOCUMENTS-UI-03: ausência de identificadores originais preserva campos da
   for(const name of ['partesenvolvidas','contratos','arquivos','historico'])assert.equal(ui.nodes.get(`detail-tab-${name}`).dataset.state,'unavailable');
 });
 
+test('CONTRACTS-UI-09: o fallback de contrato preserva máscara do CPF/CNPJ e link do Controle PNCP',async()=>{
+  const ui=await interfaceFixture({documentHandler:async()=>{throw new Error('Detalhes indisponíveis.');}});
+  await ui.openDocument(project(demoContracts[0]));
+  const fields=ui.nodes.get('detail-panel-detalhes').children[0].children,byLabel=label=>fields.find(field=>field.children[0].textContent===label);
+  assert.equal(byLabel('CPF/CNPJ do fornecedor').children[1].textContent,'01.234.567/0001-89');
+  const control=byLabel('Controle PNCP').children[1].children[0];assert.equal(control.tagName,'a');assert.match(control.href,/\/app\/contratos\//);
+});
+
 test('DOCUMENTS-UI-04: falha em arquivos de termo fica visível e uma nova tentativa consulta somente esse registro',async()=>{
   let failed=true;const ui=await interfaceFixture({itemFetcher:url=>url.includes('/termos/1/arquivos') && failed?Promise.resolve(new Response(null,{status:503})):demoFetch(url)});
   await ui.openDocument(project(demoContracts[0]));const card=ui.nodes.get('detail-panel-termos').children[2].children[0],button=card.children[2],extra=card.children[3];
@@ -1239,11 +1266,22 @@ test('COLUMNS-UI-01: visibilidade das colunas é persistida por tipo documental'
 
 test('DRAFT-FILTERS-UI-01: contador de ativos e limpeza do rascunho',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  assert.equal(ui.focusedField(),'draft-search');
   assert.equal(ui.nodes.get('filter-active-count').textContent,'Nenhum filtro ativo');assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
   await ui.setFilter('srp',false);
   assert.match(ui.nodes.get('filter-active-count').textContent,/1 filtro ativo/);assert.equal(ui.nodes.get('clear-draft-filters').disabled,false);
   await ui.nodes.get('clear-draft-filters').fire('click');
   assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.nodes.get('filter-active-count').textContent,'Nenhum filtro ativo');assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
+});
+
+test('DRAFT-FILTERS-UI-02: status conta como filtro ativo e Limpar filtros também restaura texto e status',async()=>{
+  const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
+  ui.nodes.get('draft-search').value='Oracle';ui.nodes.get('draft-status').value='recebendo_proposta';await ui.nodes.get('draft-status').fire('change');
+  assert.equal(ui.nodes.get('filter-active-count').textContent,'1 filtro ativo');
+  await ui.setFilter('srp',false);assert.equal(ui.nodes.get('filter-active-count').textContent,'2 filtros ativos');
+  await ui.nodes.get('clear-draft-filters').fire('click');
+  assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.draft().q,'');assert.equal(ui.draft().status,'todos');
+  assert.equal(ui.nodes.get('draft-search').value,'');assert.equal(ui.nodes.get('draft-status').value,'todos');
 });
 
 test('NOTICE-UI-01: fecha o aviso e o reexibe em uma nova mensagem',async()=>{

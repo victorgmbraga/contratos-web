@@ -31,7 +31,7 @@ function syncFilterEditor(editor) {
 }
 function updateDraftActions() {
   if(!state.draft)return;
-  const active=Object.keys(state.draft.pncp_filters).length,count=$('filter-active-count');
+  const status=$('draft-status')?.value ?? state.draft.status,active=Object.keys(state.draft.pncp_filters).length+(status==='todos'?0:1),count=$('filter-active-count');
   if(count)count.textContent=active?`${active} ${active===1?'filtro ativo':'filtros ativos'}`:'Nenhum filtro ativo';
   $('clear-draft-filters').disabled=active===0;
 }
@@ -39,7 +39,8 @@ function clearDraftFilters() {
   if(!state.draft)return;
   state.legalAbort?.abort();session.next('legal');state.legalPending=false;state.legalError=false;
   if($('legal-error'))$('legal-error').hidden=true;if($('apply-filters'))$('apply-filters').disabled=false;
-  state.draft.pncp_filters={};
+  state.draft.pncp_filters={};state.draft.q='';state.draft.status='todos';
+  $('draft-search').value='';$('draft-status').value='todos';
   for(const editor of filterFields.values())syncFilterEditor(editor);
   updateDraftActions();
 }
@@ -83,6 +84,7 @@ async function openFilters(column=null) {
   filterFields.clear();$('filter-groups').replaceChildren();$('filter-popups').replaceChildren();
   $('filters-title').textContent=`Filtros · ${documentName().label}`;
   openDialog('filters-dialog');
+  if(!column)$('draft-search').focus({preventScroll:true});
   const controller=new AbortController();state.domainAbort=controller;
   const base=getDomains(controller.signal);base.catch(()=>{});
   const loads=[],target=column?.domain || column?.native_range?.[0];
@@ -291,6 +293,7 @@ function apply() {
 function onDialogClose() {
   stopFilterEditors();state.legalAbort?.abort();session.next('legal');
 }
+$('draft-status').addEventListener('change',updateDraftActions);
 document.addEventListener('select-menu-open',closeFilterDropdown);
 document.addEventListener('pointerdown',event=>{if(openFilterEditor && event.target!==openFilterEditor.input && !openFilterEditor.suggestions.contains(event.target))closeFilterDropdown();});
 $('filters-dialog').querySelector('.filters-body')?.addEventListener('scroll',positionFilterDropdown);

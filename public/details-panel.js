@@ -81,7 +81,8 @@ function appendFields(container,fields,className='related-values') {
   const values=el('dl',undefined,className);
   for(const field of fields){
     const wrap=el('div'),value=el('dd');
-    const text=field.value==null?'—':field.type==='decimal'?money(field.value):field.type==='date'?date(field.value):field.type==='datetime'?time(field.value):field.type==='boolean'?(field.value?'Sim':'Não'):field.type==='cnpj'?formatCnpj(field.value):field.type==='cpf-cnpj'?formatCpfCnpj(field.value):String(field.value);
+    const type=field.mask==='cpf-cnpj'?'cpf-cnpj':field.mask==='cnpj'?'cnpj':field.type;
+    const text=field.value==null?'—':type==='decimal'?money(field.value):type==='date'?date(field.value):type==='datetime'?time(field.value):type==='boolean'?(field.value?'Sim':'Não'):type==='cnpj'?formatCnpj(field.value):type==='cpf-cnpj'?formatCpfCnpj(field.value):String(field.value);
     const link=field.document?internalControlAnchor(text,field.document):field.url?safeAnchor(text,field.url):null;
     if(link)value.append(link);else value.textContent=text;
     wrap.append(el('dt',field.title),value);values.append(wrap);
@@ -214,7 +215,7 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   }
   const common=['numero_controle_pncp','orgao_nome','orgao_cnpj','unidade_orgao_nome_unidade','unidade_orgao_codigo_unidade','uf','municipio_nome'];
   const fieldNames=[...common,...(kind==='edital'?['modalidade_nome','situacao_compra_nome_pncp','data_publicacao_pncp','data_atualizacao_pncp','valor_total_estimado','valor_total_homologado']:kind==='ata'?['modalidade_nome','data_publicacao_pncp','data_atualizacao_pncp','data_assinatura','data_inicio_vigencia','data_fim_vigencia','cancelado','permite_adesao']:['tipo_contrato_nome','fornecedor_nome','fornecedor_ni','valor_global','data_assinatura','data_inicio_vigencia','data_fim_vigencia','data_publicacao_pncp','data_atualizacao_pncp'])];
-  const fields=kind==='edital' && doc._raw?indexedDocumentFields(doc._raw):joinOrganizationFields(fieldNames.map(name=>{const column=state.schema.columns_by_document[kind].find(c=>c.field===name);return {field:name,title:column.title,type:column.type,value:doc[name]};}),'schema');
+  const fields=kind==='edital' && doc._raw?indexedDocumentFields(doc._raw):joinOrganizationFields(fieldNames.map(name=>{const column=state.schema.columns_by_document[kind].find(c=>c.field===name),value=doc[name];return {field:name,title:column.title,type:column.mask==='cpf-cnpj'?'cpf-cnpj':column.mask==='cnpj'?'cnpj':column.type,value,...(name==='numero_controle_pncp' && value?{url:controlLink(value)}:{})};}),'schema');
   const detailPanel=el('section',undefined,'detail-information');
   let grid=appendFields(detailPanel,fields,'detail-grid');
   const updateDetails=addTab('detalhes','Detalhes',detailPanel);updateDetails(fields.length,'loaded');
