@@ -4,22 +4,26 @@ import { routePncp } from './pncp-route.js';
 const baseline=JSON.parse(await readFile(new URL('./layout-baseline.json',import.meta.url),'utf8'));
 const normalizeFonts=styles=>Object.fromEntries(Object.entries(styles).map(([selector,style])=>[selector,{...style,fontFamily:style.fontFamily.replace(/["']/g,'')}]));
 
+const layoutSelectors = ['#app-header', '.search-field', '#search-button', '#results-table', '.results-header', '.results-col', '.results-col-content', '.results-col-title', '.results-row', '.results-row-even', '.results-cell', '.results-footer', '.results-footer-contents', '.results-page-counter', '.results-paginator', '.results-page', '.results-page.active'];
 async function snapshot(page,width) {
-  if(width<=700 && await page.locator('.results-row').count()===0){
-    await page.locator('#more-actions-button').click();
-    await page.locator('#results-view').selectOption('table');
+  if(width<=700){
+    // O baseline visual usa a tabela; force-a antes de medir para não disputar
+    // com o evento de mídia que libera as linhas no modo cartões.
+    await page.evaluate(()=>{
+      const select=document.querySelector('#results-view');
+      if(select && select.value!=='table'){select.value='table';select.dispatchEvent(new Event('change',{bubbles:true}));}
+    });
+    await page.locator('.results-grid').waitFor({state:'visible'});
   }
-  await page.locator('.results-row').first().waitFor({state:'attached'});
-  await page.locator('.results-grid:visible, .results-cards:visible').first().waitFor();
-  return page.evaluate(async () => {
+  for(const selector of layoutSelectors)await page.locator(selector).first().waitFor({state:'attached'});
+  return page.evaluate(async selectors => {
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const selectors = ['#app-header', '.search-field', '#search-button', '#results-table', '.results-header', '.results-col', '.results-col-content', '.results-col-title', '.results-row', '.results-row-even', '.results-cell', '.results-footer', '.results-footer-contents', '.results-page-counter', '.results-paginator', '.results-page', '.results-page.active'];
     const properties = ['backgroundColor', 'color', 'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'borderTopColor', 'borderTopWidth', 'borderBottomColor', 'borderBottomWidth', 'borderRightColor', 'borderRightWidth', 'borderRadius', 'display', 'gap', 'minHeight'];
     return Object.fromEntries(selectors.map(selector => {
       const node = document.querySelector(selector), style = getComputedStyle(node);
       return [selector, { ...Object.fromEntries(properties.map(key => [key, style[key]])) }];
     }));
-  });
+  },layoutSelectors);
 }
 
 // Recorded visual baseline: application colors, spacing and table typography.
