@@ -97,6 +97,12 @@ test('DOCUMENTS-07: instrumentos não paginados recebem recorte explícito; empe
   const commitments=await f.service.documentRelated(contract,'empenhos',2,10);assert.equal(commitments.total,12);assert.equal(commitments.data.length,2);assert.equal(commitments.pagination_source,'pncp');assert.equal(f.requests.at(-1).searchParams.get('pagina'),'2');
 });
 
+test('DOCUMENTS-25: instrumentos de cobrança reutilizam a lista não paginada entre páginas',async()=>{
+  const records=Array.from({length:12},(_,i)=>({sequencialInstrumentoCobranca:String(i+1),numeroInstrumentoCobranca:String(i+1),tipoInstrumentoCobranca:{nome:'Nota fiscal eletrônica'},dataInclusao:'2026-09-01T10:00:00',valorTotal:'10.00'})),f=fixture(()=>json(records));
+  const first=await f.service.documentRelated(contract,'instrumentocobranca',1,10),second=await f.service.documentRelated(contract,'instrumentocobranca',2,10);
+  assert.equal(f.requests.length,1);assert.equal(first.data.length,10);assert.equal(first.total,12);assert.equal(second.data.length,2);assert.equal(second.page,2);assert.equal(second.pagination_source,'local_slice');
+});
+
 test('DOCUMENTS-08: vazios, falhas, formato e contagens não são confundidos',async()=>{
   const noContent=fixture(u=>u.pathname.endsWith('/quantidade')?json(0):new Response(null,{status:204}));
   for(const [d,resources]of [[ata,['partesenvolvidas','contratos','arquivos','historico']],[contract,['empenhos','instrumentocobranca','termos','arquivos','historico']]])for(const resource of resources)assert.equal((await noContent.service.documentRelated(d,resource,1,10)).total,0);

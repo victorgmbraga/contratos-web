@@ -50,13 +50,15 @@ test('ITEM-FILTER-04: combinação não reduz os detalhes nem presume um único 
 test('ITEM-FILTER-05: aliases validam domínios reais e serializam nomes nativos sem buscar itens',async()=>{
   const s=service([document(1)],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{criterios_julgamento:[{id:1},{id:7}],item_categorias_leilao:[{id:1},{id:3}],item_beneficios:[{id:1},{id:4}]}}):null});
   const pncp_filters={criterios_julgamento:['1','7'],categorias_leilao:['1','3'],beneficios:['1','4'],...Object.fromEntries(itemBooleans.map(name=>[name,false])),possui_emenda_parlamentar:false};
+  let domainCached=false;
   for(const run of [input=>s.service.execute(input),input=>s.service.export(input)]){
-    const before=s.requests.length;await run(query({pncp_filters}));assert.equal(s.requests.length-before,2);
+    const before=s.requests.length;await run(query({pncp_filters}));assert.equal(s.requests.length-before,domainCached?1:2);
     const params=s.requests.at(-1).searchParams;assert.equal(params.get('categorias_leilao'),'1|3');assert.equal(params.get('beneficios'),'1|4');assert(!params.has('item_beneficios'));assert(!params.has('item_categorias_leilao'));
     for(const name of [...itemBooleans,'possui_emenda_parlamentar'])assert.equal(params.get(name),'false');
     for(const name of ['criterios_julgamento','categorias_leilao','beneficios']){
-      const start=s.requests.length;await assert.rejects(run(query({pncp_filters:{[name]:['999']}})),e=>e.code==='INVALID_DOMAIN');assert.equal(s.requests.length,start+1);assert(s.requests.at(-1).pathname.endsWith('/filters'));
+      const start=s.requests.length;await assert.rejects(run(query({pncp_filters:{[name]:['999']}})),e=>e.code==='INVALID_DOMAIN');assert.equal(s.requests.length,start);
     }
+    domainCached=true;
   }
   assert(!s.requests.some(u=>u.pathname.includes('/itens')));
 });

@@ -55,13 +55,14 @@ test('DOCUMENTARY-04: tipos inválidos e capacidades restantes são recusados an
 test('DOCUMENTARY-05: domínios compartilhados são conferidos e valores chegam intactos ao PNCP',async()=>{
   const s=service([document(1)],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{fontes:[{id:3,nome:'Compras.gov.br'},{id:5,nome:'BLL Compras'}],modos_disputa:[{id:1,nome:'Aberto'},{id:3,nome:'Aberto-Fechado'}]}}):null});
   const pncp_filters={fontes:['3','5'],modos_disputa:['1','3'],...Object.fromEntries(booleans.map(name=>[name,false]))};
+  let domainCached=false;
   for(const run of [input=>s.service.execute(input),input=>s.service.export(input)]){
-    const before=s.requests.length;await run(query({pncp_filters}));assert.equal(s.requests.length-before,2);
+    const before=s.requests.length;await run(query({pncp_filters}));assert.equal(s.requests.length-before,domainCached?1:2);
     const u=s.requests.at(-1);assert.equal(u.searchParams.get('fontes'),'3|5');assert.equal(u.searchParams.get('modos_disputa'),'1|3');
     assert(u.search.includes('3%7C5'));assert(!u.search.includes('%257C'));
     for(const name of booleans)assert.equal(u.searchParams.get(name),'false');
     const beforeInvalid=s.requests.length;await assert.rejects(run(query({pncp_filters:{fontes:['999']}})),e=>e.code==='INVALID_DOMAIN');
-    assert.equal(s.requests.length,beforeInvalid+1);assert(s.requests.at(-1).pathname.endsWith('/filters'));
+    assert.equal(s.requests.length,beforeInvalid);domainCached=true;
   }
   const missing=service([document(1)],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{}}):null});
   await assert.rejects(missing.service.execute(query({pncp_filters:{modos_disputa:['1']}})),e=>e.code==='DOMAIN_UNAVAILABLE');assert.equal(missing.requests.length,1);

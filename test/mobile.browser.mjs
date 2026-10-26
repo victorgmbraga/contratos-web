@@ -63,6 +63,7 @@ try {
     for(const action of ['first','prev','next','last'])await fits(`.results-page[data-page="${action}"]`,{height:true});
     assert.equal(await page.locator('.results-paginator').evaluate(node=>Math.abs(node.getBoundingClientRect().width-node.parentElement.getBoundingClientRect().width)<1),true);
     assert.equal(await page.locator('.results-grid').isVisible(),false);assert.equal(await page.locator('.result-card').first().isVisible(),true);
+    assert.equal(await page.locator('.results-row').count(),0,'Modo cartões não mantém linhas ocultas');
     assert.equal(await page.locator('.results-scroll').evaluate(node=>node.scrollWidth<=node.clientWidth),true);
   }
   await page.setViewportSize({width:360,height:800});
@@ -128,11 +129,13 @@ try {
   assert.equal(await page.getByRole('button',{name:'Página 3',exact:true}).count(),0);
   await more();await page.locator('#results-view').selectOption('table');
   assert.equal(await page.locator('.results-grid').isVisible(),true);assert.equal(await page.locator('.results-cards').isVisible(),false);
+  assert.equal(await page.locator('.results-row').count(),100);
   const filter=page.getByRole('button',{name:'Filtrar Órgão',exact:true});await filter.click();
   await page.waitForFunction(()=>document.activeElement?.id==='filter-orgaos');await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   await more();await page.locator('#columns-button').click();await page.locator('#column-list label').filter({hasText:'CNPJ do órgão'}).locator('input').check();
   await page.locator('#columns-dialog .close-dialog').click();assert.equal(await page.locator('.results-col[data-field="orgao_cnpj"]').count(),1);
   await more();await page.locator('#results-view').selectOption('cards');
+  assert.equal(await page.locator('.results-row').count(),0,'Voltar aos cartões libera as linhas da tabela');
   await more();await page.locator('#theme-button').click();assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
   await more();const github=page.locator('#repository-link');await fits('#repository-link',{touch:true,height:true});assert.match(await github.getAttribute('href'),/github.com\/victorgmbraga\/contratos-web$/);
   await page.keyboard.press('Escape');assert.equal(await page.locator('#more-actions').evaluate(node=>node.matches(':popover-open')),false);

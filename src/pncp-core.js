@@ -1,12 +1,13 @@
 import { parseExactJson as parse } from './exact-json.js';
 import { AppError, assert, fail } from './errors.js';
-import { scalarText, plain, itemSituation } from './adapter.js';
+import { scalarText, itemSituation } from './adapter.js';
 import { domainAliases, catalogDomains, referenceDomains, partialDomains } from './filter-domains.js';
 import { relatedResources, projectRelated } from './related.js';
 import { documentResources, nativeDocumentPath, projectDocument, recordFields, controlLink } from './document-details.js';
 
 import { delay } from './operation.js';
 export { delay, operation } from './operation.js';
+export const UNPAGED_CACHE_TTL = 30_000;
 
 export function serializeSearch(query, page, size) {
   const params = new URLSearchParams({ tipos_documento: query.document_type, status: query.status, ordenacao: query.order, pagina: String(page), tam_pagina: String(size) });
@@ -47,7 +48,7 @@ export class PncpClient {
   constructor(config, { fetcher, logger = () => {}, fetchOptions = {} }) {
     assert(typeof fetcher === 'function', 'INVALID_CONFIG', 'Transporte PNCP não configurado.');
     this.config = config; this.logger = logger; this.active = 0; this.queue = []; this.nextSlot = 0; this.lastCall = null;
-    this.fetcher = fetcher; this.fetchOptions = fetchOptions;
+    this.fetcher = fetcher; this.fetchOptions = fetchOptions; this.unpagedCache = new Map();
   }
   async acquire(signal, priority = 'foreground') {
     if (signal.aborted) throw signal.reason;
@@ -157,17 +158,17 @@ export class PncpClient {
     return { items: result.items, total };
   }
   async domains(type, normatives, op, field = null) {
-    if(Object.hasOwn(referenceDomains,field))return {filters:{[field]:referenceDomains[field].map(o=>({...o}))},warnings:[],raw:{},partial_domains:[],domain_source:'reference'};
+    if(Object.hasOwn(referenceDomains,field))return {filters:{[field]:referenceDomains[field].map(o=>({...o}))},warnings:[],partial_domains:[],domain_source:'reference'};
     if(Object.hasOwn(catalogDomains,field)) {
       const result=await this.get(`${this.config.PNCP_DETAIL_BASE_URL}/${catalogDomains[field]}`,op);
       const domain=domainAliases[field] || field;
-      return {filters:{[domain]:normalizeCatalog(result)},warnings:[],raw:{[domain]:plain(result)},partial_domains:[]};
+      return {filters:{[domain]:normalizeCatalog(result)},warnings:[],partial_domains:[]};
     }
     const params = new URLSearchParams({ tipos_documento: type }); if (normatives) params.set('normativos_base',normatives.join('|'));
     const result = await this.get(`${this.config.PNCP_SEARCH_BASE_URL}/filters?${params}`,op);
     assert(result?.filters && typeof result.filters === 'object' && !Array.isArray(result.filters), 'INVALID_UPSTREAM', 'PNCP não retornou o objeto filters.', 502);
     const filters=Object.fromEntries(Object.entries(result.filters).map(([k,v])=>[k,normalizeOptions(v,k)]));
-    return { filters, warnings: [], raw: plain(result.filters), partial_domains: partialDomains };
+    return { filters, warnings: [], partial_domains: partialDomains };
   }
   async suggest(type, field, q, size, op) {
     const params = new URLSearchParams({ tipos_documento:type, campo:field, q, tam_pagina:String(size) });
@@ -230,24 +231,34 @@ export class PncpClient {
     const counted=['arquivos','historico','termos'].includes(resource),unpaged=resource==='instrumentocobranca',contractHistory=document.type==='contrato' && resource==='historico';
     let total=counted && paginationMode!=='until_empty'?integer(await this.get(`${path}/quantidade`,op),'Quantidade de registros'):null;
     if(counted && !contractHistory)assert(page<=Math.max(1,Math.ceil(total/size)),'PAGE_OUT_OF_RANGE','Página além da listagem atual.',422,{last_page:Math.max(1,Math.ceil(total/size))});
-    const params=new URLSearchParams({pagina:String(page),tamanhoPagina:String(size)});
+    const params=new URLSearchParams({pagina:String(page),tamanhoPagina:String(size)}),cacheKey=unpaged?`${document.type}:${document.cnpj}:${document.ano}:${document.sequencial}:${resource}`:null;
+    let cached=null;
+    if(cacheKey){const entry=this.unpagedCache.get(cacheKey);if(entry && Date.now()-entry.at<UNPAGED_CACHE_TTL)cached=entry.data;else if(entry)this.unpagedCache.delete(cacheKey);}
     let result;
     // Contract history counts can underreport even zero; always inspect the requested page.
-    try { result=total===0 && !contractHistory?[]:await this.get(unpaged?path:`${path}?${params}`,op,true); }
-    catch(error) {
-      if(document.type!=='contrato' || !['empenhos','instrumentocobranca'].includes(resource) || !(error instanceof AppError) || error.code!=='PNCP_HTTP_ERROR' || error.details.upstream_status!==404)throw error;
-      result=null;
+    if(cached===null){
+      try { result=total===0 && !contractHistory?[]:await this.get(unpaged?path:`${path}?${params}`,op,true); }
+      catch(error) {
+        if(document.type!=='contrato' || !['empenhos','instrumentocobranca'].includes(resource) || !(error instanceof AppError) || error.code!=='PNCP_HTTP_ERROR' || error.details.upstream_status!==404)throw error;
+        result=null;
+      }
     }
-    let data=counted || unpaged?result || []:result===null?[]:result?.data;
+    let data=cached!==null?cached:counted || unpaged?result || []:result===null?[]:result?.data;
     if(!counted)total=unpaged?(Array.isArray(data)?data.length:0):result===null?0:integer(result?.totalRegistros,'Total de registros');
     assert(Array.isArray(data) && data.every(v=>v && typeof v==='object' && !Array.isArray(v)),'INVALID_UPSTREAM','Listagem PNCP retornou formato inesperado.',502);
     assert(!contractHistory || data.length<=size,'INVALID_UPSTREAM','Histórico PNCP retornou mais registros que o tamanho solicitado.',502);
-    // Limit records received in this operation, not the total available across pages.
-    op.itemCount+=data.length;
-    assert(op.itemCount<=this.config.PNCP_MAX_DETAIL_ITEMS,'DETAIL_ITEM_LIMIT','Limite de registros da operação excedido.',422);
     const pages=total===null?null:Math.max(1,Math.ceil(total/size));
     if(!counted && !unpaged && result!==null && result.numeroPagina!=null)assert(integer(result.numeroPagina,'Número da página')===page,'INVALID_UPSTREAM','PNCP retornou outra página da listagem.',502);
-    if(unpaged)data=data.slice((page-1)*size,page*size);
+    if(unpaged){
+      if(cached===null){this.unpagedCache.set(cacheKey,{at:Date.now(),data});if(this.unpagedCache.size>20)this.unpagedCache.delete(this.unpagedCache.keys().next().value);}
+      // A lista não paginada só é baixada na primeira página desta operação.
+      if(cached===null){op.itemCount+=data.length;assert(op.itemCount<=this.config.PNCP_MAX_DETAIL_ITEMS,'DETAIL_ITEM_LIMIT','Limite de registros da operação excedido.',422);}
+      data=data.slice((page-1)*size,page*size);
+    }else{
+      // Limit records received in this operation, not the total available across pages.
+      op.itemCount+=data.length;
+      assert(op.itemCount<=this.config.PNCP_MAX_DETAIL_ITEMS,'DETAIL_ITEM_LIMIT','Limite de registros da operação excedido.',422);
+    }
     const matches=total!==null && data.length===Math.min(size,Math.max(0,total-(page-1)*size));
     const unknownTotal=contractHistory && (paginationMode==='until_empty' || page>pages || !matches);
     if(!unknownTotal){

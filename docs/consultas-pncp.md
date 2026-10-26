@@ -183,7 +183,7 @@ Os campos documentais são definidos em [`src/schema.js`](../src/schema.js). Cad
 
 ## Domínios e sugestões
 
-`service.call("domains", {type, normatives, field})` aceita `type: "edital"`, `"ata"` ou `"contrato"`, `normatives` como lista de IDs e `field` com o nome de um filtro que possui domínio. Campos desconhecidos ou incompatíveis com o documento são rejeitados. Retorna `filters`, `warnings`, `raw`, `partial_domains`, `request_id` e `queried_at`. As opções são normalizadas para `{id, label}`. Anos são preservados como fornecidos pelo PNCP, inclusive fora do formato `AAAA`, e podem ser selecionados, compartilhados na URL e usados na pesquisa e no CSV. Os valores são enviados à fonte como strings, sem conversão para número ou preenchimento com zeros.
+`service.call("domains", {type, normatives, field})` aceita `type: "edital"`, `"ata"` ou `"contrato"`, `normatives` como lista de IDs e `field` com o nome de um filtro que possui domínio. Campos desconhecidos ou incompatíveis com o documento são rejeitados. Retorna `filters`, `warnings`, `partial_domains`, `request_id` e `queried_at`. As opções são normalizadas para `{id, label}`. Anos são preservados como fornecidos pelo PNCP, inclusive fora do formato `AAAA`, e podem ser selecionados, compartilhados na URL e usados na pesquisa e no CSV. Os valores são enviados à fonte como strings, sem conversão para número ou preenchimento com zeros.
 
 Sem `field`, ou com um filtro da busca, a origem é `/api/search/filters`. Para os campos abaixo, apenas o catálogo solicitado é consultado:
 
@@ -275,7 +275,7 @@ Atas mostram identificação, órgão/unidade, modalidade, assinatura, vigência
 | Contrato | `empenhos` | `fields` e `sequencial`: número, valor total, emenda, emissão, inclusão, situação e credor/fornecedor; envelope paginado |
 | Contrato | `instrumentocobranca` | `fields` e `sequencial`: número, tipo, datas, observações, chave NF-e e demais dados disponíveis; lista sem paginação externa |
 
-Os serviços externos usam o mesmo sufixo da rota completa do documento. Instrumentos de cobrança são consultados integralmente a cada página; o Worker recorta sua apresentação e identifica `pagination_source: local_slice`. Os outros recursos identificam `pagination_source: pncp`. Esse recorte não altera a busca documental nem seus totais.
+Os serviços externos usam o mesmo sufixo da rota completa do documento. Instrumentos de cobrança são consultados integralmente uma vez e reutilizados por 30 segundos nas páginas seguintes; o Worker recorta sua apresentação e identifica `pagination_source: local_slice`. Os outros recursos identificam `pagination_source: pncp`. Esse recorte não altera a busca documental nem seus totais.
 
 Nas listagens de atas e contratos, `PNCP_MAX_DETAIL_ITEMS` limita os registros recebidos em uma operação. Um histórico com total superior a esse limite continua disponível por páginas, mantendo a contagem e a navegação informadas pelo PNCP. Listas sem paginação externa são contabilizadas integralmente antes do recorte local.
 
@@ -287,7 +287,7 @@ Nesse modo, a interface envia `pagination_mode: "until_empty"` nas consultas seg
 
 Nas listas `empenhos` e `instrumentocobranca` de contratos, HTTP 404 retorna `data: []`, `total: 0`, `total_pages: 1`, `has_more: false` e `complete: true` na página 1. As abas exibem **Empenhos (0)** e **Instrumentos de cobrança (0)**, com mensagem de lista vazia e sem botão de nova tentativa. Páginas além da primeira são recusadas como `PAGE_OUT_OF_RANGE`. Outros erros HTTP, falhas de transporte e respostas inválidas continuam sendo erros; HTTP 404 em `contractChild` também continua sendo erro.
 
-O painel começa em **Detalhes**, ou na aba indicada pelo link, e carrega os dados completos e todas as primeiras páginas em segundo plano, com até duas requisições simultâneas. Atas têm abas **Detalhes**, **Partes envolvidas**, **Contratos**, **Arquivos** e **Histórico**; contratos têm **Detalhes**, **Empenhos**, **Instrumentos de cobrança**, **Termos**, **Arquivos** e **Histórico**. O contador de Detalhes corresponde aos campos exibidos; os demais correspondem aos totais das listagens. Cancelamento, teclado, paginação, erros e nova tentativa seguem o comportamento de contratações.
+O painel começa em **Detalhes**, ou na aba indicada pelo link, e carrega os dados completos e as primeiras páginas em segundo plano, com até duas requisições simultâneas. Em conexões com `saveData` ou lentas, as abas não ativas são carregadas somente ao serem selecionadas. Atas têm abas **Detalhes**, **Partes envolvidas**, **Contratos**, **Arquivos** e **Histórico**; contratos têm **Detalhes**, **Empenhos**, **Instrumentos de cobrança**, **Termos**, **Arquivos** e **Histórico**. O contador de Detalhes corresponde aos campos exibidos; os demais correspondem aos totais das listagens. Cancelamento, teclado, paginação, erros e nova tentativa seguem o comportamento de contratações.
 
 Em contratos, `service.call("contractChild", {document, resource, sequence})` consulta o filho escolhido, com `sequence` como string numérica positiva: `empenhos` e `instrumentocobranca` retornam `fields`; `termos` consulta o sufixo externo `/termos/{sequencialRegistro}/arquivos` e retorna `files`, no formato dos arquivos. Esses dados carregam ao abrir **Ver detalhes** ou **Arquivos do termo** na lista. Não há exposição de JSON bruto no painel.
 

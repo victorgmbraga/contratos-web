@@ -166,6 +166,11 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   const detailController=new AbortController();state.detailAbort=detailController;
   const identity=detailIdentity(doc);state.detailDoc=doc;state.detailSelection=identity?{document:identity,tab}:null;
   const schedule=detailScheduler(),loads=[],tabs=[];
+  function startLoad(entry) {
+    if(!entry)return Promise.resolve();
+    if(!entry.promise)entry.promise=Promise.resolve().then(entry.load);
+    return entry.promise;
+  }
   const content=$('details-content');content.replaceChildren();
   const objectSummary=el('p',doc.objeto_compra ?? (doc._detail_from_url?'Carregando detalhes do documento…':'Objeto não informado.'),'detail-object');content.append(objectSummary);
   const more=el('button','Ver descrição completa','text-button detail-object-more');more.type='button';more.hidden=true;more.setAttribute('aria-haspopup','dialog');more.setAttribute('aria-controls','description-dialog');content.append(more);
@@ -186,8 +191,10 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
     sectionSelect.value=tabs[index].button.dataset.resource;sectionSelect.setAttribute('aria-controls',tabs[index].panel.id);
     sectionSelect.setAttribute('aria-busy',tabs[index].button.getAttribute('aria-busy'));
     sectionSpinner.hidden=tabs[index].button.getAttribute('aria-busy')!=='true';
+    const entry=loads.find(item=>item.resource===tabs[index].button.dataset.resource);
     refreshSelects(sectionSelect);
     if(focus){tabs[index].button.focus();tabs[index].button.scrollIntoView({block:'nearest',inline:'nearest'});}
+    return entry?startLoad(entry).catch(()=>{}):Promise.resolve();
   }
   sectionSelect.addEventListener('change',()=>{const index=tabs.findIndex(tab=>tab.button.dataset.resource===sectionSelect.value);if(index>=0)activate(index);});
   function addTab(resource,title,panel) {
@@ -203,15 +210,15 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
     const option=el('option',title);option.value=resource;sectionSelect.append(option);
     nav.append(button);content.append(panel);tabs.push({button,panel});
     const update=(count,phase)=>{
-      const loading=count===null && phase==='loading';
-      button.textContent=loading?title:`${title} (${count===null?phase==='loaded'?'?':'—':fmtInt(count)})`;
+      const loading=count===null && phase==='loading',deferred=phase==='deferred';
+      button.textContent=deferred?title:loading?title:`${title} (${count===null?phase==='loaded'?'?':'—':fmtInt(count)})`;
       if(loading){const spinner=el('span',undefined,'detail-tab-spinner');spinner.setAttribute('aria-hidden','true');button.append(spinner);}
       button.setAttribute('aria-label',loading?`${title}: carregando`:button.textContent);
       button.setAttribute('aria-busy',String(loading));button.dataset.state=phase;
-      option.textContent=loading?`${title} — carregando`:button.textContent;
+      option.textContent=deferred?title:loading?`${title} — carregando`:button.textContent;
       if(sectionSelect.value===resource){sectionSpinner.hidden=!loading;sectionSelect.setAttribute('aria-busy',String(loading));}
     };
-    update(null,'loading');return update;
+    update(null,'deferred');return update;
   }
   const common=['numero_controle_pncp','orgao_nome','orgao_cnpj','unidade_orgao_nome_unidade','unidade_orgao_codigo_unidade','uf','municipio_nome'];
   const fieldNames=[...common,...(kind==='edital'?['modalidade_nome','situacao_compra_nome_pncp','data_publicacao_pncp','data_atualizacao_pncp','valor_total_estimado','valor_total_homologado']:kind==='ata'?['modalidade_nome','data_publicacao_pncp','data_atualizacao_pncp','data_assinatura','data_inicio_vigencia','data_fim_vigencia','cancelado','permite_adesao']:['tipo_contrato_nome','fornecedor_nome','fornecedor_ni','valor_global','data_assinatura','data_inicio_vigencia','data_fim_vigencia','data_publicacao_pncp','data_atualizacao_pncp'])];
@@ -219,7 +226,7 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   const detailPanel=el('section',undefined,'detail-information');
   let grid=appendFields(detailPanel,fields,'detail-grid');
   const updateDetails=addTab('detalhes','Detalhes',detailPanel);updateDetails(fields.length,'loaded');
-  const forceDetails=!!(doc._detail_from_url || doc._direct_link);
+  const forceDetails=!!(doc._detail_from_url || doc._direct_link || (kind==='edital' && !doc._raw));
   if(kind!=='edital' || forceDetails){
     const detailStatus=el('p','Preparando consulta dos detalhes…','items-status'),retryDetails=el('button','Tentar novamente','button small');retryDetails.hidden=true;detailStatus.setAttribute('role','status');detailPanel.append(detailStatus,retryDetails);
     async function loadDetails(){
@@ -304,7 +311,9 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   const priority=[tab,'detalhes','itens',...sections[kind].map(([resource])=>resource)],seen=new Set(),ordered=[];
   for(const resource of priority){const entry=loads.find(item=>item.resource===resource);if(entry && !seen.has(entry)){seen.add(entry);ordered.push(entry);}}
   for(const entry of loads)if(!seen.has(entry))ordered.push(entry);
-  await Promise.all(ordered.map(entry=>entry.load()));
+  const connection=window.navigator?.connection,backgroundPrefetch=connection?.saveData!==true && !['slow-2g','2g'].includes(connection?.effectiveType || '') && window.matchMedia?.('(prefers-reduced-data: reduce)')?.matches!==true;
+  if(backgroundPrefetch)await Promise.all(ordered.map(startLoad));
+  else await Promise.all(ordered.filter(entry=>entry.resource===tab || entry.resource==='detalhes').map(startLoad));
 }
 return { open: openDetails, close: closeDetails, restore: restoreDetailSelection };
 }

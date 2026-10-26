@@ -3,6 +3,7 @@ import { openOptionsDatabase } from './options-db.js';
 
 export const FILTER_OPTIONS_TTL = 4 * 60 * 60 * 1000;
 export const FILTER_OPTIONS_PREFIX = 'contratos-web:filter-options:v1:';
+const DB_MARKER = 'contratos-web:filter-options:db:v1';
 const COMPRESSION_THRESHOLD = 64 * 1024;
 
 async function encodeEntry(entry) {
@@ -31,7 +32,8 @@ function normalizeResult(result) {
   const warnings = result.warnings ?? [], partial = result.partial_domains ?? [];
   assert(Array.isArray(warnings) && warnings.every(warning => warning && typeof warning.message === 'string') && Array.isArray(partial) && partial.every(name => typeof name === 'string') && (result.domain_source === undefined || typeof result.domain_source === 'string'), 'INVALID_UPSTREAM', 'Metadados de opções inválidos.');
   // Keep only normalized lists and presentation metadata, not duplicate raw responses.
-  return structuredClone({ filters, warnings, partial_domains: partial, ...(result.domain_source ? { domain_source: result.domain_source } : {}) });
+  // O chamador recebe uma cópia isolada em get(); aqui evitamos uma segunda clonagem.
+  return { filters, warnings, partial_domains: partial, ...(result.domain_source ? { domain_source: result.domain_source } : {}) };
 }
 
 function waitFor(promise, signal) {
@@ -48,8 +50,16 @@ function waitFor(promise, signal) {
 export function createFilterOptionsCache(service, schema, { getStorage = () => globalThis.localStorage, now = Date.now, indexedDB = globalThis.indexedDB } = {}) {
   let storage;
   try { storage = getStorage(); } catch { /* Storage may be blocked by the browser. */ }
-  let database = null;
-  const databaseReady = openOptionsDatabase(indexedDB).then(db => { database = db; return db; }).catch(() => null);
+  let database = null, databasePromise = null, closed = false;
+  function databaseReady() {
+    if (closed) return Promise.resolve(null);
+    if (!databasePromise) databasePromise = openOptionsDatabase(indexedDB).then(db => {
+      database = db;
+      if (closed) { db?.close(); return null; }
+      return db;
+    }).catch(() => null);
+    return databasePromise;
+  }
   const prefix = `${FILTER_OPTIONS_PREFIX}${schema.source}:${schema.api_version}:`;
   const memory = new Map(), pending = new Map(), queue = [], controller = new AbortController();
   let active = false;
@@ -78,22 +88,27 @@ export function createFilterOptionsCache(service, schema, { getStorage = () => g
         controller.signal.throwIfAborted();
         storage.setItem(key, JSON.stringify(stored));
         return;
-      } catch { /* Quota or unavailable storage falls back to IndexedDB. */ }
+      } catch {
+        try { storage?.setItem(DB_MARKER, '1'); } catch { /* The marker is best effort. */ }
+      }
     }
     try {
-      const db = database || await databaseReady;
+      const db = database || await databaseReady();
       if (db) await db.set(key, entry);
     } catch { /* The in-memory cache still works. */ }
   }
   async function read(key) {
     let entry = memory.get(key);
     const fromStorage = !entry;
-    if (!entry) {
-      try { const text = storage?.getItem(key); if (text) entry = JSON.parse(text); }
-      catch { discard(key); return null; }
+    let checkDatabase = !storage;
+    if (!entry && storage) {
+      try {
+        const text = storage.getItem(key); if (text) entry = JSON.parse(text);
+        else checkDatabase = storage.getItem(DB_MARKER) === '1';
+      } catch { storage = null; checkDatabase = true; }
     }
-    if (!entry) {
-      try { const db = database || await databaseReady; if (db) entry = await db.get(key); }
+    if (!entry && checkDatabase) {
+      try { const db = database || await databaseReady(); if (db) entry = await db.get(key); }
       catch { entry = null; }
     }
     if (!entry) return null;
@@ -158,6 +173,7 @@ export function createFilterOptionsCache(service, schema, { getStorage = () => g
     return results;
   }
   function close() {
+    closed = true;
     controller.abort(new DOMException('Carregamento de opções encerrado.', 'AbortError'));
     for (const job of queue.splice(0)) job.reject(controller.signal.reason);
     database?.close();

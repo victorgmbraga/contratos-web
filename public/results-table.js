@@ -10,6 +10,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
   let fields = [], rows = [], page = 1, lastPage = 1, busy = false, destroyed = false, menu = null, gesture = null;
   let rowViews = [];
   let cardsDirty = true;
+  let rowsDirty = true;
   let sortOrder = null;
   const mobile = renderCard ? window.matchMedia('(max-width:700px)') : null;
   const originalFooterParent = footerContent?.parentNode;
@@ -159,6 +160,15 @@ export function createResultsTable({container, columns = [], renderCell, renderC
 
   function renderRows() {
     const visible = fields.filter(column=>column.visible), nextViews = [];
+    if (renderCard && mobile?.matches && container.dataset.mobileView === 'cards') {
+      if (rowViews.length) { body.replaceChildren(); rowViews = []; }
+      rowsDirty = true; cardsDirty = true; container.dataset.hasRows = String(rows.length > 0);
+      empty.hidden = rows.length > 0 && visible.length > 0;
+      empty.replaceChildren(!visible.length && rows.length ? node('div',null,'Selecione ao menos uma coluna.') : emptyText);
+      renderCards();
+      return;
+    }
+    rowsDirty = false;
     for (const [index,row] of (visible.length ? rows : []).entries()) {
       const previous = rowViews[index];
       if (previous && visible.every(column=>Object.is(previous.row[column.field],row[column.field]))) {
@@ -213,7 +223,14 @@ export function createResultsTable({container, columns = [], renderCell, renderC
       cardsDirty = false;
     }
   }
-  mobile?.addEventListener('change',renderCards,{signal});
+  function syncViewport() {
+    if (renderCard && mobile?.matches && container.dataset.mobileView === 'cards') {
+      if (rowViews.length) { body.replaceChildren(); rowViews = []; rowsDirty = true; }
+      renderCards();
+    } else if (rowsDirty) renderRows();
+    else renderCards();
+  }
+  mobile?.addEventListener('change',syncViewport,{signal});
   function renderPagination() {
     pagination.render({page,lastPage,busy});
   }
@@ -299,7 +316,12 @@ export function createResultsTable({container, columns = [], renderCell, renderC
     setMobileView(view) {
       if (!renderCard || !['cards','table'].includes(view) || destroyed) return;
       container.dataset.mobileView = view;scroll.scrollTop = 0;scroll.scrollLeft = 0;
-      hideFilterTooltip();closeMenu();renderCards();
+      hideFilterTooltip();closeMenu();
+      if (mobile?.matches && view === 'cards') {
+        if (rowViews.length) { body.replaceChildren(); rowViews = []; rowsDirty = true; }
+        renderCards();
+      } else if (rowsDirty) renderRows();
+      else renderCards();
     },
     destroy() {
       if (destroyed) return;

@@ -133,7 +133,7 @@ async function interfaceFixture(options={}) {
     }
   };
   const renderedPage=()=>({page:uiCore.state.table.page,ids:uiCore.state.table.rows.map(row=>row.id)});
-  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,pageChange,footer,startTable,renderedPage,optionsReady:uiCore.state.optionsReady,browser};
+  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,pageChange,footer,startTable,renderedPage,rows:()=>uiCore.state.table.rows,optionsReady:uiCore.state.optionsReady,browser};
 }
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
@@ -190,6 +190,15 @@ test('DETAIL-TABS-03: abertura é imediata e consulta as cinco listas com no má
   assert.equal(historyTab.children.find(node=>node.className==='detail-tab-spinner').getAttribute('aria-hidden'),'true');
   for(let round=0;round<4;round++){await Promise.all(queued.splice(0).map(release=>release()));await settle();}
   await opening;assert.equal(started.length,5);assert.equal(peak,2);assert.equal(active,0);assert.equal(historyTab.textContent,'Histórico (12)');assert.equal(historyTab.getAttribute('aria-busy'),'false');
+});
+
+test('DETAIL-TABS-04: saveData adia abas não ativas e as carrega ao serem selecionadas',async()=>{
+  const ui=await interfaceFixture({navigator:{connection:{saveData:true}}});await ui.openDocument(project(demoContracts[0]));
+  assert.equal(ui.documentRequests.length,1);assert.equal(ui.relatedRequests.length,0);
+  assert.equal(ui.nodes.get('detail-tab-historico').dataset.state,'deferred');
+  await ui.nodes.get('detail-tab-historico').fire('click');await settle();
+  assert.equal(ui.relatedRequests.length,1);assert.equal(ui.nodes.get('detail-tab-historico').dataset.state,'loaded');
+  assert.equal(ui.nodes.get('detail-tab-arquivos').dataset.state,'deferred');
 });
 
 test('RELATED-UI-01: quatro abas carregam em background e exibem dados e links corretos',async()=>{
@@ -1248,6 +1257,14 @@ test('TABLE-STATE-01: falha de outra página preserva linhas e página confirmad
   await assert.rejects(ui.request({page:2}),/Fonte indisponível/);
   assert.deepEqual(ui.renderedPage(),confirmed);assert.equal(ui.state().page,2);
   assert.equal(ui.nodes.get('table-loader').hidden,true);assert.equal(ui.nodes.get('results-table').inert,false);
+});
+
+test('CACHE-UI-02: página em cache não conserva o registro bruto e detalhes consultam a fonte nativa',async()=>{
+  const rows=Array.from({length:150},(_,i)=>project({...demoDocuments[i%demoDocuments.length],id:`bench-${i}`,numero_controle_pncp:`bench-${i}`}));
+  const ui=await interfaceFixture({queryHandler:async(input,options,core)=>({...await core.execute({...input,q:'',size:100},options.signal),data:rows.slice((input.page-1)*100,input.page*100),total:rows.length,last_page:2,last_row:rows.length})});
+  await ui.pageChange(2);await ui.pageChange(1);
+  const row=ui.rows()[0];assert(row);assert(!Object.hasOwn(row,'_raw'));
+  await ui.openDocument(row);assert.equal(ui.documentRequests.length,1);
 });
 
 test('CACHE-UI-01: revisitar uma página em cache não repete a consulta',async()=>{

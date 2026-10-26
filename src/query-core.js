@@ -5,14 +5,24 @@ import { operation, delay } from './operation.js';
 import { csvWriter } from './csv.js';
 import { columnsFor, capabilities, documentNames } from './schema.js';
 
+export const DOMAIN_VALIDATION_TTL = 4 * 60 * 60 * 1000;
 export class QueryService {
-  constructor(config, client) { this.config=config; this.client=client; }
+  constructor(config, client) { this.config=config; this.client=client; this.domainValidationCache=new Map(); }
+  async validatedDomains(type, normatives, op, field = null) {
+    const key = field ? `field:${field}` : `search:${type}:${[...(normatives || [])].sort().join('|')}`;
+    const now = Date.now(), cached = this.domainValidationCache.get(key);
+    if (cached && now - cached.at < DOMAIN_VALIDATION_TTL) return cached.value;
+    const value = await this.client.domains(type, normatives, op, field);
+    this.domainValidationCache.set(key, { at: now, value });
+    if (this.domainValidationCache.size > 64) this.domainValidationCache.delete(this.domainValidationCache.keys().next().value);
+    return value;
+  }
   async verifyDomains(query, op) {
     const short=capabilities(this.config).filter(c=>c.domain_kind==='closed' && Object.hasOwn(query.pncp_filters,c.name));
     if(!short.length)return;
-    const search=short.some(c=>c.domain_source==='search') ? await this.client.domains(query.document_type,query.pncp_filters.normativos_base,op) : null;
+    const search=short.some(c=>c.domain_source==='search') ? await this.validatedDomains(query.document_type,query.pncp_filters.normativos_base,op) : null;
     for(const cap of short) {
-      const key=cap.name,domains=cap.domain_source==='search' ? search : await this.client.domains(query.document_type,null,op,key);
+      const key=cap.name,domains=cap.domain_source==='search' ? search : await this.validatedDomains(query.document_type,null,op,key);
       const options=domains.filters[cap.domain];
       assert(options?.length,'DOMAIN_UNAVAILABLE',`PNCP não forneceu o domínio necessário para ${key}.`,409);
       const values=cap.cardinality==='single' ? [query.pncp_filters[key]] : query.pncp_filters[key];

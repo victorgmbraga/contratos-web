@@ -50,8 +50,14 @@ function takeCachedResult(query) {
   if(Date.now()-entry.at>=RESULT_CACHE_TTL){state.resultCache.delete(key);return null;}
   state.resultCache.delete(key);state.resultCache.set(key,entry);return entry.result;
 }
+function cacheableResult(result) {
+  return {...result,data:result.data.map(row=>{
+    if(!row._raw)return row;
+    const lean={...row};delete lean._raw;return lean;
+  })};
+}
 function storeCachedResult(query,result) {
-  state.resultCache.set(resultCacheKey(query),{at:Date.now(),result});pruneResultCache();
+  state.resultCache.set(resultCacheKey(query),{at:Date.now(),result:cacheableResult(result)});pruneResultCache();
 }
 function syncQueryUrl(query) {
   const mode=urlMode;urlMode='push';

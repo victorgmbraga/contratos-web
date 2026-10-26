@@ -141,6 +141,12 @@ test('OPTIONS-14: navegador sem compactação nativa mantém opções completas 
   } finally {globalThis.CompressionStream=original;}
 });
 
+test('OPTIONS-16: IndexedDB é aberto apenas quando o armazenamento local não atende',async()=>{
+  const storage=memoryStorage(),opened=[];
+  const cache=createFilterOptionsCache({async call(){return {filters:{ufs:[{id:'SP',label:'São Paulo'}]}};}},catalog,{getStorage:()=>storage,indexedDB:{open(){opened.push(true);throw new Error('não deveria abrir');}}});
+  assert.equal((await cache.get({type:'edital'})).filters.ufs[0].label,'São Paulo');assert.equal(opened.length,0);
+});
+
 test('OPTIONS-15: listas que omitiram anos são atualizadas uma vez, inclusive comprimidas, sem descartar outros caches',async()=>{
   for(const compressed of [false,true]) {
     const storage=memoryStorage(),warning={code:'INVALID_DOMAIN_OPTIONS',domain:'anos',omitted_options:2,message:'Anos omitidos.'};

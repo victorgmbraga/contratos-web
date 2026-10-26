@@ -14,7 +14,8 @@ assert.match(headersFile,/X-Content-Type-Options: nosniff/);
 assert.match(headersFile,/Referrer-Policy: no-referrer/);
 assert.doesNotMatch(headersFile,/unsafe-inline/, 'O artefato não depende de estilos injetados');
 assert.match(headersFile,/\/assets\/\*\n {2}Cache-Control: public, max-age=31536000, immutable/);
-console.log('PASS Cabeçalhos de segurança do artefato (CSP, nosniff, referrer e cache imutável)');
+const swSource=await readFile(new URL('../dist-browser/sw.js',import.meta.url),'utf8');assert.match(swSource,/contratos-web-assets-[a-f0-9]{12}/);assert.doesNotMatch(swSource,/contratos-web-assets-v1/);
+console.log('PASS Cabeçalhos de segurança do artefato (CSP, nosniff, referrer, cache imutável e versão do Service Worker)');
 const browser = await launchTestBrowser();
 const cors = http.createServer((req, res) => {
   if(req.url.startsWith('/allow'))res.setHeader('Access-Control-Allow-Origin','*');

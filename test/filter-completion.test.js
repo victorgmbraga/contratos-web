@@ -30,6 +30,14 @@ test('COMPLETE-01: todos os 80 filtros chegam à pesquisa e ao CSV com seu nome 
   assert.equal(caps.length,80);
 });
 
+test('COMPLETE-10: validação de domínio fechado reutiliza opções entre páginas e exportação',async()=>{
+  const docs=Array.from({length:25},(_,i)=>document(i+1)),s=service(docs,{handler:u=>u.pathname.endsWith('/filters')?json({filters:{modalidades:[{id:6,nome:'Pregão - Eletrônico'}]}}):null});
+  const input=query({pncp_filters:{modalidades:['6']}}),domainCalls=()=>s.requests.filter(url=>url.pathname.endsWith('/filters')).length;
+  assert.equal((await s.service.execute(input)).total,25);assert.equal(domainCalls(),1);
+  assert.equal((await s.service.execute({...input,page:2})).page,2);assert.equal(domainCalls(),1);
+  await s.service.export(input);assert.equal(domainCalls(),1);
+});
+
 test('COMPLETE-02: formatos, percentuais e todos os intervalos são verificados antes de acessar a fonte',async()=>{
   const s=service([]),caps=capabilities(config()).filter(c=>!c.reserved);
   for(const cap of caps){

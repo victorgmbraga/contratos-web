@@ -58,7 +58,7 @@ test('AUDIT-10: anos fora de AAAA fornecidos pelo PNCP são selecionáveis e env
   for(const type of ['edital','ata','contrato']) {
     const s=service([],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{anos:[{ano:'2026'},{ano:'20'},{ano:20260},{ano:'0002'},{ano:0},{ano:null}]}}):null});
     const result=await s.service.domains(type,null);
-    assert.deepEqual(result.filters.anos,['2026','20','20260','0002','0'].map(id=>({id,label:id})));assert.deepEqual(result.warnings,[]);assert.equal(result.raw.anos.length,6);
+    assert.deepEqual(result.filters.anos,['2026','20','20260','0002','0'].map(id=>({id,label:id})));assert.deepEqual(result.warnings,[]);assert(!Object.hasOwn(result,'raw'));
     const input=query({document_type:type,pncp_filters:{anos:['20','20260','0002','0']}});
     assert.doesNotThrow(()=>validateQuery(input,config()));
     assert.equal((await s.service.execute(input)).total,0);assert.equal((await s.service.export(input)).metadata.exported_rows,0);

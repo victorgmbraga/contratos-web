@@ -4,7 +4,11 @@ import { routePncp } from './pncp-route.js';
 const baseline=JSON.parse(await readFile(new URL('./layout-baseline.json',import.meta.url),'utf8'));
 const normalizeFonts=styles=>Object.fromEntries(Object.entries(styles).map(([selector,style])=>[selector,{...style,fontFamily:style.fontFamily.replace(/["']/g,'')}]));
 
-async function snapshot(page) {
+async function snapshot(page,width) {
+  if(width<=700 && await page.locator('.results-row').count()===0){
+    await page.locator('#more-actions-button').click();
+    await page.locator('#results-view').selectOption('table');
+  }
   await page.locator('.results-row').first().waitFor({state:'attached'});
   await page.locator('.results-grid:visible, .results-cards:visible').first().waitFor();
   return page.evaluate(async () => {
@@ -33,7 +37,7 @@ export async function assertBrowserLayout(browser, url) {
         await page.setViewportSize(viewport);
         const expected=Object.fromEntries(Object.entries(baseline.styles).map(([selector,style])=>[selector,{...style,...baseline.viewport_overrides[viewport.width][selector]}]));
         // Browsers serialize quoted family names differently in computed CSS.
-        const actual=normalizeFonts(await snapshot(page)),reference=normalizeFonts(expected),differences=[];
+        const actual=normalizeFonts(await snapshot(page,viewport.width)),reference=normalizeFonts(expected),differences=[];
         for(const [selector,properties] of Object.entries(reference))for(const [property,value] of Object.entries(properties)) {
           if(actual[selector][property]!==value)differences.push({selector,property,expected:value,actual:actual[selector][property]});
         }
