@@ -27,7 +27,7 @@ const RESULT_CACHE_TTL = 30000;
 const RESULT_CACHE_LIMIT = 20;
 const filterHeaderIcon='<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M7 12h10m-7 5h4"/></svg>';
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
-const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,legalAbort:null,legalPending:false,legalError:false,detailAbort:null,detailSelection:null,detailDoc:null,detailActivate:null,exportAbort:null,resultCache:new Map()};
+const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,legalAbort:null,legalPending:false,legalError:false,detailAbort:null,detailSelection:null,detailActivate:null,exportAbort:null,resultCache:new Map()};
 const session=createSession();
 let filterOptionsCache;
 let selectMenus;

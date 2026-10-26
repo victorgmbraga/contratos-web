@@ -213,6 +213,15 @@ test('RELATED-UI-01: quatro abas carregam em background e exibem dados e links c
   const history=sections.find(s=>s.dataset.resource==='historico');assert(history.children[2].children[1].children[1].children.some(field=>field.children[1].textContent==='Exigência Legal'));
   await ui.nodes.get('detail-tab-arquivos').fire('click');assert.equal(files.hidden,false);assert.equal(ui.relatedRequests.length,4);
 });
+test('RELATED-UI-07: cartões vinculados exibem órgão e unidade no formato do PNCP',async()=>{
+  const ui=await interfaceFixture({relatedHandler:async(payload,options,core)=>{const result=await core.documentRelated(payload.document,payload.resource,payload.page,payload.size,options.signal);if(payload.resource==='contratos')for(const row of result.data){row.orgao_cnpj='01234567000189';row.orgao_nome='Órgão X';row.unidade_codigo='0001';row.unidade_nome='Unidade X';}return result;}});
+  await ui.openDocument(project(document(1)));
+  const section=ui.nodes.get('details-content').children.find(node=>node.className==='related-section'&&node.dataset.resource==='contratos'),card=section.children[2].children[0];
+  const fields=card.children[1].children.map(wrap=>[wrap.children[0].textContent,wrap.children[1].textContent]);
+  assert.deepEqual(fields.find(([label])=>label==='Órgão')[1],'01.234.567/0001-89 - Órgão X');
+  assert.deepEqual(fields.find(([label])=>label==='Unidade')[1],'0001 - Unidade X');
+});
+
 test('RELATED-UI-02: paginação de arquivos e histórico é independente dos itens e das outras seções',async()=>{
   const ui=await interfaceFixture();await ui.openDocument(project(document(1)));const sections=ui.nodes.get('details-content').children.filter(n=>n.className==='related-section');
   for(const resource of ['arquivos','historico']){const section=sections.find(s=>s.dataset.resource===resource);await ui.nodes.get(`detail-tab-${resource}`).fire('click');const pager=section.children[4];assert.equal(pager.hidden,false);await paginationButton(pager,'next').fire('click');assert.equal(section.children[2].children.length,2);assert.equal(paginationButton(pager,'next').disabled,true);assert.equal(paginationButton(pager,2).getAttribute('aria-current'),'page');await paginationButton(pager,'first').fire('click');assert.equal(section.children[2].children.length,10);}

@@ -35,6 +35,10 @@ try {
   assert.deepEqual(describe(await analyze(page)), [], 'violações no modal de filtros');
 
   await page.locator('#filters-dialog .close-dialog').first().click();
+  await page.locator('#columns-button').click();
+  await settle(page);
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no diálogo de colunas');
+  await page.locator('#columns-dialog .close-dialog').first().click();
   await page.locator('#results-table tbody .results-open').first().click();
   await page.waitForFunction(() => document.querySelector('#details-dialog')?.open === true);
   await page.locator('#details-dialog .detail-tab').first().waitFor();

@@ -10,7 +10,7 @@ export function createDetailsPanel({ document, window, service, state, session, 
 const $ = getElementById;
 function closeDetails(sync=true) {
   const previous=state.detailSelection;
-  state.detailAbort?.abort();session.next('detail');state.detailSelection=null;state.detailDoc=null;state.detailActivate=null;
+  state.detailAbort?.abort();session.next('detail');state.detailSelection=null;state.detailActivate=null;
   if($('details-dialog').open)$('details-dialog').close();
   if(sync && previous)syncDetailUrl();
 }
@@ -77,6 +77,10 @@ function internalControlAnchor(label,document) {
   button.addEventListener('click',()=>{openDetails(directDetailRow(document));});
   return button;
 }
+function joinedValue(code,name,format=value=>value) {
+  const left=code?format(code):null;
+  return left&&name?`${left} - ${name}`:left||name||'—';
+}
 function appendFields(container,fields,className='related-values') {
   const values=el('dl',undefined,className);
   for(const field of fields){
@@ -137,7 +141,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
           showFields(card,[['Nome',record.nome],['Data/Hora do evento',time(record.data_evento)],['Justificativa',record.justificativa]]);
         } else {
           card.append(el('h4',`${resource==='atas'?'Ata':'Contrato/Empenho'} ${record.numero ?? '—'}${record.ano?'/'+record.ano:''}`));
-          showFields(card,[['Controle PNCP',record.numero_controle_pncp],...(record.orgao_nome?[['Órgão',record.orgao_nome]]:[]),['Assinatura',date(record.data_assinatura)],['Vigência',`${date(record.vigencia_inicio)} a ${date(record.vigencia_fim)}`],...(resource==='atas'?[['Cancelamento',record.data_cancelamento?time(record.data_cancelamento):'—']]:[['Fornecedor',record.fornecedor_nome],['Valor global',money(record.valor_global)]])]);
+          showFields(card,[['Controle PNCP',record.numero_controle_pncp],...(record.orgao_nome||record.orgao_cnpj?[['Órgão',joinedValue(record.orgao_cnpj,record.orgao_nome,formatCnpj)]]:[]),...(record.unidade_nome||record.unidade_codigo?[['Unidade',joinedValue(record.unidade_codigo,record.unidade_nome)]]:[]),['Assinatura',date(record.data_assinatura)],['Vigência',`${date(record.vigencia_inicio)} a ${date(record.vigencia_fim)}`],...(resource==='atas'?[['Cancelamento',record.data_cancelamento?time(record.data_cancelamento):'—']]:[['Fornecedor',record.fornecedor_nome],['Valor global',money(record.valor_global)]])]);
         }
         if(!record.fields && resource!=='historico') {const link=safeAnchor(resource==='arquivos'?'Baixar arquivo':'Abrir no PNCP',record.url);if(link)card.append(link);else card.append(el('p','Link não disponível.','panel-note'));}
         list.append(card);
@@ -164,7 +168,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
 async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.resolve()}={}) {
   state.detailAbort?.abort();const token=session.next('detail');
   const detailController=new AbortController();state.detailAbort=detailController;
-  const identity=detailIdentity(doc);state.detailDoc=doc;state.detailSelection=identity?{document:identity,tab}:null;
+  const identity=detailIdentity(doc);state.detailSelection=identity?{document:identity,tab}:null;
   const schedule=detailScheduler(),loads=[],tabs=[];
   function startLoad(entry) {
     if(!entry)return Promise.resolve();

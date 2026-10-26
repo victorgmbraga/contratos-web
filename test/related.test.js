@@ -31,6 +31,12 @@ test('RELATED-02: documentos, links de atas/contratos, cancelamento e histórico
   const contracts=await f.service.related(purchase,'contratos',1,10);assert.equal(contracts.data[0].url,'https://pncp.gov.br/app/contratos/00000000000000/2026/1');assert.equal(contracts.data[1].valor_global,'9007199254740993.12345');
   const history=await f.service.related(purchase,'historico',1,10);assert.equal(history.data[0].evento,'Inclusão - Contratação');assert.equal(history.data[1].nome,'Anexo 2');assert.equal(history.data[1].justificativa,'Exigência Legal');
 });
+test('RELATED-08: listas vinculadas expõem órgão e unidade para unificação na interface',async()=>{
+  const f=fixture(()=>Response.json({data:[{numeroControlePNCP:'01234567000189-2-000001/2026',orgaoEntidade:{cnpj:'01234567000189',razaoSocial:'Órgão X'},unidadeOrgao:{codigoUnidade:'0001',nomeUnidade:'Unidade X'},anoContrato:2026,sequencialContrato:1,valorGlobal:'10.00'}],totalRegistros:1}));
+  const row=(await f.service.related(purchase,'contratos',1,10)).data[0];
+  assert.deepEqual([row.orgao_cnpj,row.orgao_nome,row.unidade_codigo,row.unidade_nome],['01234567000189','Órgão X','0001','Unidade X']);
+});
+
 test('RELATED-03: zero, HTTP 204 e HTTP 404 de contratos geram listas vazias; outras falhas permanecem erros',async()=>{
   for(const resource of ['arquivos','atas','contratos','historico']){
     const f=fixture(url=>url.endsWith('/quantidade')?Response.json(0):new Response(null,{status:204}));

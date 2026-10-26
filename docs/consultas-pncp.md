@@ -230,8 +230,8 @@ O painel usa o título da linha selecionada e começa na aba **Detalhes**, ou na
 | Recurso | Campos em `data` | Serviço externo, relativo a `PNCP_DETAIL_BASE_URL` |
 | --- | --- | --- |
 | `arquivos` | `titulo`, `tipo`, `data_publicacao`, `url` | `/orgaos/{cnpj}/compras/{ano}/{sequencial}/arquivos` e `/arquivos/quantidade` |
-| `atas` | `numero`, `numero_controle_pncp`, `data_assinatura`, `vigencia_inicio`, `vigencia_fim`, `data_cancelamento`, `url` | `/orgaos/{cnpj}/compras/{ano}/{sequencial}/atas` |
-| `contratos` | `numero`, `numero_controle_pncp`, `data_assinatura`, `vigencia_inicio`, `vigencia_fim`, `fornecedor_nome`, `valor_global`, `url` | `/orgaos/{cnpj}/contratos/contratacao/{ano}/{sequencial}` |
+| `atas` | `numero`, `numero_controle_pncp`, `data_assinatura`, `vigencia_inicio`, `vigencia_fim`, `data_cancelamento`, `orgao_cnpj`, `orgao_nome`, `unidade_codigo`, `unidade_nome`, `url` | `/orgaos/{cnpj}/compras/{ano}/{sequencial}/atas` |
+| `contratos` | `numero`, `numero_controle_pncp`, `data_assinatura`, `vigencia_inicio`, `vigencia_fim`, `fornecedor_nome`, `valor_global`, `orgao_cnpj`, `orgao_nome`, `unidade_codigo`, `unidade_nome`, `url` | `/orgaos/{cnpj}/contratos/contratacao/{ano}/{sequencial}` |
 | `historico` | `evento`, `nome`, `data_evento`, `justificativa` | `/orgaos/{cnpj}/compras/{ano}/{sequencial}/historico` e `/historico/quantidade` |
 
 Todos os serviços de página recebem `pagina` e `tamanhoPagina`. Arquivos e histórico retornam listas; atas e contratos retornam um objeto com `data` e `totalRegistros`. HTTP 204 na listagem é tratado como uma página vazia, que ainda precisa ser compatível com a contagem quando ela existe. Na listagem de **Contratos/Empenhos**, HTTP 404 do serviço PNCP também significa ausência de registros: a aplicação retorna uma lista vazia com total zero e a aba exibe `Contratos/Empenhos (0)`. Quantidade ausente, outros HTTP de erro, formato inesperado ou divergência entre página e total são reportados como erros. HTTP 404 nas demais listagens continua sendo erro, salvo nas listas de empenhos e instrumentos de cobrança de um contrato, descritas abaixo.

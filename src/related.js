@@ -21,15 +21,18 @@ export function projectRelated(resource, record, purchase) {
     nome: text(record, 'documentoTitulo') ?? text(record, 'documentoAtaTitulo') ?? text(record, 'tituloDocumentoContrato'),
     data_evento: text(record, 'logManutencaoDataInclusao'), justificativa: text(record, 'justificativa')?.trim() || 'Exigência Legal',
   };
-  const ata = resource === 'atas', control = text(record, 'numeroControlePNCP');
+  const ata = resource === 'atas', control = text(record, 'numeroControlePNCP'), entity = record.orgaoEntidade, unit = record.unidadeOrgao || record.unidade;
   const year = ata ? control?.match(/\/(\d{4})(?:-\d+)?$/)?.[1] : text(record, 'anoContrato');
   const sequence = text(record, ata ? 'sequencialAta' : 'sequencialContrato');
-  assert(ata || record.orgaoEntidade == null || typeof record.orgaoEntidade === 'object' && !Array.isArray(record.orgaoEntidade), 'INVALID_UPSTREAM', 'Órgão do contrato inválido.', 502);
-  const cnpj = ata ? purchase.cnpj : text(record.orgaoEntidade || {}, 'cnpj');
+  assert(entity == null || typeof entity === 'object' && !Array.isArray(entity), 'INVALID_UPSTREAM', 'Órgão do registro inválido.', 502);
+  assert(unit == null || typeof unit === 'object' && !Array.isArray(unit), 'INVALID_UPSTREAM', 'Unidade do registro inválida.', 502);
+  const cnpj = ata ? purchase.cnpj : text(entity || {}, 'cnpj');
   return {
     numero: text(record, ata ? 'numeroAtaRegistroPreco' : 'numeroContratoEmpenho'), ano: text(record, ata?'anoAta':'anoContrato'), numero_controle_pncp: control,
     data_assinatura: text(record, 'dataAssinatura'), vigencia_inicio: text(record, 'dataVigenciaInicio'), vigencia_fim: text(record, 'dataVigenciaFim'),
-    ...(ata ? { data_cancelamento: text(record, 'dataCancelamento') } : { orgao_nome:text(record.orgaoEntidade || {},'razaoSocial'), valor_global: decimalText(record.valorGlobal), fornecedor_nome: text(record, 'nomeRazaoSocialFornecedor') }),
+    orgao_cnpj: text(entity || {}, 'cnpj'), orgao_nome: text(entity || {}, 'razaoSocial'),
+    unidade_codigo: text(unit || {}, 'codigoUnidade') ?? text(unit || {}, 'codigo'), unidade_nome: text(unit || {}, 'nomeUnidade') ?? text(unit || {}, 'nome'),
+    ...(ata ? { data_cancelamento: text(record, 'dataCancelamento') } : { valor_global: decimalText(record.valorGlobal), fornecedor_nome: text(record, 'nomeRazaoSocialFornecedor') }),
     url: portalLink(resource, cnpj, year, sequence, purchase.sequencial),
   };
 }

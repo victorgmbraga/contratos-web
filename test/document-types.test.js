@@ -59,13 +59,15 @@ test('DOCUMENTS-04: detalhes completos mantêm datas, booleanos, códigos, valor
 });
 
 test('DOCUMENTS-24: órgão e unidade são exibidos como código - nome, como no PNCP',()=>{
-  const native=projectDocument('contrato',{numeroControlePNCP:'01234567000189-2-000044/2026',orgaoEntidade:{cnpj:'01234567000189',razaoSocial:'Órgão público'},unidadeOrgao:{codigoUnidade:'0001',nomeUnidade:'Unidade gestora'},orgaoSubRogado:{cnpj:'98765432000100',razaoSocial:'Órgão sub-rogado'},unidadeSubRogada:{codigoUnidade:'0002',nomeUnidade:'Unidade sub-rogada'},tipoContrato:{nome:'Contrato'},objetoContrato:'Objeto'});
+  const native=projectDocument('contrato',{numeroControlePNCP:'01234567000189-2-000044/2026',orgaoEntidade:{cnpj:'01234567000189',razaoSocial:'Órgão público'},unidadeOrgao:{codigoUnidade:'0001',nomeUnidade:'Unidade gestora'},orgaoSubRogado:{cnpj:'98765432000100',razaoSocial:'Órgão sub-rogado'},unidadeSubRogada:{codigoUnidade:'0002',nomeUnidade:'Unidade sub-rogada'},orgaoParteEnvolvida:{cnpj:'11222333000144',razaoSocial:'Órgão participante'},unidadeOrgaoParteEnvolvida:{codigoUnidade:'0003',nomeUnidade:'Unidade participante'},tipoContrato:{nome:'Contrato'},objetoContrato:'Objeto'});
   const byTitle=title=>native.fields.find(field=>field.title===title);
   assert.deepEqual([byTitle('Órgão').value,byTitle('Órgão').type],['01234567000189 - Órgão público','cnpj']);
   assert.equal(byTitle('Unidade').value,'0001 - Unidade gestora');
   assert.equal(byTitle('Órgão sub-rogado').value,'98765432000100 - Órgão sub-rogado');
   assert.equal(byTitle('Unidade sub-rogada').value,'0002 - Unidade sub-rogada');
-  for(const title of ['CNPJ do órgão','Código da unidade','CNPJ do órgão sub-rogado','Código da unidade sub-rogada'])assert(!byTitle(title),title);
+  assert.equal(byTitle('Órgão participante').value,'11222333000144 - Órgão participante');
+  assert.equal(byTitle('Unidade participante').value,'0003 - Unidade participante');
+  for(const title of ['CNPJ do órgão','Código da unidade','CNPJ do órgão sub-rogado','Código da unidade sub-rogada','Código da unidade participante'])assert(!byTitle(title),title);
   const indexed=indexedDocumentFields({document_type:'edital',orgao_nome:'Órgão público',orgao_cnpj:'01234567000189',unidade_nome:'Unidade gestora',unidade_codigo:'0001',orgao_subrogado_nome:'Órgão sub-rogado',orgao_subrogado_cnpj:'98765432000100',unidade_subrogada_nome:'Unidade sub-rogada',unidade_subrogada_codigo:'0002'});
   assert.equal(indexed.find(field=>field.title==='Órgão').value,'01234567000189 - Órgão público');
   assert.equal(indexed.find(field=>field.title==='Unidade').value,'0001 - Unidade gestora');

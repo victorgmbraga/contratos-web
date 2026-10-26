@@ -32,7 +32,7 @@ A cobertura é conferida pelo mesmo conjunto:
 npm run test:coverage
 ```
 
-O runner mede linhas, branches e funções de `src/` e `public/` e falha abaixo de 78%, 88% e 84%. O workflow de validação executa essa etapa depois dos testes.
+O runner mede linhas, branches e funções de `src/` e `public/` e falha abaixo de 78%, 88% e 84%. O workflow de validação executa essa etapa depois dos testes. Módulos que dependem de tabela, seletores nativos ou layout móvel são cobrados principalmente pela suíte de navegador; a cobertura unitária não substitui esses fluxos.
 
 O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 
@@ -81,7 +81,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Layout móvel | 320, 352, 358, 360, 390, 430, 560 e 700 px; três tipos, cartões/tabela, menu de ações, campos e alvos de toque, filtros, seções/URL, paginação, paisagem e viewport reduzido |
 | Links diretos de detalhes | [`test/detail-links.browser.mjs`](../test/detail-links.browser.mjs): documento e aba, recarregamento, Voltar/Avançar, resultados ausentes e cancelamento |
 | Descrições e cartões | [`test/details-overflow.browser.mjs`](../test/details-overflow.browser.mjs): abas acessíveis com descrições extensas, leitura completa segura, fechamento/histórico e cartões criados somente quando visíveis |
-| Acessibilidade | [`test/accessibility.browser.mjs`](../test/accessibility.browser.mjs): axe-core nas regras WCAG 2.0, 2.1 e 2.2 A/AA sobre a busca em desktop, o modal de filtros, o painel de detalhes e a visualização móvel; falha em violações críticas ou sérias |
+| Acessibilidade | [`test/accessibility.browser.mjs`](../test/accessibility.browser.mjs): axe-core nas regras WCAG 2.0, 2.1 e 2.2 A/AA sobre a busca em desktop, o modal de filtros, o diálogo de colunas, o painel de detalhes e a visualização móvel; falha em violações críticas ou sérias |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), em 1440, 1068 e 390 pixels |
@@ -95,7 +95,7 @@ O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results
 
 O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`. A recomendação é exigir esse workflow como verificação obrigatória em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
 
-O [Dependabot](../.github/dependabot.yml) abre atualizações semanais agrupadas para dependências de desenvolvimento e mensais para as ações, sem propor versões principais automaticamente. Usa instalação reproduzível, `npm run lint`, `npm run typecheck`, `npm test`, build com orçamento de performance e a suíte completa de navegador em Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. Pushes para `main` acionam [`static-pages.yml`](../.github/workflows/static-pages.yml), que executa `npm test` e o build antes de publicar; esse workflow não executa a suíte de navegador.
+O [Dependabot](../.github/dependabot.yml) abre atualizações semanais agrupadas para dependências de desenvolvimento e mensais para as ações, sem propor versões principais automaticamente. Usa instalação reproduzível, `npm run lint`, `npm run typecheck`, `npm test`, build com orçamento de performance e a suíte completa de navegador em Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. Pushes para `main` acionam [`static-pages.yml`](../.github/workflows/static-pages.yml), que executa lint, typecheck, testes e build antes de publicar; esse workflow não executa a suíte de navegador.
 
 ### Medir tamanho e renderização
 
