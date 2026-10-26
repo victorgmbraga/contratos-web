@@ -405,7 +405,10 @@ async function init() {
     if(!['ArrowDown','ArrowUp'].includes(event.key) || $('export-button').disabled || exportMenuOpen())return;
     event.preventDefault();exportMenu.showPopover?.();enabledExportOptions()[0]?.focus({preventScroll:true});
   });
-  exportMenu.addEventListener('beforetoggle',event=>{if(event.newState==='open')positionExportMenu();});
+  exportMenu.addEventListener('beforetoggle',event=>{
+    const open=event.newState==='open';$('export-button').setAttribute('aria-expanded',String(open));
+    if(open)positionExportMenu();
+  });
   exportMenu.addEventListener('toggle',()=>{
     const open=exportMenuOpen();$('export-button').setAttribute('aria-expanded',String(open));
     if(open){positionExportMenu();enabledExportOptions()[0]?.focus({preventScroll:true});}

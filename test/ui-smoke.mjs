@@ -232,14 +232,14 @@ try {
   }
   check('Ações do cabeçalho e link do GitHub usam tooltips neutros com mouse, foco e Escape');
   await page.locator('#export-button').click();await page.locator('#export-menu').waitFor({state:'visible'});
-  assert.equal(await page.locator('#export-button').getAttribute('aria-expanded'),'true');
+  await page.waitForFunction(()=>document.querySelector('#export-button').getAttribute('aria-expanded')==='true');
   assert.deepEqual(await page.locator('#export-menu [role="menuitem"]').evaluateAll(nodes=>nodes.map(node=>node.id)),['export-all-button','export-page-button']);
-  assert.equal(await page.evaluate(()=>document.activeElement.id),'export-all-button');
+  await page.waitForFunction(()=>document.activeElement.id==='export-all-button');
   await page.keyboard.press('End');assert.equal(await page.evaluate(()=>document.activeElement.id),'export-page-button');
   await page.keyboard.press('Home');assert.equal(await page.evaluate(()=>document.activeElement.id),'export-all-button');
   await page.keyboard.press('Escape');await page.locator('#export-menu').waitFor({state:'hidden'});
   assert.equal(await page.locator('#export-button').getAttribute('aria-expanded'),'false');assert.equal(await page.evaluate(()=>document.activeElement.id),'export-button');
-  await page.keyboard.press('ArrowDown');await page.locator('#export-menu').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>document.activeElement.id),'export-all-button');await page.keyboard.press('Escape');
+  await page.keyboard.press('ArrowDown');await page.locator('#export-menu').waitFor({state:'visible'});await page.waitForFunction(()=>document.activeElement.id==='export-all-button');await page.keyboard.press('Escape');
   check('Menu Exportar reúne consulta completa e página atual com teclado');
   assert.equal(await page.locator('.result-toolbar').count(),0);
   assert.equal(await page.locator('.results-footer .result-info').count(),1);
