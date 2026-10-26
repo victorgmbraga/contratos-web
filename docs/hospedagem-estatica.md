@@ -21,6 +21,12 @@ Publique **todo o conteúdo de `dist-browser/`**, incluindo `assets/`. Os caminh
 
 Links de pesquisa e detalhes usam parâmetros no mesmo caminho, por exemplo `/contratos-web/?tipos_documento=ata&pagina=2`; os parâmetros `detalhe` e `aba` identificam o painel e sua seção. O servidor entrega o mesmo HTML, e a interface restaura a busca e o documento. Esses links não exigem rotas adicionais na hospedagem. Rotas `/api/...` são chamadas diretamente no PNCP; a hospedagem não precisa de reescrita para essas rotas.
 
+## Metadados de indexação e compartilhamento
+
+A página inicial declara canônica, Open Graph e Twitter Cards absolutos apontando para `https://contratos-web.net.br/`. Como a hospedagem estática entrega o mesmo HTML para qualquer parâmetro, a canônica única consolida as URLs de busca e de detalhe (`?tipos_documento=...`, `?detalhe=...`) na página inicial; não é possível aplicar `noindex` somente às variantes. Ao mudar de domínio, atualize `canonical`, `og:url`, `og:image` e `twitter:image` em [`public/index.html`](../public/index.html).
+
+A imagem social fica em `public/og-image.png` (1200×630) e é copiada para a raiz de `dist-browser/` pelo plugin de [`vite.config.js`](../vite.config.js). `pncp-diagnostic.html` declara `noindex, follow` e não deve ser usada como página de entrada.
+
 ## GitHub Pages
 
 O workflow [`static-pages.yml`](../.github/workflows/static-pages.yml) executa em cada push para `main` e por `workflow_dispatch`. O job `build` usa Node.js 24, instala com `npm ci`, executa `npm test`, compila e envia `dist-browser/` como artefato. O job `deploy` publica no ambiente `github-pages`. Esse workflow não executa os testes de navegador: eles pertencem ao workflow de validação, acionado em pull requests e pushes para `main`, conforme [Validação](validacao.md).

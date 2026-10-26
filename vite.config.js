@@ -49,6 +49,7 @@ export default defineConfig(({ command, mode }) => {
         this.emitFile({ type: 'asset', fileName: 'LICENSE', source: await readFile(new URL('./LICENSE', import.meta.url), 'utf8') });
         this.emitFile({ type: 'asset', fileName: 'THIRD_PARTY_LICENSES.md', source: await readFile(new URL('./THIRD_PARTY_LICENSES.md', import.meta.url), 'utf8') });
         this.emitFile({ type: 'asset', fileName: 'theme-boot.js', source: await readFile(new URL('./public/theme-boot.js', import.meta.url), 'utf8') });
+        this.emitFile({ type: 'asset', fileName: 'og-image.png', source: await readFile(new URL('./public/og-image.png', import.meta.url)) });
         const assetVersion = createHash('sha256').update(Object.keys(bundle).filter(name => name.startsWith('assets/')).sort().join('\n')).digest('hex').slice(0, 12);
         const sw = (await readFile(new URL('./public/sw.js', import.meta.url), 'utf8')).replace("const CACHE = 'contratos-web-assets-v1';", `const CACHE = 'contratos-web-assets-${assetVersion}';`);
         this.emitFile({ type: 'asset', fileName: 'sw.js', source: sw });
