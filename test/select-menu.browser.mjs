@@ -69,10 +69,6 @@ try {
   assert.equal(await page.locator('#document-type').inputValue(),'ata');
   await control('document-type').tap();await menu().getByRole('option',{name:'Editais e Avisos de Contratações',exact:true}).tap();await ready();
   assert.equal(await page.locator('#document-type').inputValue(),'edital');
-  await page.locator('#more-actions-button').click();await control('results-view').click();await bounded();
-  assert.equal(await page.locator('#more-actions').evaluate(node=>node.matches(':popover-open')),true);
-  await menu().getByRole('option',{name:'Tabela',exact:true}).click();assert.equal(await page.locator('.results-grid').isVisible(),true);
-  await page.locator('#more-actions-button').click();await choose('results-view','cards');
   await page.locator('.result-card-open').first().click();await control('details-section').waitFor();
   await choose('details-section','historico');assert.equal(new URL(page.url()).searchParams.get('aba'),'historico');
   await page.waitForFunction(()=>document.querySelector('#detail-tab-historico').dataset.state==='loaded');

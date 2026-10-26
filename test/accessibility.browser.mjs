@@ -56,9 +56,14 @@ try {
   await page.waitForTimeout(300);
   await settle(page);
   assert.deepEqual(describe(await analyze(page)), [], 'violações na visualização móvel');
+  await page.locator('#more-actions-button').click();
+  await page.locator('#mobile-view-button').waitFor({ state: 'visible' });
+  await settle(page);
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no menu Mais ações em mobile');
+  await page.keyboard.press('Escape');
 
   assert.deepEqual(errors, [], 'erros JavaScript durante a verificação');
-  console.log('PASS Acessibilidade: axe sem violações críticas ou sérias em busca, filtros, menu de exportação, detalhes e mobile');
+  console.log('PASS Acessibilidade: axe sem violações críticas ou sérias em busca, filtros, menu de exportação, detalhes, menu mobile e visualização móvel');
 } finally {
   await browser.close();
   app.server.close();

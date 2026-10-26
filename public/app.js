@@ -27,7 +27,7 @@ const RESULT_CACHE_TTL = 30000;
 const RESULT_CACHE_LIMIT = 20;
 const filterHeaderIcon='<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M7 12h10m-7 5h4"/></svg>';
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
-const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,legalAbort:null,legalPending:false,legalError:false,detailAbort:null,detailSelection:null,detailActivate:null,exportAbort:null,resultCache:new Map()};
+const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,legalAbort:null,legalPending:false,legalError:false,detailAbort:null,detailSelection:null,detailActivate:null,exportAbort:null,mobileView:'cards',resultCache:new Map()};
 const session=createSession();
 let filterOptionsCache;
 let selectMenus;
@@ -82,8 +82,10 @@ function invalidQueryUrl(error) {
 function notice(message,kind='') { $('notice-message').textContent=message;$('notice').className='notice '+kind;$('notice').hidden=!message; }
 function setMobileView(view) {
   if(!['cards','table'].includes(view))return;
-  state.table?.setMobileView?.(view);
-  const select=$('results-view');if(select)select.value=view;
+  state.mobileView=view;state.table?.setMobileView?.(view);
+  const button=$('mobile-view-button');if(!button)return;
+  const next=view==='cards'?'table':'cards',label=next==='table'?'Ver como tabela':'Ver como cartões';
+  button.setAttribute('aria-label',label);button.dataset.view=next;
 }
 function setConnectivity(message,kind='warning') {
   const node=$('connectivity-notice');if(!node)return;
@@ -122,7 +124,11 @@ function updateExportButton() {
   $('export-button').disabled=busy || !ready;
   $('export-all-button').disabled=busy || !ready;
   $('export-page-button').disabled=busy || !ready || !hasPage;
+  $('mobile-export-all-button').disabled=busy || !ready;
+  $('mobile-export-page-button').disabled=busy || !ready || !hasPage;
   $('export-button').setAttribute('aria-busy',String(busy));
+  $('mobile-export-all-button').setAttribute('aria-busy',String(busy));
+  $('mobile-export-page-button').setAttribute('aria-busy',String(busy));
   $('cancel-export-button').hidden=!busy;
   if(!busy)$('cancel-export-button-tooltip').hidden=true;
   $('export-button-tooltip').textContent=busy?'Consultando e gerando CSV…':'Exportar';
@@ -389,7 +395,9 @@ async function init() {
   resultInfo.hidden=false;
   initializeMobileLayout({document,window});
   selectMenus=initializeSelectMenus({document,window});
-  $('results-view').addEventListener('change',()=>setMobileView($('results-view').value));
+  $('mobile-view-button').addEventListener('click',()=>setMobileView(state.mobileView==='cards'?'table':'cards'));
+  $('mobile-export-all-button').addEventListener('click',()=>exportCsv());
+  $('mobile-export-page-button').addEventListener('click',()=>exportCsv('page'));
   const exportMenu=$('export-menu');
   $('export-all-button').addEventListener('click',()=>{closeExportMenu();return exportCsv();});
   $('export-page-button').addEventListener('click',()=>{closeExportMenu();return exportCsv('page');});

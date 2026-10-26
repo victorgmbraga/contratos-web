@@ -133,7 +133,7 @@ async function interfaceFixture(options={}) {
     }
   };
   const renderedPage=()=>({page:uiCore.state.table.page,ids:uiCore.state.table.rows.map(row=>row.id)});
-  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,pageChange,footer,startTable,renderedPage,rows:()=>uiCore.state.table.rows,optionsReady:uiCore.state.optionsReady,browser};
+  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,pageChange,footer,startTable,renderedPage,rows:()=>uiCore.state.table.rows,mobileView:()=>uiCore.state.table.mobileView,optionsReady:uiCore.state.optionsReady,browser};
 }
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
@@ -323,6 +323,8 @@ test('EXPORT-MENU-UI-01: um botão Exportar controla o menu com os dois escopos 
   assert.match(menu[2],/id="export-all-button"[^>]*role="menuitem"[^>]*>.*Toda a consulta.*Todos os resultados dos critérios atuais/);
   assert.match(menu[2],/id="export-page-button"[^>]*role="menuitem"[^>]*>.*Página atual.*Somente os registros desta página/);
   assert.match(menu[2],/Toda a consulta[\s\S]*Página atual/);
+  for(const [id,label]of [['mobile-view-button','Ver como tabela'],['mobile-export-all-button','Exportar consulta'],['mobile-export-page-button','Exportar página']])assert.match(html,new RegExp(`id="${id}"[^>]*aria-label="${label}"`));
+  assert.doesNotMatch(html,/id="results-view"/);
 });
 
 test('HEADER-UI-03: botão de menu do cabeçalho aparece somente em colunas filtráveis',async()=>{
@@ -441,6 +443,21 @@ test('EXPORT-UI-01B: consulta vazia mantém a exportação completa e desabilita
   assert.equal(ui.nodes.get('export-button').disabled,false);
   assert.equal(ui.nodes.get('export-all-button').disabled,false);
   assert.equal(ui.nodes.get('export-page-button').disabled,true);
+  assert.equal(ui.nodes.get('mobile-export-all-button').disabled,false);
+  assert.equal(ui.nodes.get('mobile-export-page-button').disabled,true);
+});
+
+test('MOBILE-UI-01: menu mobile alterna a visualização e exporta os dois escopos diretamente',async()=>{
+  const ui=await interfaceFixture(),view=ui.nodes.get('mobile-view-button');
+  assert.equal(view.getAttribute('aria-label'),'Ver como tabela');assert.equal(view.dataset.view,'table');
+  await view.fire('click');
+  assert.equal(ui.mobileView(),'table');assert.equal(view.getAttribute('aria-label'),'Ver como cartões');assert.equal(view.dataset.view,'cards');
+  await view.fire('click');
+  assert.equal(ui.mobileView(),'cards');assert.equal(view.getAttribute('aria-label'),'Ver como tabela');
+  await ui.nodes.get('mobile-export-page-button').fire('click');
+  assert.equal(ui.exportRequests.at(-1).scope,'page');assert.equal(ui.exportRequests.at(-1).query.page,1);
+  await ui.nodes.get('mobile-export-all-button').fire('click');
+  assert.equal(ui.exportRequests.at(-1).scope,undefined);assert.equal(ui.downloads.length,2);
 });
 
 test('EXPORT-UI-02: geração desabilita o botão e impede exportações duplicadas',async()=>{
@@ -452,11 +469,13 @@ test('EXPORT-UI-02: geração desabilita o botão e impede exportações duplica
   const exporting=ui.nodes.get('export-all-button').fire('click');await settle();
   assert.equal(ui.nodes.get('export-button').disabled,true);assert.equal(ui.nodes.get('export-button').getAttribute('aria-busy'),'true');
   assert.equal(ui.nodes.get('export-all-button').disabled,true);assert.equal(ui.nodes.get('export-page-button').disabled,true);
+  assert.equal(ui.nodes.get('mobile-export-all-button').disabled,true);assert.equal(ui.nodes.get('mobile-export-page-button').disabled,true);
   assert.match(ui.nodes.get('notice-message').textContent,/gerando CSV/);
   await ui.nodes.get('export-all-button').fire('click');assert.equal(ui.exportRequests.length,1);
   await finish();await exporting;assert.equal(ui.downloads.length,1);assert.equal(ui.nodes.get('export-button').disabled,false);
   assert.equal(ui.nodes.get('export-button-tooltip').textContent,'Exportar');assert.equal(ui.nodes.get('export-button').getAttribute('aria-label'),'Exportar');
   assert.equal(ui.nodes.get('export-all-button').disabled,false);assert.equal(ui.nodes.get('export-page-button').disabled,false);
+  assert.equal(ui.nodes.get('mobile-export-all-button').disabled,false);assert.equal(ui.nodes.get('mobile-export-page-button').disabled,false);
   assert.equal(ui.nodes.get('export-button').getAttribute('title'),null);
 });
 

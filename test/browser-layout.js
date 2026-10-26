@@ -10,8 +10,8 @@ async function snapshot(page,width) {
     // O baseline visual usa a tabela; force-a antes de medir para não disputar
     // com o evento de mídia que libera as linhas no modo cartões.
     await page.evaluate(()=>{
-      const select=document.querySelector('#results-view');
-      if(select && select.value!=='table'){select.value='table';select.dispatchEvent(new Event('change',{bubbles:true}));}
+      const button=document.querySelector('#mobile-view-button');
+      if(button?.dataset.view==='table')button.click();
     });
     await page.locator('.results-grid').waitFor({state:'visible'});
   }

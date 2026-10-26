@@ -6,11 +6,12 @@ export function initializeMobileLayout({document, window}) {
   const panel = document.getElementById('more-actions'), trigger = document.getElementById('more-actions-button');
   const toolbar = document.querySelector('.header-toolbar'), triggerMarker = document.createComment('more-actions-button');
   trigger.before(triggerMarker);
-  const controls = ['refresh-button','columns-button','clear-button','retry-button','cancel-export-button','export-button','theme-button','repository-link'].map(id => {
+  const controls = ['refresh-button','columns-button','clear-button','retry-button','cancel-export-button','theme-button','repository-link'].map(id => {
     const element = document.getElementById(id), marker = document.createComment(id);
     element.before(marker);
     return {element, marker};
   });
+  const order = ['mobile-view-button','refresh-button','columns-button','clear-button','retry-button','cancel-export-button','mobile-export-all-button','mobile-export-page-button','theme-button','repository-link'].map(id => document.getElementById(id)).filter(Boolean);
   function close() { if (panel.matches(':popover-open')) panel.hidePopover(); }
   function position() {
     const anchor = trigger.getBoundingClientRect(), width = panel.getBoundingClientRect().width || parseFloat(window.getComputedStyle(panel).width);
@@ -23,10 +24,12 @@ export function initializeMobileLayout({document, window}) {
     const focused = document.activeElement;
     close();
     for (const {element,marker} of controls) {
-      if (media.matches) panel.append(element);
-      else marker.after(element);
+      if (!media.matches) marker.after(element);
     }
-    if (media.matches) toolbar.after(trigger);else triggerMarker.after(trigger);
+    if (media.matches) {
+      toolbar.after(trigger);
+      for (const element of order) panel.append(element);
+    } else triggerMarker.after(trigger);
     if (focused===trigger && media.matches) trigger.focus({preventScroll:true});
   }
   function viewport() {
@@ -39,7 +42,6 @@ export function initializeMobileLayout({document, window}) {
   panel.addEventListener('beforetoggle',event=>{if(event.newState==='open')position();},{signal});
   panel.addEventListener('toggle',()=>{const opened=panel.matches(':popover-open');trigger.setAttribute('aria-expanded',String(opened));if(opened)position();},{signal});
   panel.addEventListener('click',event=>{if(event.target.closest('button,a') && !event.target.closest('.select-control'))close();},{signal});
-  panel.addEventListener('change',close,{signal});
   media.addEventListener('change',resize,{signal});
   window.visualViewport?.addEventListener('resize',viewport,{signal});
   window.visualViewport?.addEventListener('scroll',viewport,{signal});

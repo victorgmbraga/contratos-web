@@ -13,7 +13,6 @@
 .filter-field>.select-control{width:100%;margin-bottom:6px}
 .filter-field .select-trigger{font-weight:400}
 .detail-section-choice .select-control{flex:1;min-width:0}
-.mobile-view-choice .select-control{width:100%}
 .select-menu{position:fixed;inset:auto;margin:0;padding:5px;border:1px solid var(--border,#c9d6e4);border-radius:9px;background:var(--surface,white);color:var(--text,#263f58);box-shadow:0 8px 24px var(--shadow,#133d6829);overflow:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;box-sizing:border-box;font-size:.875rem;font-weight:400;line-height:1.5;white-space:normal;text-align:left;letter-spacing:normal}
 .select-menu:popover-open{display:block}
 .select-menu::backdrop{background:transparent}

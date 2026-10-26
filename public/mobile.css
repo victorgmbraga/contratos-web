@@ -7,8 +7,9 @@
 #more-actions #retry-button::after{content:none}
 #more-actions .repository-link::after{content:'Repositório no GitHub'}
 #more-actions .repository-link:hover{text-decoration:none}
-.mobile-view-choice{display:flex;flex-direction:column;gap:7px;padding:4px 4px 10px;border-bottom:1px solid var(--line);font-size:.8125rem;color:var(--text-muted,#607286)}
-.mobile-view-choice select{width:100%;height:44px;padding:7px;border:1px solid var(--border,#c7d5e4);border-radius:6px;font-size:1rem;background:var(--surface,white);color:var(--text,#23354a)}
+#mobile-view-button .view-icon-cards{display:none}
+#mobile-view-button[data-view="cards"] .view-icon-table{display:none}
+#mobile-view-button[data-view="cards"] .view-icon-cards{display:block}
 
 @media(max-width:700px){
   body{height:var(--viewport-height,100dvh)}
@@ -18,6 +19,7 @@
   .brand{display:none}
   #more-actions-button{display:inline-flex;grid-row:2;grid-column:2;min-width:44px;width:44px;height:44px;padding:0}
   #more-actions{inset:auto max(8px,env(safe-area-inset-right)) auto auto;overflow:auto;overscroll-behavior:contain}
+  #export-button{display:none}
   .search-row{grid-row:1;grid-column:1/-1;width:100%;min-width:0;flex-basis:auto;gap:6px}
   .search-field{padding:0 10px;gap:6px;min-height:44px}
   .search-field>svg{display:none}
