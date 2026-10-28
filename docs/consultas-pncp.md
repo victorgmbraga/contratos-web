@@ -305,6 +305,8 @@ const csv = await service.call('export', {query}, {signal, onProgress});
 const blob = new Blob(csv.chunks, {type: csv.mime});
 ```
 
+No escopo `page`, o serviço preserva `query.page` e `query.size`. Assim, uma página de 100 documentos exporta o mesmo intervalo mesmo com `PNCP_EXPORT_PAGE_SIZE` configurado como 10, 25 ou 50; a configuração de coleta vale somente para `scope: "all"`.
+
 O resultado contém `chunks` como `ArrayBuffer[]`, `mime`, `filename` e `metadata`. Os metadados incluem `exported_rows`, `export_scope`, totais, critérios, tempos, chamadas e `collection_complete` (`true` para a coleta completa e `false` no recorte de página), sem `data` com a coleção de documentos. O CSV contém BOM UTF-8, cabeçalho, CRLF e valores entre aspas; aspas internas são duplicadas e decimais mantêm sua representação exata, sem formatação monetária. Campos textuais iniciados por `=`, `+`, `-` ou `@`, inclusive após espaços ou quebras de linha, recebem um apóstrofo no início para serem tratados como texto por planilhas. Valores monetários decimais negativos não recebem esse prefixo.
 
 Total acima do limite, mudança de total, duplicação, identidade ausente, página incompleta, cancelamento e limites de bytes interrompem a operação. Buffers são transferidos somente após conclusão; não há download parcial. A interface revoga a URL do Blob após o download. `snapshot_guaranteed` é `false`.

@@ -256,6 +256,8 @@ test('DOCUMENTS-21: limite de detalhes considera registros recebidos, inclusive 
   await assert.rejects(unknown.service.documentRelated(contract,'historico',1,25),error=>error.code==='DETAIL_ITEM_LIMIT');
   const unpaged=fixture(()=>json(records),settings);
   await assert.rejects(unpaged.service.documentRelated(contract,'instrumentocobranca',1,10),error=>error.code==='DETAIL_ITEM_LIMIT');
+  await assert.rejects(unpaged.service.documentRelated(contract,'instrumentocobranca',1,10),error=>error.code==='DETAIL_ITEM_LIMIT');
+  assert.equal(unpaged.requests.length,2);assert.equal(unpaged.client.unpagedCache.size,0);
   const limited=fixture(()=>json(records.slice(0,10)),settings);
   assert.equal((await limited.service.documentRelated(contract,'instrumentocobranca',1,10)).data.length,10);
 });

@@ -13,6 +13,10 @@ import { createFiltersPanel } from './filters-panel.js';
 import { createSession } from './session.js';
 import { createProgressEstimator } from './progress.js';
 
+/** @typedef {import('../types/contracts.js').SearchQuery} SearchQuery */
+/** @typedef {import('../types/contracts.js').SearchResult} SearchResult */
+/** @typedef {import('../types/contracts.js').DetailSelection} DetailSelection */
+
 export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
 // Elementos variam entre input, select, button e dialog; os contratos do DOM
 // são verificados nos testes de navegador, não pelo verificador de tipos.
@@ -27,7 +31,7 @@ const RESULT_CACHE_TTL = 30000;
 const RESULT_CACHE_LIMIT = 20;
 const filterHeaderIcon='<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M7 12h10m-7 5h4"/></svg>';
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
-const state={schema:null,query:null,lastQuery:null,lastResult:null,table:null,placeholder:null,abort:null,status:'idle',draft:null,domains:null,domainAbort:null,legalAbort:null,legalPending:false,legalError:false,detailAbort:null,detailSelection:null,detailActivate:null,exportAbort:null,mobileView:'cards',resultCache:new Map()};
+const state={schema:null,query:/** @type {SearchQuery | null} */(null),lastQuery:/** @type {SearchQuery | null} */(null),lastResult:/** @type {SearchResult | null} */(null),table:null,placeholder:null,abort:null,status:'idle',draft:/** @type {SearchQuery | null} */(null),domains:null,domainAbort:null,legalAbort:null,legalPending:false,legalError:false,detailAbort:null,detailSelection:/** @type {DetailSelection | null} */(null),detailActivate:null,exportAbort:null,mobileView:'cards',resultCache:/** @type {Map<string, import('../types/contracts.js').ResultCacheEntry>} */(new Map())};
 const session=createSession();
 let filterOptionsCache;
 let selectMenus;
@@ -50,6 +54,7 @@ function takeCachedResult(query) {
   if(Date.now()-entry.at>=RESULT_CACHE_TTL){state.resultCache.delete(key);return null;}
   state.resultCache.delete(key);state.resultCache.set(key,entry);return entry.result;
 }
+/** @param {SearchResult} result @returns {SearchResult} */
 function cacheableResult(result) {
   return {...result,data:result.data.map(row=>{
     if(!row._raw)return row;
@@ -240,6 +245,7 @@ function renderPlaceholder(query,empty) {
   const refresh=el('button','Atualizar','button');refresh.type='button';refresh.addEventListener('click',()=>loadPage(state.query.page,'push',{force:true}));actions.append(refresh);
   state.placeholder.append(actions);
 }
+/** @param {SearchResult} result @param {SearchQuery} query */
 function renderResult(result,query) {
   state.lastQuery=clone(query);state.lastResult=result;
   if(window.navigator?.onLine!==false)setConnectivity('');
@@ -278,7 +284,7 @@ async function loadResultsPage(targetPage,{force=false,cache=false}={}) {
   notice('');
   try {
     syncQueryUrl(query);
-    const result=await service.call('execute',{query},{signal:controller.signal});
+    const result=/** @type {SearchResult} */(await service.call('execute',{query},{signal:controller.signal}));
     if(!session.current('query',seq))throw new DOMException('Resposta anterior descartada.','AbortError');
     storeCachedResult(query,result);renderResult(result,query);setConnectivity('');return result;
   }catch(error) {
@@ -302,6 +308,7 @@ function execute() {
   updateCriteria();
   return loadPage(1,'push',{force:true});
 }
+/** @param {import('../types/contracts.js').DocumentType} [type] @returns {SearchQuery} */
 function defaultQuery(type=state.query?.document_type || 'edital') {return {api_version:'2.0',document_type:type,q:'',status:'todos',pncp_filters:{},order:'-data',page:1,size:TABLE_PAGE_SIZE};}
 function tableColumnDefinitions() {
   const columns=state.schema.columns,base=[columns.find(c=>c.field==='titulo'),...columns.filter(c=>c.field!=='titulo')].filter(Boolean);
@@ -364,11 +371,11 @@ async function exportCsv(scope='all') {
   const estimator=createProgressEstimator();
   updateExportButton();notice(scope==='page'?'Consultando o PNCP e gerando CSV da página atual. Os dados podem diferir da tabela.':'Consultando o PNCP e gerando CSV dos últimos critérios concluídos. Os dados podem diferir da tabela.');
   try {
-    const result=await service.call('export',scope==='page'?{query,scope:'page'}:{query},{signal:controller.signal,onProgress:progress=>{
+    const result=/** @type {import('../types/contracts.js').ExportResult} */(await service.call('export',scope==='page'?{query,scope:'page'}:{query},{signal:controller.signal,onProgress:progress=>{
       if(!session.current('export',seq))return;
       const remaining=estimator.update({rows:progress.rows,total:progress.total});
       notice(`Coletando ${fmtInt(progress.rows)} de ${fmtInt(progress.total)} documentos para CSV…${remaining?` Cerca de ${remaining} s restantes.`:''}`);
-    }});
+    }}));
     if(!session.current('export',seq) || controller.signal.aborted)return;
     const blob=new Blob(result.chunks,{type:result.mime});
     const href=URL.createObjectURL(blob),link=el('a');link.href=href;link.download=result.filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(href),10000);

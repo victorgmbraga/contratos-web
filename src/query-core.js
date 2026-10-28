@@ -6,6 +6,15 @@ import { csvWriter } from './csv.js';
 import { columnsFor, capabilities, documentNames } from './schema.js';
 
 export const DOMAIN_VALIDATION_TTL = 4 * 60 * 60 * 1000;
+/**
+ * @param {import('../types/contracts.js').SearchResult} result
+ * @param {number} rows
+ * @param {'all' | 'page'} scope
+ * @returns {import('../types/contracts.js').ExportMetadata}
+ */
+function exportMetadata({data: _data, ...metadata}, rows, scope) {
+  return {...metadata, exported_rows: rows, export_scope: scope};
+}
 export class QueryService {
   constructor(config, client) { this.config=config; this.client=client; this.domainValidationCache=new Map(); }
   async validatedDomains(type, normatives, op, field = null) {
@@ -56,6 +65,7 @@ export class QueryService {
     assert(documents.length===Math.min(query.size,Math.max(0,sourceTotal-(query.page-1)*query.size)),'INVALID_UPSTREAM','O PNCP retornou uma página incompatível com o total e o tamanho solicitado.',502);
     return this.metadata(query,documents,sourceTotal,op);
   }
+  /** @returns {import('../types/contracts.js').SearchResult} */
   metadata(query,documents,sourceTotal,op,allRows=false) {
     op.check();
     const accessible=Math.min(sourceTotal,10000),lastPage=Math.max(1,Math.ceil(accessible/query.size)),warnings=[];
@@ -64,6 +74,7 @@ export class QueryService {
     const now=Date.now();
     return {api_version:'2.0',document_type:query.document_type,source:'pncp',request_id:op.id,data:documents,page:query.page,size:query.size,last_page:lastPage,last_row:accessible,source_total:sourceTotal,accessible_total:accessible,total:sourceTotal,window_limited:sourceTotal>10000,collection_complete:allRows,snapshot_guaranteed:false,started_at:op.started_at,finished_at:new Date(now).toISOString(),elapsed_ms:now-op.started,upstream_requests:op.requests,effective_filters:{tipos_documento:query.document_type,status:query.status,...(query.q?{q:query.q}:{}),ordenacao:query.order,...query.pncp_filters},warnings};
   }
+  /** @returns {Promise<import('../types/contracts.js').SearchResult>} */
   async execute(input,signal,requestId) {
     const query=validateQuery(input,this.config),op=operation(this.config,signal,requestId);
     try{return await this.process(query,op);}finally{op.finish();}
@@ -76,7 +87,7 @@ export class QueryService {
    */
   async export(input,signal,requestId,{onProgress=()=>{},scope='all'}={}) {
     assert(scope==='all' || scope==='page','INVALID_EXPORT_SCOPE','Escopo de exportação inválido.',422);
-    const query=validateQuery({...input,...(scope==='all'?{page:1}:{}),size:this.config.PNCP_EXPORT_PAGE_SIZE},this.config),op=operation(this.config,signal,requestId);
+    const query=validateQuery({...input,...(scope==='all'?{page:1,size:this.config.PNCP_EXPORT_PAGE_SIZE}:{})},this.config),op=operation(this.config,signal,requestId);
     try {
       await this.verifyDomains(query,op);
       const writer=csvWriter(columnsFor(query.document_type),this.config.PNCP_MAX_EXPORT_BYTES);
@@ -93,8 +104,7 @@ export class QueryService {
           await delay(0,op.signal);
         }
         rows=documents.length;
-        op.check();const metadata=this.metadata(query,[],total,op,false);metadata.exported_rows=rows;metadata.export_scope='page';
-        delete metadata.data;
+        op.check();const metadata=exportMetadata(this.metadata(query,[],total,op,false),rows,'page');
         return {chunks:writer.chunks,metadata};
       }
       for await (const page of this.collectPages(query,op)) {
@@ -106,8 +116,7 @@ export class QueryService {
         rows+=page.documents.length;
         onProgress({pages:page.page,rows,total,bytes:writer.bytes});
       }
-      op.check();const metadata=this.metadata(query,[],total,op,true);metadata.exported_rows=rows;metadata.export_scope='all';
-      delete metadata.data;
+      op.check();const metadata=exportMetadata(this.metadata(query,[],total,op,true),rows,'all');
       return {chunks:writer.chunks,metadata};
     }finally{op.finish();}
   }

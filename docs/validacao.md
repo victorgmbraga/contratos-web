@@ -20,7 +20,11 @@ npm run typecheck
 
 O [TypeScript](../tsconfig.json) verifica `src/` e `public/` com `checkJs` e `allowJs`, sem emitir arquivos. As anotações JSDoc descrevem os contratos que o lint não alcança: configuração pública, erros da aplicação, opções do cliente PNCP, progresso da exportação e paginação compartilhada. Elementos do DOM são tratados como `any` nos pontos de acesso (`$` e `el`); seus contratos são verificados pelos testes de navegador. `public/sw.js` fica fora da verificação porque roda no escopo de Service Worker, incompatível com as bibliotecas de DOM usadas pelo restante.
 
+O comando também executa [`tsconfig.contracts.json`](../tsconfig.contracts.json), com `strict` e `noImplicitAny`, nos contratos compartilhados, na persistência de colunas e no acesso ao IndexedDB. [`types/contracts.d.ts`](../types/contracts.d.ts) descreve consultas, resultados do serviço, exportação, seleção de documentos e preferências persistidas. Esses contratos também são usados no estado da interface e nos resultados do núcleo. Casos negativos em [`types/contracts.check.ts`](../types/contracts.check.ts) garantem que formatos incompatíveis sejam rejeitados. A adoção estrita é gradual; o restante do JavaScript continua sob a configuração geral.
+
 ## Núcleo e interface
+
+As regressões incluem o recorte de exportação independente do tamanho de coleta, tentativas HTTP sem reter vagas durante a espera, rejeição de cache que excede limites e recuperação de preferências de colunas inválidas. [`test/options-db.test.js`](../test/options-db.test.js) cobre conclusão e aborto de transações, indisponibilidade do banco e fallback do cache em memória.
 
 ```sh
 npm test
@@ -93,9 +97,9 @@ Esses ensaios servem arquivos estáticos e verificam a ausência de chamadas a u
 
 O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results-table.browser.mjs). A referência visual mantém cores, fontes e espaçamentos; os papéis de display nativos da tabela e as bordas por célula representam sua estrutura semântica. Os testes de navegação utilizam identificadores da aplicação e papéis acessíveis.
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`. A recomendação é exigir esse workflow como verificação obrigatória em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa lint, as duas verificações de tipos, testes, cobertura, build e as suítes completas de Chromium e Firefox. Depois dos navegadores, verifica o orçamento do artefato final. Somente em `main`, fora de pull requests, esse artefato é enviado para Pages. O job `deploy` depende do sucesso de `validate`; falha ou cancelamento de qualquer etapa impede a publicação. As permissões de escrita de Pages e identidade ficam restritas ao job de deploy. A recomendação é exigir esse workflow como verificação obrigatória em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
 
-O [Dependabot](../.github/dependabot.yml) abre atualizações semanais agrupadas para dependências de desenvolvimento e mensais para as ações, sem propor versões principais automaticamente. Usa instalação reproduzível, `npm run lint`, `npm run typecheck`, `npm test`, build com orçamento de performance e a suíte completa de navegador em Chromium e Firefox. Ele tem apenas permissão de leitura e não publica no Pages. Pushes para `main` acionam [`static-pages.yml`](../.github/workflows/static-pages.yml), que executa lint, typecheck, testes e build antes de publicar; esse workflow não executa a suíte de navegador.
+O [Dependabot](../.github/dependabot.yml) abre atualizações semanais agrupadas para dependências de desenvolvimento e mensais para as ações, sem propor versões principais automaticamente. Seus pull requests passam pelo mesmo job de validação e não publicam no Pages. [`test/workflow.test.js`](../test/workflow.test.js) verifica a dependência do deploy, a restrição à `main` e a ausência de um caminho paralelo de publicação.
 
 ### Medir tamanho e renderização
 

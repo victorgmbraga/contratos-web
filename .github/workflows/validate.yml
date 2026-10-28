@@ -1,4 +1,4 @@
-name: Validar aplicação estática
+name: Validar e publicar aplicação estática
 on:
   push:
     branches:
@@ -6,6 +6,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -27,9 +28,30 @@ jobs:
       - run: npm test
       - run: npm run test:coverage
       - run: npm run build
-      - run: npm run test:budget
       - run: npx playwright install --with-deps chromium firefox
       - run: npm run test:browser
       - run: npm run test:browser
         env:
           COMPRAS_QA_BROWSER: firefox
+      - run: npm run test:budget
+      - name: Preparar artefato validado para publicação
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: dist-browser
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar artefato validado
+        id: deployment
+        uses: actions/deploy-pages@v5.0.1

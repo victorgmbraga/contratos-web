@@ -23,6 +23,18 @@ test('EXP-02: última página falha ou buffer excede não devolve CSV parcial',a
   const small=service(docs,{}, {PNCP_MAX_EXPORT_BYTES:10});await assert.rejects(small.service.export(query()),e=>e.code==='EXPORT_BYTES_LIMIT');
   const empty=service([],{}, {PNCP_MAX_EXPORT_BYTES:10});await assert.rejects(empty.service.export(query()),e=>e.code==='EXPORT_BYTES_LIMIT');
 });
+
+test('EXP-06: exportar página preserva o recorte exibido com tamanho de coleta diferente',async()=>{
+  const docs=Array.from({length:225},(_,i)=>document(i+1));
+  for(const [size,collectSize,page]of [[100,50,2],[100,10,3],[25,100,2]]){
+    const s=service(docs,{}, {PNCP_EXPORT_PAGE_SIZE:collectSize}),input=query({size,page});
+    const displayed=await s.service.execute(input),result=await s.service.export(input,null,null,{scope:'page'});
+    const csv=csvBytes(result).toString();
+    assert.equal(result.metadata.size,size);assert.equal(result.metadata.exported_rows,displayed.data.length);
+    const received=s.requests.at(-1);assert.equal(received.searchParams.get('tam_pagina'),String(size));assert.equal(received.searchParams.get('pagina'),String(page));
+    for(const row of displayed.data)assert(csv.includes('"'+row.objeto_compra+'"'));
+  }
+});
 test('EXP-03: mudanças, duplicatas e páginas incompletas abortam a exportação',async()=>{
   const docs=Array.from({length:12},(_,i)=>document(i+1));
   for(const second of [{items:docs.slice(10),total:13},{items:docs.slice(0,2),total:12},{items:[],total:12}]) {

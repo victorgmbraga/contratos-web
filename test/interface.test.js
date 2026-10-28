@@ -1361,6 +1361,18 @@ test('COLUMNS-UI-01: visibilidade das colunas é persistida por tipo documental'
   const restored=await interfaceFixture({storage});assert.equal(restored.tableColumns().find(column=>column.field==='objeto_compra').visible,false);
 });
 
+test('COLUMNS-UI-02: configuração inválida não impede iniciar a pesquisa nem trocar o tipo documental',async()=>{
+  for(const invalid of [{order:[],visible:null,width:{}},{order:[],visible:{},width:null},{order:[5],visible:{},width:{}},{order:[],visible:{titulo:'false'},width:{}},{order:[],visible:{},width:{titulo:-1}}]){
+    const storage=memoryStorage();
+    for(const type of ['edital','ata','contrato'])storage.setItem('contratos-web:columns:v1:'+type,JSON.stringify(invalid));
+    storage.setItem('preferencia-do-usuario','preservar');
+    const ui=await interfaceFixture({storage});assert.equal(ui.nodes.get('startup-error').hidden,true);assert.equal(ui.requests.length,1);
+    assert.equal(ui.tableColumns().find(column=>column.field==='titulo').visible,true);
+    for(const type of ['ata','contrato']){ui.nodes.get('document-type').value=type;await ui.nodes.get('document-type').fire('change');assert.equal(ui.tableColumns().find(column=>column.field==='titulo').visible,true);}
+    assert.equal(storage.getItem('preferencia-do-usuario'),'preservar');
+  }
+});
+
 test('DRAFT-FILTERS-UI-01: contador de ativos e limpeza do rascunho',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
   assert.equal(ui.focusedField(),'draft-search');

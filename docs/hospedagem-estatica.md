@@ -29,12 +29,12 @@ A imagem social fica em `public/og-image.png` (1200×630) e é copiada para a ra
 
 ## GitHub Pages
 
-O workflow [`static-pages.yml`](../.github/workflows/static-pages.yml) executa em cada push para `main` e por `workflow_dispatch`. O job `build` usa Node.js 24, instala com `npm ci`, executa `npm test`, compila e envia `dist-browser/` como artefato. O job `deploy` publica no ambiente `github-pages`. Esse workflow não executa os testes de navegador: eles pertencem ao workflow de validação, acionado em pull requests e pushes para `main`, conforme [Validação](validacao.md).
+O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pull requests e publica pushes para `main`, com opção de execução manual. O job `validate` usa Node.js 24, instalação reproduzível, lint, tipos, testes, cobertura, build e suítes completas em Chromium e Firefox. Depois confere o orçamento de tamanho e envia exatamente esse artefato validado de `dist-browser/` ao Pages. O job `deploy` depende de `validate` e só publica `main`, fora de pull requests. Qualquer falha ou cancelamento impede a publicação; outras branches podem ser validadas manualmente, mas não são publicadas.
 
 Para configurar uma publicação:
 
 1. Em **Settings → Pages → Build and deployment**, selecione **GitHub Actions**.
-2. Envie um commit à `main` ou execute **Actions → Publicar versão estática → Run workflow**.
+2. Envie um commit à `main` ou execute **Actions → Validar e publicar aplicação estática → Run workflow**.
 3. Confira o resultado do job `deploy` e a URL informada por ele.
 4. Para usar domínio próprio, configure **Custom domain** no Pages, os registros DNS correspondentes e HTTPS.
 

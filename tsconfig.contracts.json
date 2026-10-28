@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {"strict": true, "noImplicitAny": true},
+  "include": ["types/contracts.d.ts", "types/contracts.check.ts", "public/column-layout.js", "src/browser/options-db.js"],
+  "exclude": ["node_modules", "dist-browser", "dist-browser-test"]
+}

@@ -120,19 +120,19 @@ export class PncpClient {
           retryDelay = Math.max(Number.isFinite(seconds) ? seconds : 0, 500 * 2**attempt + Math.random()*200);
           if (status === 429) this.nextSlot = Math.max(this.nextSlot, Date.now()+retryDelay);
           await response.body?.cancel();
-          if (attempt < this.config.PNCP_MAX_RETRIES) { await delay(retryDelay,op.signal); continue; }
-          fail('PNCP_UNAVAILABLE', 'PNCP indisponível ou limitando requisições. Tente novamente.', 503, { origin: 'pncp', upstream_status: status, retry_after_seconds: Math.ceil(retryDelay/1000) }, true);
+          if (attempt === this.config.PNCP_MAX_RETRIES) fail('PNCP_UNAVAILABLE', 'PNCP indisponível ou limitando requisições. Tente novamente.', 503, { origin: 'pncp', upstream_status: status, retry_after_seconds: Math.ceil(retryDelay/1000) }, true);
+        } else {
+          if (status === 204) { if (allowNoContent) return null; fail('INVALID_UPSTREAM', 'Busca PNCP retornou 204 sem conteúdo; não foi interpretado como zero resultados.', 502); }
+          if (status < 200 || status >= 300) { await response.body?.cancel(); fail('PNCP_HTTP_ERROR', `PNCP retornou HTTP ${status}.`, 502, { upstream_status: status, origin:'pncp' }); }
+          if (!(response.headers.get('content-type') || '').toLowerCase().includes('json')) {
+            await response.body?.cancel();
+            fail('INVALID_UPSTREAM', 'PNCP retornou conteúdo diferente de JSON.', 502);
+          }
+          const body = await this.readBody(response, op, signal);
+          let result;
+          try { result = parse(body); } catch { fail('INVALID_UPSTREAM', 'PNCP retornou JSON inválido.', 502); }
+          op.check(); return result;
         }
-        if (status === 204) { if (allowNoContent) return null; fail('INVALID_UPSTREAM', 'Busca PNCP retornou 204 sem conteúdo; não foi interpretado como zero resultados.', 502); }
-        if (status < 200 || status >= 300) { await response.body?.cancel(); fail('PNCP_HTTP_ERROR', `PNCP retornou HTTP ${status}.`, 502, { upstream_status: status, origin:'pncp' }); }
-        if (!(response.headers.get('content-type') || '').toLowerCase().includes('json')) {
-          await response.body?.cancel();
-          fail('INVALID_UPSTREAM', 'PNCP retornou conteúdo diferente de JSON.', 502);
-        }
-        const body = await this.readBody(response, op, signal);
-        let result;
-        try { result = parse(body); } catch { fail('INVALID_UPSTREAM', 'PNCP retornou JSON inválido.', 502); }
-        op.check(); return result;
       } catch (error) {
         if (op.signal.aborted) throw op.signal.reason;
         if (error instanceof AppError) throw error;
@@ -249,10 +249,11 @@ export class PncpClient {
     assert(!contractHistory || data.length<=size,'INVALID_UPSTREAM','Histórico PNCP retornou mais registros que o tamanho solicitado.',502);
     const pages=total===null?null:Math.max(1,Math.ceil(total/size));
     if(!counted && !unpaged && result!==null && result.numeroPagina!=null)assert(integer(result.numeroPagina,'Número da página')===page,'INVALID_UPSTREAM','PNCP retornou outra página da listagem.',502);
+    const unpagedData=unpaged?data:null;
     if(unpaged){
-      if(cached===null){this.unpagedCache.set(cacheKey,{at:Date.now(),data});if(this.unpagedCache.size>20)this.unpagedCache.delete(this.unpagedCache.keys().next().value);}
       // A lista não paginada só é baixada na primeira página desta operação.
-      if(cached===null){op.itemCount+=data.length;assert(op.itemCount<=this.config.PNCP_MAX_DETAIL_ITEMS,'DETAIL_ITEM_LIMIT','Limite de registros da operação excedido.',422);}
+      if(cached===null)op.itemCount+=data.length;
+      assert(data.length<=this.config.PNCP_MAX_DETAIL_ITEMS && op.itemCount<=this.config.PNCP_MAX_DETAIL_ITEMS,'DETAIL_ITEM_LIMIT','Limite de registros da operação excedido.',422);
       data=data.slice((page-1)*size,page*size);
     }else{
       // Limit records received in this operation, not the total available across pages.
@@ -265,14 +266,17 @@ export class PncpClient {
       assert(page<=pages,'PAGE_OUT_OF_RANGE','Página além da listagem atual.',422,{last_page:pages});
       assert(matches,'SOURCE_CHANGED','A página não corresponde ao total informado pelo PNCP. Repita a consulta.',409,{},true);
     }
-    return {data:data.map(record=>{
+    const projected=data.map(record=>{
       if(resource==='partesenvolvidas')return {fields:recordFields(resource,record)};
       if(['termos','empenhos','instrumentocobranca'].includes(resource)){
         const sequence=scalarText(record[{termos:'sequencialTermoContrato',empenhos:'sequencialEmpenho',instrumentocobranca:'sequencialInstrumentoCobranca'}[resource]]);
         return {fields:recordFields(resource,record),sequencial:/^\d+$/.test(sequence || '') && BigInt(sequence)>0n?sequence:null};
       }
       return projectRelated(resource,record,document);
-    }),total:unknownTotal?null:total,total_pages:unknownTotal?null:pages,pagination_source:unpaged?'local_slice':'pncp',...(unknownTotal?{pagination_mode:'until_empty',has_more:data.length>0,complete:data.length===0}:{})};
+    });
+    op.check();
+    if(unpaged && cached===null){this.unpagedCache.set(cacheKey,{at:Date.now(),data:unpagedData});if(this.unpagedCache.size>20)this.unpagedCache.delete(this.unpagedCache.keys().next().value);}
+    return {data:projected,total:unknownTotal?null:total,total_pages:unknownTotal?null:pages,pagination_source:unpaged?'local_slice':'pncp',...(unknownTotal?{pagination_mode:'until_empty',has_more:data.length>0,complete:data.length===0}:{})};
   }
   async contractChild(document,resource,sequence,op) {
     assert(document.type==='contrato' && ['termos','empenhos','instrumentocobranca'].includes(resource) && typeof sequence==='string' && sequence.length<=256 && /^\d+$/.test(sequence) && BigInt(sequence)>0n,'NOT_FOUND','Detalhe não encontrado.',404);
