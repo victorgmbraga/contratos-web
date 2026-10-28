@@ -1,0 +1,23 @@
+/* Shared feedback for buttons and links presented as buttons. */
+:is(button,.button,.repository-link){
+  transition:border-color .16s ease-out,box-shadow .16s ease-out,opacity .16s ease-out,translate .16s ease-out,scale .1s ease-out;
+}
+
+@media(hover:hover) and (pointer:fine){
+  :is(.button,.icon-button,.pagination-button,.repository-link):where(:not(:disabled,[aria-disabled="true"],[aria-busy="true"])):hover{
+    box-shadow:0 3px 8px var(--shadow,#133d6826);
+  }
+  :is(.button,.icon-button,.pagination-button,.repository-link):where(:not(:disabled,[aria-disabled="true"],[aria-busy="true"],[aria-haspopup],[popovertarget])):hover{
+    translate:0 -1px;
+  }
+}
+
+:is(button,.button,.repository-link):where(:not(:disabled,[aria-disabled="true"],[aria-busy="true"],.select-trigger,.results-header-menu,[aria-haspopup],[popovertarget])):active{
+  translate:0 0;
+  scale:.97;
+}
+
+/* Anchored menus keep their geometry while the pointer is pressed. */
+:is(.select-trigger,.results-header-menu,button[aria-haspopup],button[popovertarget]):where(:not(:disabled,[aria-disabled="true"],[aria-busy="true"])):active{
+  box-shadow:inset 0 0 0 2px var(--focus-soft,#137db515);
+}
