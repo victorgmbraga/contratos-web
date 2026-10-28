@@ -54,6 +54,16 @@ export function safeLink(value, portal = false) {
     return url.href;
   } catch { return portal ? 'https://pncp.gov.br/app' : null; }
 }
+/** @param {unknown} value @returns {string | null} */
+export function safeFileLink(value) {
+  const link = safeLink(value);
+  if (!link) return null;
+  const url = new URL(link);
+  // PNCP can leak an internal server port into file URLs. Its public downloads
+  // use the default port; other hosts and links outside file listings keep theirs.
+  if (url.hostname === 'pncp.gov.br' && url.port) url.port = '';
+  return url.href;
+}
 export function itemSituation(item) {
   // The live read endpoint uses situacaoCompraItem; the manual uses ...Id.
   const fields=['situacaoCompraItem','situacaoCompraItemId'];

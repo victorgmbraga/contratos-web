@@ -1,4 +1,4 @@
-import { scalarText, decimalText, safeLink } from './adapter.js';
+import { scalarText, decimalText, safeFileLink } from './adapter.js';
 import { assert } from './errors.js';
 
 export const relatedResources = ['arquivos', 'atas', 'contratos', 'historico'];
@@ -14,7 +14,7 @@ function portalLink(kind, cnpj, year, sequence, purchaseSequence = null) {
 export function projectRelated(resource, record, purchase) {
   if (resource === 'arquivos') return {
     titulo: text(record, 'titulo'), tipo: text(record, 'tipoDocumentoNome'),
-    data_publicacao: text(record, 'dataPublicacaoPncp'), url: safeLink(text(record, 'url')),
+    data_publicacao: text(record, 'dataPublicacaoPncp'), url: safeFileLink(text(record, 'url')),
   };
   if (resource === 'historico') return {
     evento: [text(record, 'tipoLogManutencaoNome'), text(record, 'categoriaLogManutencaoNome')].filter(Boolean).join(' - ') || null,

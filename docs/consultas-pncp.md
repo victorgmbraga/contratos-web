@@ -240,6 +240,8 @@ A resposta de `documentRelated` contém `api_version`, `request_id`, `document_t
 
 O histórico apresenta o evento, o nome do documento quando fornecido, a data/hora e a justificativa. Uma justificativa ausente ou vazia é apresentada como `Exigência Legal`, seguindo o portal oficial. Textos são exibidos como texto; downloads aceitam apenas HTTP/HTTPS sem credenciais, e os links de atas e contratos apontam para o PNCP. Listagens não são consultadas durante pesquisa ou exportação. Quando faltam identificadores originais válidos, as seções mostram essa informação e não fazem requisições.
 
+Links de download cujo domínio é exatamente `pncp.gov.br` têm portas não padrão removidas na projeção dos arquivos: o PNCP pode expor uma porta interna, como `:52210`, embora o arquivo esteja disponível na porta pública padrão. O tratamento cobre arquivos de editais, atas, contratos e termos de contrato; preserva protocolo, caminho, parâmetros e fragmento. Links já sem porta continuam válidos, e portas de outros domínios e links genéricos não são modificados. A validação de HTTP/HTTPS sem credenciais continua obrigatória.
+
 A suíte de navegador usa dados sintéticos próprios (`test/demo-fixtures.js`), incluindo arquivos, atas, contratos/empenhos e eventos, listas vazias, cancelamento, mais de uma página e valores monetários exatos. Os links desses registros são ilustrativos e não correspondem a documentos reais do PNCP.
 
 ## Detalhes completos de editais, atas e contratos
