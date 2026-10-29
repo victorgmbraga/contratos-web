@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import { launchTestBrowser } from './browser-launch.js';
 import { createStaticServer } from './static-server.js';
@@ -88,4 +89,4 @@ try {
   assert.equal(new URL(page.url()).searchParams.has('detalhe'),false);assert.equal(new URL(page.url()).searchParams.has('aba'),false);
   assert.deepEqual(errors,[]);
   console.log('PASS Link com aba incompatível não consulta o PNCP e permite limpar a URL; sem erros JavaScript');
-} finally {await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

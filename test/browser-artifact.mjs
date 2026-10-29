@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { readdir, readFile } from 'node:fs/promises';
@@ -71,7 +72,7 @@ try {
       await page.reload();await waitDirect();
       assert.equal(await page.locator('#detail-tab-arquivos').getAttribute('aria-selected'),'true');assert.deepEqual(errors,[]);
       console.log('PASS Link direto no build de produção usa a API de consulta sem acessar a rota antiga com HTTP 301 em '+prefix);
-    } finally { await context.close(); await app.close(); }
+    } catch(error) {await diagnoseBrowserFailure(error);throw error;} finally { await context.close(); await app.close(); }
   }
 
   const corsPage=await browser.newPage();
@@ -89,7 +90,7 @@ try {
     assert.equal(result['/allow'].json.value,true); assert.equal(result['/allow'].after,null);
     assert.equal(result['/deny'].error,'TypeError'); assert.equal(result['/allow-exposed'].after,'3');
     console.log('PASS CORS real entre duas origens, controle negativo e cabeçalho exposto');
-  }finally{await corsPage.close();}
+  } catch(error) {await diagnoseBrowserFailure(error);throw error;} finally { await corsPage.close(); }
 
   const assets=await readdir(new URL('../dist-browser-test/assets/',import.meta.url));
   const workerFile=assets.find(name=>/^worker-.*\.js$/.test(name)); assert(workerFile);
@@ -116,11 +117,11 @@ try {
     }, './assets/'+workerFile);
     assert.equal(report.rows,10000);assert.equal(report.requests,100);assert.equal(report.pages,100);assert(report.interface_ticks>10);assert.equal(report.metadata_has_documents,false);assert.equal(report.cancelled,true);assert.equal(report.recovered_total,24);
     console.log('PASS Exportação de 10.000 documentos no Worker, interface responsiva e cancelamento '+JSON.stringify(report));
-  } finally { await page.close();await app.close(); }
+  } catch(error) {await diagnoseBrowserFailure(error);throw error;} finally { await page.close();await app.close(); }
   const productionFiles=await readdir(new URL('../dist-browser/assets/',import.meta.url));
   for(const name of productionFiles.filter(n=>n.endsWith('.js'))) {
     const code=await readFile(new URL('../dist-browser/assets/'+name,import.meta.url),'utf8');
     assert(!/node:|EnvHttpProxyAgent|process\.env|benchmark-ui|falha-ui/.test(code),name+' contém dependência ou fixture indevida');
   }
   console.log('PASS Bundles de produção sem dependências de Node, variáveis do processo ou fixtures de teste');
-} finally { await browser.close(); await new Promise(resolve=>cors.close(resolve)); }
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally { await browser.close(); await new Promise(resolve=>cors.close(resolve)); }

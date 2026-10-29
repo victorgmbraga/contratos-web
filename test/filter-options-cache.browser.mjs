@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import { launchTestBrowser } from './browser-launch.js';
 import { createStaticServer } from './static-server.js';
@@ -43,4 +44,4 @@ try {
   assert.deepEqual(result.calls.map(call=>call.type),['edital','ata','contrato'].filter(type=>!result.legacyTypes.includes(type)));
   assert.equal(result.callsBeforeExpiry,0);assert.deepEqual(result.callsAfterExpiry,[{type:'contrato',field:null,priority:'background'}]);
   console.log('PASS Quota real do localStorage reproduz falha dos contratos; compactação preserva todas as opções, migra cache antigo, reutiliza após reinicialização e expira em quatro horas',JSON.stringify(result));
-} finally {await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

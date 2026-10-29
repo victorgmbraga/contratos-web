@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 // UI verification against the static artifact; see docs/validacao.md.
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -173,7 +174,7 @@ try {
     assert.equal(cachedDomains.length,8);
     assert.equal(await cachedPage.evaluate(()=>localStorage.getItem('filter-cache-test-preference')),'preservar');
     check('Listas vencidas há quatro horas são renovadas sem apagar dados alheios');
-  } finally {await cachedPage.close();}
+  } catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await cachedPage.close();}
   const sharedPage=await page.context().newPage(),sharedQueries=[];
   try {
     sharedPage.on('pageerror',error=>errors.push(error.message));
@@ -201,7 +202,7 @@ try {
     const beforeInvalid=sharedQueries.length;await sharedPage.goto(sharedBase+'?pagina=101&q=firewall');await sharedPage.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Parâmetros inválidos na URL'));
     assert.equal(sharedQueries.length,beforeInvalid);assert.equal(new URL(sharedPage.url()).searchParams.get('pagina'),'101');
     await sharedPage.locator('#clear-button').click();await sharedPage.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');assert.equal(new URL(sharedPage.url()).searchParams.get('pagina'),'1');check('Parâmetros inválidos são exibidos sem pesquisa automática e podem ser corrigidos pela interface');
-  } finally {await sharedPage.close();}
+  } catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await sharedPage.close();}
   const orderedPage=await context.newPage();
   try {
     const expectedOrders={edital:['-data','data','relevancia','numero_controle_pncp','-valor_total_estimado'],ata:['-data','data','relevancia','valor','-valor'],contrato:['-data','data','relevancia','numero_contratacao','numero_controle_pncp','data_inicio_vigencia','valor_global']};
@@ -228,7 +229,7 @@ try {
     await orderedPage.goto(orderedBase+'?tipos_documento=ata&ordenacao=valor_global');
     await orderedPage.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Ordenação não disponível'));
     assert.equal(await orderedPage.evaluate(()=>window.__orderRequests.length),0);check('Link com ordenação incompatível é rejeitado antes de consultar o PNCP');
-  } finally {await orderedPage.close();}
+  } catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await orderedPage.close();}
   assert.equal(await page.locator('.results-page-size').count(),0);check('Seletor de linhas removido');
   assert.equal(await page.locator('#app-header .header-toolbar .criteria-row').count(),1);
   for(const id of ['order','clear-button','cancel-button','retry-button','refresh-button','columns-button','export-button','repository-link'])assert.equal(await page.locator(`#app-header #${id}`).count(),1);
@@ -424,4 +425,4 @@ try {
   {assert.deepEqual(localApiRequests,[]);check('Distribuição estática executa todas as ações sem API local');}
   assert.deepEqual(errors,[]);check('Sem erros JavaScript não tratados');
   console.log(JSON.stringify({checks:checks.length,passed:checks,errors}));
-}finally{await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

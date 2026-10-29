@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { routePncp } from './pncp-route.js';
@@ -49,5 +50,5 @@ export async function assertBrowserLayout(browser, url) {
       }
     }
     console.log('PASS Layout estático preserva cores, espaçamento e tipografia: três tipos e três tamanhos de tela');
-  } finally { await context.close(); }
+  } catch(error) {await diagnoseBrowserFailure(error);throw error;} finally { await context.close(); }
 }

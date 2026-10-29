@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 // Verificação automática de acessibilidade com axe; ver docs/validacao.md.
 import assert from 'node:assert/strict';
 import AxeBuilder from '@axe-core/playwright';
@@ -64,7 +65,7 @@ try {
 
   assert.deepEqual(errors, [], 'erros JavaScript durante a verificação');
   console.log('PASS Acessibilidade: axe sem violações críticas ou sérias em busca, filtros, menu de exportação, detalhes, menu mobile e visualização móvel');
-} finally {
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {
   await browser.close();
   app.server.close();
 }

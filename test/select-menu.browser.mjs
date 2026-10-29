@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -115,4 +116,4 @@ try {
   await page.waitForFunction(()=>document.querySelectorAll('.select-trigger').length===document.querySelectorAll('select').length);
   assert.deepEqual(errors,[]);
   console.log('PASS Seletores: três tipos, teclado, cancelamento, URL, filtros, menu Mais, detalhes, temas/contraste, telas pequenas, opções dinâmicas, formulários e segurança');
-} finally {await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

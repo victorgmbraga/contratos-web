@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 /* global paginationFixture, tableFixture */
 import assert from 'node:assert/strict';
 import {createStaticServer} from './static-server.js';
@@ -63,4 +64,4 @@ try {
   await page.evaluate(()=>paginationFixture.render({page:1,lastPage:1}));assert.equal(await pager.isVisible(),false);
   assert.deepEqual(errors,[]);
   console.log('PASS Paginação compartilhada: cinco páginas, atalhos, teclado/foco, carregamento, total desconhecido, limites e temas em 320–1068 px');
-} finally {await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

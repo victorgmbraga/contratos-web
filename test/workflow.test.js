@@ -26,6 +26,10 @@ test('WORKFLOW-01: Chromium e Firefox validam em paralelo o mesmo build, sem rec
   assert.match(browser,/COMPRAS_QA_BROWSER: \$\{\{ matrix\.browser \}\}/);
   assert.match(browser,/run: npm run test:browser -- --skip-build/);assert.doesNotMatch(browser,/run: npm run build/);
   assert.equal(artifactName(browser,'download-artifact'),artifactName(validate,'upload-artifact'));
+  assert.match(browser,/id: browser_tests\n {8}run: npm run test:browser -- --skip-build/);
+  assert.match(browser,/COMPRAS_QA_DIAGNOSTICS_DIR: \$\{\{ runner\.temp \}\}\/browser-diagnostics/);
+  assert.match(browser,/if: failure\(\) && steps\.browser_tests\.conclusion == 'failure'/);
+  assert.match(browser,/name: browser-failure-\$\{\{ matrix\.browser \}\}/);
 });
 
 test('WORKFLOW-02: Pages depende de toda a validação e publica somente o artefato testado da main',async()=>{
@@ -35,6 +39,8 @@ test('WORKFLOW-02: Pages depende de toda a validação e publica somente o artef
   assert.equal(artifactName(deploy,'download-artifact'),artifactName(jobs.get('validate'),'upload-artifact'));
   assert.match(deploy,/uses: actions\/upload-pages-artifact@[^\n]+\n {8}with:\n {10}path: dist-browser\n/);
   assert(deploy.indexOf('uses: actions/upload-pages-artifact@')<deploy.indexOf('uses: actions/deploy-pages@'));
+  assert(deploy.indexOf('uses: actions/deploy-pages@')<deploy.indexOf('run: node test/verify-deployment.mjs'));
+  assert.match(deploy,/SITE_URL: https:\/\/contratos-web\.net\.br\//);
   assert.match(source,/workflow_dispatch:/);assert.match(deploy,/pages: write/);assert.match(deploy,/id-token: write/);
   assert.doesNotMatch(jobs.get('validate')+jobs.get('browser'),/pages: write|id-token: write/);
   const publishers=[];

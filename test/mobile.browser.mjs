@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -172,4 +173,4 @@ try {
   await assertFilterLayout(page);
   assert.deepEqual(errors,[]);
   console.log('PASS Mobile: 320–700 px, cabeçalho em duas linhas sem marca, menu ancorado e limpar filtros, teclado/foco e retorno ao desktop, três tipos, cartões/tabela, filtros, detalhes/URL, toque e paginação');
-} finally {await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

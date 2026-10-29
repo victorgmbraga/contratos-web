@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -82,4 +83,4 @@ try {
   await page.goto(new URL('pncp-diagnostic.html',url).href);assert.equal(await theme(),'dark');await contrast(['h1','p','a']);
   assert.deepEqual(errors,[]);
   console.log('PASS Temas: sistema, alternância, persistência, sincronização entre abas, contraste, três tipos, modais, detalhes, avisos e tela pequena');
-} finally {await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

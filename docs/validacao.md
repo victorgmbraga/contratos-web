@@ -89,6 +89,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 
 | Etapa | Cobertura |
 | --- | --- |
+| Diagnóstico de falhas | Uma falha controlada verifica captura de screenshot, trace, mensagens do console e erros de página nos dois navegadores |
 | Componente de tabela | Cem linhas, conteúdo tratado como texto, paginação, foco, menus, teclado, redimensionamento, movimentação, visibilidade, cabeçalho fixo e destruição |
 | Paginação compartilhada | [`test/pagination.browser.mjs`](../test/pagination.browser.mjs): janela de páginas, atalhos, teclado/foco, carregamento, total desconhecido e números longos nos dois temas, de 320 a 1068 px |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
@@ -110,7 +111,17 @@ Esses ensaios servem arquivos estáticos e verificam a ausência de chamadas a u
 
 O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results-table.browser.mjs). A referência visual mantém cores, fontes e espaçamentos; os papéis de display nativos da tabela e as bordas por célula representam sua estrutura semântica. Os testes de navegação utilizam identificadores da aplicação e papéis acessíveis.
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa lint, as duas verificações de tipos e os testes com cobertura uma vez; gera os dois builds, verifica o orçamento e compartilha `browser-builds`. A matriz `browser` executa Chromium e Firefox em paralelo, cada um instalando apenas seu navegador e testando os mesmos arquivos com `--skip-build`. Uma falha não cancela a coleta de resultados do outro navegador. O job `deploy` depende de `validate` e de toda a matriz, baixa o mesmo artefato e envia apenas `dist-browser/` ao Pages, sem recompilar. Somente `main`, fora de pull requests, é publicada; falha ou cancelamento impede o deploy. As permissões de escrita de Pages e identidade ficam restritas ao job de deploy. A recomendação é exigir as verificações desse workflow em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
+Para guardar evidências localmente quando um teste de navegador falhar, defina um diretório antes da execução:
+
+```sh
+COMPRAS_QA_DIAGNOSTICS_DIR=/tmp/contratos-evidencias npm run test:browser -- --skip-build
+```
+
+Cada etapa que falhar grava `failure.txt`, `console.json`, screenshots das páginas abertas e um trace por contexto quando disponíveis. Abra o trace com `npx playwright show-trace caminho/para/context-1-trace.zip`. O CI salva essas evidências como `browser-failure-chromium` ou `browser-failure-firefox` por sete dias. Os dados do navegador usados nesses testes são sintéticos. Uma etapa bem-sucedida não gera artefatos de diagnóstico. Novas suítes devem chamar `diagnoseBrowserFailure(error)` antes de fechar páginas, contextos ou o navegador, preservando o erro original.
+
+O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa lint, as duas verificações de tipos e os testes com cobertura uma vez; gera os dois builds, verifica o orçamento e compartilha `browser-builds`. A matriz `browser` executa Chromium e Firefox em paralelo, cada um instalando apenas seu navegador e testando os mesmos arquivos com `--skip-build`. Uma falha não cancela a coleta de resultados do outro navegador. O job `deploy` depende de `validate` e de toda a matriz, baixa o mesmo artefato e envia apenas `dist-browser/` ao Pages, sem recompilar. Após publicar, [`test/verify-deployment.mjs`](../test/verify-deployment.mjs) compara a página e os recursos principais do domínio público com o build validado, incluindo o tipo de conteúdo HTTP. Até oito tentativas, com intervalo de cinco segundos, acomodam a propagação do Pages. A verificação não consulta o PNCP.
+
+Somente `main`, fora de pull requests, é publicada; falha ou cancelamento da validação impede o deploy. Se a verificação posterior falhar, a publicação já ocorreu e o job fica com erro para sinalizar o problema. As permissões de escrita de Pages e identidade ficam restritas ao job de deploy. A recomendação é exigir as verificações desse workflow em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
 
 O [Dependabot](../.github/dependabot.yml) abre atualizações semanais agrupadas para dependências de desenvolvimento e mensais para as ações, sem propor versões principais automaticamente. Seus pull requests passam pela mesma validação e matriz de navegadores, sem publicar no Pages. [`test/workflow.test.js`](../test/workflow.test.js) verifica as dependências, os dois navegadores, o compartilhamento do artefato sem recompilação, a restrição à `main` e a ausência de outro caminho de publicação.
 
@@ -138,6 +149,7 @@ O script `measure-build.mjs` informa bytes brutos e gzip por asset e totais de J
 | `COMPRAS_QA_CHROMIUM_MODULE` | Módulo que fornece um executável Chromium |
 | `COMPRAS_QA_PLAYWRIGHT_MODULE` | Módulo Playwright fornecido pelo ambiente |
 | `COMPRAS_QA_SCREENSHOT_DIR` | Diretório existente para as capturas da interface |
+| `COMPRAS_QA_DIAGNOSTICS_DIR` | Diretório para evidências das etapas de navegador que falharem |
 
 Preserve o proxy e a confiança TLS exigidos pelo ambiente de execução. Um resultado só é aprovado quando o comando termina com código zero. Os resultados e tempos devem ser obtidos da execução em análise.
 

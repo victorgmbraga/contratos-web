@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import {createStaticServer} from './static-server.js';
 import {launchTestBrowser} from './browser-launch.js';
@@ -54,4 +55,4 @@ try {
  assert.equal(await page.locator('.result-card-open').first().innerText(),title);
  assert.deepEqual(errors,[]);
  console.log('PASS Descrições extensas: abas acessíveis, leitura completa segura, fechamento e histórico nos três tipos; cartões sob demanda com dados atuais e liberação ao retornar ao desktop');
-} finally {await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

@@ -1,5 +1,6 @@
 import { build } from 'vite';
 import { access } from 'node:fs/promises';
+import { beginBrowserDiagnostics, diagnoseBrowserFailure, endBrowserDiagnostics } from './browser-diagnostics.js';
 
 const args=process.argv.slice(2),skipBuild=args.includes('--skip-build');
 if(args.some(arg=>arg!=='--skip-build'))throw new Error('Use somente --skip-build para testar os builds existentes.');
@@ -8,7 +9,13 @@ async function stage(name,run) {
   const start=performance.now();console.log('RUN '+name);await run();
   console.log(`TIME ${name}: ${((performance.now()-start)/1000).toFixed(2)} s`);
 }
-const runFile=name=>stage(name,()=>import('./'+name));
+const runFile=name=>stage(name,async()=>{
+  beginBrowserDiagnostics(name);
+  try { await import('./'+name); }
+  catch(error) { await diagnoseBrowserFailure(error); throw error; }
+  finally { endBrowserDiagnostics(); }
+});
+await runFile('browser-diagnostics.browser.mjs');
 await runFile('results-table.browser.mjs');
 await runFile('pagination.browser.mjs');
 if(!skipBuild)await stage('build-test',()=>build({mode:'test'}));

@@ -1,3 +1,4 @@
+import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 /* global tableFixture */
 import assert from 'node:assert/strict';
 import {createStaticServer} from './static-server.js';
@@ -105,4 +106,4 @@ try {
   assert.equal(await page.locator('.results-filter-tooltip').count(),0);
   assert.deepEqual(errors,[]);
   console.log('PASS Tabela própria: 100 linhas, números de página, menus, teclado, resize, arraste, visibilidade, rolagem, estados e destruição');
-} finally {await browser.close();await app.close();}
+} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}

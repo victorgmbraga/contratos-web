@@ -29,13 +29,13 @@ A imagem social fica em `public/og-image.png` (1200×630) e é copiada para a ra
 
 ## GitHub Pages
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pull requests e publica pushes para `main`, com opção de execução manual. O job `validate` usa Node.js 24, instalação reproduzível, lint, tipos e testes com cobertura, gera os builds de produção e de teste uma vez e confere o orçamento de tamanho. O artefato `browser-builds` é baixado pelos jobs de Chromium e Firefox, executados em paralelo e sem recompilar. O job `deploy` depende da validação e dos dois navegadores, baixa esse mesmo artefato e envia somente `dist-browser/` ao Pages. Só `main` é publicada, fora de pull requests. Qualquer falha ou cancelamento impede a publicação; outras branches podem ser validadas manualmente, mas não são publicadas.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pull requests e publica pushes para `main`, com opção de execução manual. O job `validate` usa Node.js 24, instalação reproduzível, lint, tipos e testes com cobertura, gera os builds de produção e de teste uma vez e confere o orçamento de tamanho. O artefato `browser-builds` é baixado pelos jobs de Chromium e Firefox, executados em paralelo e sem recompilar. O job `deploy` depende da validação e dos dois navegadores, baixa esse mesmo artefato e envia somente `dist-browser/` ao Pages. Depois da publicação, verifica o HTML, a configuração, o Service Worker, a imagem social e os assets no domínio público, comparando conteúdo e tipo HTTP ao build validado. A verificação faz até oito tentativas e não depende do PNCP. Uma falha nessa etapa sinaliza erro depois de o deploy já ter ocorrido. Só `main` é publicada, fora de pull requests; outras branches podem ser validadas manualmente, mas não são publicadas.
 
 Para configurar uma publicação:
 
 1. Em **Settings → Pages → Build and deployment**, selecione **GitHub Actions**.
 2. Envie um commit à `main` ou execute **Actions → Validar e publicar aplicação estática → Run workflow**.
-3. Confira o resultado do job `deploy` e a URL informada por ele.
+3. Confira o resultado do job `deploy`, inclusive a etapa de verificação do site publicado.
 4. Para usar domínio próprio, configure **Custom domain** no Pages, os registros DNS correspondentes e HTTPS.
 
 Sem domínio próprio, um repositório de projeto usa um caminho como `/contratos-web/`. A conta pode exigir aprovação do ambiente `github-pages`; a configuração do workflow concede as permissões de Pages e identidade necessárias à publicação.
