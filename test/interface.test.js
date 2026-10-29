@@ -1101,6 +1101,45 @@ test('FILTERS-UI-23: município do fornecedor ausente da lista inicial permite s
   assert.deepEqual(restored.draft().pncp_filters.municipios_fornecedor,['5300108']);
 });
 
+test('FILTERS-UI-24: sistema de origem ausente ou vazio aceita sugestões e múltiplos IDs com cache e URL', {timeout:10000},async()=>{
+  for(const type of ['edital','contrato']) {
+    const storage=memoryStorage(),suggestUrls=[];
+    let suggested;const called=new Promise(resolve=>{suggested=resolve;});
+    const provider=async(url,init)=>{
+      const parsed=new URL(url);
+      if(parsed.pathname.endsWith('/suggest')) {
+        suggestUrls.push(parsed);suggested();
+        return Response.json({items:[{id:3,nome:'Compras.gov.br'},{id:'5',nome:'BLL Compras'}]});
+      }
+      const response=await demoFetch(url,init);
+      if(!parsed.pathname.endsWith('/filters'))return response;
+      const data=await response.json();
+      if(type==='edital')delete data.filters.fontes;else data.filters.fontes=[];
+      return Response.json(data);
+    };
+    const ui=await interfaceFixture({storage,itemFetcher:provider,href:`https://example.test/contratos-web/?tipos_documento=${type}`});
+    await ui.nodes.get('filters-button').fire('click');
+    const input=ui.field('fontes');
+    assert.equal(input.disabled,false);assert.equal(input.placeholder,'Digite ao menos 3 caracteres');
+    assert.equal(ui.nodes.get('filter-error-fontes').hidden,true);
+    await ui.options('fontes');input.value='Co';await input.fire('input');assert.equal(suggestUrls.length,0);
+    input.value='Compras';await input.fire('input');await called;await settle();
+    assert.deepEqual(Object.fromEntries(suggestUrls[0].searchParams),{tipos_documento:type,campo:'fontes',q:'Compras',tam_pagina:'20'});
+    const options=await ui.options('fontes');
+    assert.deepEqual(options.map(option=>option.dataset.value),['3','5']);
+    assert.equal(options[0].getAttribute('aria-label'),'Compras.gov.br');
+    for(const option of options)await option.fire('click');
+    await ui.nodes.get('apply-filters').fire('click');
+    assert.deepEqual(ui.requests.at(-1).pncp_filters.fontes,['3','5']);
+    assert.equal(new URL(ui.browser.href()).searchParams.get('fontes'),'3|5');
+    const restored=await interfaceFixture({storage,itemFetcher:provider,href:ui.browser.href()});
+    assert.equal(restored.domainRequests.length,0,'O cache existente continua válido mesmo sem fontes');
+    await restored.nodes.get('filters-button').fire('click');
+    assert.equal(restored.field('fontes').disabled,false);
+    assert.deepEqual(restored.draft().pncp_filters.fontes,['3','5']);
+  }
+});
+
 test('FILTERS-UI-22: refocar uma busca remota pendente preserva o carregamento e aguarda as novas opções',async()=>{
   let started,finish;const called=new Promise(resolve=>{started=resolve;});
   const ui=await interfaceFixture({suggestHandler:()=>new Promise(resolve=>{finish=resolve;started();})});

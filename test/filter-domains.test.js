@@ -19,6 +19,7 @@ test('FILTER-01: catálogo completo habilitado com contextos e proveniência exp
   assert.equal(caps.find(c=>c.name==='paises_fornecedor').validation_status,'integration_tested');
   for(const name of ['tipos_item','tipos_margens_preferencia']){const c=caps.find(c=>c.name===name);assert.equal(c.type,'enum');assert.equal(c.cardinality,'single');assert.equal(c.domain_kind,'closed');}
   assert.equal(caps.find(c=>c.name==='municipios_fornecedor').domain_kind,'suggest');
+  assert.equal(caps.find(c=>c.name==='fontes').domain_kind,'suggest');
   assert.equal(caps.find(c=>c.name==='naturezas_juridicas').domain_source,'catalog');
   assert.deepEqual(caps.find(c=>c.name==='tipos_contrato').documents,['contrato']);
   assert.deepEqual(caps.find(c=>c.name==='tipos_margens_preferencia').documents,['edital']);
@@ -78,4 +79,29 @@ test('FILTER-07: margem de preferência confere a opção única no domínio rem
 test('FILTER-09: falha de proxy com código numérico mantém erro de transporte',async()=>{
   const cfg=config(),client=new PncpClient(cfg,{fetcher:async()=>{throw new TypeError('fetch failed',{cause:{code:403}});}}),op=operation(cfg);
   try{await assert.rejects(client.get('https://pncp.gov.br/api/search/',op),e=>e.code==='PNCP_TRANSPORT_ERROR' && e.status===503);}finally{op.finish();}
+});
+
+test('FILTER-10: sistemas de origem ausentes de filters usam sugestões e IDs na pesquisa e no CSV',async()=>{
+  for(const type of ['edital','contrato']) {
+    const s=service([document(1,{document_type:type})],{handler:url=>
+      url.pathname.endsWith('/filters')?json({filters:{ufs:[{id:'DF',nome:'Distrito Federal'}]}}):
+      url.pathname.endsWith('/suggest')?json({items:[{id:3,nome:'Compras.gov.br'},{id:'0005',nome:'BLL Compras'}]}):null});
+    const domains=await s.service.domains(type);
+    assert.equal(domains.filters.fontes,undefined);
+    const suggestions=await s.service.suggest(type,'fontes','Compras',20);
+    assert.deepEqual(suggestions.items,[{id:'3',label:'Compras.gov.br'},{id:'0005',label:'BLL Compras'}]);
+    assert.equal(s.requests.at(-1).pathname,'/api/search/suggest');
+    assert.deepEqual(Object.fromEntries(s.requests.at(-1).searchParams),{tipos_documento:type,campo:'fontes',q:'Compras',tam_pagina:'20'});
+    const input=query({document_type:type,pncp_filters:{fontes:['3','0005']}}),before=s.requests.length;
+    assert.equal((await s.service.execute(input)).data.length,1);
+    assert.equal((await s.service.export(input,undefined,undefined,{scope:'page'})).metadata.exported_rows,1);
+    assert.equal(s.requests.length,before+2,'Pesquisa e CSV não exigem fontes na lista inicial ausente');
+    for(const request of s.requests.slice(before))assert.equal(request.searchParams.get('fontes'),'3|0005');
+    await assert.rejects(s.service.execute(query({document_type:type,pncp_filters:{fontes:['Compras.gov.br']}})),error=>error.code==='INVALID_DOMAIN');
+    assert.equal(s.requests.length,before+2,'Nomes não são enviados no lugar de IDs');
+  }
+  const s=service([]);
+  await assert.rejects(s.service.suggest('ata','fontes','Compras',20),error=>error.code==='INVALID_SUGGEST_FIELD');
+  await assert.rejects(s.service.suggest('edital','fontes','Co',20),error=>error.code==='INVALID_SUGGEST');
+  assert.equal(s.requests.length,0);
 });

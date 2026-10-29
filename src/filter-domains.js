@@ -9,8 +9,8 @@ export const catalogDomains = {
 };
 // Fixed enumeration from the PNCP portal's result category control.
 export const referenceDomains={reservas_remanescentes:[{id:'1',label:'Não se aplica'},{id:'2',label:'Remanescente'},{id:'3',label:'Cadastro de reserva'}]};
-export const partialDomains = ['orgaos','unidades','municipios','fornecedores','fornecedores_subcontratados','orgaos_subrogados','unidades_subrogadas','municipios_fornecedor','item_unidades_medida','unidades_medida'];
-export const closedDomains = ['modalidades','situacoes','fontes','fontes_orcamentarias','tipos','tipos_contrato','normativos_base','amparos_legais','modos_disputa','criterios_julgamento','situacoes_item','tipos_item','beneficios','categorias_leilao','situacoes_resultado','tipos_margens_preferencia',...Object.keys(catalogDomains),...Object.keys(referenceDomains)];
+export const partialDomains = ['orgaos','unidades','municipios','fontes','fornecedores','fornecedores_subcontratados','orgaos_subrogados','unidades_subrogadas','municipios_fornecedor','item_unidades_medida','unidades_medida'];
+export const closedDomains = ['modalidades','situacoes','fontes_orcamentarias','tipos','tipos_contrato','normativos_base','amparos_legais','modos_disputa','criterios_julgamento','situacoes_item','tipos_item','beneficios','categorias_leilao','situacoes_resultado','tipos_margens_preferencia',...Object.keys(catalogDomains),...Object.keys(referenceDomains)];
 
 const labels = {
   ufs:'UF',orgaos:'Órgão',unidades:'Unidade',municipios:'Município',esferas:'Esfera',poderes:'Poder',modalidades:'Modalidade',

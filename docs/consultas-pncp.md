@@ -93,7 +93,7 @@ CNPJ exige 14 dígitos, ano exige quatro e sequenciais são inteiros positivos d
 | `indicador_orcamento_sigiloso`, `exigencia_conteudo_nacional` | Booleanos `true` ou `false` da contratação |
 | `possui_emenda_parlamentar` | Booleano `true` ou `false` de vínculo com emenda parlamentar |
 | `tem_ata_registro_preco`, `tem_contrato_empenho`, `tem_nfe_contrato` | Booleanos de vínculo da contratação com ata, contrato ou empenho e nota fiscal do contrato, respectivamente |
-| `fontes` | Lista de IDs dos sistemas de origem conferidos no domínio do PNCP; corresponde a `usuario_id`, não à fonte orçamentária |
+| `fontes` | Lista de IDs dos sistemas de origem obtidos por sugestões do PNCP; corresponde a `usuario_id`, não à fonte orçamentária |
 | `modos_disputa` | Lista de IDs de modos de disputa conferidos no domínio do PNCP |
 | `tipos` | Lista de IDs de instrumentos convocatórios conferidos no domínio do PNCP |
 | `fontes_orcamentarias` | Lista de IDs conferidos no domínio do PNCP |
@@ -196,7 +196,7 @@ Sem `field`, ou com um filtro da busca, a origem é `/api/search/filters`. Para 
 
 Opções desses catálogos podem incluir `active: false`; a interface identifica opções inativas e permite consultar registros associados a elas. O aplicativo valida e envia os IDs do catálogo de países, sem conversão BCB.
 
-Domínios fechados são conferidos pelo Worker antes da pesquisa e da exportação. Reservas/remanescentes usam a enumeração fixa do portal, com `domain_source: reference` e sem requisição externa para obter essas opções. Domínios parciais utilizam sugestões e não são tratados como listas exaustivas; incluem sub-rogação, fornecedores, municípios de fornecedores e unidades de medida.
+Domínios fechados são conferidos pelo Worker antes da pesquisa e da exportação. Reservas/remanescentes usam a enumeração fixa do portal, com `domain_source: reference` e sem requisição externa para obter essas opções. Domínios parciais utilizam sugestões e não são tratados como listas exaustivas; incluem sistemas de origem, sub-rogação, fornecedores, municípios de fornecedores e unidades de medida.
 
 Na inicialização, a interface pré-carrega em segundo plano as opções de `edital`, `ata` e `contrato`, os quatro catálogos compartilhados e a referência fixa. São oito operações locais `domains`, sete delas com consulta externa quando não há cache válido. As listas normalizadas ficam no `localStorage` por 4 horas desde o carregamento, sem renovar a validade em leituras. Abrir o modal preenche todos os filtros compatíveis usando essas listas; entradas vencidas são descartadas e obtidas novamente na inicialização ou no próximo uso. Falhas de uma lista não bloqueiam os demais campos; o campo afetado mostra o erro e permite tentar novamente. Armazenamento indisponível usa memória. O cache não altera as consultas de validação do Worker, pesquisa, detalhes, CSV ou sugestões por texto.
 
@@ -211,7 +211,7 @@ Ao alterar normativos, a interface obtém os amparos do cache específico do tip
 | `q` | Texto entre 3 e 128 caracteres |
 | `size` | Obrigatório: inteiro de 1 a 20; a interface envia `20` |
 
-A resposta contém `items` com pares `{id, label}`, `request_id` e `queried_at`. Listas de domínios podem ser parciais; o retorno de sugestões depende da fonte. Campos com sugestões, como Município do fornecedor, permanecem disponíveis mesmo quando não constam das opções iniciais de `/filters`, inclusive nas listas em cache. Ao digitar ao menos três caracteres, a interface consulta `/api/search/suggest` com `tipos_documento`, `campo`, `q` e `tam_pagina`.
+A resposta contém `items` com pares `{id, label}`, `request_id` e `queried_at`. Listas de domínios podem ser parciais; o retorno de sugestões depende da fonte. Campos com sugestões, como Sistema de origem (`campo=fontes`, em editais e contratos) e Município do fornecedor, permanecem disponíveis mesmo quando não constam das opções iniciais de `/filters`, inclusive nas listas em cache. Ao digitar ao menos três caracteres, a interface consulta `/api/search/suggest` com `tipos_documento`, `campo`, `q` e `tam_pagina`. Essas sugestões por texto não são armazenadas no cache de listas com validade de 4 horas. Seleções usam os IDs retornados pela fonte; a pesquisa e o CSV não exigem que esses IDs pertençam à lista inicial parcial.
 
 ## Itens de uma contratação
 
