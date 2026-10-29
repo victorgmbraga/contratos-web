@@ -36,7 +36,7 @@ async function headerLayout(width) {
   assert.equal(boxes.type.y,boxes.order.y);
   assert(boxes.search.y+boxes.search.height<boxes.type.y,'Busca ocupa a primeira linha e seletores a segunda');
   assert.equal(boxes.more.width,44);assert.equal(boxes.more.height,44);
-  assert.equal(boxes.type.y,boxes.more.y,'Seletores e Mais ficam na segunda linha');
+  assert(Math.abs((boxes.type.y+boxes.type.height/2)-(boxes.more.y+boxes.more.height/2))<1,'Seletores e Mais ficam alinhados na segunda linha');
   assert(boxes.order.x+boxes.order.width<boxes.more.x,'Mais fica à direita dos seletores');
   await page.locator('#search').focus();
   const sequence=['search-button','filters-button','document-type-control','order-control','more-actions-button'];

@@ -56,7 +56,7 @@ O runner nativo executa até quatro arquivos de `test/*.test.js` em paralelo, co
 
 [`test/interface.test.js`](../test/interface.test.js) usa um DOM mínimo e o serviço tipado para verificar os fluxos da interface. O agendador da limpeza de URLs de CSV é injetado no fixture: o teste verifica o prazo de 10 segundos e a revogação, e o teardown libera os recursos sem esperar esse tempo real. O comportamento padrão no browser mantém o mesmo prazo. Os testes usam fontes controladas; a renderização é verificada no navegador.
 
-[`test/pncp-contract.test.js`](../test/pncp-contract.test.js) usa recortes de respostas reais em [`test/fixtures/pncp-options.json`](../test/fixtures/pncp-options.json), independentes de `schema` e `demoFetch`. A interface também exercita essas respostas ao selecionar sistemas de origem com listas ausentes ou vazias em cache. A [origem e as regras de atualização das fixtures](../test/fixtures/README.md) explicam os recortes. Esses contratos são locais e não fazem chamadas ao PNCP no CI.
+[`test/pncp-contract.test.js`](../test/pncp-contract.test.js) usa recortes de respostas reais em [`test/fixtures/pncp-options.json`](../test/fixtures/pncp-options.json), independentes de `schema` e `demoFetch`. A interface também exercita essas respostas ao selecionar sistemas de origem com listas ausentes ou vazias em cache. [`test/pncp-real-contract.test.js`](../test/pncp-real-contract.test.js) verifica pesquisas, detalhes e históricos dos três tipos com as respostas completas em [`test/fixtures/pncp-live/`](../test/fixtures/pncp-live/). A [origem e as regras de atualização das fixtures](../test/fixtures/README.md) explicam as capturas. Esses contratos são locais e não fazem chamadas ao PNCP no CI.
 
 ## Navegador e artefato estático
 
@@ -72,6 +72,13 @@ O sistema precisa das bibliotecas exigidas pelo navegador. Quando necessário, a
 ```sh
 npx playwright install firefox
 COMPRAS_QA_BROWSER=firefox npm run test:browser
+```
+
+Para executar a mesma suíte com WebKit:
+
+```sh
+npx playwright install webkit
+COMPRAS_QA_BROWSER=webkit npm run test:browser
 ```
 
 Para testar os dois navegadores sem recompilar entre as execuções:
@@ -101,6 +108,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Descrições e cartões | [`test/details-overflow.browser.mjs`](../test/details-overflow.browser.mjs): abas acessíveis com descrições extensas, leitura completa segura, fechamento/histórico e cartões criados somente quando visíveis |
 | Acessibilidade | [`test/accessibility.browser.mjs`](../test/accessibility.browser.mjs): axe-core nas regras WCAG 2.0, 2.1 e 2.2 A/AA sobre a busca em desktop, o modal de filtros, o diálogo de colunas, o menu de exportação, o painel de detalhes e a visualização móvel; falha em violações críticas ou sérias |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
+| Service Worker | Instalação, cache de assets, atualização, remoção seletiva de caches antigos e resposta pela rede quando o armazenamento falha |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), nos três tipos em 1440, 1068 e 390 pixels; o subdiretório conserva seus testes de assets, Worker e links |
 | CORS controlado | Uma verificação por navegador com duas origens locais, permissão e bloqueio de leitura e exposição de `Retry-After`, independente do caminho de hospedagem |
@@ -117,11 +125,13 @@ Para guardar evidências localmente quando um teste de navegador falhar, defina 
 COMPRAS_QA_DIAGNOSTICS_DIR=/tmp/contratos-evidencias npm run test:browser -- --skip-build
 ```
 
-Cada etapa que falhar grava `failure.txt`, `console.json`, screenshots das páginas abertas e um trace por contexto quando disponíveis. Abra o trace com `npx playwright show-trace caminho/para/context-1-trace.zip`. O CI salva essas evidências como `browser-failure-chromium` ou `browser-failure-firefox` por sete dias. Os dados do navegador usados nesses testes são sintéticos. Uma etapa bem-sucedida não gera artefatos de diagnóstico. Novas suítes devem chamar `diagnoseBrowserFailure(error)` antes de fechar páginas, contextos ou o navegador, preservando o erro original.
+Cada etapa que falhar grava `failure.txt`, `console.json`, screenshots das páginas abertas e um trace por contexto quando disponíveis. Abra o trace com `npx playwright show-trace caminho/para/context-1-trace.zip`. O CI salva essas evidências como `browser-failure-chromium`, `browser-failure-firefox` ou `browser-failure-webkit` por sete dias. Os dados do navegador usados nesses testes são sintéticos. Uma etapa bem-sucedida não gera artefatos de diagnóstico. Novas suítes devem chamar `diagnoseBrowserFailure(error)` antes de fechar páginas, contextos ou o navegador, preservando o erro original.
 
 O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa lint, as duas verificações de tipos e os testes com cobertura uma vez; gera os dois builds, verifica o orçamento e compartilha `browser-builds`. A matriz `browser` executa Chromium e Firefox em paralelo, cada um instalando apenas seu navegador e testando os mesmos arquivos com `--skip-build`. Uma falha não cancela a coleta de resultados do outro navegador. O job `deploy` depende de `validate` e de toda a matriz, baixa o mesmo artefato e envia apenas `dist-browser/` ao Pages, sem recompilar. Após publicar, [`test/verify-deployment.mjs`](../test/verify-deployment.mjs) compara a página e os recursos principais do domínio público com o build validado, incluindo o tipo de conteúdo HTTP. Até oito tentativas, com intervalo de cinco segundos, acomodam a propagação do Pages. A verificação não consulta o PNCP.
 
 Somente `main`, fora de pull requests, é publicada; falha ou cancelamento da validação impede o deploy. Se a verificação posterior falhar, a publicação já ocorreu e o job fica com erro para sinalizar o problema. As permissões de escrita de Pages e identidade ficam restritas ao job de deploy. A recomendação é exigir as verificações desse workflow em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
+
+O workflow separado [`webkit.yml`](../.github/workflows/webkit.yml) executa a suíte completa no WebKit às segundas-feiras, às 07:20 UTC, e aceita execução manual pela aba Actions. Ele compila os builds de teste e produção, preserva diagnósticos em caso de falha e não publica o site. A verificação periódica não substitui testes com Safari em dispositivos reais.
 
 O [Dependabot](../.github/dependabot.yml) abre atualizações semanais agrupadas para dependências de desenvolvimento e mensais para as ações, sem propor versões principais automaticamente. Seus pull requests passam pela mesma validação e matriz de navegadores, sem publicar no Pages. [`test/workflow.test.js`](../test/workflow.test.js) verifica as dependências, os dois navegadores, o compartilhamento do artefato sem recompilação, a restrição à `main` e a ausência de outro caminho de publicação.
 

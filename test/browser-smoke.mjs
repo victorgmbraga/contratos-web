@@ -21,4 +21,5 @@ await runFile('pagination.browser.mjs');
 if(!skipBuild)await stage('build-test',()=>build({mode:'test'}));
 for(const name of ['ui-smoke.mjs','select-menu.browser.mjs','theme.browser.mjs','mobile.browser.mjs','detail-links.browser.mjs','details-overflow.browser.mjs','filter-options-cache.browser.mjs','accessibility.browser.mjs'])await runFile(name);
 if(!skipBuild)await stage('build-production',()=>build());
+await runFile('service-worker.browser.mjs');
 await runFile('browser-artifact.mjs');

@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { routePncp } from './pncp-route.js';
 const baseline=JSON.parse(await readFile(new URL('./layout-baseline.json',import.meta.url),'utf8'));
 const normalizeFonts=styles=>Object.fromEntries(Object.entries(styles).map(([selector,style])=>[selector,{...style,fontFamily:style.fontFamily.replace(/["']/g,'')}]));
+// WebKit may serialize 18.2px as 18.199999px; ignore subpixel rounding noise.
+const normalizePixels=value=>typeof value==='string'?value.replace(/-?\d+(?:\.\d+)?px/g,number=>`${Math.round(parseFloat(number)*1000)/1000}px`):value;
 
 const layoutSelectors = ['#app-header', '.search-field', '#search-button', '#results-table', '.results-header', '.results-col', '.results-col-content', '.results-col-title', '.results-row', '.results-row-even', '.results-cell', '.results-footer', '.results-footer-contents', '.results-page-counter', '.results-paginator', '.results-page', '.results-page.active'];
 async function snapshot(page,width) {
@@ -44,7 +46,7 @@ export async function assertBrowserLayout(browser, url) {
         // Browsers serialize quoted family names differently in computed CSS.
         const actual=normalizeFonts(await snapshot(page,viewport.width)),reference=normalizeFonts(expected),differences=[];
         for(const [selector,properties] of Object.entries(reference))for(const [property,value] of Object.entries(properties)) {
-          if(actual[selector][property]!==value)differences.push({selector,property,expected:value,actual:actual[selector][property]});
+          if(normalizePixels(actual[selector][property])!==normalizePixels(value))differences.push({selector,property,expected:value,actual:actual[selector][property]});
         }
         assert.deepEqual(differences,[], `Layout ${type} em ${viewport.width}px difere da referência visual`);
       }

@@ -1,0 +1,18 @@
+{
+  "captured_at": "2026-10-29T20:39:30+00:00",
+  "origin": "Respostas públicas do PNCP, preservadas como JSON textual.",
+  "responses": {
+    "search-edital.json": "https://pncp.gov.br/api/search/?tipos_documento=edital&status=todos&ordenacao=-data&pagina=1&tam_pagina=10&q=software",
+    "search-ata.json": "https://pncp.gov.br/api/search/?tipos_documento=ata&status=todos&ordenacao=-data&pagina=1&tam_pagina=10&q=software",
+    "search-contrato.json": "https://pncp.gov.br/api/search/?tipos_documento=contrato&status=todos&ordenacao=-data&pagina=1&tam_pagina=10&q=software",
+    "edital-detail.json": "https://pncp.gov.br/api/consulta/v1/orgaos/00394452000103/compras/2026/21678",
+    "edital-historico.json": "https://pncp.gov.br/api/pncp/v1/orgaos/00394452000103/compras/2026/21678/historico?pagina=1&tamanhoPagina=10",
+    "edital-quantidade.json": "https://pncp.gov.br/api/pncp/v1/orgaos/00394452000103/compras/2026/21678/historico/quantidade",
+    "ata-detail.json": "https://pncp.gov.br/api/pncp/v1/orgaos/00509968000148/compras/2025/402/atas/1",
+    "ata-historico.json": "https://pncp.gov.br/api/pncp/v1/orgaos/00509968000148/compras/2025/402/atas/1/historico?pagina=1&tamanhoPagina=10",
+    "ata-quantidade.json": "https://pncp.gov.br/api/pncp/v1/orgaos/00509968000148/compras/2025/402/atas/1/historico/quantidade",
+    "contrato-detail.json": "https://pncp.gov.br/api/pncp/v1/orgaos/87711503000153/contratos/2025/50",
+    "contrato-historico.json": "https://pncp.gov.br/api/pncp/v1/orgaos/87711503000153/contratos/2025/50/historico?pagina=1&tamanhoPagina=10",
+    "contrato-quantidade.json": "https://pncp.gov.br/api/pncp/v1/orgaos/87711503000153/contratos/2025/50/historico/quantidade"
+  }
+}

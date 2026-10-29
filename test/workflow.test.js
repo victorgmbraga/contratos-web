@@ -47,3 +47,17 @@ test('WORKFLOW-02: Pages depende de toda a validação e publica somente o artef
   for(const filename of await readdir(root))if(/\.ya?ml$/.test(filename) && (await readFile(new URL(filename,root),'utf8')).includes('uses: actions/deploy-pages@'))publishers.push(filename);
   assert.deepEqual(publishers,['validate.yml']);
 });
+
+test('WORKFLOW-03: WebKit roda periodicamente ou sob demanda, com diagnósticos e sem publicar',async()=>{
+  const webkit=await readFile(new URL('webkit.yml',root),'utf8');
+  assert.match(webkit,/schedule:\n {4}- cron: '[^']+'/);
+  assert.match(webkit,/workflow_dispatch:/);
+  assert.doesNotMatch(webkit,/^ {2}(push|pull_request):/m);
+  assert.match(webkit,/playwright install --with-deps webkit/);
+  assert(webkit.indexOf('run: npm run build:qa')<webkit.indexOf('run: npm run test:browser -- --skip-build'));
+  assert.match(webkit,/COMPRAS_QA_BROWSER: webkit/);
+  assert.match(webkit,/COMPRAS_QA_DIAGNOSTICS_DIR: \$\{\{ runner\.temp \}\}\/webkit-diagnostics/);
+  assert.match(webkit,/if: failure\(\) && steps\.webkit_tests\.conclusion == 'failure'/);
+  assert.match(webkit,/name: browser-failure-webkit/);
+  assert.doesNotMatch(webkit,/uses: actions\/deploy-pages@|pages: write|id-token: write/);
+});
