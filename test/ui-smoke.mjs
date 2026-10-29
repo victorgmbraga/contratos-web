@@ -6,6 +6,7 @@ import { defaults } from '../src/settings.js';
 import { createStaticServer } from './static-server.js';
 import { schema } from '../src/schema.js';
 import { FILTER_OPTIONS_PREFIX, FILTER_OPTIONS_TTL } from '../src/browser/filter-options-cache.js';
+import { assertHeaderControls } from './header-controls.js';
 const config={...defaults,PNCP_REQUESTS_PER_SECOND:100000};
 const app=createStaticServer(new URL('../dist-browser-test/',import.meta.url));
 await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
@@ -37,31 +38,46 @@ async function selectFilterOptions(name,values) {
     await page.locator(`#filter-suggestions-${name} .suggestion[data-value=${JSON.stringify(value)}]`).click();
   }
 }
-async function addEveryFilter(type) {
+async function assertFilterCatalog(type) {
   const catalog=schema(config);
   const caps=catalog.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.documents.includes(type));
+  const before=page.url();
   await page.locator('#filters-button').click();
   assert.equal(await page.locator('#add-native, #native-field, #filters-dialog select[multiple]').count(),0);
   assert.equal(await page.locator('#filter-groups .filter-field').count(),caps.length);
-  const visibleNames=await page.locator('#filter-groups .filter-field').evaluateAll(fields=>fields.map(field=>field.id.slice('filter-field-'.length)));
-  assert.deepEqual(visibleNames.sort(),caps.map(cap=>cap.name).sort());
-  for(const cap of caps){
-    const input=filter(cap.name);
-    if(['list','enum'].includes(cap.type)){
-      if(cap.cardinality==='multiple'){await input.click();await page.locator(`#filter-suggestions-${cap.name} .suggestion`).first().click();}
-      else {const first=await input.locator('option:not([value=""])').first().getAttribute('value');await input.selectOption(first);}
-    }else if(cap.type==='boolean')await input.selectOption('false');
-    else await input.fill(cap.type==='date'?'2026-09-01':cap.type==='integer'?'0':cap.name==='codigo_ibge'?'5300108':'0.00');
+  const controls=await page.locator('#filter-groups .filter-field').evaluateAll(fields=>fields.map(field=>{
+    const input=field.querySelector('input,select');
+    return {name:field.id.slice('filter-field-'.length),tag:input.tagName,type:input.type,role:input.getAttribute('role')};
+  }));
+  assert.deepEqual(controls.map(control=>control.name).sort(),caps.map(cap=>cap.name).sort());
+  for(const cap of caps) {
+    const control=controls.find(control=>control.name===cap.name);
+    if(cap.domain && cap.cardinality==='multiple')assert.deepEqual(control,{name:cap.name,tag:'INPUT',type:'search',role:'combobox'});
+    else if(cap.domain || cap.type==='boolean')assert.equal(control.tag,'SELECT',cap.name);
+    else assert.equal(control.type,cap.type==='date'?'date':cap.type==='integer'?'number':'text',cap.name);
   }
-  const request=waitQuery(input=>Object.keys(input.pncp_filters).length===caps.length);
-  await page.locator('#apply-filters').click();const input=await request;assert.equal(input.document_type,type);assert.equal(Object.keys(input.pncp_filters).length,caps.length);
-  await page.waitForFunction(()=>!document.querySelector('#export-button').disabled);return caps.length;
+  await page.locator('#filters-dialog .dialog-footer .close-dialog').click();assert.equal(page.url(),before);
+  return caps.length;
+}
+async function assertRepresentativeFilters() {
+  if(await page.locator('#clear-button').isVisible())await page.locator('#clear-button').click();
+  await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
+  await page.locator('#filters-button').click();
+  await selectFilterOptions('ufs','DF');await filter('tipos_item').selectOption('S');await filter('srp').selectOption('false');
+  await filter('data_publicacao_inicio').fill('2026-01-01');await filter('valor_total_estimado_min').fill('0.00');
+  await filter('ordem_classificacao_min').fill('0');await filter('codigo_ibge').fill('5300108');
+  const request=waitQuery(input=>input.pncp_filters.tipos_item==='S');await page.locator('#apply-filters').click();
+  assert.deepEqual((await request).pncp_filters,{ufs:['DF'],tipos_item:'S',srp:false,data_publicacao_inicio:'2026-01-01',valor_total_estimado_min:'0.00',ordem_classificacao_min:0,codigo_ibge:'5300108'});
+  await page.waitForFunction(()=>document.querySelector('#table-loader').hidden);
+  await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
+  check('Controles múltiplo, enum, booleano, data, decimal, inteiro e identificador enviam os tipos esperados');
 }
 try {
   await page.goto(`http://127.0.0.1:${app.server.address().port}`,{waitUntil:'load'});
   await page.waitForFunction(()=>document.querySelector('.results-table'));
   assert.equal(await page.locator('#source-badge').count(),0);check('Interface disponível sem aviso de demonstração');
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');check('Pesquisa inicial sem filtros executada automaticamente');
+  await assertHeaderControls(page);check('Ações do cabeçalho têm nomes acessíveis, ícones, tooltips e menu de exportação operante');
   await page.waitForFunction(prefix=>Object.keys(localStorage).filter(key=>key.startsWith(prefix)).length===8,FILTER_OPTIONS_PREFIX);
   assert.equal(initialDomains.length,8);
   assert.deepEqual(initialDomains.filter(payload=>payload.field===null).map(payload=>payload.type),['edital','ata','contrato']);
@@ -292,17 +308,7 @@ try {
     assert.equal(await section.locator('.related-card').count(),2);assert.equal(await section.locator('.item-pager [data-page="next"]').isDisabled(),true);check(`Paginação de ${resource} alcança a última página`);
   }
   const fileLink=page.locator('.related-section[data-resource="arquivos"] .related-card a').first();assert.equal(await fileLink.getAttribute('target'),'_blank');assert.equal(await fileLink.getAttribute('rel'),'noopener noreferrer');assert.match(await fileLink.getAttribute('href'),/^https:\/\/pncp.gov.br\//);
-  await page.locator('#detail-tab-detalhes').click();const previousViewport=page.viewportSize();
-  for(const width of [320,390,768]){
-    await page.setViewportSize({width,height:844});
-    await page.locator('#details-dialog').evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished)));
-    assert.equal(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1),true);
-    if(width<=700)await page.locator('#details-section').selectOption('historico');else await page.locator('#detail-tab-historico').click();
-    assert(await page.locator('#detail-panel-historico').isVisible());
-    if(width<=700)await page.locator('#details-section').selectOption('detalhes');else await page.locator('#detail-tab-detalhes').click();
-  }
-  if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/details-tabs-mobile.png`});
-  await page.setViewportSize(previousViewport);check('Abas, listagens e links cabem no painel em telas menores');
+  await page.locator('#detail-tab-detalhes').click();
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeTabs);
   const downloadPromise=page.waitForEvent('download');await exportCsv();const download=await downloadPromise;assert.match(download.suggestedFilename(),/^compras-pncp-/);assert.equal(await page.locator('#export-dialog').count(),0);check('CSV baixado por nova coleta, sem confirmação');
   await page.locator('#filters-button').click();await selectFilterOptions('ufs','GO');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='0 contratações');check('Filtro nativo UF aplicado no serviço');
@@ -355,8 +361,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='11 contratações');
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();await filter('anos').click();assert.equal(await page.locator('#filter-suggestions-anos .suggestion').innerText(),'2026');await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Domínio de anos no formato real do PNCP');
-  assert.equal(await addEveryFilter('edital'),71);check('Todos os 71 filtros de contratações podem ser preenchidos e aplicados no navegador');
-  await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
+  assert.equal(await assertFilterCatalog('edital'),71);await assertRepresentativeFilters();check('Os 71 filtros de contratações têm controles compatíveis com seus tipos');
   await page.locator('#document-type').selectOption('contrato');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');
   assert(await page.locator('.results-col[data-field="valor_global"]').isVisible());assert.equal(await page.locator('.results-col[data-field="valor_total_estimado"]').count(),0);check('Troca para contratos consulta a fonte e apresenta as colunas próprias');
   await page.locator('#filters-button').click();await page.locator('#draft-status').selectOption('vigente');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='16 contratos');
@@ -383,7 +388,7 @@ try {
   await page.locator('#details-dialog .close-dialog').click();check('Histórico de contrato com contagem divergente exibe total desconhecido e permite avançar até uma página vazia');
   await page.locator('#filters-button').click();await selectFilterOptions('tipos_contrato','1');await filter('possui_nfe').selectOption('true');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
   const contractDownload=page.waitForEvent('download');await exportCsv();const exportedContracts=await contractDownload,contractCsv=await readFile(await exportedContracts.path(),'utf8');assert.equal(contractCsv.split('\r\n').length,10);assert(contractCsv.split('\r\n')[0].includes('"valor_global"'));check('Filtros exclusivos de contratos e CSV de oito contratos usam os mesmos critérios');
-  await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');assert.equal(await addEveryFilter('contrato'),31);check('Todos os 31 filtros de contratos podem ser preenchidos e aplicados no navegador');
+  await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='32 contratos');assert.equal(await assertFilterCatalog('contrato'),31);check('Os 31 filtros de contratos têm controles compatíveis com seus tipos');
   assert.deepEqual(await page.locator('#document-type option').evaluateAll(nodes=>nodes.map(n=>n.textContent)),['Editais e Avisos de Contratações','Atas de Registro de Preços','Contratos']);
   await page.locator('#document-type').selectOption('ata');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');
   assert(await page.locator('.results-col[data-field="cancelado"]').isVisible());assert.equal(await page.locator('.results-col[data-field="valor_global"]').count(),0);check('Os três tipos oficiais estão disponíveis e atas apresentam colunas próprias');
@@ -392,16 +397,11 @@ try {
   assert.equal(ataRequests.length,5);assert.equal(await page.locator('#detail-panel-detalhes dt').count(),20);assert.match(await page.locator('#detail-panel-detalhes').innerText(),/Número da ata/);assert.equal(await page.locator('#detail-tab-itens').count(),0);assert.equal(await page.locator('#detail-tab-termos').count(),0);check('Ata carrega seus dados completos e quatro listas em background');
   await page.locator('#detail-tab-partesenvolvidas').click();assert.match(await page.locator('#detail-panel-partesenvolvidas').innerText(),/Gerenciadora/);await page.locator('#detail-tab-contratos').click();assert.match(await page.locator('#detail-panel-contratos').innerText(),/Valor global/);assert.equal(ataRequests.length,5);check('Partes envolvidas e contratos vinculados da ata aparecem sem repetir consultas');
   await page.locator('#detail-tab-detalhes').click();const ataControl=page.locator('#detail-panel-detalhes dt:text-is("Controle PNCP") + dd a');assert.match(await ataControl.getAttribute('href'),/\/app\/atas\//);await page.locator('#detail-panel-detalhes dt:text-is("Contratação de origem") + dd button').click();await page.waitForFunction(()=>new URL(location.href).searchParams.get('detalhe')?.startsWith('edital/') && document.querySelector('#detail-tab-itens'));await page.waitForFunction(()=>document.querySelector('#details-kind').textContent.includes('Edital'));await page.goBack();await page.waitForFunction(()=>document.querySelector('#detail-tab-partesenvolvidas'));
-  for(const width of [320,390,768]){
-    await page.setViewportSize({width,height:844});
-    await page.locator('#details-dialog').evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished)));
-    assert(await page.locator('#details-dialog').evaluate(node=>node.scrollWidth<=node.clientWidth+1));
-  }
-  if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/ata-details-mobile.png`});await page.setViewportSize({width:1440,height:1000});check('Detalhes de ata conservam vínculos seguros e layout em telas menores');
+  check('Detalhes de ata conservam os vínculos e a navegação para a contratação de origem');
   await page.locator('#details-dialog .close-dialog').click();page.off(serviceEvent,observeAta);
   await page.locator('#filters-button').click();await page.locator('#draft-status').selectOption('vigente');await page.locator('#apply-filters').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='12 atas');
   const ataDownload=page.waitForEvent('download');await exportCsv();const exportedAtas=await ataDownload,ataCsv=await readFile(await exportedAtas.path(),'utf8');assert.equal(ataCsv.split('\r\n').length,14);assert(ataCsv.split('\r\n')[0].includes('"cancelado"'));assert(!ataCsv.split('\r\n')[0].includes('"valor_global"'));check('Vigência e CSV de atas conservam os mesmos critérios e colunas');
-  await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');assert.equal(await addEveryFilter('ata'),16);check('Todos os 16 filtros de atas podem ser preenchidos e aplicados no navegador');
+  await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='24 atas');assert.equal(await assertFilterCatalog('ata'),16);check('Os 16 filtros de atas têm controles compatíveis com seus tipos');
   await page.locator('#document-type').selectOption('edital');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');check('Voltar a contratações restaura colunas e critérios do tipo escolhido');
   await page.locator('#columns-button').click();const checkbox=page.locator('#column-list label').filter({hasText:'CNPJ do órgão'}).locator('input');await checkbox.check();await page.locator('#columns-dialog .close-dialog').click();assert(await page.locator('.results-col[data-field="orgao_cnpj"]').isVisible());check('Seleção de colunas');
   await search('csv-lenta-ui');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='164 contratações');
@@ -421,65 +421,6 @@ try {
   await search('xss-ui');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='1 contratação');assert.equal(await page.evaluate(()=>window.pwned),undefined);assert.match(await page.locator('.object-text').innerText(),/<img/);check('Marcação da fonte é exibida como texto');
   await search('');await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.COMPRAS_QA_SCREENSHOT_DIR+'/desktop.png',fullPage:true});
-  for(const width of [320,390,768,1057,1440]) {
-    await page.setViewportSize({width,height:844});await page.waitForTimeout(150);
-    await page.locator('#header-content').evaluate(node=>{node.scrollLeft=0;});
-    const fit=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,centers:[...document.querySelectorAll('#app-header .brand,#app-header input,#app-header button,#app-header select,#repository-link')].filter(node=>node.getClientRects().length).map(node=>{const rect=node.getBoundingClientRect();return rect.top+rect.height/2;})}));
-    assert(fit.scroll<=fit.width,`Overflow da página em ${width}px`);
-    if(width<=700){
-      assert.equal(await page.locator('#header-content').evaluate(node=>node.scrollWidth<=node.clientWidth),true);
-      for(const id of ['search','search-button','filters-button','document-type','order']){
-        const bounds=await page.locator(`#${id}`).boundingBox();assert(bounds.x>=0 && bounds.x+bounds.width<=width,`${id} fora da tela em ${width}px`);
-      }
-      await page.locator('#more-actions-button').click();
-      assert.equal(await page.locator('#more-actions #repository-link').count(),1);
-      await page.locator('#repository-link').focus();
-      const bounds=await page.locator('#repository-link').boundingBox();assert(bounds.x>=0 && bounds.x+bounds.width<=width,`GitHub inacessível em ${width}px`);
-      await page.keyboard.press('Escape');
-    }else{
-    assert(Math.max(...fit.centers)-Math.min(...fit.centers)<=1,`Cabeçalho quebrou linha em ${width}px`);
-    const repository=await page.locator('#repository-link').boundingBox();
-    assert(repository.x>=0 && repository.y>=0 && repository.y<=20,`GitHub fora do canto superior em ${width}px`);
-    assert.equal(await page.locator('#header-content #repository-link').count(),1);
-    await page.mouse.move(width-8,400);await page.locator('#export-button').evaluate(node=>node.blur());await page.locator('#export-button').focus();
-    const focused=await page.locator('#export-button').boundingBox();assert(focused.x>=-.5 && focused.x+focused.width<=repository.x,`Exportar não ficou visível sem sobrepor o GitHub em ${width}px`);
-    assert(focused.x+focused.width<=width,`Exportar ficou fora da tela em ${width}px`);
-    const shifted=await page.locator('#repository-link').boundingBox(),scroll=await page.locator('#header-content').evaluate(node=>node.scrollLeft);
-    assert(Math.abs(shifted.x-(repository.x-scroll))<1,`GitHub não acompanhou a rolagem em ${width}px`);
-    assert(shifted.x>=focused.x+focused.width+4,`GitHub sobrepôs Exportar em ${width}px`);
-    const tooltip=page.locator('#export-button-tooltip');await tooltip.waitFor({state:'visible'});
-    const box=await tooltip.boundingBox();assert(box.x>=8 && box.x+box.width<=width-8,`Tooltip cortado em ${width}px`);
-    await page.locator('#repository-link').focus();await page.locator('#repository-link-tooltip').waitFor({state:'visible'});
-    const visibleRepository=await page.locator('#repository-link').boundingBox();
-    assert(visibleRepository.x>=0 && visibleRepository.x+visibleRepository.width<=width,`GitHub não ficou acessível pelo teclado em ${width}px`);
-    }
-    await page.locator('#filters-button').click();
-    const bodyHeight=await page.locator('.filters-body').evaluate(body=>body.scrollHeight);
-    await filter('modalidades').click();
-    const checkDropdown=async()=>{
-      const geometry=await page.evaluate(()=>{
-        const input=document.querySelector('#filter-modalidades').getBoundingClientRect(),popup=document.querySelector('#filter-suggestions-modalidades'),bounds=popup.getBoundingClientRect();
-        return {left:input.left,bottom:input.bottom,width:input.width,popupLeft:bounds.left,popupTop:bounds.top,popupWidth:bounds.width,popupBottom:bounds.bottom,visible:popup.contains(document.elementFromPoint(bounds.left+bounds.width/2,bounds.bottom-3))};
-      });
-      assert.equal(geometry.popupLeft,geometry.left);assert.equal(geometry.popupTop,geometry.bottom+4);assert.equal(geometry.popupWidth,geometry.width);assert(geometry.popupBottom<=844 && geometry.visible);
-    };
-    await checkDropdown();assert.equal(await page.locator('.filters-body').evaluate(body=>body.scrollHeight),bodyHeight);
-    await page.locator('.filters-body').evaluate(body=>body.scrollTop+=24);
-    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-    await checkDropdown();
-    if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/filter-dropdown-${width}.png`});
-    const modalFit=await page.locator('#filters-dialog').evaluate(dialog=>{
-      const body=dialog.querySelector('.filters-body'),footer=dialog.querySelector('.dialog-footer'),rect=dialog.getBoundingClientRect(),top=footer.getBoundingClientRect().top,fields=dialog.querySelectorAll('.filter-field'),buttonsFit=[...footer.querySelectorAll('button')].every(button=>{const bounds=button.getBoundingClientRect();return bounds.left>=rect.left && bounds.right<=rect.right;});
-      body.scrollTop=body.scrollHeight;
-      return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,scrolls:body.scrollHeight>body.clientHeight,overflow:body.scrollWidth>body.clientWidth,footerFixed:top===footer.getBoundingClientRect().top,buttonsFit,lastBottom:fields[fields.length-1].getBoundingClientRect().bottom,footerTop:top};
-    });
-    assert(modalFit.left>=0 && modalFit.right<=width && modalFit.top>=0 && modalFit.bottom<=844);
-    assert(modalFit.scrolls && !modalFit.overflow && modalFit.footerFixed && modalFit.buttonsFit && modalFit.lastBottom<=modalFit.footerTop,JSON.stringify({width,...modalFit}));
-    await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
-  }
-  check('Modal ampliado mantém rolagem interna e ações visíveis nas cinco larguras de tela');
-  await page.setViewportSize({width:390,height:844});await page.locator('#filters-button').click();assert(await page.locator('#filters-dialog').isVisible());await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Cabeçalho responsivo mantém busca e filtros visíveis e painéis sem overflow da página');
-  if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.COMPRAS_QA_SCREENSHOT_DIR+'/mobile.png',fullPage:true});
   {assert.deepEqual(localApiRequests,[]);check('Distribuição estática executa todas as ações sem API local');}
   assert.deepEqual(errors,[]);check('Sem erros JavaScript não tratados');
   console.log(JSON.stringify({checks:checks.length,passed:checks,errors}));

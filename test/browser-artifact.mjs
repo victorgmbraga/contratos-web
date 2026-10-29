@@ -51,7 +51,7 @@ try {
       assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
       await page.locator('#theme-button').click();
       console.log('PASS Artefato de produção, assets e Worker em '+prefix);
-      await assertBrowserLayout(browser, `http://127.0.0.1:${app.server.address().port}${prefix}`);
+      if(prefix==='/')await assertBrowserLayout(browser, `http://127.0.0.1:${app.server.address().port}${prefix}`);
       await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}?tipos_documento=contrato&possui_nfe=false&ordenacao=data&pagina=1#resultados`);
       await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='8 contratos');
       assert.equal(await page.locator('#document-type').inputValue(),'contrato');assert.equal(await page.locator('#order').inputValue(),'data');assert.equal(new URL(page.url()).searchParams.get('possui_nfe'),'false');assert.equal(new URL(page.url()).hash,'#resultados');
@@ -71,21 +71,25 @@ try {
       await page.reload();await waitDirect();
       assert.equal(await page.locator('#detail-tab-arquivos').getAttribute('aria-selected'),'true');assert.deepEqual(errors,[]);
       console.log('PASS Link direto no build de produção usa a API de consulta sem acessar a rota antiga com HTTP 301 em '+prefix);
-      // Separate minimal origin: the application's CSP intentionally only permits PNCP.
-      await page.goto(`http://127.0.0.1:${cors.address().port}/origin`);
-      const result = await page.evaluate(async ({base}) => {
-        const out={};
-        for(const route of ['/allow','/deny','/allow-exposed']) {
-          try {const response=await fetch(base+route,{mode:'cors',credentials:'omit',cache:'no-store',redirect:'error',headers:{Accept:'application/json'}});out[route]={json:await response.json(),after:response.headers.get('Retry-After')};}
-          catch(e){out[route]={error:e.name};}
-        }
-        return out;
-      }, { base: `http://localhost:${cors.address().port}` });
-      assert.equal(result['/allow'].json.value,true); assert.equal(result['/allow'].after,null);
-      assert.equal(result['/deny'].error,'TypeError'); assert.equal(result['/allow-exposed'].after,'3');
-      console.log('PASS CORS real entre duas origens, controle negativo e cabeçalho exposto');
-    } finally { await page.close(); await app.close(); }
+    } finally { await context.close(); await app.close(); }
   }
+
+  const corsPage=await browser.newPage();
+  try {
+    // Separate minimal origin: the application's CSP intentionally only permits PNCP.
+    await corsPage.goto(`http://127.0.0.1:${cors.address().port}/origin`);
+    const result = await corsPage.evaluate(async ({base}) => {
+      const out={};
+      for(const route of ['/allow','/deny','/allow-exposed']) {
+        try {const response=await fetch(base+route,{mode:'cors',credentials:'omit',cache:'no-store',redirect:'error',headers:{Accept:'application/json'}});out[route]={json:await response.json(),after:response.headers.get('Retry-After')};}
+        catch(e){out[route]={error:e.name};}
+      }
+      return out;
+    }, { base: `http://localhost:${cors.address().port}` });
+    assert.equal(result['/allow'].json.value,true); assert.equal(result['/allow'].after,null);
+    assert.equal(result['/deny'].error,'TypeError'); assert.equal(result['/allow-exposed'].after,'3');
+    console.log('PASS CORS real entre duas origens, controle negativo e cabeçalho exposto');
+  }finally{await corsPage.close();}
 
   const assets=await readdir(new URL('../dist-browser-test/assets/',import.meta.url));
   const workerFile=assets.find(name=>/^worker-.*\.js$/.test(name)); assert(workerFile);

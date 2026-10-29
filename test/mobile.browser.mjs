@@ -3,6 +3,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createStaticServer} from './static-server.js';
 import {launchTestBrowser} from './browser-launch.js';
+import {assertFilterLayout} from './filter-layout.js';
 
 const app=createStaticServer(new URL('../dist-browser-test/',import.meta.url));
 await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
@@ -167,6 +168,8 @@ try {
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   await page.setViewportSize({width:360,height:800});
   await more();await page.locator('#clear-button').click();await ready();await page.screenshot({path:join(tmpdir(),'contratos-mobile-cards.png')});
+  await page.goto(`http://127.0.0.1:${app.server.address().port}/`);await ready();
+  await assertFilterLayout(page);
   assert.deepEqual(errors,[]);
   console.log('PASS Mobile: 320–700 px, cabeçalho em duas linhas sem marca, menu ancorado e limpar filtros, teclado/foco e retorno ao desktop, três tipos, cartões/tabela, filtros, detalhes/URL, toque e paginação');
 } finally {await browser.close();await app.close();}

@@ -1,0 +1,108 @@
+{
+  "provenance": {
+    "captured_on": "2026-10-29",
+    "filters_url": "https://pncp.gov.br/api/search/filters?tipos_documento=edital",
+    "suggest_edital_url": "https://pncp.gov.br/api/search/suggest?tipos_documento=edital&campo=fontes&q=compras&tam_pagina=200",
+    "suggest_contrato_url": "https://pncp.gov.br/api/search/suggest?tipos_documento=contrato&campo=fontes&q=compras&tam_pagina=20",
+    "original_domains": [
+      "modalidades",
+      "anos",
+      "ufs",
+      "esferas",
+      "poderes",
+      "tipos",
+      "tipos_contrato",
+      "fontes_orcamentarias",
+      "tipos_margens_preferencia",
+      "normativos_base",
+      "situacoes",
+      "modos_disputa",
+      "criterios_julgamento",
+      "item_situacoes",
+      "item_tipos",
+      "item_categorias_leilao",
+      "item_beneficios",
+      "resultado_item_situacoes",
+      "amparos_legais"
+    ],
+    "selection": "Quatro domínios e as duas primeiras opções de cada lista. Campos e valores preservados dos retornos públicos."
+  },
+  "filters": {
+    "filters": {
+      "anos": [
+        {
+          "ano": "9026",
+          "total": 1
+        },
+        {
+          "ano": "9020",
+          "total": 1
+        }
+      ],
+      "ufs": [
+        {
+          "id": "SP",
+          "total": 856448
+        },
+        {
+          "id": "RS",
+          "total": 535086
+        }
+      ],
+      "modalidades": [
+        {
+          "id": "8",
+          "nome": "Dispensa",
+          "total": 2178583
+        },
+        {
+          "id": "6",
+          "nome": "Pregão - Eletrônico",
+          "total": 1107280
+        }
+      ],
+      "fontes_orcamentarias": [
+        {
+          "id": "2",
+          "nome": "Municipal",
+          "total": 128994
+        },
+        {
+          "id": "4",
+          "nome": "Federal",
+          "total": 70925
+        }
+      ]
+    }
+  },
+  "suggestions": {
+    "edital": {
+      "items": [
+        {
+          "id": "3",
+          "nome": "Compras.gov.br",
+          "total": 1027717
+        },
+        {
+          "id": "6",
+          "nome": "BLL Compras",
+          "total": 124601
+        }
+      ]
+    },
+    "contrato": {
+      "items": [
+        {
+          "id": "3",
+          "nome": "Compras.gov.br",
+          "total": 386428
+        },
+        {
+          "id": "10",
+          "nome": "Portal de Compras do Estado de Minas Gerais",
+          "total": 63199
+        }
+      ]
+    }
+  }
+}

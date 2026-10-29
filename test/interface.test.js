@@ -1,5 +1,5 @@
 import { createApplicationUI } from '../public/app.js';
-import test from 'node:test';
+import test, {afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as tick } from 'node:timers/promises';
@@ -10,6 +10,10 @@ import { QueryService } from '../src/query-core.js';
 import { config, service, document, memoryStorage } from './helpers.js';
 import { FILTER_OPTIONS_TTL } from '../src/browser/filter-options-cache.js';
 import { project } from '../src/adapter.js';
+import pncpOptions from './fixtures/pncp-options.json' with {type:'json'};
+
+const pendingDownloadCleanups=new Set();
+afterEach(()=>{for(const cleanup of pendingDownloadCleanups)cleanup();});
 
 function paginationButton(pager, action) {
   const buttons=Array.from(pager.children).flatMap(node=>node.tagName==='button'?[node]:node.children);
@@ -19,7 +23,11 @@ function paginationButton(pager, action) {
 // Execute the actual app handlers with a minimal DOM and injected results view.
 // These tests verify query state and requests, not browser rendering.
 async function interfaceFixture(options={}) {
-  const nodes=new Map(),all=[],pending=[],downloads=[];
+  const nodes=new Map(),all=[],pending=[],downloads=[],downloadCleanups=[];
+  const schedule=(callback,delay)=>{
+    const cleanup=()=>{pendingDownloadCleanups.delete(cleanup);callback();};
+    pendingDownloadCleanups.add(cleanup);downloadCleanups.push({callback:cleanup,delay});
+  };
   class Element {
     constructor(tag='div'){this.tagName=tag;this.children=[];this.listeners={};this.dataset={};this.value='';this.hidden=false;this.open=false;this.classList={add(){},toggle(){},contains(){return false;}};all.push(this);}
     set id(value){this._id=value;nodes.set(value,this);}get id(){return this._id;}
@@ -98,7 +106,7 @@ async function interfaceFixture(options={}) {
   }};
   const dispatchHistory=async()=>{for(const fn of windowListeners.popstate || [])await fn({type:'popstate'});await settle();await Promise.allSettled(pending);await settle();};
   const browser={view,entries,href:()=>view.location.href,async back(){if(historyIndex>0){historyIndex--;await dispatchHistory();}},async forward(){if(historyIndex<entries.length-1){historyIndex++;await dispatchHistory();}},async visit(href){view.history.pushState(null,'',href);await dispatchHistory();}};
-  const uiCore=createApplicationUI(service,{document:dom,window:view,tableFactory,optionsCacheSettings:options.cacheSettings});
+  const uiCore=createApplicationUI(service,{document:dom,window:view,tableFactory,optionsCacheSettings:options.cacheSettings,schedule});
   await uiCore.ready;
   if(options.waitOptions!==false)await uiCore.state.optionsReady;
   await settle();assert.equal(nodes.get('startup-error').hidden,true);
@@ -133,7 +141,7 @@ async function interfaceFixture(options={}) {
     }
   };
   const renderedPage=()=>({page:uiCore.state.table.page,ids:uiCore.state.table.rows.map(row=>row.id)});
-  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,pageChange,footer,startTable,renderedPage,rows:()=>uiCore.state.table.rows,mobileView:()=>uiCore.state.table.mobileView,optionsReady:uiCore.state.optionsReady,browser};
+  return {nodes,all,requests,itemRequests,relatedRequests,documentRequests,childRequests,exportRequests,domainRequests,suggestRequests,downloads,downloadCleanups,state,draft,setFilter,field,fieldNames,options:choices,editFilter,openDocument,columnAction,focusedField,tableColumns,request,pageChange,footer,startTable,renderedPage,rows:()=>uiCore.state.table.rows,mobileView:()=>uiCore.state.table.mobileView,optionsReady:uiCore.state.optionsReady,browser};
 }
 async function settle(){for(let i=0;i<8;i++)await tick();}
 
@@ -284,47 +292,6 @@ test('RELATED-UI-05: fechar os detalhes cancela todas as consultas e descarta um
   const resolutions=[],signals=[];const ui=await interfaceFixture({relatedHandler:(payload,options,core)=>{if(payload.document.sequencial==='1'){signals.push(options.signal);return new Promise(resolve=>resolutions.push(resolve));}return core.documentRelated(payload.document,payload.resource,payload.page,payload.size,options.signal);}});
   const pending=ui.openDocument(project(document(1)));await settle();const section=ui.nodes.get('details-content').children.find(n=>n.className==='related-section');ui.nodes.get('details-dialog').close();assert(signals.length>0);assert(signals.every(signal=>signal.aborted));
   await ui.openDocument(project(document(2)));for(const resolve of resolutions)resolve(({page:1,size:10,data:[{titulo:'Resposta antiga'}],total:1,total_pages:1,has_more:false}));await pending;assert.equal(section.children[2].children.length,0);assert(!ui.all.some(n=>n.textContent==='Resposta antiga'));assert(!ui.relatedRequests.some(p=>p.document.sequencial==='1' && ['contratos','historico'].includes(p.resource)));
-});
-
-test('HEADER-UI-01: ordenação e todas as ações dos resultados ficam no cabeçalho',async()=>{
-  const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
-  const header=html.match(/<header\b[^>]*id="app-header"[^>]*>([\s\S]*?)<\/header>/)?.[1];
-  assert.ok(header);assert.match(header,/class="header-toolbar"/);
-  assert.match(header,/id="search-button"[^>]*>[\s\S]*?<\/button>\s*<button[^>]*id="cancel-button"/);
-  assert.doesNotMatch(html,/class="result-toolbar"/);
-  assert.match(header,/id="filters-button"[\s\S]*?<\/button>\s*<button[^>]*id="clear-button"/);
-  for(const id of ['order','clear-button','cancel-button','retry-button','refresh-button','columns-button','export-button','cancel-export-button','repository-link']) {
-    assert.match(header,new RegExp(`id="${id}"`));
-    assert.equal([...html.matchAll(new RegExp(`id="${id}"`,'g'))].length,1);
-  }
-  assert.doesNotMatch(header,/id="export-page-button"/);
-});
-
-test('HEADER-UI-02: busca, filtros e ações usam somente ícones com nomes acessíveis',async()=>{
-  const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/id="columns-dialog"[^>]*aria-labelledby="columns-title"/);assert.match(html,/id="columns-title">Colunas da tabela/);
-  for(const [id,label]of [['search-button','Pesquisar'],['cancel-button','Cancelar pesquisa'],['filters-button','Filtros'],['clear-button','Limpar filtros'],['refresh-button','Atualizar resultados'],['columns-button','Selecionar colunas'],['export-button','Exportar'],['cancel-export-button','Cancelar CSV']]) {
-    const button=html.match(new RegExp(`<button(?=[^>]*id="${id}")([^>]*)>([\\s\\S]*?)<\\/button>`));
-    assert.ok(button);assert.match(button[1],/class="[^"]*\bicon-only\b/);
-    assert.match(button[1],new RegExp(`aria-label="${label}"`));assert.doesNotMatch(button[1],/\btitle=/);
-    assert.match(button[1],new RegExp(`aria-describedby="${id}-tooltip"`));
-    assert.match(html,new RegExp(`<div id="${id}-tooltip" class="tooltip" role="tooltip" hidden>${label}</div>`));
-    assert.match(button[2],/^<svg\b[^>]*aria-hidden="true"[^>]*>[\s\S]*<\/svg>(?:<span id="filter-count"[^>]*><\/span>)?$/);
-    assert.equal(button[2].replace(/<[^>]+>/g,''),'');
-  }
-});
-
-test('EXPORT-MENU-UI-01: um botão Exportar controla o menu com os dois escopos de CSV',async()=>{
-  const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
-  const trigger=html.match(/<button(?=[^>]*id="export-button")([^>]*)>/);
-  assert.ok(trigger);assert.match(trigger[1],/aria-haspopup="menu"/);assert.match(trigger[1],/aria-controls="export-menu"/);assert.match(trigger[1],/aria-expanded="false"/);assert.match(trigger[1],/popovertarget="export-menu"/);
-  const menu=html.match(/<div(?=[^>]*id="export-menu")([^>]*)>([\s\S]*?)<\/div>/);
-  assert.ok(menu);assert.match(menu[1],/popover="auto"/);assert.match(menu[1],/role="menu"/);
-  assert.match(menu[2],/id="export-all-button"[^>]*role="menuitem"[^>]*>.*Toda a consulta.*Todos os resultados dos critérios atuais/);
-  assert.match(menu[2],/id="export-page-button"[^>]*role="menuitem"[^>]*>.*Página atual.*Somente os registros desta página/);
-  assert.match(menu[2],/Toda a consulta[\s\S]*Página atual/);
-  for(const [id,label]of [['mobile-view-button','Ver como tabela'],['mobile-export-all-button','Exportar consulta'],['mobile-export-page-button','Exportar página']])assert.match(html,new RegExp(`id="${id}"[^>]*aria-label="${label}"`));
-  assert.doesNotMatch(html,/id="results-view"/);
 });
 
 test('HEADER-UI-03: botão de menu do cabeçalho aparece somente em colunas filtráveis',async()=>{
@@ -1103,18 +1070,20 @@ test('FILTERS-UI-23: município do fornecedor ausente da lista inicial permite s
 
 test('FILTERS-UI-24: sistema de origem ausente ou vazio aceita sugestões e múltiplos IDs com cache e URL', {timeout:10000},async()=>{
   for(const type of ['edital','contrato']) {
+    const expected=type==='edital'?['3','6']:['3','10'];
     const storage=memoryStorage(),suggestUrls=[];
     let suggested;const called=new Promise(resolve=>{suggested=resolve;});
     const provider=async(url,init)=>{
       const parsed=new URL(url);
       if(parsed.pathname.endsWith('/suggest')) {
         suggestUrls.push(parsed);suggested();
-        return Response.json({items:[{id:3,nome:'Compras.gov.br'},{id:'5',nome:'BLL Compras'}]});
+        return Response.json(pncpOptions.suggestions[type]);
       }
       const response=await demoFetch(url,init);
       if(!parsed.pathname.endsWith('/filters'))return response;
       const data=await response.json();
-      if(type==='edital')delete data.filters.fontes;else data.filters.fontes=[];
+      if(type==='edital')return Response.json(pncpOptions.filters);
+      data.filters.fontes=[];
       return Response.json(data);
     };
     const ui=await interfaceFixture({storage,itemFetcher:provider,href:`https://example.test/contratos-web/?tipos_documento=${type}`});
@@ -1126,17 +1095,17 @@ test('FILTERS-UI-24: sistema de origem ausente ou vazio aceita sugestões e múl
     input.value='Compras';await input.fire('input');await called;await settle();
     assert.deepEqual(Object.fromEntries(suggestUrls[0].searchParams),{tipos_documento:type,campo:'fontes',q:'Compras',tam_pagina:'20'});
     const options=await ui.options('fontes');
-    assert.deepEqual(options.map(option=>option.dataset.value),['3','5']);
+    assert.deepEqual(options.map(option=>option.dataset.value),expected);
     assert.equal(options[0].getAttribute('aria-label'),'Compras.gov.br');
     for(const option of options)await option.fire('click');
     await ui.nodes.get('apply-filters').fire('click');
-    assert.deepEqual(ui.requests.at(-1).pncp_filters.fontes,['3','5']);
-    assert.equal(new URL(ui.browser.href()).searchParams.get('fontes'),'3|5');
+    assert.deepEqual(ui.requests.at(-1).pncp_filters.fontes,expected);
+    assert.equal(new URL(ui.browser.href()).searchParams.get('fontes'),expected.join('|'));
     const restored=await interfaceFixture({storage,itemFetcher:provider,href:ui.browser.href()});
     assert.equal(restored.domainRequests.length,0,'O cache existente continua válido mesmo sem fontes');
     await restored.nodes.get('filters-button').fire('click');
     assert.equal(restored.field('fontes').disabled,false);
-    assert.deepEqual(restored.draft().pncp_filters.fontes,['3','5']);
+    assert.deepEqual(restored.draft().pncp_filters.fontes,expected);
   }
 });
 
@@ -1446,4 +1415,13 @@ test('EXPORT-PAGE-UI-01: exporta somente a página atual sem alterar o CSV compl
   assert.equal(ui.nodes.get('export-page-button').disabled,false);
   await ui.nodes.get('export-page-button').fire('click');
   assert.equal(ui.exportRequests.length,1);assert.deepEqual(ui.exportRequests[0],{query:{...completed,page:1},scope:'page'});assert.equal(ui.downloads.length,1);
+});
+
+test('EXPORT-CLEANUP-UI-01: libera a URL do CSV somente após o prazo de limpeza',async t=>{
+  const revoked=[],revoke=URL.revokeObjectURL.bind(URL);
+  t.mock.method(URL,'revokeObjectURL',href=>{revoked.push(href);revoke(href);});
+  const ui=await interfaceFixture();await ui.nodes.get('export-page-button').fire('click');
+  assert.equal(ui.downloads.length,1);assert.deepEqual(revoked,[]);
+  assert.equal(ui.downloadCleanups.length,1);assert.equal(ui.downloadCleanups[0].delay,10000);
+  ui.downloadCleanups[0].callback();assert.deepEqual(revoked,[ui.downloads[0].href]);
 });

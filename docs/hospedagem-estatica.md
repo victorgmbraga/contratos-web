@@ -29,7 +29,7 @@ A imagem social fica em `public/og-image.png` (1200×630) e é copiada para a ra
 
 ## GitHub Pages
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pull requests e publica pushes para `main`, com opção de execução manual. O job `validate` usa Node.js 24, instalação reproduzível, lint, tipos, testes, cobertura, build e suítes completas em Chromium e Firefox. Depois confere o orçamento de tamanho e envia exatamente esse artefato validado de `dist-browser/` ao Pages. O job `deploy` depende de `validate` e só publica `main`, fora de pull requests. Qualquer falha ou cancelamento impede a publicação; outras branches podem ser validadas manualmente, mas não são publicadas.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pull requests e publica pushes para `main`, com opção de execução manual. O job `validate` usa Node.js 24, instalação reproduzível, lint, tipos e testes com cobertura, gera os builds de produção e de teste uma vez e confere o orçamento de tamanho. O artefato `browser-builds` é baixado pelos jobs de Chromium e Firefox, executados em paralelo e sem recompilar. O job `deploy` depende da validação e dos dois navegadores, baixa esse mesmo artefato e envia somente `dist-browser/` ao Pages. Só `main` é publicada, fora de pull requests. Qualquer falha ou cancelamento impede a publicação; outras branches podem ser validadas manualmente, mas não são publicadas.
 
 Para configurar uma publicação:
 

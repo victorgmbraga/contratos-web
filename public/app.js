@@ -17,7 +17,7 @@ import { createProgressEstimator } from './progress.js';
 /** @typedef {import('../types/contracts.js').SearchResult} SearchResult */
 /** @typedef {import('../types/contracts.js').DetailSelection} DetailSelection */
 
-export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={}}={}) {
+export function createApplicationUI(service,{document=globalThis.document,window=globalThis.window,tableFactory=createResultsTable,optionsCacheSettings={},schedule=globalThis.setTimeout}={}) {
 // Elementos variam entre input, select, button e dialog; os contratos do DOM
 // são verificados nos testes de navegador, não pelo verificador de tipos.
 /** @param {string} id @returns {any} */
@@ -378,7 +378,7 @@ async function exportCsv(scope='all') {
     }}));
     if(!session.current('export',seq) || controller.signal.aborted)return;
     const blob=new Blob(result.chunks,{type:result.mime});
-    const href=URL.createObjectURL(blob),link=el('a');link.href=href;link.download=result.filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(href),10000);
+    const href=URL.createObjectURL(blob),link=el('a');link.href=href;link.download=result.filename;document.body.append(link);link.click();link.remove();schedule(()=>URL.revokeObjectURL(href),10000);
     notice(`${result.metadata.exported_rows} linhas exportadas${scope==='page'?` (página ${result.metadata.page})`:''}.`);
   }catch(error){if(session.current('export',seq) && error.name!=='AbortError'){$('notice').dataset.code=error.code || '';notice(`Falha ao exportar CSV: ${error.message}`,'error');}}
   finally{if(session.current('export',seq)){state.exportAbort=null;updateExportButton();}}

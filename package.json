@@ -11,13 +11,14 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "test": "node --test --test-concurrency=1 test/*.test.js",
-    "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=78 --test-coverage-branches=88 --test-coverage-functions=84 test/*.test.js",
+    "test": "node --test --test-concurrency=4 test/*.test.js",
+    "test:coverage": "node --test --test-concurrency=4 --experimental-test-coverage --test-coverage-lines=78 --test-coverage-branches=88 --test-coverage-functions=84 test/*.test.js",
     "test:budget": "node test/performance-budget.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.contracts.json",
     "format": "prettier --write \"{src,public,test}/**/*.{js,mjs,css,html}\" \"vite.config.js\" \"eslint.config.js\"",
     "build": "vite build",
+    "build:qa": "vite build && vite build --mode test",
     "preview": "vite preview",
     "test:browser": "node test/browser-smoke.mjs"
   },

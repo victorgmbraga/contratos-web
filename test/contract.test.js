@@ -1,17 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { schema } from '../src/schema.js';
 import { validateQuery } from '../src/validation.js';
 import { serializeSearch } from '../src/pncp-core.js';
 import { project, safeLink } from '../src/adapter.js';
 import { parseExactJson as parse } from '../src/exact-json.js';
 import { config,document,service,query,json } from './helpers.js';
 
-test('LIVE-01/OLD-01: esquema contém apenas recursos de consulta PNCP',()=>{
-  const s=schema(config());assert.equal(s.capabilities.length,87);assert.equal(s.source,'pncp');assert.equal(s.live,true);
-  for(const key of ['database','categories','presets','regex'])assert(!Object.hasOwn(s,key));
-  assert(!s.columns.some(c=>c.field==='categorizacao'));
-});
 test('HTTP-01: pipe codificado uma vez; false e zero preservados',()=>{
   const cfg=config({PNCP_VALIDATED_FILTERS:'srp,item_quantidade_min,ordem_classificacao_min'});
   const q=validateQuery(query({pncp_filters:{ufs:['DF','GO'],srp:false,item_quantidade_min:'0.00',ordem_classificacao_min:0}}),cfg);

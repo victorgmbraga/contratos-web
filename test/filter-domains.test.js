@@ -12,6 +12,8 @@ const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cf
 
 test('FILTER-01: catálogo completo habilitado com contextos e proveniência explícitos',()=>{
   const s=schema(config()),caps=s.capabilities;
+  assert.equal(s.source,'pncp');assert.equal(s.live,true);assert.equal(caps.length,87);
+  assert.deepEqual(s.document_types.filter(type=>type.enabled).map(type=>type.id),['edital','ata','contrato']);
   assert.equal(caps.filter(c=>!c.reserved&&c.state==='enabled').length,80);
   assert.equal(caps.filter(c=>c.state==='unsupported_document').length,0);
   assert.equal(caps.filter(c=>c.state==='pending_validation').length,0);

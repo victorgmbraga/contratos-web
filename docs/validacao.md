@@ -36,9 +36,9 @@ A cobertura é conferida pelo mesmo conjunto:
 npm run test:coverage
 ```
 
-O runner mede linhas, branches e funções de `src/` e `public/` e falha abaixo de 78%, 88% e 84%. O workflow de validação executa essa etapa depois dos testes. Módulos que dependem de tabela, seletores nativos ou layout móvel são cobrados principalmente pela suíte de navegador; a cobertura unitária não substitui esses fluxos.
+O runner mede linhas, branches e funções de `src/` e `public/` e falha abaixo de 78%, 88% e 84%. No CI, somente `test:coverage` executa esse conjunto, sem repeti-lo com `npm test`. Módulos que dependem de tabela, seletores nativos ou layout móvel são cobrados principalmente pela suíte de navegador; a cobertura unitária não substitui esses fluxos.
 
-O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
+O runner nativo executa até quatro arquivos de `test/*.test.js` em paralelo, com isolamento por processo. Os casos dentro de cada arquivo continuam sequenciais. A suíte cobre:
 
 - Critérios, tipos documentais, os 80 filtros, domínios, formatos, intervalos, precisão decimal e identificadores.
 - Pesquisa, paginação, ordenações compatíveis por tipo, projeção de dados, identidades e detalhes dos três tipos.
@@ -54,7 +54,9 @@ O runner nativo executa `test/*.test.js` em sequência. A suíte cobre:
 - Parser exato com corpus independente de tokens/erros, números extensos, zeros finais, notação científica, Unicode, chaves repetidas/especiais e estruturas profundas. As fixtures usam JSON textual para não arredondar os dados antes do teste.
 - Paginação da tabela e dos detalhes, páginas de dez registros no painel, navegação numerada, total desconhecido e preservação da página confirmada quando outra consulta falha.
 
-[`test/interface.test.js`](../test/interface.test.js) usa um DOM mínimo e o serviço tipado para verificar os fluxos da interface. Os testes usam fontes controladas; a renderização é verificada no navegador.
+[`test/interface.test.js`](../test/interface.test.js) usa um DOM mínimo e o serviço tipado para verificar os fluxos da interface. O agendador da limpeza de URLs de CSV é injetado no fixture: o teste verifica o prazo de 10 segundos e a revogação, e o teardown libera os recursos sem esperar esse tempo real. O comportamento padrão no browser mantém o mesmo prazo. Os testes usam fontes controladas; a renderização é verificada no navegador.
+
+[`test/pncp-contract.test.js`](../test/pncp-contract.test.js) usa recortes de respostas reais em [`test/fixtures/pncp-options.json`](../test/fixtures/pncp-options.json), independentes de `schema` e `demoFetch`. A interface também exercita essas respostas ao selecionar sistemas de origem com listas ausentes ou vazias em cache. A [origem e as regras de atualização das fixtures](../test/fixtures/README.md) explicam os recortes. Esses contratos são locais e não fazem chamadas ao PNCP no CI.
 
 ## Navegador e artefato estático
 
@@ -72,6 +74,17 @@ npx playwright install firefox
 COMPRAS_QA_BROWSER=firefox npm run test:browser
 ```
 
+Para testar os dois navegadores sem recompilar entre as execuções:
+
+```sh
+npm run build:qa
+npm run test:budget
+npm run test:browser -- --skip-build
+COMPRAS_QA_BROWSER=firefox npm run test:browser -- --skip-build
+```
+
+`build:qa` gera `dist-browser/` e `dist-browser-test/` uma vez. `--skip-build` exige ambos os builds existentes e apenas os lê. As execuções locais acima devem ser sequenciais, pois usam os mesmos diretórios; no CI, cada navegador recebe uma cópia do mesmo artefato em seu próprio job. O runner informa a duração de cada etapa em linhas `TIME`.
+
 O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as seguintes etapas:
 
 | Etapa | Cobertura |
@@ -79,17 +92,17 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Componente de tabela | Cem linhas, conteúdo tratado como texto, paginação, foco, menus, teclado, redimensionamento, movimentação, visibilidade, cabeçalho fixo e destruição |
 | Paginação compartilhada | [`test/pagination.browser.mjs`](../test/pagination.browser.mjs): janela de páginas, atalhos, teclado/foco, carregamento, total desconhecido e números longos nos dois temas, de 320 a 1068 px |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
-| Interface | Filtros, três tipos, links de busca e documento/aba, histórico do navegador, paginação, painéis, CSV, cancelamento, aviso dispensável, teclado e responsividade |
+| Interface | Presença e tipos dos 71/16/31 filtros compatíveis, interações representativas por controle, nomes acessíveis do cabeçalho, três tipos, links, histórico, paginação, painéis, CSV e cancelamento; o núcleo confere exaustivamente os 80 filtros |
 | Seletores | Menus reais, teclado e cancelamento, busca por letras, URL/Voltar, filtros, menu Mais, detalhes, temas/contraste, limites do viewport, estados e opções dinâmicas, formulários e texto não confiável |
 | Temas | Alternância, restauração, sincronização, contraste mínimo de 4,5:1 nos textos verificados, filtros, detalhes, avisos, carregamento e tela pequena |
-| Layout móvel | 320, 352, 358, 360, 390, 430, 560 e 700 px; três tipos, cartões/tabela, menu de ações, campos e alvos de toque, filtros, seções/URL, paginação, paisagem e viewport reduzido |
+| Layout móvel | 320, 352, 358, 360, 390, 430, 560 e 700 px; três tipos, cartões/tabela, ações, toque, filtros, seções/URL, paginação, paisagem e viewport reduzido; [`filter-layout.js`](../test/filter-layout.js) concentra geometria dos menus e do modal, rolagem e cabeçalho até 1440 px |
 | Links diretos de detalhes | [`test/detail-links.browser.mjs`](../test/detail-links.browser.mjs): documento e aba, recarregamento, Voltar/Avançar, resultados ausentes e cancelamento |
 | Descrições e cartões | [`test/details-overflow.browser.mjs`](../test/details-overflow.browser.mjs): abas acessíveis com descrições extensas, leitura completa segura, fechamento/histórico e cartões criados somente quando visíveis |
 | Acessibilidade | [`test/accessibility.browser.mjs`](../test/accessibility.browser.mjs): axe-core nas regras WCAG 2.0, 2.1 e 2.2 A/AA sobre a busca em desktop, o modal de filtros, o diálogo de colunas, o menu de exportação, o painel de detalhes e a visualização móvel; falha em violações críticas ou sérias |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
-| Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), em 1440, 1068 e 390 pixels |
-| CORS controlado | Duas origens locais, permissão e bloqueio de leitura, exposição de `Retry-After` |
+| Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), nos três tipos em 1440, 1068 e 390 pixels; o subdiretório conserva seus testes de assets, Worker e links |
+| CORS controlado | Uma verificação por navegador com duas origens locais, permissão e bloqueio de leitura e exposição de `Retry-After`, independente do caminho de hospedagem |
 | Exportação | 10.000 documentos sintéticos, resposta da interface durante a coleta, cancelamento e reutilização do Worker |
 | Bundles | Ausência de dependências de Node, variáveis do processo e fixtures de teste em produção |
 
@@ -97,9 +110,9 @@ Esses ensaios servem arquivos estáticos e verificam a ausência de chamadas a u
 
 O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results-table.browser.mjs). A referência visual mantém cores, fontes e espaçamentos; os papéis de display nativos da tabela e as bordas por célula representam sua estrutura semântica. Os testes de navegação utilizam identificadores da aplicação e papéis acessíveis.
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa lint, as duas verificações de tipos, testes, cobertura, build e as suítes completas de Chromium e Firefox. Depois dos navegadores, verifica o orçamento do artefato final. Somente em `main`, fora de pull requests, esse artefato é enviado para Pages. O job `deploy` depende do sucesso de `validate`; falha ou cancelamento de qualquer etapa impede a publicação. As permissões de escrita de Pages e identidade ficam restritas ao job de deploy. A recomendação é exigir esse workflow como verificação obrigatória em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa lint, as duas verificações de tipos e os testes com cobertura uma vez; gera os dois builds, verifica o orçamento e compartilha `browser-builds`. A matriz `browser` executa Chromium e Firefox em paralelo, cada um instalando apenas seu navegador e testando os mesmos arquivos com `--skip-build`. Uma falha não cancela a coleta de resultados do outro navegador. O job `deploy` depende de `validate` e de toda a matriz, baixa o mesmo artefato e envia apenas `dist-browser/` ao Pages, sem recompilar. Somente `main`, fora de pull requests, é publicada; falha ou cancelamento impede o deploy. As permissões de escrita de Pages e identidade ficam restritas ao job de deploy. A recomendação é exigir as verificações desse workflow em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
 
-O [Dependabot](../.github/dependabot.yml) abre atualizações semanais agrupadas para dependências de desenvolvimento e mensais para as ações, sem propor versões principais automaticamente. Seus pull requests passam pelo mesmo job de validação e não publicam no Pages. [`test/workflow.test.js`](../test/workflow.test.js) verifica a dependência do deploy, a restrição à `main` e a ausência de um caminho paralelo de publicação.
+O [Dependabot](../.github/dependabot.yml) abre atualizações semanais agrupadas para dependências de desenvolvimento e mensais para as ações, sem propor versões principais automaticamente. Seus pull requests passam pela mesma validação e matriz de navegadores, sem publicar no Pages. [`test/workflow.test.js`](../test/workflow.test.js) verifica as dependências, os dois navegadores, o compartilhamento do artefato sem recompilação, a restrição à `main` e a ausência de outro caminho de publicação.
 
 ### Medir tamanho e renderização
 

@@ -1,14 +1,17 @@
 import { build } from 'vite';
-await import('./results-table.browser.mjs');
-await import('./pagination.browser.mjs');
-await build({ mode: 'test' });
-await import('./ui-smoke.mjs');
-await import('./select-menu.browser.mjs');
-await import('./theme.browser.mjs');
-await import('./mobile.browser.mjs');
-await import('./detail-links.browser.mjs');
-await import('./details-overflow.browser.mjs');
-await import('./filter-options-cache.browser.mjs');
-await import('./accessibility.browser.mjs');
-await build();
-await import('./browser-artifact.mjs');
+import { access } from 'node:fs/promises';
+
+const args=process.argv.slice(2),skipBuild=args.includes('--skip-build');
+if(args.some(arg=>arg!=='--skip-build'))throw new Error('Use somente --skip-build para testar os builds existentes.');
+if(skipBuild)await Promise.all(['../dist-browser/index.html','../dist-browser-test/index.html'].map(path=>access(new URL(path,import.meta.url))));
+async function stage(name,run) {
+  const start=performance.now();console.log('RUN '+name);await run();
+  console.log(`TIME ${name}: ${((performance.now()-start)/1000).toFixed(2)} s`);
+}
+const runFile=name=>stage(name,()=>import('./'+name));
+await runFile('results-table.browser.mjs');
+await runFile('pagination.browser.mjs');
+if(!skipBuild)await stage('build-test',()=>build({mode:'test'}));
+for(const name of ['ui-smoke.mjs','select-menu.browser.mjs','theme.browser.mjs','mobile.browser.mjs','detail-links.browser.mjs','details-overflow.browser.mjs','filter-options-cache.browser.mjs','accessibility.browser.mjs'])await runFile(name);
+if(!skipBuild)await stage('build-production',()=>build());
+await runFile('browser-artifact.mjs');

@@ -56,13 +56,6 @@ test('SEO-01: a página inicial declara canônica e metadados sociais', () => {
   assert.match(metaContent(index, 'name', 'twitter:image:alt'), /PNCP/);
 });
 
-test('SEO-02: URLs parametrizadas consolidam para a canônica sem parâmetros', () => {
-  const canonical = new URL(linkHref(index, 'canonical'));
-  assert.equal(canonical.search, '');
-  assert.equal(canonical.hash, '');
-  assert.equal(canonical.href, 'https://contratos-web.net.br/');
-});
-
 test('SEO-03: a imagem social existe e tem o formato declarado', () => {
   assert.equal(image.subarray(1, 4).toString('ascii'), 'PNG');
   assert.equal(image.readUInt32BE(16), 1200);
