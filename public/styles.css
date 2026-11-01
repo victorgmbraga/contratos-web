@@ -45,7 +45,7 @@ p{line-height:1.55}
 .search-row .button.icon-only .count-badge{position:absolute;top:-6px;right:-6px;min-width:16px;padding:1px 4px;border:1px solid var(--surface,white)}
 .search-row .button svg{width:18px;height:18px}
 .search-field{display:flex;align-items:center;background:var(--surface,white);border:1px solid var(--border,#c7d5e4);border-radius:6px;flex:1;min-width:0;padding:0 10px;gap:8px;box-shadow:0 1px 2px var(--shadow,#133d6807)}
-.search-field:focus-within{border-color:var(--focus);box-shadow:0 0 0 2px var(--focus-soft,#137db515)}
+.search-field:focus-within{border-color:var(--focus);box-shadow:0 0 0 2px var(--focus-soft,#137db515);outline:2px solid transparent;outline-offset:0}
 .search-field>svg{color:var(--text-muted,#59778f);width:18px;height:18px}
 .search-field input{border:0;outline:none;width:100%;min-width:0;padding:8px 0;color:var(--heading,#17314e);background:transparent;font-size:.8125rem}
 .search-field input::placeholder{color:var(--placeholder,#7a8897)}
@@ -144,6 +144,9 @@ dialog::backdrop{background:var(--backdrop,#122b4655);backdrop-filter:blur(2px)}
 .filter-reset svg{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
 .filter-field label{margin-bottom:6px;font-weight:500}
 .filter-field input,.filter-field select{width:100%;font-weight:400}
+.filter-field input:focus{border-color:var(--focus);box-shadow:0 0 0 2px var(--focus-soft,#137db515);outline:2px solid transparent;outline-offset:0}
+.search-field:focus-within:hover,.filter-field input:focus:hover{border-color:var(--blue)}
+@media(forced-colors:active){.search-field:focus-within,.filter-field input:focus{outline-color:Highlight}}
 .filter-field input::placeholder{color:var(--filter-placeholder);opacity:1}
 .filter-field:has(.filter-reset[hidden]) input[type="date"]{color:var(--filter-placeholder)}
 .filter-field select option{color:var(--text,#263f58)}
