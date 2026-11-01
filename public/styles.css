@@ -72,6 +72,7 @@ p{line-height:1.55}
 .footer-tooltip{width:min(320px,calc(100vw - 16px))}
 .tooltip.warning{border-color:var(--warning-border,#e9d8b6);background:var(--warning-bg,#fffaeb);color:var(--warning-text,#7c6028)}
 .result-actions{display:flex;gap:var(--header-gap);align-items:center;flex-wrap:nowrap;flex-shrink:0}
+.header-toolbar>.result-actions:not(:has(> :not([hidden]))){display:none}
 #export-menu{position:fixed;inset:auto;margin:0;padding:6px;width:min(290px,calc(100vw - 16px));border:1px solid var(--line);border-radius:9px;background:var(--surface,white);color:var(--text,#23354a);box-shadow:0 8px 30px var(--shadow,#133d6826);overflow:auto;overscroll-behavior:contain}
 #export-menu:popover-open{display:flex;flex-direction:column;gap:2px}
 #export-menu::backdrop{background:transparent}
