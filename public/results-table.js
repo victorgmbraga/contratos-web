@@ -1,4 +1,5 @@
 import {createPagination} from './pagination.js';
+import {isClosingDialogHover} from './tooltips.js';
 export {paginationPages} from './pagination.js';
 
 let tableSerial = 0;
@@ -263,7 +264,7 @@ export function createResultsTable({container, columns = [], renderCell, renderC
           button.addEventListener('click',()=>{hideFilterTooltip();openMenu(column,button);});
         } else {
           button.setAttribute('aria-describedby',filterTooltip.id);
-          button.addEventListener('mouseenter',()=>showFilterTooltip(button));
+          button.addEventListener('mouseenter',event=>{if(!isClosingDialogHover(event))showFilterTooltip(button);});
           button.addEventListener('focus',()=>showFilterTooltip(button));
           button.addEventListener('mouseleave',hideFilterTooltip); button.addEventListener('blur',hideFilterTooltip);
           button.addEventListener('click',()=>{hideFilterTooltip();if(!busy && !destroyed)onColumnAction?.(column.field,'filter');});

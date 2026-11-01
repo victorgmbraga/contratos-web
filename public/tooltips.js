@@ -1,4 +1,10 @@
 // Tooltips da barra de ferramentas e do aviso de janela de resultados.
+export function isClosingDialogHover(event) {
+  // Um diálogo em transição pode devolver o hover ao controle sem movimento do ponteiro.
+  const previous=/** @type {Element | null} */ (event.relatedTarget);
+  return !!previous?.closest?.('dialog:not([open])');
+}
+
 export function createTooltips({ window, state, $: getElementById, toolbarButtonIds }) {
 const $ = getElementById;
 function hideWindowTooltip() { $('window-warning-tooltip').hidden=true; }
@@ -9,7 +15,7 @@ function hideTooltips() {
 }
 function bindTooltip(marker,tooltip) {
   const show=()=>showTooltip(marker,tooltip),hide=()=>{tooltip.hidden=true;};
-  marker.addEventListener('mouseenter',show);marker.addEventListener('mouseleave',hide);
+  marker.addEventListener('mouseenter',event=>{if(!isClosingDialogHover(event))show();});marker.addEventListener('mouseleave',hide);
   marker.addEventListener('focus',show);marker.addEventListener('blur',hide);
   marker.addEventListener('click',hide);
 }

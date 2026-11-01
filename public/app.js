@@ -169,6 +169,7 @@ document.addEventListener('keydown',event=>{
   if(event.key==='Escape')tooltips.hideTooltips();
 });
 for(const dialog of document.querySelectorAll('dialog')) {
+  dialog.addEventListener('close',()=>document.querySelectorAll('[role="tooltip"]').forEach(tooltip=>tooltip.setAttribute('hidden','')));
   dialog.addEventListener('click',event=>{if(event.target===dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom)closeDialog(dialog);}});
   dialog.querySelectorAll('.close-dialog').forEach(button=>button.addEventListener('click',()=>closeDialog(dialog)));
 }
