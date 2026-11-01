@@ -949,9 +949,8 @@ test('FILTERS-UI-12: domínio indisponível bloqueia só seus campos e permite t
   assert.deepEqual(ui.draft().pncp_filters,{srp:false,fontes:['3']});
 });
 
-test('FILTERS-UI-13: filtros de itens usam domínios e informam o alcance dos detalhes',async()=>{
+test('FILTERS-UI-13: filtros de itens usam domínios',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
-  assert(ui.nodes.get('filter-groups').children.some(g=>g.children.some(n=>n.textContent?.includes('Os detalhes mostram todos os itens'))));
   for(const [name,ids]of [['criterios_julgamento',['7']],['categorias_leilao',['1']],['beneficios',['1']]]){assert.equal(ui.field(name).getAttribute('role'),'combobox');await ui.editFilter(name,ids);}
   for(const name of ['possui_emenda_parlamentar','incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional'])await ui.editFilter(name,true);
   await ui.nodes.get('apply-filters').fire('click');const filters=ui.requests.at(-1).pncp_filters;

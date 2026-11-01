@@ -77,7 +77,7 @@ try {
     assert.equal(await page.locator('.results-row').first().evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(23, 35, 49)');
     await page.locator('#filters-button').click();await page.locator('#filter-ufs:not(:disabled)').waitFor();
     if(type==='edital')await scrollbar('.filters-body',{vertical:true});
-    await contrast(['#filters-title','.filters-body .filter-help:not([hidden])','#draft-status','.filter-field label','#apply-filters']);
+    await contrast(['#filters-title','#draft-status','.filter-field label','#apply-filters']);
     await page.locator('#filter-ufs').click();await page.locator('#filter-suggestions-ufs').waitFor({state:'visible'});
     await contrast(['#filter-suggestions-ufs .suggestion']);
     await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();

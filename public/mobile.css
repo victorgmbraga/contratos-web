@@ -48,7 +48,6 @@
   .filters-modal>.dialog-header{margin-bottom:10px;align-items:flex-start;gap:10px}
   .filters-modal .dialog-header h2{font-size:1.0625rem;line-height:1.4;margin:0}
   .filters-body{padding-right:2px;scroll-padding-top:8px}
-  .filters-body>.panel-note{font-size:.8125rem;margin-bottom:12px;line-height:1.5}
   .filter-grid,.filters-basics{grid-template-columns:minmax(0,1fr)}
   .filters-basics{gap:0}
   .filters-modal>.dialog-footer{margin-top:10px;padding-top:10px;gap:8px;flex-wrap:wrap}

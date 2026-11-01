@@ -135,7 +135,6 @@ dialog::backdrop{background:var(--backdrop,#122b4655);backdrop-filter:blur(2px)}
 .filter-active-count{margin:0 0 8px;font-size:.8125rem;color:var(--muted);white-space:nowrap}
 .filter-group{min-width:0;margin:16px 0 0;padding:16px 0 0;border:0;border-top:1px solid var(--line)}
 .filter-group legend{padding:0 10px 0 0;font-size:.9375rem;font-weight:700;color:var(--navy)}
-.filter-group>.panel-note{margin:0 0 14px;font-size:.8125rem}
 .filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 18px}
 .filter-field{--filter-placeholder:var(--placeholder,#757575);min-width:0}
 .filter-field-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;min-height:28px}

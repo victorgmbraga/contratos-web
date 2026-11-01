@@ -371,7 +371,6 @@ try {
   await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
   await page.locator('#filters-button').click();
   for(const [name,ids]of [['criterios_julgamento',['7']],['categorias_leilao',['1']],['beneficios',['1']]]){
-    assert.match(await page.locator('#filter-groups').innerText(),/Os detalhes mostram todos os itens/);
     await selectFilterOptions(name,ids);
   }
   const itemConditions=['incentivo_produtivo_basico','aplicabilidade_margem_preferencia_normal','aplicabilidade_margem_preferencia_adicional','possui_emenda_parlamentar'];
