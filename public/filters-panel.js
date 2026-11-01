@@ -208,19 +208,30 @@ function closeFilterDropdown() {
   openFilterEditor.suggestions.hidden=true;openFilterEditor.input.setAttribute('aria-expanded','false');openFilterEditor.input.removeAttribute('aria-activedescendant');
   openFilterEditor=null;
 }
+function filterPopupBottom() {
+  const footer=$('filters-dialog').querySelector('.dialog-footer');
+  return Math.min(window.innerHeight-16,footer?footer.getBoundingClientRect().top-4:window.innerHeight-16);
+}
 function positionFilterDropdown() {
   const editor=openFilterEditor;if(!editor || !editor.input.getBoundingClientRect)return;
   const anchor=editor.input.getBoundingClientRect(),body=$('filters-dialog').querySelector('.filters-body').getBoundingClientRect();
   if(anchor.top<body.top-1 || anchor.bottom>body.bottom+1){closeFilterDropdown();return;}
-  const popup=editor.suggestions;
-  popup.style.left=`${anchor.left}px`;popup.style.top=`${anchor.bottom+4}px`;popup.style.width=`${anchor.width}px`;
-  popup.style.maxHeight=`${Math.min(224,Math.max(0,window.innerHeight-anchor.bottom-16))}px`;
+  const popup=editor.suggestions,below=Math.max(0,filterPopupBottom()-anchor.bottom-4),above=Math.max(0,anchor.top-body.top-4);
+  const up=below<44 && above>below;
+  popup.style.left=`${anchor.left}px`;popup.style.width=`${anchor.width}px`;
+  popup.style.maxHeight=`${Math.min(224,up?above:below)}px`;
+  popup.style.top=`${up?anchor.top-popup.getBoundingClientRect().height-4:anchor.bottom+4}px`;
 }
 function openFilterDropdown(editor) {
   if(!currentEditor(editor) || editor.input.disabled)return;
   if(openFilterEditor===editor){positionFilterDropdown();return;}
   if(openFilterEditor!==editor)closeFilterDropdown();
   editor.input.scrollIntoView({block:'nearest',inline:'nearest'});
+  const body=$('filters-dialog').querySelector('.filters-body');
+  if(body?.getBoundingClientRect && editor.input.getBoundingClientRect){
+    const desired=Math.min(224,Math.max(44,body.clientHeight/2)),available=filterPopupBottom()-editor.input.getBoundingClientRect().bottom-4;
+    if(available<desired)body.scrollTop+=desired-available;
+  }
   openFilterEditor=editor;editor.suggestions.hidden=false;editor.input.setAttribute('aria-expanded','true');
   if(editor.cap.domain_kind!=='suggest' || editor.input.value.trim().length<3 || editor.visibleOptions)showSuggestions(editor,filterChoices(editor));
   positionFilterDropdown();

@@ -47,7 +47,7 @@ O runner nativo executa até quatro arquivos de `test/*.test.js` em paralelo, co
 - Configuração pública, fila, tentativas, prazo de operação e comunicação com o Worker. [`pncp-rate.test.js`](../test/pncp-rate.test.js) verifica com relógio controlado o cancelamento durante a espera e `Retry-After` aplicado às chamadas já enfileiradas.
 - URL compartilhável da busca e dos detalhes, restauração dos controles, página, documento e aba, Voltar/Avançar e descarte de respostas atrasadas. Links diretos de editais consultam a API de consulta quando a linha não está disponível na busca.
 - Pré-carga das opções, validade de quatro horas, compactação, armazenamento indisponível, deduplicação e amparos por normativo.
-- Modal com todos os filtros compatíveis, edição sem confirmação intermediária, campos sem restrição, cancelamento do rascunho, sugestões independentes e rolagem com ações visíveis.
+- Modal com todos os filtros compatíveis, edição sem confirmação intermediária, campos sem restrição, cancelamento do rascunho, sugestões independentes e rolagem que mantém as opções e ações do rodapé acessíveis.
 - Ícones de coluna com filtragem direta e tooltip neutro nos três tipos, menus preservados nas colunas com ordenação, opções e intervalos, direcionamento independente de listas lentas e preservação do foco escolhido pelo usuário.
 - Preferência de tema, acompanhamento do sistema, persistência, sincronização entre abas e armazenamento bloqueado. Renderização, contraste e controles são conferidos nos testes de navegador.
 - Seleção múltipla por campos de busca, pesquisa local sem acentos, marcação e remoção, teclado e menus suspensos que acompanham a rolagem sem alterar a altura dos grupos.

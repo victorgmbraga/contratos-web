@@ -61,6 +61,28 @@ export async function assertFilterLayout(page) {
     await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   }
   check('Modal ampliado mantém rolagem interna e ações visíveis nas cinco larguras de tela');
+  await page.setViewportSize({width:1440,height:1000});await page.locator('#filters-button').click();
+  const mode=filter('modos_disputa');await page.locator('#filter-modos_disputa:not(:disabled)').waitFor();
+  await mode.evaluate(node=>{const body=node.closest('.filters-body');body.scrollTop+=node.getBoundingClientRect().bottom-body.getBoundingClientRect().bottom+8;});
+  await mode.click();
+  const geometry=await page.evaluate(()=>{
+    const input=document.querySelector('#filter-modos_disputa').getBoundingClientRect(),popup=document.querySelector('#filter-suggestions-modos_disputa').getBoundingClientRect();
+    const footer=document.querySelector('#filters-dialog .dialog-footer').getBoundingClientRect(),apply=document.querySelector('#apply-filters'),button=apply.getBoundingClientRect();
+    return {below:popup.top===input.bottom+4,height:popup.height,bottom:popup.bottom,footer:footer.top,clickable:apply.contains(document.elementFromPoint(button.left+button.width/2,button.top+button.height/2))};
+  });
+  assert(geometry.below && geometry.height>=80 && geometry.bottom<=geometry.footer && geometry.clickable,JSON.stringify(geometry));
+  await page.locator('#filter-suggestions-modos_disputa .suggestion[data-value="2"]').click();await page.locator('#apply-filters').click();
+  await page.waitForFunction(()=>new URL(location.href).searchParams.get('modos_disputa')==='2' && !document.querySelector('#refresh-button').disabled);
+  await page.locator('#clear-button').click();await page.waitForFunction(()=>!new URL(location.href).searchParams.has('modos_disputa') && !document.querySelector('#refresh-button').disabled);
+  await page.locator('#filters-button').click();const last=filter('naturezas_juridicas');await page.locator('#filter-naturezas_juridicas:not(:disabled)').waitFor();
+  await last.evaluate(node=>node.scrollIntoView({block:'end'}));await last.click();
+  const end=await page.evaluate(()=>{
+    const input=document.querySelector('#filter-naturezas_juridicas').getBoundingClientRect(),popup=document.querySelector('#filter-suggestions-naturezas_juridicas').getBoundingClientRect(),footer=document.querySelector('#filters-dialog .dialog-footer').getBoundingClientRect();
+    return {aligned:popup.bottom<=input.top || popup.top===input.bottom+4,height:popup.height,bottom:popup.bottom,footer:footer.top};
+  });
+  assert(end.aligned && end.height>=40 && end.bottom<=end.footer,JSON.stringify(end));
+  await page.locator('#filter-suggestions-naturezas_juridicas .suggestion').first().click();await page.locator('#filters-dialog .dialog-footer .close-dialog').click();
+  check('Sugestões próximas ao rodapé não bloqueiam as ações e permanecem acessíveis no último campo');
   await page.setViewportSize({width:390,height:844});await page.locator('#filters-button').click();assert(await page.locator('#filters-dialog').isVisible());await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Cabeçalho responsivo mantém busca e filtros visíveis e painéis sem overflow da página');
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.COMPRAS_QA_SCREENSHOT_DIR+'/mobile.png',fullPage:true});
 }

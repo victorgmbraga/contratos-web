@@ -155,6 +155,7 @@ try {
   assert.equal(await page.locator('#details-links').count(),0);
   assert.equal(await page.evaluate(()=>document.activeElement.id),'document-type-control');
   assert.equal(await page.locator('.brand').isVisible(),true);
+  await page.waitForFunction(()=>document.querySelector('#more-actions-button').nextElementSibling?.id==='search-form');
   assert.equal(await page.locator('#more-actions-button').evaluate(node=>node.nextElementSibling.id),'search-form');
   assert.equal(await page.locator('#search-form #clear-button').count(),1);
   assert.equal(await page.locator('.header-toolbar').evaluate(node=>node.previousElementSibling.id),'search-form');
