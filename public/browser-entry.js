@@ -1,5 +1,6 @@
 import './browser-styles.css';
 import './theme.js';
+import { initializeButtonMotion } from './button-motion.js';
 import { createApplicationUI } from './app.js';
 import { createWorkerService } from '../src/browser/service.js';
 
@@ -15,4 +16,5 @@ const ready = (async () => {
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register(new URL('./sw.js', document.baseURI)).catch(() => {});
 }
+initializeButtonMotion(document);
 createApplicationUI(service);
