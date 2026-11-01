@@ -23,7 +23,9 @@ page.on('request',r=>{if(new URL(r.url()).pathname.startsWith('/api/'))localApiR
   await page.addInitScript(()=>{const NativeWorker=window.Worker;window.Worker=class extends NativeWorker {postMessage(message,...args){window.__observeService(message);return super.postMessage(message,...args);}};});
 }
 function waitQuery(predicate){
-  return page.waitForEvent('service',{predicate:m=>m.method==='execute' && predicate(m.payload.query)}).then(m=>m.payload.query);
+  const pending=page.waitForEvent('service',{predicate:m=>m.method==='execute' && predicate(m.payload.query)}).then(m=>m.payload.query);
+  // A falha da espera não deve interromper o diagnóstico caso o clique também expire.
+  pending.catch(()=>{});return pending;
 }
 const check=name=>{checks.push(name);console.log('PASS '+name);};
 async function search(text) {await page.locator('#search').fill(text);await page.locator('#search-button').click();}
