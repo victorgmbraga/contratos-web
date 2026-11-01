@@ -24,3 +24,8 @@
   transform-box:fill-box;
   transform-origin:center;
 }
+
+:is(button,.button,.repository-link)>svg :is(path,rect,circle){
+  transform-box:fill-box;
+  transform-origin:center;
+}
