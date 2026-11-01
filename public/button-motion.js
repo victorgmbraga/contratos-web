@@ -1,6 +1,7 @@
-// A delegated listener also covers controls created by pagination and filters.
+// Delegated listeners also cover controls created by pagination and filters.
 export function initializeButtonMotion(document) {
   const running = new WeakMap(), paginationFeedback = new WeakMap();
+  const selector = 'button,a.button,a.repository-link';
   const pulse = [{transform:'scale(1)'},{transform:'scale(.86)',offset:.35},{transform:'scale(1.06)',offset:.72},{transform:'scale(1)'}];
   const spin = [{transform:'rotate(0deg)'},{transform:'rotate(360deg)'}];
   const download = [{transform:'translateY(0)'},{transform:'translateY(3px)',offset:.5},{transform:'translateY(0)'}];
@@ -12,7 +13,7 @@ export function initializeButtonMotion(document) {
     for (const icon of button.querySelectorAll(':scope > svg')) {
       if (typeof icon.animate !== 'function') continue;
       running.get(icon)?.cancel();
-      const animation = icon.animate(frames,{duration:isRefresh?550:320,easing:'ease-in-out'});
+      const animation = icon.animate(frames,{duration:isRefresh?650:400,easing:'ease-in-out'});
       running.set(icon,animation);
       animation.finished.catch(()=>{});
       animation.addEventListener('finish',()=>{if(running.get(icon)===animation)running.delete(icon);},{once:true});
@@ -30,15 +31,33 @@ export function initializeButtonMotion(document) {
       if (replacement && replacement!==current) { current=replacement;animateIcons(replacement); }
     });
     observer.observe(pagination,{childList:true,subtree:true});
-    const timer=setTimeout(()=>{observer.disconnect();paginationFeedback.delete(pagination);},320);
+    const timer=setTimeout(()=>{observer.disconnect();paginationFeedback.delete(pagination);},400);
     paginationFeedback.set(pagination,{observer,timer});
   }
 
+  function iconButton(target) {
+    if (!(target instanceof Element)) return null;
+    const button=target.closest(selector);
+    return button && !button.matches(':disabled,[aria-disabled="true"],[aria-busy="true"]') && button.querySelector(':scope > svg') ? button : null;
+  }
+
+  document.addEventListener('pointerover',event=>{
+    if(event.pointerType==='touch')return;
+    const button=iconButton(event.target);
+    const previous=event.relatedTarget instanceof Element?event.relatedTarget.closest(selector):null;
+    if(button && button!==previous)animateIcons(button);
+  },true);
+
+  document.addEventListener('focusin',event=>{
+    const button=iconButton(event.target);
+    if(button?.matches(':focus-visible'))animateIcons(button);
+  },true);
+
   document.addEventListener('click', event => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const button = target.closest('button,a.button,a.repository-link');
-    if (!button || button.matches(':disabled,[aria-disabled="true"],[aria-busy="true"]') || !button.querySelector(':scope > svg')) return;
+    const touch = 'pointerType' in event && event.pointerType==='touch';
+    if (event.detail===0 || (!touch && document.defaultView?.matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
+    const button=iconButton(event.target);
+    if(!button)return;
     animateIcons(button);
     // Pagination replaces its buttons synchronously when loading a page.
     followPagination(button);
