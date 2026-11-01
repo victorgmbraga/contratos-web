@@ -95,7 +95,7 @@ A paginação remota usa `loadResultsPage` para abrir diretamente a página do l
 
 O tema é aplicado por `theme.js`, carregado antes da inicialização das consultas. Sem preferência explícita, `prefers-color-scheme` define o tema e suas mudanças são acompanhadas. O botão de sol/lua salva `light` ou `dark` na chave `contratos-web:theme` do `localStorage`; a escolha prevalece sobre o sistema e eventos `storage` a sincronizam entre abas. Armazenamento indisponível não impede alternar o tema na página. A página de diagnóstico reutiliza a preferência.
 
-`data-theme` no elemento raiz seleciona as cores semânticas de `theme.css` e `color-scheme` adapta os controles nativos e barras de rolagem. Os estilos da aplicação e da tabela mantêm os valores originais como alternativas do tema claro. Botões preenchidos têm cores próprias para conservar o contraste dos ícones brancos. O build preserva `blocking="render"` no módulo de entrada para aplicar o tema antes da primeira pintura nos navegadores que suportam esse atributo.
+`data-theme` no elemento raiz seleciona as cores semânticas de `theme.css` e `color-scheme` adapta os controles nativos. As barras de rolagem usam cores para cada tema e preservam os mecanismos nativos; navegadores com suporte a pseudoelementos exibem polegares arredondados, e os demais usam `scrollbar-color` quando disponível. Os estilos da aplicação e da tabela mantêm os valores originais como alternativas do tema claro. Botões preenchidos têm cores próprias para conservar o contraste dos ícones brancos. O build preserva `blocking="render"` no módulo de entrada para aplicar o tema antes da primeira pintura nos navegadores que suportam esse atributo.
 
 ## Tabela de resultados
 

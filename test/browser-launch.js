@@ -1,7 +1,7 @@
 import { pathToFileURL } from 'node:url';
 import { trackBrowser } from './browser-diagnostics.js';
 
-export async function launchTestBrowser({ diagnostics } = {}) {
+export async function launchTestBrowser({ diagnostics, showScrollbars = false } = {}) {
   const playwright = await import(process.env.COMPRAS_QA_PLAYWRIGHT_MODULE || 'playwright');
   const name = process.env.COMPRAS_QA_BROWSER || 'chromium';
   if (!['chromium','firefox','webkit'].includes(name)) throw new Error('COMPRAS_QA_BROWSER inválido.');
@@ -13,5 +13,6 @@ export async function launchTestBrowser({ diagnostics } = {}) {
     options.executablePath ||= await binary.executablePath();
   }
   if (name === 'chromium' && options.executablePath) options.args = ['--no-sandbox','--disable-dev-shm-usage'];
+  if (name === 'chromium' && showScrollbars) options.ignoreDefaultArgs = ['--hide-scrollbars'];
   return trackBrowser(await playwright[name].launch(options), diagnostics);
 }

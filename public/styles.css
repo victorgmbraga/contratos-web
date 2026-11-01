@@ -213,7 +213,7 @@ dialog select[multiple]{min-height:155px}
 .details-actions{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0}
 .details-actions>.close-dialog{flex-shrink:0}
 .detail-object{font-size:1rem;line-height:1.7;color:var(--text,#1e3b57);border-left:3px solid #61b8bf;padding-left:16px;margin:0 0 26px;overflow-wrap:anywhere}
-.detail-tabs{display:flex;gap:3px;overflow-x:auto;scrollbar-width:thin;border-bottom:1px solid var(--line);padding-top:3px;padding-bottom:0}
+.detail-tabs{display:flex;gap:3px;overflow-x:auto;border-bottom:1px solid var(--line);padding-top:3px;padding-bottom:0}
 .detail-tab{flex-shrink:0;border:0;border-bottom:3px solid transparent;border-radius:5px 5px 0 0;background:transparent;color:var(--blue);font-size:.8125rem;font-weight:500;line-height:1.5;white-space:nowrap;padding:11px 10px;min-height:44px;font-variant-numeric:tabular-nums}
 .detail-tab:hover{background:var(--blue-soft);color:var(--blue-hover)}
 .detail-tab[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue);background:var(--tab-active,#edf5fc);font-weight:700}

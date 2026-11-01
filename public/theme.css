@@ -1,6 +1,15 @@
-:root{color-scheme:light}
+:root{
+  color-scheme:light;
+  --scrollbar-track:#f0f5fa;
+  --scrollbar-thumb:#6a879f;
+  --scrollbar-thumb-hover:#426b8a;
+  scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);
+}
 :root[data-theme="dark"]{
   color-scheme:dark;
+  --scrollbar-track:#1b2a3a;
+  --scrollbar-thumb:#718fa7;
+  --scrollbar-thumb-hover:#9dbed4;
   --page-bg:#101923;
   --surface:#172331;
   --surface-subtle:#1b2a3a;
@@ -45,6 +54,17 @@
   --spinner-track:#39536c;
   --shadow:#0006;
   --backdrop:#02071299;
+}
+
+@supports selector(::-webkit-scrollbar){
+  :root{scrollbar-color:auto}
+  ::-webkit-scrollbar{width:12px;height:12px}
+  ::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:var(--scrollbar-track)}
+  ::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border:2px solid var(--scrollbar-track);border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-thumb-hover)}
+}
+@supports not selector(::-webkit-scrollbar){
+  .detail-tabs,.select-menu{scrollbar-width:thin}
 }
 .theme-icon-sun{display:none}
 :root[data-theme="dark"] .theme-icon-moon{display:none}
