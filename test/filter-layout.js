@@ -81,7 +81,7 @@ export async function assertFilterLayout(page) {
     return {aligned:popup.bottom<=input.top || popup.top===input.bottom+4,height:popup.height,bottom:popup.bottom,footer:footer.top};
   });
   assert(end.aligned && end.height>=40 && end.bottom<=end.footer,JSON.stringify(end));
-  await page.locator('#filter-suggestions-naturezas_juridicas .suggestion').first().click();await page.locator('#filters-dialog .dialog-footer .close-dialog').click();
+  await page.locator('#filter-suggestions-naturezas_juridicas .suggestion').first().click();await page.locator('#filters-dialog .dialog-header .close-dialog').click();
   check('Sugestões próximas ao rodapé não bloqueiam as ações e permanecem acessíveis no último campo');
   await page.setViewportSize({width:390,height:844});await page.locator('#filters-button').click();assert(await page.locator('#filters-dialog').isVisible());await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Cabeçalho responsivo mantém busca e filtros visíveis e painéis sem overflow da página');
   if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.COMPRAS_QA_SCREENSHOT_DIR+'/mobile.png',fullPage:true});

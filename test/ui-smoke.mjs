@@ -59,7 +59,7 @@ async function assertFilterCatalog(type) {
     else if(cap.domain || cap.type==='boolean')assert.equal(control.tag,'SELECT',cap.name);
     else assert.equal(control.type,cap.type==='date'?'date':cap.type==='integer'?'number':'text',cap.name);
   }
-  await page.locator('#filters-dialog .dialog-footer .close-dialog').click();assert.equal(page.url(),before);
+  await page.locator('#filters-dialog .dialog-header .close-dialog').click();assert.equal(page.url(),before);
   return caps.length;
 }
 async function assertRepresentativeFilters() {

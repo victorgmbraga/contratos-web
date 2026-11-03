@@ -61,7 +61,7 @@
     <h1 class="sr-only">Pesquisar editais, atas e contratos</h1>
     <section id="results-area" class="result-surface" aria-label="Resultados">
       <div id="native-chips" class="chip-row" role="group" aria-label="Critérios ativos"></div>
-      <div id="notice" class="notice" hidden><span id="notice-message" role="status" aria-live="polite"></span><button type="button" id="notice-close" class="icon-button notice-close" aria-label="Fechar aviso">×</button></div>
+      <div id="notice" class="notice" hidden><span id="notice-message" role="status" aria-live="polite"></span><button type="button" id="notice-close" class="icon-button notice-close" aria-label="Fechar aviso"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
       <div id="connectivity-notice" class="connectivity-notice" role="status" aria-live="polite" hidden></div>
       <div class="table-shell">
         <div id="results-table" aria-busy="false"></div>
@@ -92,7 +92,7 @@
   <div id="repository-link-tooltip" class="tooltip" role="tooltip" hidden>Repositório no GitHub</div>
   <div id="window-warning-tooltip" class="tooltip footer-tooltip warning" role="tooltip" hidden></div>
 
-  <dialog id="filters-dialog" class="modal filters-modal" aria-labelledby="filters-title"><div class="dialog-header"><h2 id="filters-title">Filtros do PNCP</h2><button class="icon-button close-dialog" aria-label="Fechar">×</button></div>
+  <dialog id="filters-dialog" class="modal filters-modal" aria-labelledby="filters-title"><div class="dialog-header"><h2 id="filters-title">Filtros do PNCP</h2><button type="button" class="icon-button close-dialog" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="filters-body">
       <p id="filter-active-count" class="filter-active-count" role="status"></p>
       <div id="filters-basics" class="filters-basics" tabindex="-1">
@@ -101,12 +101,12 @@
       </div>
       <p id="legal-error" class="inline-error" role="status" hidden></p><div id="filter-groups"></div>
     </div>
-    <div class="dialog-footer"><button id="clear-draft-filters" class="button" type="button" disabled>Limpar filtros</button><button class="button close-dialog">Cancelar</button><button id="apply-filters" class="button primary">Aplicar e pesquisar</button></div><div id="filter-popups"></div>
+    <div class="dialog-footer"><button id="clear-draft-filters" class="button" type="button" disabled>Limpar filtros</button><button id="apply-filters" class="button primary">Aplicar e pesquisar</button></div><div id="filter-popups"></div>
   </dialog>
 
-  <dialog id="columns-dialog" class="modal narrow" aria-labelledby="columns-title"><div class="dialog-header"><h2 id="columns-title">Colunas da tabela</h2><button class="icon-button close-dialog" aria-label="Fechar">×</button></div><div id="column-list" class="column-list"></div><p class="dialog-note">O CSV inclui todas as colunas documentais, independentemente desta seleção.</p><div class="dialog-footer"><button id="reset-columns" class="button" type="button">Restaurar padrão</button></div></dialog>
+  <dialog id="columns-dialog" class="modal narrow" aria-labelledby="columns-title"><div class="dialog-header"><h2 id="columns-title">Colunas da tabela</h2><button type="button" class="icon-button close-dialog" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><div id="column-list" class="column-list"></div><p class="dialog-note">O CSV inclui todas as colunas documentais, independentemente desta seleção.</p><div class="dialog-footer"><button id="reset-columns" class="button" type="button">Restaurar padrão</button></div></dialog>
   <dialog id="details-dialog" class="drawer" aria-label="Detalhes da contratação"><div class="dialog-header details-header"><span id="details-kind" class="eyebrow"></span><div class="details-actions"><button type="button" class="icon-button close-dialog" aria-label="Fechar detalhes"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div><div id="details-content"></div></dialog>
-  <dialog id="description-dialog" class="modal description-modal" aria-labelledby="description-title"><div class="dialog-header"><h2 id="description-title">Descrição completa</h2><button class="icon-button close-dialog" aria-label="Fechar descrição">×</button></div><p id="description-content" class="description-full" tabindex="0"></p></dialog>
+  <dialog id="description-dialog" class="modal description-modal" aria-labelledby="description-title"><div class="dialog-header"><h2 id="description-title">Descrição completa</h2><button type="button" class="icon-button close-dialog" aria-label="Fechar descrição"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><p id="description-content" class="description-full" tabindex="0"></p></dialog>
 
   <noscript>Ative o JavaScript para pesquisar e exibir a tabela.</noscript>
 </body>

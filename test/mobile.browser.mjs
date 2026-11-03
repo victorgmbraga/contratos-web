@@ -101,7 +101,7 @@ try {
     assert.equal(await page.locator('.filters-body').evaluate(node=>node.scrollTop>0),true);
     await fits('#apply-filters',{height:true,touch:true});await fits('#filters-dialog .close-dialog[aria-label="Fechar"]',{height:true,touch:true});
     await page.locator('.filters-body').evaluate(node=>{node.scrollTop=0;});
-    await page.locator('#draft-search').fill('descartar');await page.locator('#filters-dialog .dialog-footer .close-dialog').click();
+    await page.locator('#draft-search').fill('descartar');await page.locator('#filters-dialog .dialog-header .close-dialog').click();
     assert.equal(await page.locator('#search').inputValue(),'');
   }
   await page.locator('#document-type').selectOption('edital');await ready();
