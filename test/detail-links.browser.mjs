@@ -83,7 +83,7 @@ try {
   await page.goto(base+'?detalhe=edital/00000000000000/2026/1&aba=atas');
   await waitLoaded();await waitTab('atas');
   const ataLink=page.locator('#detail-panel-atas .related-card a').first();
-  assert.equal(await ataLink.innerText(),'Abrir ata no Contratos Web');
+  assert.equal(await ataLink.innerText(),'Abrir Ata');
   assert.equal(new URL(await ataLink.getAttribute('href')).searchParams.get('detalhe'),'ata/00000000000000/2026/1/1');
   await ataLink.click();await waitLoaded();await waitTab('detalhes');
   assert.equal(new URL(page.url()).searchParams.get('detalhe'),'ata/00000000000000/2026/1/1');

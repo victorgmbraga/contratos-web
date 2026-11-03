@@ -217,7 +217,7 @@ test('RELATED-UI-01: quatro abas carregam em background e exibem dados e links c
   assert.equal(ui.relatedRequests.length,4);
   const files=sections.find(s=>s.dataset.resource==='arquivos');assert.equal(files.children[2].children[0].children.at(-1).textContent,'Baixar arquivo');assert.match(files.children[2].children[0].children.at(-1).href,/\/arquivos\/1$/);
   const atas=sections.find(s=>s.dataset.resource==='atas');const ataLink=atas.children[2].children[0].children.at(-1);
-  assert.equal(ataLink.textContent,'Abrir ata no Contratos Web');
+  assert.equal(ataLink.textContent,'Abrir Ata');
   assert.equal(new URL(ataLink.href).searchParams.get('detalhe'),'ata/00000000000000/2026/1/1');
   assert.equal(new URL(ataLink.href).searchParams.get('aba'),'detalhes');
   const contracts=sections.find(s=>s.dataset.resource==='contratos');assert.match(contracts.children[2].children[1].children[1].children.at(-1).children[1].textContent,/9\.007\.199\.254\.740\.993,12345/);

@@ -80,7 +80,7 @@ function internalControlAnchor(label,document) {
 function relatedAtaAnchor(record) {
   const identity=controlDocument(record.numero_controle_pncp);
   if(identity?.type!=='ata')return null;
-  const link=el('a','Abrir ata no Contratos Web');
+  const link=el('a','Abrir Ata');
   link.href=writeDetailUrl(window.location.href,{document:identity,tab:'detalhes'});
   link.addEventListener('click',event=>{
     if(event.button>0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
