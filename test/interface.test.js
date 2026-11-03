@@ -1389,18 +1389,18 @@ test('COLUMNS-UI-02: configuração inválida não impede iniciar a pesquisa nem
 test('DRAFT-FILTERS-UI-01: contador de ativos e limpeza do rascunho',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
   assert.equal(ui.focusedField(),'draft-search');
-  assert.equal(ui.nodes.get('filter-active-count').textContent,'Nenhum filtro ativo');assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
+  assert.equal(ui.nodes.get('filter-active-count').hidden,true);assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
   await ui.setFilter('srp',false);
-  assert.match(ui.nodes.get('filter-active-count').textContent,/1 filtro ativo/);assert.equal(ui.nodes.get('clear-draft-filters').disabled,false);
+  assert.equal(ui.nodes.get('filter-active-count').textContent,'1');assert.equal(ui.nodes.get('filter-active-count').hidden,false);assert.equal(ui.nodes.get('filter-active-count').getAttribute('aria-label'),'1 filtro ativo');assert.equal(ui.nodes.get('clear-draft-filters').disabled,false);
   await ui.nodes.get('clear-draft-filters').fire('click');
-  assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.nodes.get('filter-active-count').textContent,'Nenhum filtro ativo');assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
+  assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.nodes.get('filter-active-count').hidden,true);assert.equal(ui.nodes.get('clear-draft-filters').disabled,true);
 });
 
 test('DRAFT-FILTERS-UI-02: status conta como filtro ativo e Limpar filtros também restaura texto e status',async()=>{
   const ui=await interfaceFixture();await ui.nodes.get('filters-button').fire('click');
   ui.nodes.get('draft-search').value='Oracle';ui.nodes.get('draft-status').value='recebendo_proposta';await ui.nodes.get('draft-status').fire('change');
-  assert.equal(ui.nodes.get('filter-active-count').textContent,'1 filtro ativo');
-  await ui.setFilter('srp',false);assert.equal(ui.nodes.get('filter-active-count').textContent,'2 filtros ativos');
+  assert.equal(ui.nodes.get('filter-active-count').textContent,'1');
+  await ui.setFilter('srp',false);assert.equal(ui.nodes.get('filter-active-count').textContent,'2');assert.equal(ui.nodes.get('filter-active-count').getAttribute('aria-label'),'2 filtros ativos');
   await ui.nodes.get('clear-draft-filters').fire('click');
   assert.deepEqual(ui.draft().pncp_filters,{});assert.equal(ui.draft().q,'');assert.equal(ui.draft().status,'todos');
   assert.equal(ui.nodes.get('draft-search').value,'');assert.equal(ui.nodes.get('draft-status').value,'todos');

@@ -32,7 +32,7 @@ function syncFilterEditor(editor) {
 function updateDraftActions() {
   if(!state.draft)return;
   const status=$('draft-status')?.value ?? state.draft.status,active=Object.keys(state.draft.pncp_filters).length+(status==='todos'?0:1),count=$('filter-active-count');
-  if(count)count.textContent=active?`${active} ${active===1?'filtro ativo':'filtros ativos'}`:'Nenhum filtro ativo';
+  if(count){count.textContent=String(active);count.setAttribute('aria-label',active?`${active} ${active===1?'filtro ativo':'filtros ativos'}`:'Nenhum filtro ativo');count.hidden=active===0;}
   $('clear-draft-filters').disabled=active===0;
 }
 function clearDraftFilters() {
