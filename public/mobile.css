@@ -38,6 +38,7 @@
   .icon-button{min-width:44px;height:44px}
   .notice .notice-close{min-width:44px}
   dialog .button,dialog .button.small,dialog .suggestion{min-height:44px}
+  .filter-options-popup>.panel-note{min-height:44px}
   dialog input:not([type="checkbox"]),dialog select{min-height:44px;font-size:1rem}
   .filter-reset{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
   .filter-field-heading{align-items:center}
