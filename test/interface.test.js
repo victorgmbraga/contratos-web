@@ -216,10 +216,16 @@ test('RELATED-UI-01: quatro abas carregam em background e exibem dados e links c
   for(const section of sections){assert.equal(section.hidden,true);assert.match(section.children[0].textContent,/\(\d+\)$/);assert(section.children[2].children.length>0);assert.equal(section.getAttribute('aria-busy'),'false');}
   assert.equal(ui.relatedRequests.length,4);
   const files=sections.find(s=>s.dataset.resource==='arquivos');assert.equal(files.children[2].children[0].children.at(-1).textContent,'Baixar arquivo');assert.match(files.children[2].children[0].children.at(-1).href,/\/arquivos\/1$/);
-  const atas=sections.find(s=>s.dataset.resource==='atas');assert.match(atas.children[2].children[0].children.at(-1).href,/\/app\/atas\//);
+  const atas=sections.find(s=>s.dataset.resource==='atas');const ataLink=atas.children[2].children[0].children.at(-1);
+  assert.equal(ataLink.textContent,'Abrir ata no Contratos Web');
+  assert.equal(new URL(ataLink.href).searchParams.get('detalhe'),'ata/00000000000000/2026/1/1');
+  assert.equal(new URL(ataLink.href).searchParams.get('aba'),'detalhes');
   const contracts=sections.find(s=>s.dataset.resource==='contratos');assert.match(contracts.children[2].children[1].children[1].children.at(-1).children[1].textContent,/9\.007\.199\.254\.740\.993,12345/);
   const history=sections.find(s=>s.dataset.resource==='historico');assert(history.children[2].children[1].children[1].children.some(field=>field.children[1].textContent==='Exigência Legal'));
   await ui.nodes.get('detail-tab-arquivos').fire('click');assert.equal(files.hidden,false);assert.equal(ui.relatedRequests.length,4);
+  await ataLink.fire('click');assert.equal(ui.nodes.get('details-dialog').open,true);
+  assert.equal(new URL(ui.browser.href()).searchParams.get('detalhe'),'ata/00000000000000/2026/1/1');
+  assert.equal(ui.nodes.get('detail-tab-partesenvolvidas').dataset.resource,'partesenvolvidas');
 });
 test('RELATED-UI-07: cartões vinculados exibem órgão e unidade no formato do PNCP',async()=>{
   const ui=await interfaceFixture({relatedHandler:async(payload,options,core)=>{const result=await core.documentRelated(payload.document,payload.resource,payload.page,payload.size,options.signal);if(payload.resource==='contratos')for(const row of result.data){row.orgao_cnpj='01234567000189';row.orgao_nome='Órgão X';row.unidade_codigo='0001';row.unidade_nome='Unidade X';}return result;}});

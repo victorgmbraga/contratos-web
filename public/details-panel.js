@@ -1,7 +1,7 @@
 import { createPagination } from './pagination.js';
 import { money, date, time, fmtInt, quantity, formatCnpj, formatCpfCnpj } from './format.js';
-import { detailDocumentPath } from '../src/browser/detail-url.js';
-import { controlLink, indexedDocumentFields, joinOrganizationFields } from '../src/document-details.js';
+import { detailDocumentPath, writeDetailUrl } from '../src/browser/detail-url.js';
+import { controlDocument, controlLink, indexedDocumentFields, joinOrganizationFields } from '../src/document-details.js';
 
 const DETAIL_PAGE_SIZE = 10;
 
@@ -77,6 +77,17 @@ function internalControlAnchor(label,document) {
   button.addEventListener('click',()=>{openDetails(directDetailRow(document));});
   return button;
 }
+function relatedAtaAnchor(record) {
+  const identity=controlDocument(record.numero_controle_pncp);
+  if(identity?.type!=='ata')return null;
+  const link=el('a','Abrir ata no Contratos Web');
+  link.href=writeDetailUrl(window.location.href,{document:identity,tab:'detalhes'});
+  link.addEventListener('click',event=>{
+    if(event.button>0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
+    event.preventDefault();return openDetails(directDetailRow(identity));
+  });
+  return link;
+}
 function joinedValue(code,name,format=value=>value) {
   const left=code?format(code):null;
   return left&&name?`${left} - ${name}`:left||name||'—';
@@ -150,7 +161,7 @@ function relatedSection(resource,title,doc,token,signal,schedule,updateCount) {
           card.append(el('h4',`${resource==='atas'?'Ata':'Contrato/Empenho'} ${record.numero ?? '—'}${record.ano?'/'+record.ano:''}`));
           showFields(card,[['Controle PNCP',record.numero_controle_pncp],...(record.orgao_nome||record.orgao_cnpj?[['Órgão',joinedValue(record.orgao_cnpj,record.orgao_nome,formatCnpj)]]:[]),...(record.unidade_nome||record.unidade_codigo?[['Unidade',joinedValue(record.unidade_codigo,record.unidade_nome)]]:[]),['Assinatura',date(record.data_assinatura)],['Vigência',`${date(record.vigencia_inicio)} a ${date(record.vigencia_fim)}`],...(resource==='atas'?[['Cancelamento',record.data_cancelamento?time(record.data_cancelamento):'—']]:[['Fornecedor',record.fornecedor_nome],['Valor global',money(record.valor_global)]])]);
         }
-        if(!record.fields && resource!=='historico') {const link=safeAnchor(resource==='arquivos'?'Baixar arquivo':'Abrir no PNCP',record.url);if(link)card.append(link);else card.append(el('p','Link não disponível.','panel-note'));}
+        if(!record.fields && resource!=='historico') {const link=resource==='atas'?relatedAtaAnchor(record):safeAnchor(resource==='arquivos'?'Baixar arquivo':'Abrir no PNCP',record.url);if(link)card.append(link);else card.append(el('p','Link não disponível.','panel-note'));}
         list.append(card);
       }
       if(!result.data.length)list.append(el('p',`Nenhum registro em ${title}.`,'panel-note'));

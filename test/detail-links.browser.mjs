@@ -80,6 +80,16 @@ try {
   assert.equal(calls('execute'),searches+1,'resultado em cache evita uma nova consulta ao voltar');
   console.log('PASS Clique na tabela escreve o link; nova busca remove a seleção e Voltar restaura o painel');
 
+  await page.goto(base+'?detalhe=edital/00000000000000/2026/1&aba=atas');
+  await waitLoaded();await waitTab('atas');
+  const ataLink=page.locator('#detail-panel-atas .related-card a').first();
+  assert.equal(await ataLink.innerText(),'Abrir ata no Contratos Web');
+  assert.equal(new URL(await ataLink.getAttribute('href')).searchParams.get('detalhe'),'ata/00000000000000/2026/1/1');
+  await ataLink.click();await waitLoaded();await waitTab('detalhes');
+  assert.equal(new URL(page.url()).searchParams.get('detalhe'),'ata/00000000000000/2026/1/1');
+  assert.match(await page.locator('#details-kind').innerText(),/Ata/);
+  console.log('PASS Ata vinculada abre no painel do Contratos Web com URL compartilhável');
+
   const queries=calls('execute'),details=calls('documentDetails');
   await page.goto(base+'?detalhe=ata/00000000000000/2026/1/1&aba=empenhos');
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Parâmetros inválidos na URL'));
