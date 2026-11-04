@@ -4,7 +4,9 @@
 
 Ao concluir cada alteração solicitada, execute as verificações pertinentes ao seu alcance. Depois de validar a alteração, crie um commit com uma mensagem descritiva e faça push automaticamente, sem solicitar uma nova confirmação ao usuário.
 
-- O destino padrão é `origin/main`, salvo quando o usuário indicar outra branch.
+- Trabalhe numa branch própria, nunca diretamente na `main`, salvo quando o usuário indicar outra branch.
+- Ao concluir cada tarefa que altere arquivos, abra um pull request para a `main` sem pedir confirmação, ou atualize o pull request já aberto da mesma branch. Se o pull request anterior da branch já foi mergeado, recomece a branch a partir da `main` atual e abra um novo pull request.
+- Acompanhe a validação do pull request e trate as revisões; o merge na `main` fica a critério do usuário.
 - Inclua no commit apenas os arquivos da alteração concluída. Preserve alterações preexistentes ou não relacionadas e não inclua credenciais ou artefatos gerados.
 - Antes do push, busque o histórico remoto e integre atualizações necessárias, preservando os commits e o trabalho existentes. Não use push forçado.
 - Quando a integração afetar os arquivos ou o comportamento alterados, repita as verificações pertinentes antes de enviar.
@@ -13,7 +15,7 @@ Ao concluir cada alteração solicitada, execute as verificações pertinentes a
 
 ## Acompanhamento do GitHub Actions e do GitHub Pages
 
-- Após cada push, identifique a execução do GitHub Actions correspondente ao SHA enviado e acompanhe-a até a conclusão. Não considere o trabalho concluído apenas porque o push foi aceito.
+- Após cada push num pull request ou na `main`, identifique a execução do GitHub Actions correspondente ao SHA enviado e acompanhe-a até a conclusão. Não considere o trabalho concluído apenas porque o push foi aceito.
 - Para publicações da `main`, confirme que os jobs de validação e deploy terminaram com sucesso e que o deployment do ambiente `github-pages` corresponde ao commit enviado.
 - Após o deploy, verifique o site público em `https://contratos-web.net.br/`, incluindo o carregamento da página e dos recursos principais. Quando a alteração afetar uma funcionalidade, faça também uma verificação pertinente no site publicado, quando viável.
 - Se uma execução falhar, examine os logs e corrija problemas relacionados à alteração dentro do escopo autorizado; valide, envie a correção e acompanhe a nova execução. Informe bloqueios externos, cancelamentos e falhas pendentes sem declarar a publicação concluída.
