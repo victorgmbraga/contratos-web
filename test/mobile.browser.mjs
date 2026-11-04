@@ -55,6 +55,7 @@ async function headerLayout(width) {
     Object.fromEntries(
       Object.entries({
         type: '#document-type-control',
+        status: '#status-control',
         order: '#order-control',
         more: '#more-actions-button',
         search: '.search-field',
@@ -67,8 +68,10 @@ async function headerLayout(width) {
     )
   );
   assert.equal(await page.locator('.brand').isVisible(), false);
-  assert.equal(boxes.type.width, boxes.order.width);
-  assert(boxes.type.width > 100);
+  assert(Math.abs(boxes.type.width - boxes.order.width) < 1);
+  assert(boxes.type.width >= 80);
+  assert(Math.abs(boxes.type.width - boxes.status.width) < 1);
+  assert(boxes.type.x < boxes.status.x && boxes.status.x < boxes.order.x);
   assert.equal(boxes.type.x, boxes.search.x, 'Seletores começam na borda esquerda da linha');
   assert.equal(
     boxes.more.x + boxes.more.width,
@@ -91,7 +94,14 @@ async function headerLayout(width) {
   );
   assert(boxes.order.x + boxes.order.width < boxes.more.x, 'Mais fica à direita dos seletores');
   await page.locator('#search').focus();
-  const sequence = ['search-button', 'filters-button', 'document-type-control', 'order-control', 'more-actions-button'];
+  const sequence = [
+    'search-button',
+    'filters-button',
+    'document-type-control',
+    'status-control',
+    'order-control',
+    'more-actions-button'
+  ];
   for (const id of sequence) {
     await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => document.activeElement.id), id, 'Ordem do teclado acompanha o cabeçalho');

@@ -2461,6 +2461,29 @@ test('FILTER-LABELS-URL: recupera Órgão e Unidade sem cache mesmo quando a bus
   }
 });
 
+test('HEADER-STATUS: status temporal pesquisa imediatamente e sincroniza URL, modal e tipo documental', async () => {
+  const ui = await interfaceFixture();
+  for (const type of ['edital', 'ata', 'contrato']) {
+    if (type !== 'edital') {
+      ui.nodes.get('document-type').value = type;
+      await ui.nodes.get('document-type').fire('change');
+    }
+    const status = type === 'edital' ? 'encerradas' : 'vigente';
+    assert(ui.nodes.get('status').children.some(option => option.value === status));
+    ui.nodes.get('search').value = 'texto preservado';
+    ui.nodes.get('status').value = status;
+    await ui.nodes.get('status').fire('change');
+    assert.equal(ui.state().status, status);
+    assert.equal(ui.state().page, 1);
+    assert.equal(ui.state().q, 'texto preservado');
+    assert.equal(new URL(ui.browser.href()).searchParams.get('status'), status);
+    await ui.nodes.get('filters-button').fire('click');
+    assert.equal(ui.nodes.get('draft-status').value, status);
+    assert.equal(ui.nodes.get('status').value, status);
+    ui.nodes.get('filters-dialog').close();
+  }
+});
+
 test('FILTERS-UI-18B: preserva nomes de sugestões após pesquisar, atualizar e recarregar nos três tipos', async () => {
   let suggested;
   const storage = memoryStorage();

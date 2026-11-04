@@ -107,11 +107,14 @@ export function createFiltersPanel({
         vigente: 'Vigentes',
         nao_vigente: 'Não vigentes'
       };
-    $('draft-status').replaceChildren();
-    for (const value of statuses) {
-      const option = el('option', statusNames[value] || value);
-      option.value = value;
-      $('draft-status').append(option);
+    for (const id of ['draft-status', 'status']) {
+      const select = $(id);
+      select.replaceChildren();
+      for (const value of statuses) {
+        const option = el('option', statusNames[value] || value);
+        option.value = value;
+        select.append(option);
+      }
     }
   }
 
@@ -251,7 +254,6 @@ export function createFiltersPanel({
     $('legal-error').hidden = true;
     state.draft = structuredClone(state.query);
     state.draft.q = $('search').value;
-    renderFilterStatuses();
     $('draft-search').value = state.draft.q;
     $('draft-status').value = state.draft.status;
     filterFields.clear();

@@ -361,6 +361,7 @@ export function createApplicationUI(
     }
     order.value = q.order;
     $('document-type').value = q.document_type;
+    $('status').value = q.status;
     $('search').value = q.q;
     const count = Object.keys(q.pncp_filters).length + (q.status === 'todos' ? 0 : 1),
       filterLabelText = count ? `Filtros (${fmtInt(count)} ${count === 1 ? 'ativo' : 'ativos'})` : 'Filtros';
@@ -495,7 +496,7 @@ export function createApplicationUI(
     state.lastQuery = clone(query);
     state.lastResult = result;
     void filters.resolveLabels(query, result.data).then(() => {
-      if (state.query === query || resultCacheKey(state.query) === resultCacheKey(query)) updateFilterChips();
+      if (resultCacheKey(state.query) === resultCacheKey(query)) updateFilterChips();
     });
     if (window.navigator?.onLine !== false) setConnectivity('');
     $('result-info').hidden = false;
@@ -897,10 +898,12 @@ export function createApplicationUI(
     $('notice-close').addEventListener('click', () => {
       notice('');
     });
-    $('order').addEventListener('change', () => {
-      state.query.order = $('order').value;
-      return execute();
-    });
+    for (const id of ['order', 'status']) {
+      $(id).addEventListener('change', () => {
+        state.query[id] = $(id).value;
+        return execute();
+      });
+    }
     $('clear-button').addEventListener('click', () => {
       state.query = defaultQuery();
       updateCriteria();

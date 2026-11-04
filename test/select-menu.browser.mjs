@@ -66,7 +66,17 @@ try {
   const url = `http://127.0.0.1:${app.server.address().port}/`;
   await page.goto(url);
   await ready();
-  for (const id of ['document-type', 'order'])
+  assert.deepEqual(await page.locator('.criteria-row select').evaluateAll(nodes => nodes.map(node => node.id)), [
+    'document-type',
+    'status',
+    'order'
+  ]);
+  await choose('status', 'recebendo_proposta');
+  await ready();
+  assert.equal(new URL(page.url()).searchParams.get('status'), 'recebendo_proposta');
+  await choose('status', 'todos');
+  await ready();
+  for (const id of ['document-type', 'status', 'order'])
     assert((await control(id).boundingBox()).width <= 180, 'Seletores fechados preservam a largura do cabeçalho');
   assert.equal(await page.locator('#document-type').getAttribute('aria-hidden'), 'true');
   assert.equal(await control('document-type').getAttribute('role'), 'combobox');
