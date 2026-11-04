@@ -6,7 +6,7 @@ Ao concluir cada alteração solicitada, execute as verificações pertinentes a
 
 - Trabalhe numa branch própria, nunca diretamente na `main`, salvo quando o usuário indicar outra branch.
 - Ao concluir cada tarefa que altere arquivos, abra um pull request para a `main` sem pedir confirmação, ou atualize o pull request já aberto da mesma branch. Se o pull request anterior da branch já foi mergeado, recomece a branch a partir da `main` atual e abra um novo pull request.
-- Acompanhe a validação do pull request e trate as revisões. Quando todos os jobs do GitHub Actions do commit atual do pull request passarem e não houver revisões pendentes, faça o merge na `main` sem pedir confirmação e apague a branch remota do pull request. Em seguida, acompanhe a publicação da `main` conforme a seção abaixo.
+- Acompanhe a validação do pull request e trate as revisões. Não faça o merge: ele fica a cargo do merge automático do GitHub. Depois do merge, acompanhe a publicação da `main` conforme a seção abaixo.
 - Inclua no commit apenas os arquivos da alteração concluída. Preserve alterações preexistentes ou não relacionadas e não inclua credenciais ou artefatos gerados.
 - Antes do push, busque o histórico remoto e integre atualizações necessárias, preservando os commits e o trabalho existentes. Não use push forçado.
 - Quando a integração afetar os arquivos ou o comportamento alterados, repita as verificações pertinentes antes de enviar.
