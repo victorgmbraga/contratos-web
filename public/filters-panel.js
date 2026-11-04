@@ -1,4 +1,5 @@
 import { compareDecimal } from '../src/validation.js';
+import { createFilterLabelCache } from '../src/browser/filter-label-cache.js';
 
 // Modal de filtros: rascunho, editores de domínio, sugestões e amparos por normativo.
 export function createFiltersPanel({
@@ -17,7 +18,7 @@ export function createFiltersPanel({
   const $ = getElementById;
   const filterFields = new Map();
   // Sugestões são listas parciais; preserve os rótulos selecionados por tipo e campo.
-  const selectedLabels = new Map();
+  const selectedLabels = createFilterLabelCache(() => window.localStorage);
   const labelKey = (type, name, id) => JSON.stringify([type, name, id]);
   function optionLabel(name, id, type = state.query.document_type) {
     const cap = state.schema.capabilities.find(cap => cap.name === name);

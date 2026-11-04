@@ -82,6 +82,7 @@ Cada decisão registra o contexto, a escolha e suas consequências. Novas decis�
 | [`src/browser/runtime.js`](../src/browser/runtime.js), [`worker.js`](../src/browser/worker.js) | Serviço no Worker, métodos permitidos, operações, progresso, erros serializados e buffers transferíveis |
 | [`src/browser/service.js`](../src/browser/service.js), [`protocol.js`](../src/browser/protocol.js) | Ponte por ID, versão, cancelamento local, descarte de respostas tardias e recuperação de falha |
 | [`src/browser/filter-options-cache.js`](../src/browser/filter-options-cache.js), [`options-db.js`](../src/browser/options-db.js) | Pré-carregamento dos domínios dos três tipos, cache local com validade de 4 horas, deduplicação, opções dependentes de normativos e fallback em IndexedDB quando o `localStorage` não está disponível |
+| [`src/browser/filter-label-cache.js`](../src/browser/filter-label-cache.js) | Nomes de opções selecionadas, persistidos por tipo documental, campo e ID para restaurar a apresentação após recarregar |
 | [`src/browser/query-url.js`](../src/browser/query-url.js) | Leitura e escrita de parâmetros GET, conversão de filtros tipados e validação compartilhada de links de pesquisa |
 | [`src/browser/detail-url.js`](../src/browser/detail-url.js) | Identidade documental e aba nos parâmetros GET, com validação por tipo de documento |
 | [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, DOM, histórico da URL e download |
@@ -136,6 +137,8 @@ Progresso contém páginas, linhas, total e bytes. Só a coleta completa transfe
 ## Persistência e segurança
 
 Estado de consultas, fila, contadores e resultados de pesquisa, detalhes e CSV são transitórios. Além da preferência de tema, o `localStorage` armazena listas normalizadas de opções e seus metadados de apresentação, sob o prefixo `contratos-web:filter-options:v1:`, separadas por fonte, versão do esquema e contexto. A validade é de 4 horas desde o carregamento bem-sucedido; a inicialização e cada uso descartam entradas vencidas, corrompidas, com data futura ou com aviso de omissão de anos, sem limpar dados alheios. As opções de ano preservam os valores fornecidos pelo PNCP, inclusive fora do formato `AAAA`. Leituras não prolongam a validade. Amparos legais têm entradas por tipo e conjunto de normativos.
+
+Os nomes das opções selecionadas são metadados separados das listas de opções: `filter-label-cache.js` guarda até mil rótulos recentes no `localStorage`, na chave `contratos-web:filter-labels:v1`. Assim, órgão, unidade e outros campos de sugestão mantêm seus nomes após recarregar, mesmo quando o ID não aparece na lista inicial. Esse histórico não expira junto dos catálogos de quatro horas e é atualizado ao selecionar novamente a opção. Registros inválidos são descartados; armazenamento indisponível mantém apenas a sessão. Consultas e URLs continuam usando os IDs, sem nomes adicionais.
 
 Listas com JSON a partir de 65.536 caracteres são compactadas com `CompressionStream('gzip')` e armazenadas em base64, mantendo opções, IDs, rótulos, estados e metadados. A leitura aceita JSON ou gzip/base64 e usa `DecompressionStream` no segundo caso. A pré-carga processa cada entrada antes da próxima. Conteúdo inválido é descartado e recarregado.
 

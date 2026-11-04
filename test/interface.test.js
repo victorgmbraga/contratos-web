@@ -2402,9 +2402,11 @@ test('FILTERS-UI-17: normativo atualiza amparos ainda sem seleção e reabrir pr
   assert.deepEqual(ui.draft().pncp_filters, { normativos_base: ['1'], ufs: ['DF'] });
 });
 
-test('FILTERS-UI-18B: preserva nomes de sugestões fora do domínio inicial após pesquisar e reabrir', async () => {
+test('FILTERS-UI-18B: preserva nomes de sugestões após pesquisar, atualizar e recarregar nos três tipos', async () => {
   let suggested;
+  const storage = memoryStorage();
   const ui = await interfaceFixture({
+    storage,
     suggestHandler: async payload => {
       suggested();
       return { items: [{ id: '90939', label: `${payload.type}: ${payload.field} selecionado` }] };
@@ -2443,6 +2445,23 @@ test('FILTERS-UI-18B: preserva nomes de sugestões fora do domínio inicial apó
       assert.equal(ui.nodes.get(`filter-selected-${name}`).children[0].textContent, `${type}: ${name} selecionado ×`);
     }
     ui.nodes.get('filters-dialog').close();
+    const restored = await interfaceFixture({ storage, href: ui.browser.href() });
+    const restoredChips = restored.nodes
+      .get('native-chips')
+      .children.map(node => node.textContent)
+      .join(' ');
+    await restored.nodes.get('filters-button').fire('click');
+    for (const name of ['orgaos', 'unidades']) {
+      assert(restoredChips.includes(`${type}: ${name} selecionado`));
+      assert.equal(
+        restored.nodes.get(`filter-selected-${name}`).children[0].textContent,
+        `${type}: ${name} selecionado ×`
+      );
+      assert.deepEqual(restored.state().pncp_filters[name], ['90939']);
+    }
+    assert.equal(restored.suggestRequests.length, 0, 'Recarregar não repete a busca textual de sugestões');
+    assert.equal(restored.browser.href(), ui.browser.href());
+    restored.nodes.get('filters-dialog').close();
   }
 });
 

@@ -47,5 +47,6 @@ for (const name of [
 ])
   await runFile(name);
 if (!skipBuild) await stage('build-production', () => build());
+await runFile('filter-labels.browser.mjs');
 await runFile('service-worker.browser.mjs');
 await runFile('browser-artifact.mjs');
