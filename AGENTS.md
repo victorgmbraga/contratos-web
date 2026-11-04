@@ -4,9 +4,9 @@
 
 Ao concluir cada alteração solicitada, execute as verificações pertinentes ao seu alcance. Depois de validar a alteração, crie um commit com uma mensagem descritiva e faça push automaticamente, sem solicitar uma nova confirmação ao usuário.
 
-- Trabalhe numa branch própria, nunca diretamente na `main`, salvo quando o usuário indicar outra branch.
-- Ao concluir cada tarefa que altere arquivos, abra um pull request para a `main` sem pedir confirmação, ou atualize o pull request já aberto da mesma branch. Se o pull request anterior da branch já foi mergeado, recomece a branch a partir da `main` atual e abra um novo pull request.
-- Acompanhe a validação do pull request e trate as revisões. Não faça o merge: ele fica a cargo do merge automático do GitHub. Depois do merge, acompanhe a publicação da `main` conforme a seção abaixo.
+- Trabalhe diretamente na `main` por padrão. Use uma branch própria para refatorações grandes ou quando o usuário solicitar explicitamente o trabalho em uma nova branch; respeite o nome ou destino indicado pelo usuário.
+- No fluxo padrão, faça commit e push diretamente para `origin/main`, sem abrir pull request. Quando o trabalho ocorrer em uma branch própria, abra um pull request para a `main` sem pedir confirmação ou atualize o pull request já aberto da mesma branch. Se o pull request anterior da branch já foi mergeado, recomece a branch a partir da `main` atual e abra um novo pull request.
+- Quando houver pull request, acompanhe sua validação e trate as revisões. Não faça o merge: ele fica a cargo do merge automático do GitHub. Após um push direto ou o merge na `main`, acompanhe a publicação conforme a seção abaixo.
 - Inclua no commit apenas os arquivos da alteração concluída. Preserve alterações preexistentes ou não relacionadas e não inclua credenciais ou artefatos gerados.
 - Antes do push, busque o histórico remoto e integre atualizações necessárias, preservando os commits e o trabalho existentes. Não use push forçado.
 - Quando a integração afetar os arquivos ou o comportamento alterados, repita as verificações pertinentes antes de enviar.
