@@ -8,7 +8,11 @@ test('MASK-01: CNPJ de 14 dígitos recebe a máscara brasileira', () => {
   assert.equal(formatCnpj('01234567000189'), '01.234.567/0001-89');
   assert.equal(formatCnpj('01.234.567/0001-89'), '01.234.567/0001-89', 'máscara é idempotente');
   assert.equal(formatCnpj('01234567000189 - Órgão público'), '01.234.567/0001-89 - Órgão público');
-  assert.equal(formatCnpj('01.234.567/0001-89 - Órgão público'), '01.234.567/0001-89 - Órgão público', 'nome preservado e máscara idempotente');
+  assert.equal(
+    formatCnpj('01.234.567/0001-89 - Órgão público'),
+    '01.234.567/0001-89 - Órgão público',
+    'nome preservado e máscara idempotente'
+  );
 });
 
 test('MASK-02: valores que não são CNPJ permanecem como vieram', () => {
@@ -27,7 +31,15 @@ test('MASK-03: campos CPF/CNPJ escolhem a máscara pelo tamanho', () => {
 
 test('MASK-04: células da tabela aplicam a máscara declarada na coluna', () => {
   const renderCell = createCellRenderer(node);
-  assert.equal(renderCell('01234567000189', { field: 'orgao_cnpj', title: 'CNPJ do órgão', type: 'text', mask: 'cnpj' }).textContent, '01.234.567/0001-89');
-  assert.equal(renderCell('01234567000189', { field: 'id', title: 'ID', type: 'text' }).textContent, '01234567000189', 'coluna sem máscara não altera');
+  assert.equal(
+    renderCell('01234567000189', { field: 'orgao_cnpj', title: 'CNPJ do órgão', type: 'text', mask: 'cnpj' })
+      .textContent,
+    '01.234.567/0001-89'
+  );
+  assert.equal(
+    renderCell('01234567000189', { field: 'id', title: 'ID', type: 'text' }).textContent,
+    '01234567000189',
+    'coluna sem máscara não altera'
+  );
   assert.equal(renderCell(null, { field: 'orgao_cnpj', type: 'text', mask: 'cnpj' }).textContent, '—');
 });

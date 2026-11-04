@@ -1,31 +1,44 @@
 /* Button geometry stays fixed while its colors provide hover and press feedback. */
-:is(button,.button,.repository-link){
-  transition:background-color .16s ease-out,border-color .16s ease-out,color .16s ease-out,box-shadow .16s ease-out,opacity .16s ease-out;
+:is(button, .button, .repository-link) {
+  transition:
+    background-color 0.16s ease-out,
+    border-color 0.16s ease-out,
+    color 0.16s ease-out,
+    box-shadow 0.16s ease-out,
+    opacity 0.16s ease-out;
 }
 
-:is(.button,.icon-button,.pagination-button,.repository-link):not(:disabled,[aria-disabled="true"],[aria-busy="true"]):active{
-  background-color:var(--blue-soft);
-  border-color:var(--blue);
+:is(.button, .icon-button, .pagination-button, .repository-link):not(
+    :disabled,
+    [aria-disabled='true'],
+    [aria-busy='true']
+  ):active {
+  background-color: var(--blue-soft);
+  border-color: var(--blue);
 }
 
-:is(.button.primary,.button.dark,.pagination-button.active):not(:disabled,[aria-disabled="true"],[aria-busy="true"]):active{
-  background-color:var(--accent-fill-hover,var(--blue-hover));
-  border-color:var(--accent-fill-hover,var(--blue-hover));
-  color:white;
+:is(.button.primary, .button.dark, .pagination-button.active):not(
+    :disabled,
+    [aria-disabled='true'],
+    [aria-busy='true']
+  ):active {
+  background-color: var(--accent-fill-hover, var(--blue-hover));
+  border-color: var(--accent-fill-hover, var(--blue-hover));
+  color: white;
 }
 
-.button.danger:not(:disabled,[aria-disabled="true"],[aria-busy="true"]):active{
-  background-color:#7f2d27;
-  border-color:#7f2d27;
-  color:white;
+.button.danger:not(:disabled, [aria-disabled='true'], [aria-busy='true']):active {
+  background-color: #7f2d27;
+  border-color: #7f2d27;
+  color: white;
 }
 
-:is(button,.button,.repository-link)>svg{
-  transform-box:fill-box;
-  transform-origin:center;
+:is(button, .button, .repository-link) > svg {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
-:is(button,.button,.repository-link)>svg :is(path,rect,circle){
-  transform-box:fill-box;
-  transform-origin:center;
+:is(button, .button, .repository-link) > svg :is(path, rect, circle) {
+  transform-box: fill-box;
+  transform-origin: center;
 }

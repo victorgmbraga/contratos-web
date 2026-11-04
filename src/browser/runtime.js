@@ -6,15 +6,51 @@ import { browserSettings, createBrowserClient } from './client.js';
 import { PROTOCOL_VERSION } from './protocol.js';
 
 export { PROTOCOL_VERSION } from './protocol.js';
-const methods = ['schema','execute','domains','suggest','details','related','documentDetails','documentRelated','contractChild','export'];
+const methods = [
+  'schema',
+  'execute',
+  'domains',
+  'suggest',
+  'details',
+  'related',
+  'documentDetails',
+  'documentRelated',
+  'contractChild',
+  'export'
+];
 export function errorRecord(error) {
-  if (error?.name === 'AbortError') return { name: 'AbortError', code: 'CANCELLED', message: 'Operação cancelada.', status: 499, details: {}, retryable: false };
-  if (error instanceof AppError) return { name: error.name, code: error.code, message: error.message, status: error.status, details: plain(error.details), retryable: error.retryable };
-  return { name: 'Error', code: 'INTERNAL_ERROR', message: 'Não foi possível concluir a operação no navegador.', status: 500, details: {}, retryable: true };
+  if (error?.name === 'AbortError')
+    return {
+      name: 'AbortError',
+      code: 'CANCELLED',
+      message: 'Operação cancelada.',
+      status: 499,
+      details: {},
+      retryable: false
+    };
+  if (error instanceof AppError)
+    return {
+      name: error.name,
+      code: error.code,
+      message: error.message,
+      status: error.status,
+      details: plain(error.details),
+      retryable: error.retryable
+    };
+  return {
+    name: 'Error',
+    code: 'INTERNAL_ERROR',
+    message: 'Não foi possível concluir a operação no navegador.',
+    status: 500,
+    details: {},
+    retryable: true
+  };
 }
 
 export function createRuntime(input, options = {}) {
-  const config = browserSettings(input), client = createBrowserClient(config, options), service = new QueryService(config, client);
+  const config = browserSettings(input),
+    client = createBrowserClient(config, options),
+    service = new QueryService(config, client);
   const controllers = new Map();
   // Operações excedentes aguardam numa fila FIFO em vez de falhar; só uma fila
   // muito longa (sinal de uso anômalo) devolve CONCURRENCY_LIMIT.
@@ -22,60 +58,145 @@ export function createRuntime(input, options = {}) {
   let active = 0;
   const maxWaiting = config.PNCP_MAX_CONCURRENT_OPERATIONS * 4;
   function acquireSlot(signal) {
-    if (active < config.PNCP_MAX_CONCURRENT_OPERATIONS) { active++; return Promise.resolve(); }
-    assert(waiting.length < maxWaiting, 'CONCURRENCY_LIMIT', 'Há operações demais em andamento. Tente novamente em instantes.', 429, { retry_after_seconds: 2 }, true);
+    if (active < config.PNCP_MAX_CONCURRENT_OPERATIONS) {
+      active++;
+      return Promise.resolve();
+    }
+    assert(
+      waiting.length < maxWaiting,
+      'CONCURRENCY_LIMIT',
+      'Há operações demais em andamento. Tente novamente em instantes.',
+      429,
+      { retry_after_seconds: 2 },
+      true
+    );
     return new Promise((resolve, reject) => {
-      const waiter = { resolve: () => { signal.removeEventListener('abort', abort); resolve(undefined); } };
-      const abort = () => { waiting.splice(waiting.indexOf(waiter), 1); reject(signal.reason); };
+      const waiter = {
+        resolve: () => {
+          signal.removeEventListener('abort', abort);
+          resolve(undefined);
+        }
+      };
+      const abort = () => {
+        waiting.splice(waiting.indexOf(waiter), 1);
+        reject(signal.reason);
+      };
       signal.addEventListener('abort', abort, { once: true });
       waiting.push(waiter);
     });
   }
   function releaseSlot() {
     const next = waiting.shift();
-    if (next) next.resolve(); else active--;
+    if (next) next.resolve();
+    else active--;
   }
   return {
     async run(id, method, payload = {}, onProgress = () => {}) {
       assert(methods.includes(method), 'NOT_FOUND', 'Operação não disponível.');
-      assert(typeof id === 'string' && id.length > 0 && id.length <= 128 && !controllers.has(id), 'INVALID_OPERATION', 'Identificador de operação inválido.');
+      assert(
+        typeof id === 'string' && id.length > 0 && id.length <= 128 && !controllers.has(id),
+        'INVALID_OPERATION',
+        'Identificador de operação inválido.'
+      );
       const controller = new AbortController();
       const signal = controller.signal;
       controllers.set(id, controller);
-      try { await acquireSlot(signal); }
-      catch (error) { controllers.delete(id); throw error; }
+      try {
+        await acquireSlot(signal);
+      } catch (error) {
+        controllers.delete(id);
+        throw error;
+      }
       try {
         const allowed = {
-          schema: [], execute: ['query'], domains: ['type','normatives','field','priority'], suggest: ['type','field','q','size'],
-          details: ['document','page','size'], related: ['document','resource','page','size'],
-          documentDetails: ['document'], documentRelated: ['document','resource','page','size','pagination_mode'],
-          contractChild: ['document','resource','sequence'], export: ['query','scope'],
+          schema: [],
+          execute: ['query'],
+          domains: ['type', 'normatives', 'field', 'priority'],
+          suggest: ['type', 'field', 'q', 'size'],
+          details: ['document', 'page', 'size'],
+          related: ['document', 'resource', 'page', 'size'],
+          documentDetails: ['document'],
+          documentRelated: ['document', 'resource', 'page', 'size', 'pagination_mode'],
+          contractChild: ['document', 'resource', 'sequence'],
+          export: ['query', 'scope']
         };
         checkKeys(payload, allowed[method], 'operação');
         let result;
         switch (method) {
-          case 'schema': result = schema(config); break;
-          case 'execute': result = await service.execute(payload.query, signal, id); break;
-          case 'domains': result = await service.domains(payload.type, payload.normatives, signal, id, payload.field, payload.priority); break;
-          case 'suggest': result = await service.suggest(payload.type, payload.field, payload.q, payload.size, signal, id); break;
-          case 'details': result = await service.details(payload.document, payload.page, payload.size, signal, id); break;
-          case 'related': result = await service.related(payload.document, payload.resource, payload.page, payload.size, signal, id); break;
-          case 'documentDetails': result = await service.documentDetails(payload.document, signal, id); break;
-          case 'documentRelated': result = await service.documentRelated(payload.document, payload.resource, payload.page, payload.size, signal, id, payload.pagination_mode); break;
-          case 'contractChild': result = await service.contractChild(payload.document, payload.resource, payload.sequence, signal, id); break;
+          case 'schema':
+            result = schema(config);
+            break;
+          case 'execute':
+            result = await service.execute(payload.query, signal, id);
+            break;
+          case 'domains':
+            result = await service.domains(
+              payload.type,
+              payload.normatives,
+              signal,
+              id,
+              payload.field,
+              payload.priority
+            );
+            break;
+          case 'suggest':
+            result = await service.suggest(payload.type, payload.field, payload.q, payload.size, signal, id);
+            break;
+          case 'details':
+            result = await service.details(payload.document, payload.page, payload.size, signal, id);
+            break;
+          case 'related':
+            result = await service.related(payload.document, payload.resource, payload.page, payload.size, signal, id);
+            break;
+          case 'documentDetails':
+            result = await service.documentDetails(payload.document, signal, id);
+            break;
+          case 'documentRelated':
+            result = await service.documentRelated(
+              payload.document,
+              payload.resource,
+              payload.page,
+              payload.size,
+              signal,
+              id,
+              payload.pagination_mode
+            );
+            break;
+          case 'contractChild':
+            result = await service.contractChild(payload.document, payload.resource, payload.sequence, signal, id);
+            break;
           case 'export': {
-            const { chunks, metadata } = await service.export(payload.query, signal, id, { onProgress, scope: payload.scope });
+            const { chunks, metadata } = await service.export(payload.query, signal, id, {
+              onProgress,
+              scope: payload.scope
+            });
             const stamp = metadata.finished_at.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
             const pageSuffix = metadata.export_scope === 'page' ? `-pagina-${metadata.page}` : '';
-            result = { chunks: chunks.map(c => c.buffer), metadata, mime: 'text/csv; charset=utf-8', filename: `contratos-web-${stamp}${pageSuffix}.csv` };
+            result = {
+              chunks: chunks.map(c => c.buffer),
+              metadata,
+              mime: 'text/csv; charset=utf-8',
+              filename: `contratos-web-${stamp}${pageSuffix}.csv`
+            };
             break;
           }
         }
-        signal.throwIfAborted(); return method === 'export' ? result : plain(result);
-      } finally { controllers.delete(id); releaseSlot(); }
+        signal.throwIfAborted();
+        return method === 'export' ? result : plain(result);
+      } finally {
+        controllers.delete(id);
+        releaseSlot();
+      }
     },
-    cancel(id) { controllers.get(id)?.abort(new DOMException('Operação cancelada.', 'AbortError')); },
-    async close() { for (const waiter of waiting.splice(0)) waiter.resolve(); for (const controller of controllers.values()) controller.abort(new DOMException('Aplicação encerrada.', 'AbortError')); await client.close(); },
+    cancel(id) {
+      controllers.get(id)?.abort(new DOMException('Operação cancelada.', 'AbortError'));
+    },
+    async close() {
+      for (const waiter of waiting.splice(0)) waiter.resolve();
+      for (const controller of controllers.values())
+        controller.abort(new DOMException('Aplicação encerrada.', 'AbortError'));
+      await client.close();
+    }
   };
 }
 
@@ -84,14 +205,30 @@ export function attachWorker(scope, options) {
   scope.addEventListener('message', async ({ data }) => {
     try {
       if (data.type === 'init') {
-        assert(data.version === PROTOCOL_VERSION && !runtime, 'INCOMPATIBLE_VERSION', 'Versão do serviço de navegador incompatível.');
-        runtime = createRuntime(data.config, options); scope.postMessage({ id: data.id, result: { version: PROTOCOL_VERSION } }); return;
+        assert(
+          data.version === PROTOCOL_VERSION && !runtime,
+          'INCOMPATIBLE_VERSION',
+          'Versão do serviço de navegador incompatível.'
+        );
+        runtime = createRuntime(data.config, options);
+        scope.postMessage({ id: data.id, result: { version: PROTOCOL_VERSION } });
+        return;
       }
       assert(runtime, 'NOT_READY', 'Serviço de navegador não inicializado.');
-      if (data.type === 'cancel') { runtime.cancel(data.id); return; }
-      if (data.type === 'close') { await runtime.close(); return; }
-      const result = await runtime.run(data.id, data.method, data.payload, progress => scope.postMessage({ id: data.id, progress }));
+      if (data.type === 'cancel') {
+        runtime.cancel(data.id);
+        return;
+      }
+      if (data.type === 'close') {
+        await runtime.close();
+        return;
+      }
+      const result = await runtime.run(data.id, data.method, data.payload, progress =>
+        scope.postMessage({ id: data.id, progress })
+      );
       scope.postMessage({ id: data.id, result }, data.method === 'export' ? result.chunks : []);
-    } catch (error) { scope.postMessage({ id: data?.id, error: errorRecord(error) }); }
+    } catch (error) {
+      scope.postMessage({ id: data?.id, error: errorRecord(error) });
+    }
   });
 }

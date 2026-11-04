@@ -5,13 +5,19 @@ export const defaults = {
   PNCP_DETAIL_BASE_URL: 'https://pncp.gov.br/api/pncp/v1',
   PNCP_CONSULTATION_BASE_URL: 'https://pncp.gov.br/api/consulta/v1',
   PNCP_READ_TIMEOUT_SECONDS: 30,
-  PNCP_OPERATION_TIMEOUT_SECONDS: 120, PNCP_MAX_RETRIES: 2,
-  PNCP_MAX_CONCURRENT_REQUESTS: 2, PNCP_REQUESTS_PER_SECOND: 2,
-  PNCP_MAX_CONCURRENT_OPERATIONS: 4, PNCP_PAGE_SIZE: 50, PNCP_EXPORT_PAGE_SIZE: 100,
+  PNCP_OPERATION_TIMEOUT_SECONDS: 120,
+  PNCP_MAX_RETRIES: 2,
+  PNCP_MAX_CONCURRENT_REQUESTS: 2,
+  PNCP_REQUESTS_PER_SECOND: 2,
+  PNCP_MAX_CONCURRENT_OPERATIONS: 4,
+  PNCP_PAGE_SIZE: 50,
+  PNCP_EXPORT_PAGE_SIZE: 100,
   PNCP_MAX_DETAIL_ITEMS: 20000,
-  PNCP_MAX_EXPORT_DOCUMENTS: 10000, PNCP_MAX_EXPORT_BYTES: 50 * 1024 * 1024,
+  PNCP_MAX_EXPORT_DOCUMENTS: 10000,
+  PNCP_MAX_EXPORT_BYTES: 50 * 1024 * 1024,
   PNCP_MAX_OPERATION_BYTES: 100 * 1024 * 1024,
-  PNCP_MAX_REQUESTS_PER_OPERATION: 1000, PNCP_VALIDATED_FILTERS: '',
+  PNCP_MAX_REQUESTS_PER_OPERATION: 1000,
+  PNCP_VALIDATED_FILTERS: ''
 };
 
 export function validateSettings(input = {}) {
@@ -21,16 +27,35 @@ export function validateSettings(input = {}) {
     const value = config[key];
     assert(typeof value === typeof fallback, 'INVALID_CONFIG', `Configuração inválida: ${key}.`);
     if (typeof fallback === 'number') {
-      assert(Number.isFinite(value) && value >= (key === 'PNCP_MAX_RETRIES' ? 0 : 1), 'INVALID_CONFIG', `Configuração inválida: ${key}.`);
-      if (key !== 'PNCP_REQUESTS_PER_SECOND') assert(Number.isInteger(value), 'INVALID_CONFIG', `${key} deve ser inteiro.`);
+      assert(
+        Number.isFinite(value) && value >= (key === 'PNCP_MAX_RETRIES' ? 0 : 1),
+        'INVALID_CONFIG',
+        `Configuração inválida: ${key}.`
+      );
+      if (key !== 'PNCP_REQUESTS_PER_SECOND')
+        assert(Number.isInteger(value), 'INVALID_CONFIG', `${key} deve ser inteiro.`);
     }
   }
   for (const key of ['PNCP_SEARCH_BASE_URL', 'PNCP_DETAIL_BASE_URL', 'PNCP_CONSULTATION_BASE_URL']) {
-    let url; try { url = new URL(config[key]); } catch { assert(false, 'INVALID_CONFIG', `${key} inválida.`); }
-    assert(url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash, 'INVALID_CONFIG', `${key} exige URL base HTTPS sem credenciais, query ou fragmento.`);
+    let url;
+    try {
+      url = new URL(config[key]);
+    } catch {
+      assert(false, 'INVALID_CONFIG', `${key} inválida.`);
+    }
+    assert(
+      url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash,
+      'INVALID_CONFIG',
+      `${key} exige URL base HTTPS sem credenciais, query ou fragmento.`
+    );
     config[key] = url.href.replace(/\/$/, '');
   }
-  assert(config.PNCP_MAX_EXPORT_DOCUMENTS <= 10000, 'INVALID_CONFIG', 'Limite de exportação não pode exceder a janela de 10000.');
-  for (const key of ['PNCP_PAGE_SIZE', 'PNCP_EXPORT_PAGE_SIZE']) assert([10, 25, 50, 100].includes(config[key]), 'INVALID_CONFIG', `${key} deve ser 10, 25, 50 ou 100.`);
+  assert(
+    config.PNCP_MAX_EXPORT_DOCUMENTS <= 10000,
+    'INVALID_CONFIG',
+    'Limite de exportação não pode exceder a janela de 10000.'
+  );
+  for (const key of ['PNCP_PAGE_SIZE', 'PNCP_EXPORT_PAGE_SIZE'])
+    assert([10, 25, 50, 100].includes(config[key]), 'INVALID_CONFIG', `${key} deve ser 10, 25, 50 ou 100.`);
   return config;
 }

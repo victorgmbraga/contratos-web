@@ -6,7 +6,7 @@ const root = new URL('../public/', import.meta.url);
 const [index, diagnostic, image] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
   readFile(new URL('pncp-diagnostic.html', root), 'utf8'),
-  readFile(new URL('og-image.png', root)),
+  readFile(new URL('og-image.png', root))
 ]);
 
 function attributes(tag) {
@@ -44,14 +44,16 @@ test('SEO-01: a página inicial declara canônica e metadados sociais', () => {
     ['og:image', 'https://contratos-web.net.br/og-image.png'],
     ['og:image:type', 'image/png'],
     ['og:image:width', '1200'],
-    ['og:image:height', '630'],
-  ]) assert.equal(metaContent(index, 'property', property), expected, property);
+    ['og:image:height', '630']
+  ])
+    assert.equal(metaContent(index, 'property', property), expected, property);
   for (const [name, expected] of [
     ['twitter:card', 'summary_large_image'],
     ['twitter:title', 'Contratos Web · Pesquisa PNCP'],
     ['twitter:description', description],
-    ['twitter:image', 'https://contratos-web.net.br/og-image.png'],
-  ]) assert.equal(metaContent(index, 'name', name), expected, name);
+    ['twitter:image', 'https://contratos-web.net.br/og-image.png']
+  ])
+    assert.equal(metaContent(index, 'name', name), expected, name);
   assert.match(metaContent(index, 'property', 'og:image:alt'), /PNCP/);
   assert.match(metaContent(index, 'name', 'twitter:image:alt'), /PNCP/);
 });

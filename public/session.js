@@ -13,6 +13,6 @@ export function createSession() {
     },
     current(kind, value) {
       return (counters.get(kind) || 0) === value;
-    },
+    }
   };
 }

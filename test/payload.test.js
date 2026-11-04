@@ -31,7 +31,11 @@ test('PAYLOAD-03: busca de atas e contratos não envia registro bruto nem o proj
   for (const type of ['ata', 'contrato']) {
     const result = await service.execute(query({ document_type: type, size: 10 }));
     assert.ok(result.data.length > 0, type);
-    assert.equal(result.data.some(row => Object.hasOwn(row, '_raw')), false, type);
+    assert.equal(
+      result.data.some(row => Object.hasOwn(row, '_raw')),
+      false,
+      type
+    );
   }
   const editais = await service.execute(query({ document_type: 'edital', size: 10 }));
   assert.ok(editais.data.every(row => row._raw && typeof row._raw === 'object'));
