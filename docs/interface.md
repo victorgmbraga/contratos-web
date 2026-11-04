@@ -22,6 +22,8 @@ Os botões e links apresentados como botões usam transições de cor em `button
 
 Um `MutationObserver` acompanha opções, rótulos e estados atualizados em segundo plano. Alterações programáticas de valor na aplicação chamam `refresh`; eventos dos controles nativos e reset de formulário também atualizam a apresentação. Atualizar o texto de opções preserva o destaque em navegação. Controles removidos são descartados; no encerramento da página, listeners e observadores são liberados. A retomada pelo cache de navegação mantém os controles.
 
+Os critérios ativos acima da tabela mostram datas como `dd/mm/aaaa`, valores em reais (`R$ 1.000,50`), percentuais e quantidades no padrão brasileiro e booleanos como Sim/Não.
+
 ## Acessibilidade dos avisos e ações
 
 Os botões de ícone têm nome acessível em `aria-label`. Os tooltips visuais repetem esse nome e por isso não são vinculados por `aria-describedby`, evitando leitura duplicada.
@@ -35,6 +37,8 @@ Um script mínimo, embutido no HTML, aplica o tema antes da primeira pintura; `t
 `data-theme` no elemento raiz seleciona as cores semânticas de `theme.css` e `color-scheme` adapta os controles nativos. As barras de rolagem usam cores para cada tema e preservam os mecanismos nativos; navegadores com suporte a pseudoelementos exibem polegares arredondados, e os demais usam `scrollbar-color` quando disponível. Os estilos da aplicação e da tabela mantêm os valores originais como alternativas do tema claro. Botões preenchidos têm cores próprias para conservar o contraste dos ícones brancos. O build preserva `blocking="render"` no módulo de entrada para aplicar o tema antes da primeira pintura nos navegadores que suportam esse atributo.
 
 ## Tabela de resultados
+
+Em editais, além das colunas padrão, ficam disponíveis como opcionais os campos que o portal PNCP exibe em cada edital da listagem: início e fim do recebimento de propostas, amparo legal, modo de disputa, registro de preços, fonte orçamentária, fonte/plataforma, órgão e unidade sub-rogados. Listas da fonte (amparos e fontes orçamentárias) são unidas por `; `. Colunas com domínio abrem o filtro correspondente.
 
 `createResultsTable` recebe colunas do esquema, o renderizador de células, o conteúdo do rodapé e callbacks de navegação, abertura de documentos e ações de coluna. A aplicação concentra as requisições, os abortos e a confirmação de resultados. `renderPage` aplica somente respostas atuais e concluídas; falhas e cancelamentos conservam linhas, metadados e página confirmados, enquanto a URL e a repetição identificam a consulta que falhou.
 

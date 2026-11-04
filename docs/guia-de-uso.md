@@ -36,7 +36,7 @@ O ícone de funil no cabeçalho de uma coluna abre diretamente o filtro correspo
 
 - A tabela mostra até 100 documentos por página; no celular, os resultados aparecem como cartões, e o menu **Mais** alterna para tabela.
 - Clicar no título de uma coluna ordenável alterna entre ordem crescente e decrescente; o seletor de ordenação oferece as opções do PNCP para o tipo.
-- O botão de colunas escolhe quais colunas aparecem, sua ordem e largura; a escolha fica salva neste navegador para cada tipo. Em editais, **Início das propostas** e **Fim das propostas** (data e hora) podem ser ativadas na lista de colunas.
+- O botão de colunas escolhe quais colunas aparecem, sua ordem e largura; a escolha fica salva neste navegador para cada tipo. Em editais, a lista de colunas também oferece os dados que o PNCP mostra em cada edital: **Início das propostas** e **Fim das propostas** (data e hora), **Amparo legal**, **Modo de disputa**, **Registro de preços**, **Fonte orçamentária**, **Fonte/Plataforma**, **Órgão sub-rogado** e **Unidade sub-rogada**.
 
 ### Janela de 10.000 resultados
 

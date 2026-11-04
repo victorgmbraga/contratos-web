@@ -96,4 +96,16 @@ export function formatCpfCnpj(value) {
   if (digits.length === 11) return formatCpf(digits);
   return String(value);
 }
+// Valor de um filtro simples como o usuário o lê nos critérios ativos (datas e números no padrão brasileiro).
+export function filterValueText(capability, value) {
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+  const text = String(value);
+  if (capability?.type === 'date') return date(text);
+  if (capability?.type === 'decimal') {
+    if (/percentual/.test(capability.name)) return `${quantity(text)}%`;
+    return /valor/.test(capability.name) ? money(text) : quantity(text);
+  }
+  if (capability?.type === 'integer' && /^-?\d+$/.test(text)) return fmtInt(Number(text));
+  return text;
+}
 export { fmtInt, time, date, dateTime, quantity, money };

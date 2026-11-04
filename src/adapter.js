@@ -225,7 +225,33 @@ export function project(raw) {
     _document: documentIdentity(raw)
   });
   // Somente editais consomem o registro bruto no painel; os demais tipos não o transportam.
-  if (raw.document_type === 'edital') result._raw = plain(raw);
+  if (raw.document_type === 'edital') {
+    result._raw = plain(raw);
+    // Campos que o portal PNCP mostra em cada edital da listagem, disponíveis como colunas opcionais.
+    const text = name => {
+      const value = raw[name];
+      if (value == null) return null;
+      if (typeof value === 'string') return value;
+      assert(
+        Array.isArray(value) && value.every(item => typeof item === 'string'),
+        'INVALID_UPSTREAM',
+        `Campo ${name} com tipo incompatível no PNCP.`,
+        502
+      );
+      return value.length ? value.join('; ') : null;
+    };
+    for (const name of [
+      'amparo_legal_nome',
+      'modo_disputa_nome',
+      'fonte_orcamentaria_nome',
+      'usuario_nome',
+      'orgao_subrogado_nome',
+      'unidade_subrogada_nome'
+    ])
+      result[name] = text(name);
+    assert(raw.srp == null || typeof raw.srp === 'boolean', 'INVALID_UPSTREAM', 'srp não é booleano no PNCP.', 502);
+    result.srp = raw.srp ?? null;
+  }
   if (raw.document_type === 'ata')
     for (const field of ['cancelado', 'permite_adesao']) {
       assert(

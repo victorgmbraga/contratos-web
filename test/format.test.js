@@ -43,3 +43,15 @@ test('MASK-04: células da tabela aplicam a máscara declarada na coluna', () =>
   );
   assert.equal(renderCell(null, { field: 'orgao_cnpj', type: 'text', mask: 'cnpj' }).textContent, '—');
 });
+
+test('CHIPS-01: critérios ativos mostram datas e números no padrão brasileiro', async () => {
+  const { filterValueText } = await import('../public/format.js');
+  assert.equal(filterValueText({ name: 'data_publicacao_inicio', type: 'date' }, '2026-10-01'), '01/10/2026');
+  assert.equal(filterValueText({ name: 'valor_total_estimado_min', type: 'decimal' }, '1000.5'), 'R$ 1.000,50');
+  assert.equal(filterValueText({ name: 'resultado_percentual_desconto_min', type: 'decimal' }, '5.25'), '5,25%');
+  assert.equal(filterValueText({ name: 'item_quantidade_min', type: 'decimal' }, '1500.5'), '1.500,5');
+  assert.equal(filterValueText({ name: 'ordem_classificacao_max', type: 'integer' }, 1200), '1.200');
+  assert.equal(filterValueText({ name: 'srp', type: 'boolean' }, false), 'Não');
+  assert.equal(filterValueText({ name: 'codigo_ibge', type: 'text' }, '5300108'), '5300108');
+  assert.equal(filterValueText(undefined, 'livre'), 'livre');
+});
