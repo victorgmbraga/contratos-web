@@ -16,6 +16,17 @@ export function createFiltersPanel({
 }) {
   const $ = getElementById;
   const filterFields = new Map();
+  // Sugestões são listas parciais; preserve os rótulos selecionados por tipo e campo.
+  const selectedLabels = new Map();
+  const labelKey = (type, name, id) => JSON.stringify([type, name, id]);
+  function optionLabel(name, id, type = state.query.document_type) {
+    const cap = state.schema.capabilities.find(cap => cap.name === name);
+    return (
+      selectedLabels.get(labelKey(type, name, id)) ??
+      state.domains?.filters[cap?.domain]?.find(option => option.id === id)?.label ??
+      id
+    );
+  }
   let openFilterEditor = null;
   // Filtros mais usados aparecem primeiro, num grupo próprio; os demais seguem por assunto.
   const PRIMARY_FILTERS = [
@@ -73,7 +84,12 @@ export function createFiltersPanel({
     editor.clear.hidden = value === undefined;
     if (editor.selected) {
       editor.selected = (value || []).map(
-        id => editor.options?.find(o => o.id === id) || editor.selected.find(o => o.id === id) || { id, label: id }
+        id =>
+          editor.options?.find(o => o.id === id) ||
+          editor.selected.find(o => o.id === id) || {
+            id,
+            label: optionLabel(editor.cap.name, id, editor.draft.document_type)
+          }
       );
       renderSelectedOptions(editor);
       updateFilterChoices(editor);
@@ -539,6 +555,8 @@ export function createFiltersPanel({
   }
   async function toggleFilterChoice(editor, option) {
     if (!currentEditor(editor) || editor.input.disabled) return;
+    const key = labelKey(editor.draft.document_type, editor.cap.name, option.id);
+    selectedLabels.set(key, option.label);
     editor.selected = editor.selected.some(value => value.id === option.id)
       ? editor.selected.filter(value => value.id !== option.id)
       : [...editor.selected, option];
@@ -714,6 +732,7 @@ export function createFiltersPanel({
     stop: stopFilterEditors,
     reset: resetFilters,
     mergeDomains,
+    optionLabel,
     closeDropdown: closeFilterDropdown,
     positionDropdown: positionFilterDropdown,
     renderStatuses: renderFilterStatuses,

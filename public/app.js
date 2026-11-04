@@ -372,10 +372,9 @@ export function createApplicationUI(
     if ($('clear-button').hidden) $('clear-button-tooltip').hidden = true;
     $('native-chips').replaceChildren();
     for (const [key, value] of Object.entries(q.pncp_filters)) {
-      const cap = state.schema.capabilities.find(c => c.name === key),
-        options = state.domains?.filters[cap?.domain] || [];
+      const cap = state.schema.capabilities.find(c => c.name === key);
       const label = Array.isArray(value)
-        ? value.map(id => options.find(o => o.id === id)?.label || id).join(', ')
+        ? value.map(id => filters.optionLabel(key, id)).join(', ')
         : filterValueText(cap, value);
       $('native-chips').append(el('span', `${filterLabel(key)}: ${label}`, 'filter-chip'));
     }
