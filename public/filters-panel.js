@@ -1,4 +1,5 @@
 import { compareDecimal } from '../src/validation.js';
+import { decimalKind, formatDecimalInput, parseDecimalInput, sanitizeDecimalInput } from './decimal-input.js';
 import { createFilterLabelCache } from '../src/browser/filter-label-cache.js';
 
 // Modal de filtros: rascunho, editores de domínio, sugestões e amparos por normativo.
@@ -146,6 +147,12 @@ export function createFiltersPanel({
       );
       renderSelectedOptions(editor);
       updateFilterChoices(editor);
+    } else if (editor.decimalKind) {
+      // Durante a digitação o texto do usuário é preservado; fora dela, exibe o padrão brasileiro.
+      if (!editor.editing) {
+        editor.input.value = formatDecimalInput(editor.decimalKind, value);
+        if (value === undefined) setDecimalError(editor, null);
+      }
     } else editor.input.value = value === undefined ? '' : String(value);
     refreshSelects(editor.input);
     updateDraftActions();
@@ -394,7 +401,15 @@ export function createFiltersPanel({
       }
     } else {
       input.type = cap.type === 'date' ? 'date' : cap.type === 'integer' ? 'number' : 'text';
-      if (cap.type === 'decimal') input.inputMode = 'decimal';
+      if (cap.type === 'decimal') {
+        input.inputMode = 'decimal';
+        input.autocomplete = 'off';
+        editor.decimalKind = decimalKind(cap.name);
+        input.addEventListener('blur', () => {
+          if (!editor.invalid && state.draft?.pncp_filters[cap.name] !== undefined)
+            input.value = formatDecimalInput(editor.decimalKind, state.draft.pncp_filters[cap.name]);
+        });
+      }
       if (cap.input_hint) input.placeholder = cap.input_hint;
       if (cap.name === 'codigo_ibge') {
         input.inputMode = 'numeric';
@@ -449,6 +464,19 @@ export function createFiltersPanel({
     if (!currentEditor(editor) || editor.input.disabled) return;
     const { cap, input } = editor;
     let value;
+    if (editor.decimalKind) {
+      const sanitized = sanitizeDecimalInput(editor.decimalKind, input.value);
+      if (sanitized !== input.value) input.value = sanitized;
+      const parsed = parseDecimalInput(editor.decimalKind, sanitized);
+      setDecimalError(editor, parsed.error || null);
+      editor.editing = true;
+      try {
+        await setDraftFilter(cap.name, parsed.value);
+      } finally {
+        editor.editing = false;
+      }
+      return;
+    }
     if (cap.type === 'list') value = editor.selected.map(o => o.id);
     else value = input.value;
     if (value === '' || (Array.isArray(value) && !value.length)) value = undefined;
@@ -739,8 +767,27 @@ export function createFiltersPanel({
     $('filter-search-empty').hidden = visible > 0;
     if (openFilterEditor?.area.hidden) closeFilterDropdown();
   }
+  function setDecimalError(editor, message) {
+    editor.invalid = !!message;
+    editor.error.textContent = message || '';
+    editor.error.hidden = !message;
+    if (message) {
+      editor.input.setAttribute('aria-invalid', 'true');
+      editor.input.setAttribute('aria-describedby', editor.error.id);
+    } else {
+      editor.input.removeAttribute('aria-invalid');
+      if (editor.input.getAttribute('aria-describedby') === editor.error.id)
+        editor.input.removeAttribute('aria-describedby');
+    }
+  }
   function apply() {
     if (state.legalPending || state.legalError) return null;
+    // Valores decimais mal formados não são descartados em silêncio: bloqueiam a aplicação.
+    const invalid = [...filterFields.values()].find(editor => editor.decimalKind && editor.invalid);
+    if (invalid) {
+      invalid.input.focus();
+      return null;
+    }
     state.draft.q = $('search').value;
     state.draft.status = $('status').value;
     return structuredClone(state.draft);

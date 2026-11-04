@@ -106,7 +106,8 @@ async function assertRepresentativeFilters() {
   await filter('tipos_item').selectOption('S');
   await filter('srp').selectOption('false');
   await filter('data_publicacao_inicio').fill('2026-01-01');
-  await filter('valor_total_estimado_min').fill('0.00');
+  // Valores monetários usam o padrão brasileiro no campo e o decimal com ponto na API.
+  await filter('valor_total_estimado_min').fill('R$ 1.234,56');
   await filter('ordem_classificacao_min').fill('0');
   await filter('codigo_ibge').fill('5300108');
   const request = waitQuery(input => input.pncp_filters.tipos_item === 'S');
@@ -116,7 +117,7 @@ async function assertRepresentativeFilters() {
     tipos_item: 'S',
     srp: false,
     data_publicacao_inicio: '2026-01-01',
-    valor_total_estimado_min: '0.00',
+    valor_total_estimado_min: '1234.56',
     ordem_classificacao_min: 0,
     codigo_ibge: '5300108'
   });

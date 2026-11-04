@@ -15,7 +15,7 @@ const checks = [
   ['JS da aplicação', sizeOf(/^index-.*\.js$/), 45 * 1024],
   ['CSS da aplicação', sizeOf(/^index-.*\.css$/), 12 * 1024],
   ['Worker', sizeOf(/^worker-.*\.js$/), 38 * 1024],
-  ['JavaScript total', sizeOf(/\.js$/), 75 * 1024],
+  ['JavaScript total', sizeOf(/\.js$/), 78 * 1024],
   ['CSS total', sizeOf(/\.css$/), 20 * 1024]
 ];
 let failed = false;

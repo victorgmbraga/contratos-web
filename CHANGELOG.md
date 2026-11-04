@@ -2,6 +2,18 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.5.0 — 2026-11-04
+
+### Filtros
+
+- Campos de valor monetário usam a máscara de reais (`R$ 1.000,50`); percentuais aceitam só dígitos, vírgula e `%` (`5,25%`); quantidades passam a usar vírgula decimal (`1.500,5`).
+- O ponto vale apenas como separador de milhar. O envio à API continua com o decimal com ponto (`1000.50`), e valores restaurados de links voltam ao padrão brasileiro.
+- Valores mal formados, como `1000.50`, mostram erro no campo e impedem aplicar os filtros em vez de serem descartados.
+
+### Projeto
+
+- O orçamento de JavaScript total do build passa de 75 KiB para 78 KiB gzip; a `main` já estava em 74,97 KiB. Os limites da aplicação (45 KiB) e do Worker (38 KiB) não mudam.
+
 ## 2.4.0 — 2026-11-04
 
 ### Pesquisa

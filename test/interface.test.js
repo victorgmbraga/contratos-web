@@ -2375,6 +2375,59 @@ test('FILTERS-UI-15: Não é preservado nos cinco booleanos restantes', async ()
   for (const name of names) assert.equal(ui.field(name).value, 'false');
 });
 
+test('FILTERS-UI-25: valores, percentuais e quantidades usam vírgula decimal e enviam o decimal com ponto à API', async () => {
+  const ui = await interfaceFixture({
+    href: 'https://example.test/?tipos_documento=edital&valor_total_estimado_max=250000.5&item_quantidade_min=1500.25'
+  });
+  await ui.nodes.get('filters-button').fire('click');
+  // Valores vindos da URL (formato da API) aparecem no padrão brasileiro.
+  assert.equal(ui.field('valor_total_estimado_max').value, 'R$ 250.000,50');
+  assert.equal(ui.field('item_quantidade_min').value, '1.500,25');
+  assert.equal(ui.field('valor_total_estimado_min').placeholder, 'Ex.: R$ 1.000,50');
+  assert.equal(ui.field('resultado_percentual_desconto_min').placeholder, 'Ex.: 5,25%');
+  const type = async (name, text) => {
+    ui.field(name).value = text;
+    await ui.field(name).fire('input');
+  };
+  await type('valor_total_estimado_min', 'R$ 1.234,56');
+  await type('valor_total_homologado_min', '1000');
+  await type('resultado_percentual_desconto_min', 'abc12,5x%');
+  assert.equal(
+    ui.field('resultado_percentual_desconto_min').value,
+    '12,5%',
+    'percentual aceita só dígitos, vírgula e %'
+  );
+  await type('item_quantidade_max', '10,5');
+  await ui.nodes.get('apply-filters').fire('click');
+  const filters = ui.requests.at(-1).pncp_filters;
+  assert.equal(filters.valor_total_estimado_min, '1234.56');
+  assert.equal(filters.valor_total_estimado_max, '250000.5');
+  assert.equal(filters.valor_total_homologado_min, '1000');
+  assert.equal(filters.resultado_percentual_desconto_min, '12.5');
+  assert.equal(filters.item_quantidade_min, '1500.25');
+  assert.equal(filters.item_quantidade_max, '10.5');
+});
+
+test('FILTERS-UI-26: decimal com ponto no lugar da vírgula é recusado e bloqueia a aplicação', async () => {
+  const ui = await interfaceFixture();
+  await ui.nodes.get('filters-button').fire('click');
+  const requests = ui.requests.length;
+  ui.field('valor_total_estimado_min').value = '1000.50';
+  await ui.field('valor_total_estimado_min').fire('input');
+  assert.equal(ui.nodes.get('filter-error-valor_total_estimado_min').hidden, false);
+  assert.match(ui.nodes.get('filter-error-valor_total_estimado_min').textContent, /R\$ 1\.000,50/);
+  assert.equal(ui.field('valor_total_estimado_min').getAttribute('aria-invalid'), 'true');
+  assert.equal(ui.draft().pncp_filters.valor_total_estimado_min, undefined);
+  await ui.nodes.get('apply-filters').fire('click');
+  assert.equal(ui.requests.length, requests, 'Nenhuma pesquisa com valor inválido');
+  assert.equal(ui.nodes.get('filters-dialog').open, true);
+  ui.field('valor_total_estimado_min').value = '1.000,50';
+  await ui.field('valor_total_estimado_min').fire('input');
+  assert.equal(ui.nodes.get('filter-error-valor_total_estimado_min').hidden, true);
+  await ui.nodes.get('apply-filters').fire('click');
+  assert.equal(ui.requests.at(-1).pncp_filters.valor_total_estimado_min, '1000.50');
+});
+
 test('FILTERS-UI-16: países, reserva, inteiro zero, percentual e data mantêm seus formatos', async () => {
   const ui = await interfaceFixture();
   await ui.nodes.get('filters-button').fire('click');
@@ -2382,7 +2435,7 @@ test('FILTERS-UI-16: países, reserva, inteiro zero, percentual e data mantêm s
     ['paises_fornecedor', ['BRA']],
     ['reservas_remanescentes', ['2']],
     ['ordem_classificacao_min', '0'],
-    ['resultado_percentual_desconto_min', '0.00'],
+    ['resultado_percentual_desconto_min', '0,00%'],
     ['data_homologacao_inicio', '2026-09-01']
   ])
     await ui.editFilter(name, value);

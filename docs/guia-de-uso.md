@@ -27,6 +27,7 @@ O botão **Filtros** abre o modal com todos os filtros compatíveis com o tipo:
 - **Buscar filtro pelo nome** encontra rapidamente um filtro específico, por exemplo "valor" ou "homologação".
 - Campos de lista abrem opções pesquisáveis; órgão, unidade, município e fornecedor sugerem valores a partir de três caracteres.
 - Datas e valores com **mínimo**/**máximo** ou **a partir de**/**até** formam intervalos; preencha só um lado para limitar apenas esse lado.
+- Números seguem o padrão brasileiro: vírgula para decimais e ponto apenas para separar milhares. Valores em reais aparecem como `R$ 1.000,50`, percentuais aceitam só dígitos, vírgula e `%` (por exemplo `5,25%`) e quantidades usam vírgula (`1.500,5`). Um número com ponto no lugar da vírgula, como `1000.50`, é indicado como inválido e impede aplicar os filtros até ser corrigido.
 
 Os filtros se combinam: o resultado precisa atender a todos. Dentro de um mesmo filtro de lista, as opções escolhidas se somam (qualquer uma delas serve). As alterações valem somente depois de **Aplicar e pesquisar**; fechar o modal descarta o rascunho. O número ao lado de **Filtros** indica quantos critérios estão ativos, e **Limpar filtros** remove todos.
 

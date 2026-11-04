@@ -176,11 +176,11 @@ export function filterPresentation(name, documents) {
         : name === 'ordem_classificacao_max'
           ? 'Ex.: 10'
           : name.includes('percentual')
-            ? 'Ex.: 5.25 (sem %)'
+            ? 'Ex.: 5,25%'
             : name.includes('quantidade')
-              ? 'Ex.: 10.5 (na unidade do item)'
+              ? 'Ex.: 10,5 (na unidade do item)'
               : name.includes('valor')
-                ? 'Ex.: 1000.50 (reais)'
+                ? 'Ex.: R$ 1.000,50'
                 : null;
   // O mesmo parâmetro do PNCP tem significado próprio em editais: período de recebimento de propostas.
   const labels_by_document =
