@@ -179,14 +179,12 @@ export function project(raw) {
     modalidade_nome: 'modalidade_licitacao_nome',
     situacao_compra_nome_pncp: 'situacao_nome',
     data_publicacao_pncp: 'data_publicacao_pncp',
-    data_atualizacao_pncp: 'data_atualizacao_pncp'
+    data_atualizacao_pncp: 'data_atualizacao_pncp',
+    // Em editais, a vigência indexada é o período de recebimento de propostas.
+    data_inicio_vigencia: 'data_inicio_vigencia',
+    data_fim_vigencia: 'data_fim_vigencia'
   };
-  if (['ata', 'contrato'].includes(raw.document_type))
-    Object.assign(mapping, {
-      data_assinatura: 'data_assinatura',
-      data_inicio_vigencia: 'data_inicio_vigencia',
-      data_fim_vigencia: 'data_fim_vigencia'
-    });
+  if (['ata', 'contrato'].includes(raw.document_type)) Object.assign(mapping, { data_assinatura: 'data_assinatura' });
   if (raw.document_type === 'contrato')
     Object.assign(mapping, {
       tipo_contrato_nome: 'tipo_contrato_nome',

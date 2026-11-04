@@ -21,6 +21,8 @@ export function createFiltersPanel({
   const PRIMARY_FILTERS = [
     'data_publicacao_inicio',
     'data_publicacao_fim',
+    'data_inicio_vigencia_inicio',
+    'data_inicio_vigencia_fim',
     'ufs',
     'municipios',
     'orgaos',
@@ -30,8 +32,6 @@ export function createFiltersPanel({
     'valor_total_estimado_max',
     'valor_global_min',
     'valor_global_max',
-    'data_inicio_vigencia_inicio',
-    'data_inicio_vigencia_fim',
     'fornecedores'
   ];
   const FILTER_GROUPS = ['Contratação', 'Item', 'Resultado do item', 'Fornecedor', 'Contrato'];
@@ -41,7 +41,8 @@ export function createFiltersPanel({
       statusNames = {
         todos: 'Todos',
         recebendo_proposta: 'Recebendo propostas',
-        propostas_encerradas: 'Propostas encerradas',
+        encerradas: 'Encerradas',
+        propostas_encerradas: 'Em julgamento (propostas encerradas)',
         vigente: 'Vigentes',
         nao_vigente: 'Não vigentes'
       };
@@ -275,7 +276,10 @@ export function createFiltersPanel({
       { signal }
     );
   }
-  function createFilterEditor(cap) {
+  function createFilterEditor(definition) {
+    // Alguns parâmetros têm rótulo próprio por tipo de documento (ex.: propostas em editais).
+    const title = definition.labels_by_document?.[state.draft.document_type] || definition.label;
+    const cap = title === definition.label ? definition : { ...definition, label: title };
     const area = el('div', undefined, 'filter-field');
     area.id = `filter-field-${cap.name}`;
     const label = el('label', cap.label || cap.name),

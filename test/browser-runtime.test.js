@@ -439,7 +439,7 @@ class FakeWorker extends EventTarget {
   }
 }
 
-test('BROWSER-18: prazo de inicialização vale enquanto a configuração não chega e não envia init a um Worker encerrado', async () => {
+test('BROWSER-30: prazo de inicialização vale enquanto a configuração não chega e não envia init a um Worker encerrado', async () => {
   let release;
   const config = new Promise(resolve => {
     release = resolve;
@@ -469,7 +469,7 @@ test('BROWSER-18: prazo de inicialização vale enquanto a configuração não c
   bridge.close();
 });
 
-test('BROWSER-19: encerrar a aplicação durante a espera da configuração rejeita as chamadas', async () => {
+test('BROWSER-31: encerrar a aplicação durante a espera da configuração rejeita as chamadas', async () => {
   let release;
   const config = new Promise(resolve => {
     release = resolve;

@@ -45,7 +45,10 @@ export function createApplicationUI(
   const RESULT_CACHE_LIMIT = 20;
   const filterHeaderIcon =
     '<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16"/><path d="M7 12h10"/><path d="M10 17h4"/></svg>';
-  const filterLabel = name => state.schema.capabilities.find(c => c.name === name)?.label || name;
+  const filterLabel = name => {
+    const cap = state.schema.capabilities.find(c => c.name === name);
+    return cap?.labels_by_document?.[state.query?.document_type] || cap?.label || name;
+  };
   // Estado compartilhado. Cada módulo altera somente os campos que possui:
   // - app.js: schema, query, lastQuery, lastResult, table, placeholder, abort, status, exportAbort, mobileView, resultCache;
   // - filters-panel.js: draft, domains, domainAbort, legalAbort, legalPending, legalError (reiniciados por filters.reset());

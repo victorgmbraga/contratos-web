@@ -22,7 +22,8 @@ Ao abrir a página sem critérios, a aplicação mostra os documentos mais recen
 
 O botão **Filtros** abre o modal com todos os filtros compatíveis com o tipo:
 
-- **Principais** reúne os mais usados: período de publicação, UF, município, órgão, modalidade, situação, faixas de valor, vigência e fornecedor (conforme o tipo).
+- **Principais** reúne os mais usados: período de publicação, início do recebimento de propostas (editais) ou da vigência (atas e contratos), UF, município, órgão, modalidade, situação, faixas de valor e fornecedor (conforme o tipo).
+- **Status temporal** dos editais: recebendo propostas, em julgamento (propostas encerradas), encerradas ou todos; de atas e contratos: vigentes, não vigentes ou todos.
 - **Buscar filtro pelo nome** encontra rapidamente um filtro específico, por exemplo "valor" ou "homologação".
 - Campos de lista abrem opções pesquisáveis; órgão, unidade, município e fornecedor sugerem valores a partir de três caracteres.
 - Datas e valores com **mínimo**/**máximo** ou **a partir de**/**até** formam intervalos; preencha só um lado para limitar apenas esse lado.
@@ -35,7 +36,7 @@ O ícone de funil no cabeçalho de uma coluna abre diretamente o filtro correspo
 
 - A tabela mostra até 100 documentos por página; no celular, os resultados aparecem como cartões, e o menu **Mais** alterna para tabela.
 - Clicar no título de uma coluna ordenável alterna entre ordem crescente e decrescente; o seletor de ordenação oferece as opções do PNCP para o tipo.
-- O botão de colunas escolhe quais colunas aparecem, sua ordem e largura; a escolha fica salva neste navegador para cada tipo.
+- O botão de colunas escolhe quais colunas aparecem, sua ordem e largura; a escolha fica salva neste navegador para cada tipo. Em editais, **Início das propostas** e **Fim das propostas** (data e hora) podem ser ativadas na lista de colunas.
 
 ### Janela de 10.000 resultados
 

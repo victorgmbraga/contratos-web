@@ -1957,6 +1957,8 @@ test('FILTERS-UI-04: mostra todos os filtros compatíveis, agrupados, sem seleto
     [
       'data_publicacao_inicio',
       'data_publicacao_fim',
+      'data_inicio_vigencia_inicio',
+      'data_inicio_vigencia_fim',
       'ufs',
       'municipios',
       'orgaos',
@@ -1975,7 +1977,7 @@ test('FILTERS-UI-04: mostra todos os filtros compatíveis, agrupados, sem seleto
     groups.flatMap(g => g.children.at(-1).children.map(f => f.id.slice('filter-field-'.length)))
   );
   assert.deepEqual([...ui.fieldNames()].sort(), caps.map(c => c.name).sort());
-  assert.equal(ui.fieldNames().length, 71);
+  assert.equal(ui.fieldNames().length, 73);
   assert.equal(ui.field('tipos_contrato'), undefined);
   assert.equal(ui.nodes.has('add-native'), false);
   assert.equal(ui.nodes.has('native-field'), false);
@@ -1988,7 +1990,28 @@ test('FILTERS-UI-04: mostra todos os filtros compatíveis, agrupados, sem seleto
   assert.deepEqual(ui.draft().pncp_filters, {});
 });
 
-test('FILTERS-UI-05: busca pelo nome do filtro oculta campos e grupos sem correspondência', async () => {
+test('FILTERS-UI-23: período de propostas em editais e vigência em contratos usam rótulos próprios', async () => {
+  const ui = await interfaceFixture();
+  const statusTexts = () => ui.nodes.get('draft-status').children.map(option => option.textContent);
+  await ui.nodes.get('filters-button').fire('click');
+  const labelOf = name => ui.nodes.get(`filter-field-${name}`).children[0].children[0].textContent;
+  assert.equal(labelOf('data_inicio_vigencia_inicio'), 'Início do recebimento de propostas a partir de');
+  assert.equal(labelOf('data_inicio_vigencia_fim'), 'Início do recebimento de propostas até');
+  assert.deepEqual(statusTexts(), [
+    'Todos',
+    'Recebendo propostas',
+    'Em julgamento (propostas encerradas)',
+    'Encerradas'
+  ]);
+  ui.nodes.get('filters-dialog').close();
+  ui.nodes.get('document-type').value = 'contrato';
+  await ui.nodes.get('document-type').fire('change');
+  await ui.nodes.get('filters-button').fire('click');
+  assert.equal(labelOf('data_inicio_vigencia_inicio'), 'Início da vigência a partir de');
+  assert.deepEqual(statusTexts(), ['Todos', 'Vigentes', 'Não vigentes']);
+});
+
+test('FILTERS-UI-24: busca pelo nome do filtro oculta campos e grupos sem correspondência', async () => {
   const ui = await interfaceFixture();
   await ui.nodes.get('filters-button').fire('click');
   const search = ui.nodes.get('filter-search'),
