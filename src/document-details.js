@@ -217,6 +217,10 @@ function descriptionCounterparts(path) {
   return [];
 }
 const omittedFields = new Set([
+  // O PNCP não exibe o código IBGE nem o nome da UF da unidade; a localidade já informa município e UF.
+  'codigo_ibge',
+  'unidadeOrgao.codigoIbge',
+  'unidadeOrgao.ufNome',
   'item_url',
   'link_sistema_origem',
   'itemUrl',
@@ -323,8 +327,36 @@ const organizationJoins = {
     ['unidade.codigo', 'unidade.nomeUnidade', 'Unidade']
   ]
 };
+// Como no PNCP, município e UF formam a "Localidade da Unidade" ("Município/UF").
+const locationJoins = {
+  indexed: [
+    ['municipio_nome', 'uf', 'Localidade da Unidade'],
+    ['unidade_subrogada_municipio_nome', 'unidade_subrogada_uf', 'Localidade da Unidade sub-rogada']
+  ],
+  schema: [['municipio_nome', 'uf', 'Localidade da Unidade']],
+  native: [
+    ['unidadeOrgao.municipioNome', 'unidadeOrgao.ufSigla', 'Localidade da Unidade'],
+    ['unidadeSubRogada.municipioNome', 'unidadeSubRogada.ufSigla', 'Localidade da Unidade sub-rogada'],
+    ['unidade.localidade.nomeMunicipio', 'unidade.localidade.uf', 'Localidade da Unidade']
+  ]
+};
+function joinLocations(fields, pairs) {
+  for (const [city, state, title] of pairs) {
+    const cityIndex = fields.findIndex(field => field.field === city);
+    const stateIndex = fields.findIndex(field => field.field === state);
+    if (cityIndex < 0 && stateIndex < 0) continue;
+    const present = value => (value == null || value === '' ? null : String(value));
+    const parts = [present(fields[cityIndex]?.value), present(fields[stateIndex]?.value)].filter(Boolean);
+    const position = Math.min(...[cityIndex, stateIndex].filter(index => index >= 0));
+    const joined = { field: city, title, type: 'text', value: parts.length ? parts.join('/') : null };
+    for (const index of [cityIndex, stateIndex].filter(index => index >= 0).sort((a, b) => b - a))
+      fields.splice(index, 1);
+    fields.splice(position, 0, joined);
+  }
+  return fields;
+}
 export function joinOrganizationFields(fields, source = 'indexed') {
-  return joinFieldValues(fields, organizationJoins[source]);
+  return joinLocations(joinFieldValues(fields, organizationJoins[source]), locationJoins[source]);
 }
 export function indexedDocumentFields(record) {
   assert(

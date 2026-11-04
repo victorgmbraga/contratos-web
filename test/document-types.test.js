@@ -678,7 +678,11 @@ test('DOCUMENTS-19: detalhe completo de edital mantém os campos nativos e os ad
     'modalidadeId',
     'modoDisputaId',
     'situacaoCompraId',
-    'amparoLegal.codigo'
+    'amparoLegal.codigo',
+    // Como no PNCP, o código IBGE e o nome da UF não aparecem; a localidade reúne município e UF.
+    'unidadeOrgao.codigoIbge',
+    'unidadeOrgao.ufNome',
+    'unidadeOrgao.ufSigla'
   ])
     assert(!result.fields.some(item => item.field === field), field);
   for (const field of [
@@ -686,7 +690,6 @@ test('DOCUMENTS-19: detalhe completo de edital mantém os campos nativos e os ad
     'modoDisputaNome',
     'amparoLegal.nome',
     'amparoLegal.descricao',
-    'unidadeOrgao.codigoIbge',
     'categoriaCodigo'
   ])
     assert(

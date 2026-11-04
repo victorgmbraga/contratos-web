@@ -2,6 +2,13 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.3.1 — 2026-11-04
+
+### Detalhes
+
+- UF e Município passam a formar o campo **Localidade da Unidade** (`Município/UF`), como no PNCP, inclusive na unidade sub-rogada e nas partes envolvidas.
+- O código IBGE e o nome da UF da unidade deixam de aparecer nos detalhes; o filtro por código IBGE continua na pesquisa.
+
 ## 2.3.0 — 2026-11-04
 
 ### Pesquisa

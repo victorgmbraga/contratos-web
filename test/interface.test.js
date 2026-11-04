@@ -2775,7 +2775,7 @@ test('ATAS-UI-02: o painel de ata carrega detalhes completos e quatro listas com
   const tabs = ui.nodes.get('details-content').children.find(n => n.className === 'detail-tabs');
   assert.deepEqual(
     tabs.children.map(b => b.textContent),
-    ['Detalhes (20)', 'Partes envolvidas (1)', 'Contratos (2)', 'Arquivos (12)', 'Histórico (12)']
+    ['Detalhes (19)', 'Partes envolvidas (1)', 'Contratos (2)', 'Arquivos (12)', 'Histórico (12)']
   );
   assert.equal(ui.nodes.get('details-kind').textContent, demoAtas[2].title);
   const titles = ui.nodes.get('detail-panel-detalhes').children[0].children.map(f => f.children[0].textContent);
@@ -2804,7 +2804,7 @@ test('CONTRACTS-UI-04: os dados nativos e cinco listas do contrato carregam ante
   const tabs = ui.nodes.get('details-content').children.find(n => n.className === 'detail-tabs');
   assert.deepEqual(
     tabs.children.map(b => b.textContent),
-    ['Detalhes (32)', 'Empenhos (1)', 'Instrumentos de cobrança (1)', 'Termos (1)', 'Arquivos (12)', 'Histórico (12)']
+    ['Detalhes (31)', 'Empenhos (1)', 'Instrumentos de cobrança (1)', 'Termos (1)', 'Arquivos (12)', 'Histórico (12)']
   );
   assert(
     ui.relatedRequests.every(r => r.document.type === 'contrato' && r.document.sequencial === '1' && r.size === 10)
@@ -2969,14 +2969,15 @@ test('DOCUMENTS-UI-01: falha de detalhes conserva a busca, permite tentar novame
   await ui.openDocument(project(demoAtas[0]));
   const panel = ui.nodes.get('detail-panel-detalhes');
   assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state, 'error');
-  assert.equal(panel.children[0].children.length, 13);
+  // UF e Município aparecem juntos como Localidade da Unidade.
+  assert.equal(panel.children[0].children.length, 12);
   assert.match(panel.children[1].textContent, /Falha de detalhes/);
   assert.equal(panel.children[2].hidden, false);
   assert.equal(ui.relatedRequests.length, 4);
   assert.equal(ui.nodes.get('detail-tab-arquivos').dataset.state, 'loaded');
   failed = false;
   await panel.children[2].fire('click');
-  assert.equal(ui.nodes.get('detail-tab-detalhes').textContent, 'Detalhes (20)');
+  assert.equal(ui.nodes.get('detail-tab-detalhes').textContent, 'Detalhes (19)');
   assert.equal(ui.documentRequests.length, 2);
   assert.equal(ui.relatedRequests.length, 4);
 });
@@ -3014,7 +3015,7 @@ test('DOCUMENTS-UI-03: ausência de identificadores originais preserva campos da
   assert.equal(ui.relatedRequests.length, 0);
   assert.equal(ui.itemRequests.length, 0);
   assert.equal(ui.nodes.get('detail-tab-detalhes').dataset.state, 'unavailable');
-  assert.equal(ui.nodes.get('detail-panel-detalhes').children[0].children.length, 13);
+  assert.equal(ui.nodes.get('detail-panel-detalhes').children[0].children.length, 12);
   for (const name of ['partesenvolvidas', 'contratos', 'arquivos', 'historico'])
     assert.equal(ui.nodes.get(`detail-tab-${name}`).dataset.state, 'unavailable');
 });
