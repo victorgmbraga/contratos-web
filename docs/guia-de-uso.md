@@ -43,7 +43,7 @@ O PNCP permite navegar somente pelos primeiros 10.000 resultados de uma pesquisa
 
 ## Ver os detalhes
 
-Clique em uma linha ou cartão para abrir o painel de detalhes. Na aba **Detalhes**, os campos principais (como órgão, situação, valor e datas) aparecem primeiro, em negrito; o link de **Controle PNCP** abre a página oficial do documento. As abas mostram todos os campos, itens, arquivos, documentos vinculados e o histórico. Abas de listas carregam em segundo plano; com economia de dados ativada, elas só carregam quando selecionadas.
+Clique em uma linha ou cartão para abrir o painel de detalhes. Na aba **Detalhes**, a identificação (Controle PNCP, documentos de origem, fonte e processo eletrônico) e os campos principais (como órgão, situação, valor e datas) aparecem primeiro, em negrito; o link de **Controle PNCP** abre a página oficial do documento. As abas mostram todos os campos, itens, arquivos, documentos vinculados e o histórico. Abas de listas carregam em segundo plano; com economia de dados ativada, elas só carregam quando selecionadas.
 
 ## Compartilhar
 

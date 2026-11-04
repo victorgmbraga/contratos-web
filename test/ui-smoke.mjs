@@ -624,7 +624,7 @@ try {
     assert.equal(await button.getAttribute('aria-label'), accessibleLabel);
     assert.equal(await button.getAttribute('title'), null);
     assert.equal(await button.locator('svg').count(), 1);
-    assert.equal(await button.locator('span:not(.count-badge):not(.button-label)').count(), 0);
+    assert.equal(await button.locator('span:not(.count-badge)').count(), 0);
     // O tooltip repete o nome acessível e não é anunciado novamente como descrição.
     assert.equal(await button.getAttribute('aria-describedby'), null);
     await button.hover();
@@ -768,13 +768,19 @@ try {
   assert.match(await page.locator('#detail-panel-detalhes').innerText(), /Modo de disputa/);
   const detailLabels = await page.locator('#detail-panel-detalhes dt').allInnerTexts();
   // Campos principais primeiro e em negrito; em seguida, a ordem da fonte.
-  assert.deepEqual(detailLabels.slice(0, 4), ['Órgão', 'Situação', 'Valor total estimado', 'Publicação no PNCP']);
-  assert.deepEqual(detailLabels.slice(4, 6), ['Controle PNCP', 'Fonte']);
+  assert.deepEqual(detailLabels.slice(0, 6), [
+    'Controle PNCP',
+    'Fonte',
+    'Órgão',
+    'Situação',
+    'Valor total estimado',
+    'Publicação no PNCP'
+  ]);
   assert.deepEqual(
     await page
       .locator('#detail-panel-detalhes .detail-highlight dd')
       .evaluateAll(nodes => nodes.map(node => getComputedStyle(node).fontWeight)),
-    ['700', '700', '700', '700']
+    ['700', '700', '700', '700', '700', '700']
   );
   assert.equal(await page.locator('.detail-summary').count(), 0);
   check('Detalhes abre com seis abas e todos os campos disponíveis');
@@ -1101,6 +1107,15 @@ try {
   await page.locator('#detail-tab-detalhes').click();
   const ataControl = page.locator('#detail-panel-detalhes dt:text-is("Controle PNCP") + dd a');
   assert.match(await ataControl.getAttribute('href'), /\/app\/atas\//);
+  // Controle PNCP e a contratação de origem abrem a lista, ambos em destaque.
+  assert.deepEqual((await page.locator('#detail-panel-detalhes .detail-highlight dt').allInnerTexts()).slice(0, 2), [
+    'Controle PNCP',
+    'Contratação de origem'
+  ]);
+  assert.deepEqual((await page.locator('#detail-panel-detalhes dt').allInnerTexts()).slice(0, 2), [
+    'Controle PNCP',
+    'Contratação de origem'
+  ]);
   await page.locator('#detail-panel-detalhes dt:text-is("Contratação de origem") + dd button').click();
   await page.waitForFunction(
     () =>
