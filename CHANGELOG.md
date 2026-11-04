@@ -2,6 +2,13 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.5.1 — 2026-11-04
+
+### Filtros
+
+- Os grupos do modal de filtros abrem e fecham com animação de altura e opacidade, e a seta do título gira junto; com movimento reduzido, a transição é desligada.
+- As linhas divisórias entre os grupos foram removidas.
+
 ## 2.5.0 — 2026-11-04
 
 ### Filtros

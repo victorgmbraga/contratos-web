@@ -217,4 +217,6 @@ export async function openAllFilters(page) {
       group.open = true;
     })
   );
+  // Os grupos abrem com animação de altura; as medições usam o tamanho final.
+  await page.waitForFunction(() => document.getAnimations().every(animation => animation.playState !== 'running'));
 }

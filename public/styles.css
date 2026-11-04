@@ -892,19 +892,59 @@ dialog::backdrop {
 }
 .filter-group {
   min-width: 0;
-  margin: 16px 0 0;
-  padding: 16px 0 0;
+  margin: 8px 0 0;
+  padding: 0;
   border: 0;
-  border-top: 1px solid var(--line);
+  /* Permite animar a altura de 0 até o tamanho natural do conteúdo. */
+  interpolate-size: allow-keywords;
 }
 .filter-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-height: 44px;
   cursor: pointer;
-  margin-bottom: 16px;
   padding: 8px 10px 8px 0;
   font-size: 0.9375rem;
   font-weight: 700;
   color: var(--navy);
+  list-style: none;
+}
+.filter-group > summary::-webkit-details-marker {
+  display: none;
+}
+/* Seta que gira ao abrir e fechar o grupo. */
+.filter-group > summary::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin: 0 4px 0 2px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.2s ease-out;
+}
+.filter-group[open] > summary::before {
+  transform: rotate(45deg);
+}
+/* Abertura e fechamento animados; navegadores sem ::details-content abrem sem animação. */
+.filter-group::details-content {
+  block-size: 0;
+  opacity: 0;
+  overflow: clip;
+  overflow-clip-margin: 6px;
+  transition:
+    block-size 0.24s ease-out,
+    opacity 0.2s ease-out,
+    content-visibility 0.24s allow-discrete;
+}
+.filter-group[open]::details-content {
+  block-size: auto;
+  opacity: 1;
+}
+.filter-group > .filter-grid {
+  padding: 8px 0 16px;
 }
 .filter-grid {
   display: grid;
@@ -1718,6 +1758,11 @@ dialog select[multiple] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .filter-group::details-content {
+    transition: none !important;
   }
 }
 

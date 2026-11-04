@@ -292,7 +292,8 @@ export function createFiltersPanel({
               ? 'Ata'
               : groupName
         );
-      group.open = groupName === 'Principais';
+      // O grupo do campo alvo já nasce aberto (sem animação), para a rolagem usar a altura final.
+      group.open = groupName === 'Principais' || caps.some(cap => cap.name === target);
       group.append(legend);
       const grid = el('div', undefined, 'filter-grid');
       group.append(grid);
