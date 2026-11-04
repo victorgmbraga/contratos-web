@@ -2,6 +2,13 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.4.0 — 2026-11-04
+
+### Pesquisa
+
+- Editais ganham colunas opcionais com os dados que o portal PNCP mostra em cada edital da listagem: **Amparo legal**, **Modo de disputa**, **Registro de preços**, **Fonte orçamentária**, **Fonte/Plataforma**, **Órgão sub-rogado** e **Unidade sub-rogada**. Também entram no CSV de editais.
+- Os critérios ativos acima da tabela passam a mostrar datas (`01/10/2026`), valores (`R$ 1.000,50`), percentuais e quantidades no padrão brasileiro.
+
 ## 2.3.1 — 2026-11-04
 
 ### Detalhes

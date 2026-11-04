@@ -5,7 +5,7 @@ import { createResultsTable } from './results-table.js';
 import { paginationIcons } from './pagination.js';
 import { initializeMobileLayout } from './mobile-layout.js';
 import { initializeSelectMenus } from './select-menu.js';
-import { fmtInt, createCellRenderer } from './format.js';
+import { fmtInt, createCellRenderer, filterValueText } from './format.js';
 import { createColumnLayout } from './column-layout.js';
 import { createTooltips } from './tooltips.js';
 import { createDetailsPanel } from './details-panel.js';
@@ -376,11 +376,7 @@ export function createApplicationUI(
         options = state.domains?.filters[cap?.domain] || [];
       const label = Array.isArray(value)
         ? value.map(id => options.find(o => o.id === id)?.label || id).join(', ')
-        : typeof value === 'boolean'
-          ? value
-            ? 'Sim'
-            : 'Não'
-          : String(value);
+        : filterValueText(cap, value);
       $('native-chips').append(el('span', `${filterLabel(key)}: ${label}`, 'filter-chip'));
     }
     selectMenus?.refresh();

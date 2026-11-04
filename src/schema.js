@@ -49,6 +49,14 @@ export const columns = [
     native_range: ['valor_total_homologado_min', 'valor_total_homologado_max']
   }),
   column('tem_resultado', 'Tem resultado', 'boolean'),
+  // Informações exibidas pelo portal PNCP em cada edital da listagem; opcionais na tabela.
+  column('amparo_legal_nome', 'Amparo legal', 'text', { width: 240, domain: 'amparos_legais' }),
+  column('modo_disputa_nome', 'Modo de disputa', 'text', { width: 170, domain: 'modos_disputa' }),
+  column('srp', 'Registro de preços', 'boolean', { width: 150 }),
+  column('fonte_orcamentaria_nome', 'Fonte orçamentária', 'text', { width: 170, domain: 'fontes_orcamentarias' }),
+  column('usuario_nome', 'Fonte/Plataforma', 'text', { width: 200, domain: 'fontes' }),
+  column('orgao_subrogado_nome', 'Órgão sub-rogado', 'text', { width: 240, domain: 'orgaos_subrogados' }),
+  column('unidade_subrogada_nome', 'Unidade sub-rogada', 'text', { width: 220, domain: 'unidades_subrogadas' }),
   column('link_sistema_origem', 'Sistema de origem'),
   column('url_pncp', 'Link PNCP')
 ];
@@ -90,6 +98,13 @@ const commonColumns = columns.filter(
       'valor_total_estimado',
       'valor_total_homologado',
       'tem_resultado',
+      'amparo_legal_nome',
+      'modo_disputa_nome',
+      'srp',
+      'fonte_orcamentaria_nome',
+      'usuario_nome',
+      'orgao_subrogado_nome',
+      'unidade_subrogada_nome',
       'data_inicio_vigencia',
       'data_fim_vigencia'
     ].includes(c.field)
