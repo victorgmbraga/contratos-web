@@ -12,7 +12,7 @@ Aplicação para pesquisar editais e avisos de contratações, atas de registro 
 - Exportação dos resultados completos ou somente da página atual em CSV pelo menu **Exportar**, com progresso e estimativa de tempo.
 - Links compartilháveis para buscas e detalhes de documentos.
 - Filtros organizados com o grupo **Principais**, busca pelo nome do filtro e contador de critérios ativos.
-- Painel de detalhes com resumo e acesso direto à página oficial no PNCP.
+- Detalhes com os campos principais de cada tipo em destaque, no início da lista.
 - Interface responsiva com temas claro e escuro, alternância cartões/tabela no mobile e atalhos `/` e `Ctrl+K` para a busca.
 
 ## Desenvolvimento local
