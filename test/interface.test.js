@@ -2402,6 +2402,50 @@ test('FILTERS-UI-17: normativo atualiza amparos ainda sem seleção e reabrir pr
   assert.deepEqual(ui.draft().pncp_filters, { normativos_base: ['1'], ufs: ['DF'] });
 });
 
+test('FILTERS-UI-18B: preserva nomes de sugestões fora do domínio inicial após pesquisar e reabrir', async () => {
+  let suggested;
+  const ui = await interfaceFixture({
+    suggestHandler: async payload => {
+      suggested();
+      return { items: [{ id: '90939', label: `${payload.type}: ${payload.field} selecionado` }] };
+    }
+  });
+  for (const type of ['edital', 'ata', 'contrato']) {
+    if (type !== 'edital') {
+      ui.nodes.get('document-type').value = type;
+      await ui.nodes.get('document-type').fire('change');
+    }
+    await ui.nodes.get('filters-button').fire('click');
+    for (const name of ['orgaos', 'unidades']) {
+      const received = new Promise(resolve => {
+        suggested = resolve;
+      });
+      ui.field(name).value = 'incra';
+      await ui.field(name).fire('input');
+      await received;
+      await tick();
+      const choice = (await ui.options(name)).find(button => button.dataset.value === '90939');
+      assert(choice, `Sugestão remota de ${name} disponível`);
+      await choice.fire('click');
+    }
+    await ui.nodes.get('apply-filters').fire('click');
+    const chips = ui.nodes
+      .get('native-chips')
+      .children.map(node => node.textContent)
+      .join(' ');
+    for (const name of ['orgaos', 'unidades']) {
+      assert(chips.includes(`${type}: ${name} selecionado`));
+      assert.deepEqual(ui.state().pncp_filters[name], ['90939']);
+    }
+    await ui.nodes.get('refresh-button').fire('click');
+    await ui.nodes.get('filters-button').fire('click');
+    for (const name of ['orgaos', 'unidades']) {
+      assert.equal(ui.nodes.get(`filter-selected-${name}`).children[0].textContent, `${type}: ${name} selecionado ×`);
+    }
+    ui.nodes.get('filters-dialog').close();
+  }
+});
+
 test('FILTERS-UI-18: campos com sugestões mantêm seleções independentes e permitem remover uma delas', async () => {
   const ui = await interfaceFixture();
   await ui.nodes.get('filters-button').fire('click');
