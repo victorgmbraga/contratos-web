@@ -667,6 +667,12 @@ test('RELATED-UI-01: quatro abas carregam em background e exibem dados e links c
   assert.equal(ui.nodes.get('details-dialog').open, true);
   assert.equal(new URL(ui.browser.href()).searchParams.get('detalhe'), 'ata/00000000000000/2026/1/1');
   assert.equal(ui.nodes.get('detail-tab-partesenvolvidas').dataset.resource, 'partesenvolvidas');
+  assert.equal(ui.nodes.get('details-back').hidden, false);
+  await ui.nodes.get('details-back').fire('click');
+  assert.equal(new URL(ui.browser.href()).searchParams.get('detalhe'), 'edital/00000000000000/2026/1');
+  assert.equal(new URL(ui.browser.href()).searchParams.get('aba'), 'arquivos');
+  assert.equal(ui.nodes.get('detail-tab-arquivos').getAttribute('aria-selected'), 'true');
+  assert.equal(ui.nodes.get('details-back').hidden, true);
 });
 test('RELATED-UI-07: cartões vinculados exibem órgão e unidade no formato do PNCP', async () => {
   const ui = await interfaceFixture({

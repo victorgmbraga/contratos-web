@@ -25,8 +25,20 @@ export function createDetailsPanel({
   refreshSelects
 }) {
   const $ = getElementById;
+  const navigation = [];
+  let currentDocument = null;
+  $('details-back').addEventListener('click', () => {
+    const previous = navigation.pop();
+    if (!previous) return;
+    const result = openDetails(previous.doc, { tab: previous.tab, navigationMode: 'back' });
+    if (!navigation.length) $('details-dialog').querySelector('.close-dialog')?.focus({ preventScroll: true });
+    return result;
+  });
   function closeDetails(sync = true) {
     const previous = state.detailSelection;
+    navigation.length = 0;
+    currentDocument = null;
+    $('details-back').hidden = true;
     state.detailAbort?.abort();
     session.next('detail');
     state.detailSelection = null;
@@ -71,7 +83,7 @@ export function createDetailsPanel({
     }
     const indexed = state.lastResult?.data.find(doc => sameDocument(detailIdentity(doc), selection.document));
     const row = indexed ? { ...indexed, _direct_link: true } : directDetailRow(selection.document);
-    return openDetails(row, { tab: selection.tab, sync: false, searchReady });
+    return openDetails(row, { tab: selection.tab, sync: false, searchReady, navigationMode: 'restore' });
   }
   async function searchRowFor(identity, searchReady, doc, signal) {
     const control = doc.numero_controle_pncp;
@@ -170,7 +182,7 @@ export function createDetailsPanel({
     button.type = 'button';
     button.setAttribute('aria-label', `Abrir ${label} no Contratos Web`);
     button.addEventListener('click', () => {
-      openDetails(directDetailRow(document));
+      openDetails(directDetailRow(document), { navigationMode: 'linked' });
     });
     return button;
   }
@@ -182,7 +194,7 @@ export function createDetailsPanel({
     link.addEventListener('click', event => {
       if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
-      return openDetails(directDetailRow(identity));
+      return openDetails(directDetailRow(identity), { navigationMode: 'linked' });
     });
     return link;
   }
@@ -505,12 +517,29 @@ export function createDetailsPanel({
     }
     return { section, load: () => (detailIdentity(doc) ? load(1) : Promise.resolve()) };
   }
-  async function openDetails(doc, { tab = 'detalhes', sync = true, searchReady = Promise.resolve() } = {}) {
+  async function openDetails(
+    doc,
+    { tab = 'detalhes', sync = true, searchReady = Promise.resolve(), navigationMode = 'root' } = {}
+  ) {
+    const identity = detailIdentity(doc);
+    if (
+      navigationMode === 'linked' &&
+      currentDocument &&
+      state.detailSelection &&
+      !sameDocument(state.detailSelection.document, identity)
+    ) {
+      navigation.push({ doc: currentDocument, tab: state.detailSelection.tab });
+    } else if (navigationMode === 'restore') {
+      const index = navigation.findLastIndex(entry => sameDocument(detailIdentity(entry.doc), identity));
+      if (index >= 0) navigation.splice(index);
+      else navigation.length = 0;
+    } else if (navigationMode === 'root') navigation.length = 0;
+    currentDocument = doc;
+    $('details-back').hidden = navigation.length === 0;
     state.detailAbort?.abort();
     const token = session.next('detail');
     const detailController = new AbortController();
     state.detailAbort = detailController;
-    const identity = detailIdentity(doc);
     state.detailSelection = identity ? { document: identity, tab } : null;
     const schedule = detailScheduler(),
       loads = [],
