@@ -998,8 +998,11 @@ try {
   await page.waitForFunction(() =>
     [...document.querySelectorAll('.detail-tab')].every(button => button.dataset.state === 'loaded')
   );
-  assert.equal(await page.locator('#detail-panel-detalhes dt').count(), 32);
+  // UF e Município aparecem juntos como Localidade da Unidade (Município/UF).
+  assert.equal(await page.locator('#detail-panel-detalhes dt').count(), 31);
   assert.match(await page.locator('#details-content').innerText(), /Valor inicial/);
+  assert.match(await page.locator('#detail-panel-detalhes').innerText(), /Localidade da Unidade\n[^\n]+\/[A-Z]{2}/);
+  assert.equal(await page.locator('#detail-panel-detalhes dt:text-is("UF")').count(), 0);
   assert.equal(await page.locator('.items-section').count(), 0);
   assert.equal(detailRequests.length, 0);
   check('Contrato carrega os dados nativos e cinco listas sem confundir seu sequencial com a compra');
@@ -1093,7 +1096,7 @@ try {
     [...document.querySelectorAll('.detail-tab')].every(button => button.dataset.state === 'loaded')
   );
   assert.equal(ataRequests.length, 5);
-  assert.equal(await page.locator('#detail-panel-detalhes dt').count(), 20);
+  assert.equal(await page.locator('#detail-panel-detalhes dt').count(), 19);
   assert.match(await page.locator('#detail-panel-detalhes').innerText(), /Número da ata/);
   assert.equal(await page.locator('#detail-tab-itens').count(), 0);
   assert.equal(await page.locator('#detail-tab-termos').count(), 0);
