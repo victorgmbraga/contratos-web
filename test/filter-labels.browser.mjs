@@ -3,6 +3,7 @@ import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import { launchTestBrowser } from './browser-launch.js';
 import { createStaticServer } from './static-server.js';
 import { routePncp } from './pncp-route.js';
+import { demoDocuments } from './demo-fixtures.js';
 
 const app = createStaticServer(new URL('../dist-browser/', import.meta.url));
 await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
@@ -45,6 +46,33 @@ try {
     assert((await page.locator(`#filter-selected-${field}`).innerText()).includes(name));
   }
   assert.equal(suggestions, 2, 'Recarregar não repete o autocomplete para recuperar os nomes');
+  await page.locator('#filters-dialog .close-dialog').click();
+  await context.route('https://pncp.gov.br/api/search/?**', route =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            ...demoDocuments[0],
+            orgao_id: '90939',
+            unidade_id: '90939',
+            orgao_nome: names.orgaos,
+            unidade_nome: names.unidades
+          }
+        ],
+        total: 1
+      },
+      headers: { 'Access-Control-Allow-Origin': '*' }
+    })
+  );
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('#native-chips').textContent.includes('UNIDADE DO INCRA'));
+  for (const name of Object.values(names)) assert((await page.locator('#native-chips').innerText()).includes(name));
+  await page.locator('#filters-button').click();
+  for (const [field, name] of Object.entries(names)) {
+    await page.locator(`#filter-${field}:not(:disabled)`).waitFor();
+    assert((await page.locator(`#filter-selected-${field}`).innerText()).includes(name));
+  }
   assert.deepEqual(errors, []);
   console.log('PASS Órgão e Unidade fora da lista inicial preservam os nomes no resumo e no modal após reload real');
 } catch (error) {

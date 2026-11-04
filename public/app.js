@@ -406,6 +406,7 @@ export function createApplicationUI(
         /* As opções continuam indisponíveis; os filtros seguem funcionando. */
       }
     }
+    await filters.resolveLabels(state.query);
     if (state.query?.document_type === type) updateCriteria();
   }
   function renderCard(doc) {
@@ -489,6 +490,9 @@ export function createApplicationUI(
   function renderResult(result, query) {
     state.lastQuery = clone(query);
     state.lastResult = result;
+    void filters.resolveLabels(query, result.data).then(() => {
+      if (state.query === query || resultCacheKey(state.query) === resultCacheKey(query)) updateCriteria();
+    });
     if (window.navigator?.onLine !== false) setConnectivity('');
     $('result-info').hidden = false;
     renderPlaceholder(query, result.data.length === 0);

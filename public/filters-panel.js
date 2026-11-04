@@ -28,6 +28,55 @@ export function createFiltersPanel({
       id
     );
   }
+  const pendingLabels = new Map();
+  async function resolveLabels(query, rows = []) {
+    const type = query.document_type;
+    for (const [field, idField, nameField] of [
+      ['orgaos', 'orgao_id', 'orgao_nome'],
+      ['unidades', 'unidade_id', 'unidade_orgao_nome_unidade']
+    ]) {
+      for (const id of query.pncp_filters[field] || []) {
+        if (state.query.document_type !== type) return;
+        if (optionLabel(field, id, type) !== id) continue;
+        const key = labelKey(type, field, id);
+        if (!pendingLabels.has(key)) {
+          const task = (async () => {
+            let row = rows.find(row => row[idField] === id && row[nameField]);
+            if (!row) {
+              const result = await service.call('execute', {
+                query: {
+                  api_version: '2.0',
+                  document_type: type,
+                  q: '',
+                  status: 'todos',
+                  pncp_filters: { [field]: [id] },
+                  order: '-data',
+                  page: 1,
+                  size: 10
+                }
+              });
+              row = result.data.find(row => row[idField] === id && row[nameField]);
+            }
+            if (!row) return;
+            selectedLabels.set(key, row[nameField]);
+            const editor = filterFields.get(field);
+            if (editor && currentEditor(editor) && editor.draft.document_type === type) {
+              editor.selected = editor.selected.map(option =>
+                option.id === id ? { ...option, label: row[nameField] } : option
+              );
+              syncFilterEditor(editor);
+            }
+          })()
+            .catch(() => {
+              /* Preserva o ID e permite tentar novamente ao atualizar. */
+            })
+            .finally(() => pendingLabels.delete(key));
+          pendingLabels.set(key, task);
+        }
+        await pendingLabels.get(key);
+      }
+    }
+  }
   let openFilterEditor = null;
   // Filtros mais usados aparecem primeiro, num grupo próprio; os demais seguem por assunto.
   const PRIMARY_FILTERS = [
@@ -734,6 +783,7 @@ export function createFiltersPanel({
     reset: resetFilters,
     mergeDomains,
     optionLabel,
+    resolveLabels,
     closeDropdown: closeFilterDropdown,
     positionDropdown: positionFilterDropdown,
     renderStatuses: renderFilterStatuses,

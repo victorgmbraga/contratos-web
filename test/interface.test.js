@@ -2402,6 +2402,52 @@ test('FILTERS-UI-17: normativo atualiza amparos ainda sem seleção e reabrir pr
   assert.deepEqual(ui.draft().pncp_filters, { normativos_base: ['1'], ufs: ['DF'] });
 });
 
+test('FILTER-LABELS-URL: recupera Órgão e Unidade sem cache mesmo quando a busca compartilhada está vazia', async () => {
+  for (const type of ['edital', 'ata', 'contrato']) {
+    let lookups = 0;
+    const original = { edital: demoDocuments, ata: demoAtas, contrato: demoContracts }[type][0];
+    const ui = await interfaceFixture({
+      href: `https://example.test/?tipos_documento=${type}&orgaos=90939&unidades=90939&q=semresultado`,
+      itemFetcher: async (url, init) => {
+        const parsed = new URL(url);
+        if (parsed.pathname.replace(/\/$/, '') === '/api/search') {
+          if (parsed.searchParams.get('q')) return Response.json({ items: [], total: 0 });
+          lookups++;
+          return Response.json({
+            items: [
+              {
+                ...original,
+                orgao_id: '90939',
+                unidade_id: '90939',
+                orgao_nome: 'Órgão recuperado',
+                unidade_nome: 'Unidade recuperada'
+              }
+            ],
+            total: 1
+          });
+        }
+        return demoFetch(url, init);
+      }
+    });
+    let chips;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      chips = ui.nodes
+        .get('native-chips')
+        .children.map(node => node.textContent)
+        .join(' ');
+      if (chips.includes('Unidade recuperada')) break;
+      await tick();
+    }
+    assert(chips.includes('Órgão recuperado'), chips);
+    assert(chips.includes('Unidade recuperada'), chips);
+    assert.equal(lookups, 2);
+    assert.equal(ui.state().q, 'semresultado');
+    await ui.nodes.get('filters-button').fire('click');
+    assert.match(ui.nodes.get('filter-selected-orgaos').children[0].textContent, /Órgão recuperado/);
+    assert.match(ui.nodes.get('filter-selected-unidades').children[0].textContent, /Unidade recuperada/);
+  }
+});
+
 test('FILTERS-UI-18B: preserva nomes de sugestões após pesquisar, atualizar e recarregar nos três tipos', async () => {
   let suggested;
   const storage = memoryStorage();
