@@ -2,7 +2,7 @@
 
 A aplicação está disponível em [contratos-web.net.br](https://contratos-web.net.br/). O repositório é [victorgmbraga/contratos-web](https://github.com/victorgmbraga/contratos-web).
 
-O artefato de produção é `dist-browser/`. A hospedagem entrega HTML, JavaScript, CSS, favicon, licenças, `theme-boot.js`, `sw.js` e `browser-config.json`; o navegador consulta o PNCP e gera o CSV.
+O artefato de produção é `dist-browser/`. A hospedagem entrega HTML (com o boot do tema embutido), JavaScript, CSS, favicon, licenças, `sw.js` e `browser-config.json`; o navegador consulta o PNCP e gera o CSV.
 
 ## Gerar e verificar
 
@@ -29,7 +29,7 @@ A imagem social fica em `public/og-image.png` (1200×630) e é copiada para a ra
 
 ## GitHub Pages
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pull requests e publica pushes para `main`, com opção de execução manual. O job `validate` usa Node.js 24, instalação reproduzível, lint, tipos e testes com cobertura, gera os builds de produção e de teste uma vez e confere o orçamento de tamanho. O artefato `browser-builds` é baixado pelos jobs de Chromium e Firefox, executados em paralelo e sem recompilar. O job `deploy` depende da validação e dos dois navegadores, baixa esse mesmo artefato e envia somente `dist-browser/` ao Pages. Depois da publicação, verifica o HTML, a configuração, o Service Worker, a imagem social e os assets no domínio público, comparando conteúdo e tipo HTTP ao build validado. A verificação faz até oito tentativas e não depende do PNCP. Uma falha nessa etapa sinaliza erro depois de o deploy já ter ocorrido. Só `main` é publicada, fora de pull requests; outras branches podem ser validadas manualmente, mas não são publicadas.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) valida pull requests e publica pushes para `main`, com opção de execução manual. O job `validate` usa Node.js 24, instalação reproduzível, formatação, lint, tipos e testes com cobertura, gera os builds de produção e de teste uma vez e confere o orçamento de tamanho. O artefato `browser-builds` é baixado pelos jobs de Chromium e Firefox, executados em paralelo e sem recompilar. O job `deploy` depende da validação e dos dois navegadores, baixa esse mesmo artefato e envia somente `dist-browser/` ao Pages. Depois da publicação, verifica o HTML, a configuração, o Service Worker, a imagem social e os assets no domínio público, comparando conteúdo e tipo HTTP ao build validado. A verificação faz até oito tentativas e não depende do PNCP. Uma falha nessa etapa sinaliza erro depois de o deploy já ter ocorrido. Só `main` é publicada, fora de pull requests; outras branches podem ser validadas manualmente, mas não são publicadas.
 
 O workflow [`webkit.yml`](../.github/workflows/webkit.yml) roda a suíte em WebKit semanalmente ou sob demanda e não publica no Pages.
 
@@ -50,7 +50,7 @@ Em provedores como Cloudflare Pages, use comando de build `npm run build`, saíd
 
 O build gera `_headers` com a política de segurança definida em [`vite.config.js`](../vite.config.js). O `sw.js` é registrado somente em HTTPS e mantém em cache apenas os assets com hash em `/assets/*`; HTML, configuração e chamadas ao PNCP continuam indo à rede. O nome do cache recebe um hash dos assets de cada build, e a ativação remove versões anteriores.
 
-- Scripts e Worker da própria origem; conexões à própria origem e a `https://pncp.gov.br`.
+- Scripts e Worker da própria origem, mais o boot do tema embutido, autorizado pelo hash SHA-256 do seu conteúdo (calculado pelo build); conexões à própria origem e a `https://pncp.gov.br`.
 - `X-Content-Type-Options: nosniff` e `Referrer-Policy: no-referrer`.
 - `Cache-Control: no-cache` para os arquivos e cache imutável de um ano para `/assets/*`.
 

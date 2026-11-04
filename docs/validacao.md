@@ -10,7 +10,14 @@ npm run lint
 
 O [ESLint](../eslint.config.js) verifica `src/`, `public/` e `test/` com as regras recomendadas e ajustes próprios do projeto: código de distribuição não pode usar `console`, comparações usam `===` (exceto com `null`), não há `var`, `catch` vazio é permitido e o parser de JSON pode inspecionar caracteres de controle. O workflow de validação executa o lint antes dos testes.
 
-O Prettier fica disponível para uso pontual em arquivos alterados ([`.prettierrc.json`](../.prettierrc.json)), mas não é aplicado ao repositório inteiro: o estilo compacto atual é intencional e um recuo global produziria um diff sem mudança de comportamento.
+## Formatação
+
+```sh
+npm run format        # aplica o Prettier
+npm run format:check  # confere sem alterar (executado no CI antes do lint)
+```
+
+O [Prettier](../.prettierrc.json) formata `src/`, `public/`, `test/`, `types/` e os arquivos de configuração da raiz, com largura de 120 colunas. A reformatação inicial do repositório está listada em [`.git-blame-ignore-revs`](../.git-blame-ignore-revs); use `git config blame.ignoreRevsFile .git-blame-ignore-revs` para que o `git blame` a ignore.
 
 ## Tipos
 
@@ -36,7 +43,7 @@ A cobertura é conferida pelo mesmo conjunto:
 npm run test:coverage
 ```
 
-O runner mede linhas, branches e funções de `src/` e `public/` e falha abaixo de 78%, 88% e 84%. No CI, somente `test:coverage` executa esse conjunto, sem repeti-lo com `npm test`. Módulos que dependem de tabela, seletores nativos ou layout móvel são cobrados principalmente pela suíte de navegador; a cobertura unitária não substitui esses fluxos.
+O runner mede linhas, branches e funções somente do código de produção (`src/` e `public/`; `test/` e `vite.config.js` ficam fora da conta) e falha abaixo de 80%, 89% e 85%. No CI, somente `test:coverage` executa esse conjunto, sem repeti-lo com `npm test`. Módulos que dependem de tabela, seletores nativos ou layout móvel são cobrados principalmente pela suíte de navegador; a cobertura unitária não substitui esses fluxos.
 
 O runner nativo executa até quatro arquivos de `test/*.test.js` em paralelo, com isolamento por processo. Os casos dentro de cada arquivo continuam sequenciais. A suíte cobre:
 
@@ -128,7 +135,7 @@ CONTRATOS_QA_DIAGNOSTICS_DIR=/tmp/contratos-evidencias npm run test:browser -- -
 
 Cada etapa que falhar grava `failure.txt`, `console.json`, screenshots das páginas abertas e um trace por contexto quando disponíveis. Abra o trace com `npx playwright show-trace caminho/para/context-1-trace.zip`. O CI salva essas evidências como `browser-failure-chromium`, `browser-failure-firefox` ou `browser-failure-webkit` por sete dias. Os dados do navegador usados nesses testes são sintéticos. Uma etapa bem-sucedida não gera artefatos de diagnóstico. Novas suítes devem chamar `diagnoseBrowserFailure(error)` antes de fechar páginas, contextos ou o navegador, preservando o erro original.
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa lint, as duas verificações de tipos e os testes com cobertura uma vez; gera os dois builds, verifica o orçamento e compartilha `browser-builds`. A matriz `browser` executa Chromium e Firefox em paralelo, cada um instalando apenas seu navegador e testando os mesmos arquivos com `--skip-build`. Uma falha não cancela a coleta de resultados do outro navegador. O job `deploy` depende de `validate` e de toda a matriz, baixa o mesmo artefato e envia apenas `dist-browser/` ao Pages, sem recompilar. Após publicar, [`test/verify-deployment.mjs`](../test/verify-deployment.mjs) compara a página e os recursos principais do domínio público com o build validado, incluindo o tipo de conteúdo HTTP. Até oito tentativas, com intervalo de cinco segundos, acomodam a propagação do Pages. A verificação não consulta o PNCP.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa formatação, lint, as duas verificações de tipos e os testes com cobertura uma vez; gera os dois builds, verifica o orçamento e compartilha `browser-builds`. A matriz `browser` executa Chromium e Firefox em paralelo, cada um instalando apenas seu navegador e testando os mesmos arquivos com `--skip-build`. Uma falha não cancela a coleta de resultados do outro navegador. O job `deploy` depende de `validate` e de toda a matriz, baixa o mesmo artefato e envia apenas `dist-browser/` ao Pages, sem recompilar. Após publicar, [`test/verify-deployment.mjs`](../test/verify-deployment.mjs) compara a página e os recursos principais do domínio público com o build validado, incluindo o tipo de conteúdo HTTP. Até oito tentativas, com intervalo de cinco segundos, acomodam a propagação do Pages. A verificação não consulta o PNCP.
 
 Somente `main`, fora de pull requests, é publicada; falha ou cancelamento da validação impede o deploy. Se a verificação posterior falhar, a publicação já ocorreu e o job fica com erro para sinalizar o problema. As permissões de escrita de Pages e identidade ficam restritas ao job de deploy. A recomendação é exigir as verificações desse workflow em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
 
@@ -175,7 +182,7 @@ Abra `http://localhost:8000` e confira a consulta à fonte real. Confira a troca
 
 Em um celular, confira que busca, filtros, tipo documental e ordenação permanecem visíveis, sem rolagem horizontal do cabeçalho. Alterne cartões/tabela em **Mais**, abra detalhes, selecione outra seção e compartilhe a URL. Confira a rolagem entre os grupos de filtros, a aplicação/cancelamento e os botões fixos com o teclado virtual aberto. Verifique orientação retrato/paisagem, áreas seguras, zoom e o retorno dos controles ao cabeçalho ao ampliar a tela. O teste [`mobile.browser.mjs`](../test/mobile.browser.mjs) cobre os fluxos com viewport e toque emulados; a altura reduzida simula espaço limitado e não abre um teclado virtual real.
 
-Os testes de navegador usam dados sintéticos de [`test/demo-fixtures.js`](../test/demo-fixtures.js): 64 contratações, 24 atas e 32 contratos. Os status de vigência usam a data fixa `2026-10-07`; relevância e recebimento de propostas não reproduzem integralmente a fonte. Os links são ilustrativos.
+Os testes de navegador usam dados sintéticos de [`test/demo-fixtures.js`](../test/demo-fixtures.js): 64 editais, 24 atas e 32 contratos. Os status de vigência usam a data fixa `2026-10-07`; relevância e recebimento de propostas não reproduzem integralmente a fonte. Os links são ilustrativos.
 
 ## Diagnóstico do PNCP
 

@@ -324,7 +324,7 @@ A ponte rejeita a promessa com um erro tipado. `status` é um código da aplica�
 | `DOCUMENT_FILTER_UNAVAILABLE`, `DOMAIN_UNAVAILABLE` | Conferir tipo documental e disponibilidade do domínio |
 | `SOURCE_CHANGED` | Repetir a coleta; a fonte mudou entre chamadas |
 | `PAGE_OUT_OF_RANGE`, `EXPORT_TOO_BROAD`, limites de recursos | Ajustar página, limites ou escopo da pesquisa |
-| `CONCURRENCY_LIMIT` | Aguardar outras operações e repetir |
+| `CONCURRENCY_LIMIT` | A fila de operações do Worker está cheia; aguardar as operações em andamento e repetir |
 | `INVALID_UPSTREAM`, `PNCP_HTTP_ERROR` | Conferir a resposta legível da fonte |
 | `PNCP_UNAVAILABLE`, `PNCP_TRANSPORT_ERROR`, `PNCP_TIMEOUT`, `OPERATION_TIMEOUT` | Verificar conectividade e prazo; repetir conforme o erro |
 | `INCOMPATIBLE_VERSION`, `WORKER_UNAVAILABLE`, `WORKER_TIMEOUT` | Reabrir a página e conferir a publicação dos arquivos |
