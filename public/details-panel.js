@@ -197,41 +197,38 @@ export function createDetailsPanel({
   function scrollListToStart(list) {
     list.scrollIntoView?.({ block: 'start' });
   }
-  // Resumo com os fatos principais do documento e o acesso direto à página oficial no PNCP.
-  const SUMMARY_FIELDS = {
-    edital: ['orgao_nome', 'situacao_compra_nome_pncp', 'valor_total_estimado', 'data_publicacao_pncp'],
-    ata: ['orgao_nome', 'data_inicio_vigencia', 'data_fim_vigencia', 'cancelado'],
-    contrato: ['fornecedor_nome', 'valor_global', 'data_inicio_vigencia', 'data_fim_vigencia']
+  // Campos principais de cada tipo, nas chaves da busca indexada, do esquema e da API nativa.
+  // Aparecem primeiro na aba Detalhes e em negrito.
+  const HIGHLIGHT_FIELDS = {
+    edital: [
+      ['orgao_cnpj', 'orgaoEntidade.cnpj'],
+      ['situacao_nome', 'situacao_compra_nome_pncp', 'situacaoCompraNome'],
+      ['valor_total_estimado', 'valorTotalEstimado'],
+      ['data_publicacao_pncp', 'dataPublicacaoPncp']
+    ],
+    ata: [
+      ['orgao_cnpj', 'orgaoEntidade.cnpj'],
+      ['data_inicio_vigencia', 'dataVigenciaInicio'],
+      ['data_fim_vigencia', 'dataVigenciaFim'],
+      ['cancelado']
+    ],
+    contrato: [
+      ['fornecedor_nome', 'nomeRazaoSocialFornecedor'],
+      ['valor_global', 'valorGlobal'],
+      ['data_inicio_vigencia', 'dataVigenciaInicio'],
+      ['data_fim_vigencia', 'dataVigenciaFim']
+    ]
   };
-  function detailSummary(doc, kind) {
-    const summary = el('div', undefined, 'detail-summary'),
-      columns = state.schema.columns_by_document[kind] || [];
-    const fields = (SUMMARY_FIELDS[kind] || [])
-      .map(name => {
-        const column = columns.find(c => c.field === name);
-        return column && doc[name] != null && doc[name] !== ''
-          ? {
-              field: name,
-              title: name === 'cancelado' ? 'Cancelamento' : column.title,
-              type: name === 'cancelado' ? 'text' : column.type,
-              // Cancelamento e vigência são independentes: o resumo informa apenas o cancelamento, como os cartões.
-              value: name === 'cancelado' ? (doc[name] ? 'Cancelada' : 'Não cancelada') : doc[name]
-            }
-          : null;
-      })
-      .filter(Boolean);
-    if (fields.length) appendFields(summary, fields, 'detail-summary-values');
-    const href = doc.numero_controle_pncp ? controlLink(doc.numero_controle_pncp) : doc.url_pncp,
-      open = href ? safeAnchor('Abrir no PNCP', href) : null;
-    if (open) {
-      open.className = 'button small detail-open-pncp';
-      open.setAttribute('aria-label', `Abrir no PNCP: ${names(kind)} (abre em nova aba)`);
-      summary.append(open);
+  function prioritizeFields(kind, fields) {
+    const highlighted = [];
+    for (const keys of HIGHLIGHT_FIELDS[kind] || []) {
+      const field = fields.find(item => keys.includes(item.field) && !highlighted.includes(item));
+      if (field) highlighted.push(field);
     }
-    return summary;
-  }
-  function names(kind) {
-    return documentName(kind)?.singular || 'documento';
+    return [
+      ...highlighted.map(field => ({ ...field, highlight: true })),
+      ...fields.filter(field => !highlighted.includes(field))
+    ];
   }
   function appendFields(container, fields, className = 'related-values') {
     const values = el('dl', undefined, className);
@@ -264,6 +261,7 @@ export function createDetailsPanel({
           : null;
       if (link) value.append(link);
       else value.textContent = text;
+      if (field.highlight) wrap.className = 'detail-highlight';
       wrap.append(el('dt', field.title), value);
       values.append(wrap);
     }
@@ -545,7 +543,6 @@ export function createDetailsPanel({
     });
     const kind = doc.tipo_documento,
       names = documentName(kind);
-    content.append(detailSummary(doc, kind));
     $('details-kind').textContent = doc.titulo ?? '—';
     $('details-dialog').setAttribute('aria-label', `Detalhes: ${names.singular}`);
     const nav = el('div', undefined, 'detail-tabs');
@@ -705,7 +702,7 @@ export function createDetailsPanel({
             'schema'
           );
     const detailPanel = el('section', undefined, 'detail-information');
-    let grid = appendFields(detailPanel, fields, 'detail-grid');
+    let grid = appendFields(detailPanel, prioritizeFields(kind, fields), 'detail-grid');
     const updateDetails = addTab('detalhes', 'Detalhes', detailPanel);
     updateDetails(fields.length, 'loaded');
     const forceDetails = !!(doc._detail_from_url || doc._direct_link || (kind === 'edital' && !doc._raw));
@@ -730,7 +727,7 @@ export function createDetailsPanel({
           }, detailController.signal);
           if (!session.current('detail', token)) return;
           const holder = el('div');
-          grid = appendFields(holder, data.fields, 'detail-grid');
+          grid = appendFields(holder, prioritizeFields(kind, data.fields), 'detail-grid');
           detailPanel.replaceChildren(grid, detailStatus, retryDetails);
           updateDetails(data.fields.length, 'loaded');
           if (data.objeto) objectSummary.textContent = data.objeto;
@@ -751,7 +748,7 @@ export function createDetailsPanel({
                 const fallbackFields = row._raw ? indexedDocumentFields(row._raw) : [];
                 if (fallbackFields.length) {
                   const holder = el('div');
-                  grid = appendFields(holder, fallbackFields, 'detail-grid');
+                  grid = appendFields(holder, prioritizeFields(kind, fallbackFields), 'detail-grid');
                   detailPanel.replaceChildren(grid, detailStatus, retryDetails);
                 }
                 if (row.titulo) $('details-kind').textContent = row.titulo;

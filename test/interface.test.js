@@ -495,11 +495,17 @@ test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho cor
   }
   const grid = ui.nodes.get('detail-panel-detalhes').children[0],
     labels = grid.children.map(n => n.children[0].textContent);
-  assert.deepEqual(labels.slice(0, 3), ['Controle PNCP', 'Fonte', 'Processo eletrônico']);
-  const sourceLink = grid.children[1].children[1].children[0];
+  // Campos principais primeiro e em negrito; os demais mantêm a ordem da fonte.
+  const highlighted = grid.children.filter(n => n.className === 'detail-highlight').map(n => n.children[0].textContent);
+  assert.deepEqual(highlighted, labels.slice(0, highlighted.length));
+  assert.deepEqual(highlighted.slice(0, 3), ['Órgão', 'Situação', 'Valor total estimado']);
+  const rest = labels.slice(highlighted.length);
+  assert.deepEqual(rest.slice(0, 3), ['Controle PNCP', 'Fonte', 'Processo eletrônico']);
+  const byLabel = label => grid.children[labels.indexOf(label)];
+  const sourceLink = byLabel('Fonte').children[1].children[0];
   assert.equal(sourceLink.textContent, 'Compras.gov.br');
   assert.equal(sourceLink.href, 'https://example.test/compra/1');
-  const processLink = grid.children[2].children[1].children[0];
+  const processLink = byLabel('Processo eletrônico').children[1].children[0];
   assert.equal(processLink.textContent, 'Link');
   assert.equal(processLink.href, 'https://example.test/processo/1');
   for (const label of [

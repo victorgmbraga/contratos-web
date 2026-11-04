@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.2.1 — 2026-11-04
+
+### Interface
+
+- Remove a linha de resumo e o botão **Abrir no PNCP** acima das abas dos detalhes; os campos principais de cada tipo passam a aparecer primeiro e em negrito na aba **Detalhes**. A página oficial continua acessível pelo link de **Controle PNCP**.
+
 ## 2.2.0 — 2026-11-04
 
 ### Desempenho
