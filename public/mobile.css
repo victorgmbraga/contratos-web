@@ -301,9 +301,7 @@
     line-height: 1.5;
   }
   .details-actions {
-    display: contents;
-  }
-  .details-actions > .close-dialog {
+    display: flex;
     grid-row: 1;
     grid-column: 2;
   }

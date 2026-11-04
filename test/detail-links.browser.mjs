@@ -144,12 +144,27 @@ try {
   const ataLink = page.locator('#detail-panel-atas .related-card a').first();
   assert.equal(await ataLink.innerText(), 'Abrir Ata');
   assert.equal(new URL(await ataLink.getAttribute('href')).searchParams.get('detalhe'), 'ata/00000000000000/2026/1/1');
+  assert.equal(await page.locator('#details-back').isVisible(), false);
   await ataLink.click();
   await waitLoaded();
   await waitTab('detalhes');
   assert.equal(new URL(page.url()).searchParams.get('detalhe'), 'ata/00000000000000/2026/1/1');
   assert.match(await page.locator('#details-kind').innerText(), /Ata/);
-  console.log('PASS Ata vinculada abre no painel do Contratos Web com URL compartilhável');
+  assert.equal(await page.locator('#details-back').isVisible(), true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const backBox = await page.locator('#details-back').boundingBox();
+  const closeBox = await page.locator('#details-dialog .close-dialog').boundingBox();
+  assert(backBox.x + backBox.width <= closeBox.x && Math.abs(backBox.y - closeBox.y) < 1);
+  await page.locator('#details-back').click();
+  await waitTab('atas');
+  assert.equal(new URL(page.url()).searchParams.get('detalhe'), 'edital/00000000000000/2026/1');
+  assert.equal(new URL(page.url()).searchParams.get('aba'), 'atas');
+  assert.equal(await page.locator('#details-back').isVisible(), false);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await ataLink.click();
+  await waitLoaded();
+  await waitTab('detalhes');
+  console.log('PASS Ata vinculada abre internamente e Voltar restaura documento e aba, inclusive no mobile');
 
   const queries = calls('execute'),
     details = calls('documentDetails');
