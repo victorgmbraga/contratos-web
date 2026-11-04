@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.5.3 — 2026-11-04
+
+### Filtros
+
+- A busca pelo nome do filtro usa o mesmo destaque de foco dos demais campos (borda azul com halo), em vez do contorno genérico afastado do campo.
+
 ## 2.5.2 — 2026-11-04
 
 ### Filtros

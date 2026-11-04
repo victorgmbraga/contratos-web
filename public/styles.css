@@ -989,24 +989,28 @@ dialog::backdrop {
   width: 100%;
   font-weight: 400;
 }
-.filter-field input:focus {
+.filter-field input:focus,
+.filter-finder input:focus {
   border-color: var(--focus);
   box-shadow: 0 0 0 2px var(--focus-soft, #137db515);
   outline: 2px solid transparent;
   outline-offset: 0;
 }
 .search-field:focus-within:hover,
-.filter-field input:focus:hover {
+.filter-field input:focus:hover,
+.filter-finder input:focus:hover {
   border-color: var(--blue);
 }
 @media (forced-colors: active) {
   .search-field:focus-within,
-  .filter-field input:focus {
+  .filter-field input:focus,
+  .filter-finder input:focus {
     outline-color: Highlight;
   }
 }
-.filter-field input::placeholder {
-  color: var(--filter-placeholder);
+.filter-field input::placeholder,
+.filter-finder input::placeholder {
+  color: var(--filter-placeholder, var(--placeholder, #757575));
   opacity: 1;
 }
 .filter-field:has(.filter-reset[hidden]) input[type='date'] {
