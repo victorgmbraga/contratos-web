@@ -276,15 +276,16 @@ export function createFiltersPanel({
     $('filter-search-empty').hidden = true;
     for (const [groupName, caps] of groups) {
       if (!caps.length) continue;
-      const group = el('fieldset', undefined, 'filter-group'),
+      const group = el('details', undefined, 'filter-group'),
         legend = el(
-          'legend',
+          'summary',
           groupName === 'Contratação' && state.draft.document_type !== 'edital'
             ? 'Documento'
             : groupName === 'Contrato' && state.draft.document_type === 'ata'
               ? 'Ata'
               : groupName
         );
+      group.open = groupName === 'Principais';
       group.append(legend);
       const grid = el('div', undefined, 'filter-grid');
       group.append(grid);
@@ -319,6 +320,7 @@ export function createFiltersPanel({
     updateDraftActions();
     const editor = filterFields.get(target);
     if (editor && currentEditor(editor)) {
+      editor.group.open = true;
       editor.area.scrollIntoView({ block: 'center' });
       if (editor.input.disabled) {
         editor.area.tabIndex = -1;
@@ -730,7 +732,10 @@ export function createFiltersPanel({
       if (!editor.area.hidden) visible++;
       groups.set(editor.group, (groups.get(editor.group) || 0) + (editor.area.hidden ? 0 : 1));
     }
-    for (const [group, count] of groups) group.hidden = count === 0;
+    for (const [group, count] of groups) {
+      group.hidden = count === 0;
+      group.open = terms.length ? count > 0 : group.children[0].textContent === 'Principais';
+    }
     $('filter-search-empty').hidden = visible > 0;
     if (openFilterEditor?.area.hidden) closeFilterDropdown();
   }

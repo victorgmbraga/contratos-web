@@ -1,3 +1,4 @@
+import { openAllFilters } from './filter-layout.js';
 import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
@@ -161,7 +162,7 @@ try {
         .evaluate(node => getComputedStyle(node).backgroundColor),
       'rgb(23, 35, 49)'
     );
-    await page.locator('#filters-button').click();
+    await openAllFilters(page);
     await page.locator('#filter-ufs:not(:disabled)').waitFor();
     if (type === 'edital') await scrollbar('.filters-body', { vertical: true });
     await contrast(['#filters-title', '#filter-search', '.filter-field label', '#apply-filters']);
@@ -242,7 +243,7 @@ try {
   ]);
   await page.keyboard.press('Escape');
   await scrollbar('.results-scroll', { vertical: true });
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await page.locator('#filter-ufs:not(:disabled)').waitFor();
   await scrollbar('.filters-body', { vertical: true });
   await page.locator('#filters-dialog .dialog-header .close-dialog').click();

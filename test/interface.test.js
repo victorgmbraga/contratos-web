@@ -1960,6 +1960,10 @@ test('FILTERS-UI-04: mostra todos os filtros compatíveis, agrupados, sem seleto
   await ui.nodes.get('filters-button').fire('click');
   const groups = ui.nodes.get('filter-groups').children;
   assert.deepEqual(
+    groups.map(group => group.open),
+    [true, false, false, false, false]
+  );
+  assert.deepEqual(
     groups.map(g => g.children[0].textContent),
     ['Principais', 'Contratação', 'Item', 'Resultado do item', 'Fornecedor']
   );

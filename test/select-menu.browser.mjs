@@ -1,3 +1,4 @@
+import { openAllFilters } from './filter-layout.js';
 import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
@@ -118,7 +119,7 @@ try {
   await page.locator('.brand').click();
   await ready();
   assert.equal(await menu().count(), 0);
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await control('filter-srp').waitFor();
   assert.equal(await control('filter-srp').locator('.select-value').innerText(), 'Selecionar');
   const filterUrl = page.url();
@@ -167,7 +168,7 @@ try {
   await bounded();
   await control('details-section').press('Escape');
   await page.locator('#details-dialog .close-dialog').click();
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await page.locator('#filter-field-srp').scrollIntoViewIfNeeded();
   await control('filter-srp').click();
   await page.locator('.filters-body').evaluate(node => {

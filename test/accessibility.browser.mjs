@@ -1,3 +1,4 @@
+import { openAllFilters } from './filter-layout.js';
 import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 // Verificação automática de acessibilidade com axe; ver docs/validacao.md.
 import assert from 'node:assert/strict';
@@ -32,7 +33,7 @@ try {
   await page.waitForTimeout(300);
   assert.deepEqual(describe(await analyze(page)), [], 'violações na busca em desktop');
 
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await page.locator('#filter-groups .filter-field').first().waitFor();
   await settle(page);
   assert.deepEqual(describe(await analyze(page)), [], 'violações no modal de filtros');

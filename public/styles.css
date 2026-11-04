@@ -897,8 +897,11 @@ dialog::backdrop {
   border: 0;
   border-top: 1px solid var(--line);
 }
-.filter-group legend {
-  padding: 0 10px 0 0;
+.filter-group > summary {
+  min-height: 44px;
+  cursor: pointer;
+  margin-bottom: 16px;
+  padding: 8px 10px 8px 0;
   font-size: 0.9375rem;
   font-weight: 700;
   color: var(--navy);

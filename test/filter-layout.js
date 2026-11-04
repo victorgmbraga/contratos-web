@@ -70,7 +70,7 @@ export async function assertFilterLayout(page) {
         `GitHub não ficou acessível pelo teclado em ${width}px`
       );
     }
-    await page.locator('#filters-button').click();
+    await openAllFilters(page);
     const bodyHeight = await page.locator('.filters-body').evaluate(body => body.scrollHeight);
     await filter('modalidades').click();
     const checkDropdown = async () => {
@@ -138,7 +138,7 @@ export async function assertFilterLayout(page) {
   }
   check('Modal ampliado mantém rolagem interna e ações visíveis nas cinco larguras de tela');
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   const mode = filter('modos_disputa');
   await page.locator('#filter-modos_disputa:not(:disabled)').waitFor();
   await mode.evaluate(node => {
@@ -178,7 +178,7 @@ export async function assertFilterLayout(page) {
     () =>
       !new URL(location.href).searchParams.has('modos_disputa') && !document.querySelector('#refresh-button').disabled
   );
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   const last = filter('naturezas_juridicas');
   await page.locator('#filter-naturezas_juridicas:not(:disabled)').waitFor();
   await last.evaluate(node => node.scrollIntoView({ block: 'end' }));
@@ -199,10 +199,22 @@ export async function assertFilterLayout(page) {
   await page.locator('#filters-dialog .dialog-header .close-dialog').click();
   check('Sugestões próximas ao rodapé não bloqueiam as ações e permanecem acessíveis no último campo');
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   assert(await page.locator('#filters-dialog').isVisible());
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   check('Cabeçalho responsivo mantém busca e filtros visíveis e painéis sem overflow da página');
   if (process.env.CONTRATOS_QA_SCREENSHOT_DIR)
     await page.screenshot({ path: process.env.CONTRATOS_QA_SCREENSHOT_DIR + '/mobile.png', fullPage: true });
+}
+
+// Fluxos de negócio e geometria exercitam explicitamente todas as categorias.
+export async function openAllFilters(page) {
+  await page.locator('#filters-button').click();
+  const opened = await page.locator('#filter-groups details').evaluateAll(groups => groups.map(group => group.open));
+  assert(opened[0] && opened.slice(1).every(open => !open), 'Somente Principais inicia aberta');
+  await page.locator('#filter-groups details').evaluateAll(groups =>
+    groups.forEach(group => {
+      group.open = true;
+    })
+  );
 }

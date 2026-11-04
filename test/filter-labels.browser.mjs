@@ -1,3 +1,4 @@
+import { openAllFilters } from './filter-layout.js';
 import assert from 'node:assert/strict';
 import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 import { launchTestBrowser } from './browser-launch.js';
@@ -26,7 +27,7 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${app.server.address().port}/`);
   await page.waitForFunction(() => !document.querySelector('#refresh-button').disabled);
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   for (const field of ['orgaos', 'unidades']) {
     await page.locator(`#filter-${field}:not(:disabled)`).fill('incra');
     await page.locator(`#filter-suggestions-${field} .suggestion[data-value="90939"]`).click();
@@ -40,7 +41,7 @@ try {
   await page.waitForFunction(() => !document.querySelector('#refresh-button').disabled);
   assert.equal(page.url(), queryUrl);
   for (const name of Object.values(names)) assert((await page.locator('#native-chips').innerText()).includes(name));
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   for (const [field, name] of Object.entries(names)) {
     await page.locator(`#filter-${field}:not(:disabled)`).waitFor();
     assert((await page.locator(`#filter-selected-${field}`).innerText()).includes(name));
@@ -68,7 +69,7 @@ try {
   await page.reload();
   await page.waitForFunction(() => document.querySelector('#native-chips').textContent.includes('UNIDADE DO INCRA'));
   for (const name of Object.values(names)) assert((await page.locator('#native-chips').innerText()).includes(name));
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   for (const [field, name] of Object.entries(names)) {
     await page.locator(`#filter-${field}:not(:disabled)`).waitFor();
     assert((await page.locator(`#filter-selected-${field}`).innerText()).includes(name));

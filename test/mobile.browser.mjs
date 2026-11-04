@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createStaticServer } from './static-server.js';
 import { launchTestBrowser } from './browser-launch.js';
-import { assertFilterLayout } from './filter-layout.js';
+import { assertFilterLayout, openAllFilters } from './filter-layout.js';
 
 const app = createStaticServer(new URL('../dist-browser-test/', import.meta.url));
 await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
@@ -227,7 +227,7 @@ try {
       node.scrollTop = 0;
     });
     await page.locator('#details-dialog .close-dialog').click();
-    await page.locator('#filters-button').click();
+    await openAllFilters(page);
     assert.equal(await page.locator('#filter-groups .filter-field').count(), count);
     assert.equal(
       await page.locator('#filters-dialog').evaluate(node => Math.round(node.getBoundingClientRect().width)),
@@ -247,7 +247,7 @@ try {
   }
   await page.locator('#document-type').selectOption('edital');
   await ready();
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await page.locator('#filter-ufs:not(:disabled)').click();
   await page.locator('#filter-suggestions-ufs [data-value="DF"]').click();
   await fits('#apply-filters', { height: true });
@@ -373,7 +373,7 @@ try {
   }
   await page.setViewportSize({ width: 600, height: 360 });
   await fits('#filters-button', { height: true });
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await fits('#apply-filters', { height: true });
   await page.setViewportSize({ width: 360, height: 400 });
   await page.locator('#filter-search').click();

@@ -1,3 +1,4 @@
+import { openAllFilters } from './filter-layout.js';
 import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 // UI verification against the static artifact; see docs/validacao.md.
 import assert from 'node:assert/strict';
@@ -70,7 +71,7 @@ async function assertFilterCatalog(type) {
   const catalog = schema(config);
   const caps = catalog.capabilities.filter(c => !c.reserved && c.state === 'enabled' && c.documents.includes(type));
   const before = page.url();
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   assert.equal(await page.locator('#add-native, #native-field, #filters-dialog select[multiple]').count(), 0);
   assert.equal(await page.locator('#filter-groups .filter-field').count(), caps.length);
   const controls = await page.locator('#filter-groups .filter-field').evaluateAll(fields =>
@@ -100,7 +101,7 @@ async function assertFilterCatalog(type) {
 async function assertRepresentativeFilters() {
   if (await page.locator('#clear-button').isVisible()) await page.locator('#clear-button').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await selectFilterOptions('ufs', 'DF');
   await filter('tipos_item').selectOption('S');
   await filter('srp').selectOption('false');
@@ -226,7 +227,7 @@ try {
     assert(!Object.hasOwn(entry.value, 'raw'));
   }
   for (let i = 0; i < 2; i++) {
-    await page.locator('#filters-button').click();
+    await openAllFilters(page);
     await filter('ufs').waitFor();
     assert.equal(await page.locator('#filter-search').inputValue(), '');
     await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
@@ -278,7 +279,7 @@ try {
   await page.locator('#document-type').selectOption('edital');
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
   check('Ícone filtra diretamente com tooltip nos três tipos; publicação conserva menu de filtros e ordenação');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   const closedSuggestions = [],
     observeClosed = message => {
       if (message.method === 'suggest') closedSuggestions.push(message.payload);
@@ -308,7 +309,7 @@ try {
   check(
     'Filtros múltiplos usam busca local sem acentos, escolhas por teclado e marcações independentes; Escape fecha apenas as opções'
   );
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   const beforeDraft = page.url();
   const orgSuggestion = page.waitForEvent('service', {
     predicate: message => message.method === 'suggest' && message.payload.field === 'orgaos'
@@ -330,7 +331,7 @@ try {
   assert.equal(await page.locator('#filter-selected-unidades .selected-option').count(), 1);
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   assert.equal(page.url(), beforeDraft);
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   assert.equal(await page.locator('.selected-option').count(), 0);
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   check('Sugestões simultâneas de órgão e unidade são independentes; cancelar descarta seleções sem alterar a URL');
@@ -470,7 +471,7 @@ try {
     assert.equal(new URL(sharedPage.url()).searchParams.get('tipos_documento'), 'contrato');
     assert.equal(new URL(sharedPage.url()).searchParams.has('srp'), false);
     await sharedPage.locator('#status').selectOption('vigente');
-    await sharedPage.locator('#filters-button').click();
+    await openAllFilters(sharedPage);
     await sharedPage.locator(`#filter-${'possui_nfe'}`).selectOption('false');
     await sharedPage.locator('#apply-filters').click();
     await sharedPage.waitForFunction(() => !document.querySelector('#export-button').disabled);
@@ -850,14 +851,14 @@ try {
   assert.match(download.suggestedFilename(), /^contratos-web-/);
   assert.equal(await page.locator('#export-dialog').count(), 0);
   check('CSV baixado por nova coleta, sem confirmação');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await selectFilterOptions('ufs', 'GO');
   await page.locator('#apply-filters').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '0 editais');
   check('Filtro nativo UF aplicado no serviço');
   await page.locator('#clear-button').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await filter('srp').selectOption('false');
   const srpRequest = waitQuery(input => input.pncp_filters.srp === false);
   await page.locator('#apply-filters').click();
@@ -866,7 +867,7 @@ try {
   check('Filtro SRP envia false e exibe somente registros correspondentes');
   await page.locator('#clear-button').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   for (const [name, ids] of [
     ['fontes', ['3', '5']],
     ['modos_disputa', ['1', '2']]
@@ -891,7 +892,7 @@ try {
   assert(conditions.every(name => documentaryFilters[name] === false));
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '11 editais');
   check('Origem, modo de disputa e cinco condições documentais são aplicados juntos');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   for (const name of conditions) {
     assert.equal(await filter(name).inputValue(), 'false');
   }
@@ -905,7 +906,7 @@ try {
   check('CSV usa os mesmos filtros documentais e exporta todas as onze contratações');
   await page.locator('#clear-button').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   for (const [name, ids] of [
     ['criterios_julgamento', ['7']],
     ['categorias_leilao', ['1']],
@@ -943,7 +944,7 @@ try {
   check('CSV exporta seis contratações, sem multiplicar linhas pelos itens');
   await page.locator('#clear-button').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await filter('codigo_ibge').fill('5300108');
   const ibgeRequest = waitQuery(input => input.pncp_filters.codigo_ibge === '5300108');
   await page.locator('#apply-filters').click();
@@ -952,7 +953,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '32 editais');
   await page.locator('#clear-button').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await selectFilterOptions('amparos_legais', ['19', '98']);
   await selectFilterOptions('normativos_base', '1');
   await page.waitForFunction(
@@ -969,7 +970,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '11 editais');
   await page.locator('#clear-button').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await filter('anos').click();
   assert.equal(await page.locator('#filter-suggestions-anos .suggestion').innerText(), '2026');
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
@@ -983,7 +984,7 @@ try {
   assert.equal(await page.locator('.results-col[data-field="valor_total_estimado"]').count(), 0);
   check('Troca para contratos consulta a fonte e apresenta as colunas próprias');
   await page.locator('#status').selectOption('vigente');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await page.locator('#apply-filters').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '16 contratos');
   await page.locator('#clear-button').click();
@@ -1059,7 +1060,7 @@ try {
   check(
     'Histórico de contrato com contagem divergente exibe total desconhecido e permite avançar até uma página vazia'
   );
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await selectFilterOptions('tipos_contrato', '1');
   await filter('possui_nfe').selectOption('true');
   await page.locator('#apply-filters').click();
@@ -1133,7 +1134,7 @@ try {
   await page.locator('#details-dialog .close-dialog').click();
   page.off(serviceEvent, observeAta);
   await page.locator('#status').selectOption('vigente');
-  await page.locator('#filters-button').click();
+  await openAllFilters(page);
   await page.locator('#apply-filters').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '12 atas');
   const ataDownload = page.waitForEvent('download');
