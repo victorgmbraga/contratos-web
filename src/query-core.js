@@ -6,6 +6,24 @@ import { csvWriter } from './csv.js';
 import { catalogDomains, referenceDomains } from './filter-domains.js';
 import { columnsFor, capabilities, documentNames } from './schema.js';
 
+/** Aguarda a promessa compartilhada, mas rejeita assim que o sinal deste chamador for abortado. */
+function untilAborted(promise, signal) {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener('abort', abort, { once: true });
+    promise.then(
+      value => {
+        signal.removeEventListener('abort', abort);
+        resolve(value);
+      },
+      error => {
+        signal.removeEventListener('abort', abort);
+        reject(error);
+      }
+    );
+  });
+}
 export const DOMAIN_VALIDATION_TTL = 4 * 60 * 60 * 1000;
 /**
  * @param {import('../types/contracts.js').SearchResult} result
@@ -45,7 +63,8 @@ export class QueryService {
         });
       }
       try {
-        return await entry.promise;
+        // Quem reaproveita a requisição de outra operação continua respeitando o próprio cancelamento e prazo.
+        return await (entry === cached ? untilAborted(entry.promise, op.signal) : entry.promise);
       } catch (error) {
         // A requisição compartilhada pode ter sido cancelada por outra operação; esta repete com o próprio sinal.
         if (entry === cached && !op.signal.aborted && (error?.name === 'AbortError' || error?.code === 'CANCELLED'))

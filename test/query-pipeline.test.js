@@ -65,3 +65,31 @@ test('PIPELINE-03: cancelar a pré-carga não cancela a validação que aguardav
   release();
   assert.equal((await search).total, 35);
 });
+
+test('PIPELINE-04: cancelar quem reaproveita a pré-carga encerra a espera sem cancelar a requisição compartilhada', async () => {
+  let release;
+  const gate = new Promise(resolve => {
+    release = resolve;
+  });
+  const s = service(docs, {
+    handler: async url => {
+      if (!url.pathname.endsWith('/filters')) return null;
+      await gate;
+      return null;
+    }
+  });
+  const preload = s.service.domains('edital', undefined, undefined, 'preload', null, 'background');
+  await new Promise(resolve => setTimeout(resolve, 5));
+  const controller = new AbortController();
+  const search = s.service.execute(
+    query({ document_type: 'edital', pncp_filters: { modalidades: ['6'] } }),
+    controller.signal,
+    'search'
+  );
+  await new Promise(resolve => setTimeout(resolve, 5));
+  controller.abort(new DOMException('Operação cancelada.', 'AbortError'));
+  await assert.rejects(search, error => error.name === 'AbortError');
+  release();
+  assert.ok((await preload).filters.modalidades.length);
+  assert.equal(s.requests.filter(url => url.pathname.endsWith('/filters')).length, 1);
+});

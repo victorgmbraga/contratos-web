@@ -76,6 +76,16 @@ try {
   await page.getByRole('button', { name: 'Mover coluna Título', exact: true }).focus();
   await filterButton.focus();
   await tooltip.waitFor({ state: 'visible' });
+  // A rolagem da tabela (como a volta ao topo após renderizar) mantém o tooltip do botão focado.
+  await page
+    .locator('.results-scroll')
+    .first()
+    .evaluate(node => {
+      node.scrollTop = 0;
+      node.dispatchEvent(new Event('scroll'));
+    });
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.equal(await tooltip.isVisible(), true, 'O tooltip do botão focado permanece após a rolagem');
   await filterButton.press('Escape');
   assert.equal(await tooltip.isVisible(), false);
   await filterButton.press('Enter');

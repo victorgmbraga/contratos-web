@@ -86,11 +86,14 @@ export function createResultsTable({
   container.classList.add('results-table');
   container.replaceChildren(scroll, footer);
 
+  let tooltipAnchor = null;
   function hideFilterTooltip() {
     filterTooltip.hidden = true;
+    tooltipAnchor = null;
   }
   function showFilterTooltip(button) {
     if (busy || destroyed || menu) return;
+    tooltipAnchor = button;
     document.querySelectorAll('[role="tooltip"]').forEach(tooltip => {
       tooltip.hidden = true;
     });
@@ -298,7 +301,19 @@ export function createResultsTable({
   document.addEventListener(
     'scroll',
     event => {
-      hideFilterTooltip();
+      // A rolagem reposiciona o tooltip do botão ainda focado e visível (por exemplo, quando a
+      // tabela volta ao topo após renderizar); nos demais casos, o tooltip é ocultado.
+      const anchor = tooltipAnchor,
+        box = anchor?.getBoundingClientRect();
+      const keep =
+        anchor?.isConnected &&
+        document.activeElement === anchor &&
+        box.bottom > 0 &&
+        box.top < window.innerHeight &&
+        box.right > 0 &&
+        box.left < window.innerWidth;
+      if (keep && !filterTooltip.hidden) showFilterTooltip(anchor);
+      else hideFilterTooltip();
       if (menu && !menu.root.contains(event.target)) closeMovedMenu();
     },
     { signal, capture: true }
