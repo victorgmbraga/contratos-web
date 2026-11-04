@@ -2,8 +2,6 @@
 
 Aplicação para pesquisar editais e avisos de contratações, atas de registro de preços e contratos públicos no Portal Nacional de Contratações Públicas (PNCP). Executa inteiramente no navegador e consulta diretamente as APIs do PNCP.
 
-**Acesse:** [contratos-web.net.br](https://contratos-web.net.br/)
-
 ## Funcionalidades
 
 - Busca por texto, filtros e ordenações compatíveis com cada tipo de documento.
@@ -17,7 +15,7 @@ Aplicação para pesquisar editais e avisos de contratações, atas de registro 
 
 ## Desenvolvimento local
 
-Requisitos: **Node.js 24 (LTS) ou superior** e **npm**. O [`.nvmrc`](.nvmrc) fixa a versão 24 usada no desenvolvimento e na integração contínua.
+Requisitos: **Node.js 24 (LTS) ou superior** e **npm**.
 
 ```sh
 git clone https://github.com/victorgmbraga/contratos-web.git
@@ -26,7 +24,7 @@ npm ci
 npm run dev
 ```
 
-Abra [http://localhost:8000](http://localhost:8000). As consultas exigem acesso à internet ao PNCP. Os dados sintéticos usados pela suíte ficam em [`test/demo-fixtures.js`](test/demo-fixtures.js).
+Abra [http://localhost:8000](http://localhost:8000). As consultas exigem acesso à internet ao PNCP.
 
 | Comando | Finalidade |
 | --- | --- |
