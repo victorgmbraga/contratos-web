@@ -210,12 +210,13 @@ export function createDetailsPanel({
     list.scrollIntoView?.({ block: 'start' });
   }
   // Campos principais de cada tipo, nas chaves da busca indexada, do esquema e da API nativa.
-  // Aparecem na aba Detalhes logo após Controle PNCP, documentos de origem, Fonte e Processo eletrônico, todos em negrito.
+  // Aparecem na aba Detalhes logo após Controle PNCP, documentos de origem, Fonte e Processo eletrônico, sem destaque de peso de fonte.
   const HIGHLIGHT_FIELDS = {
     edital: [
       ['orgao_cnpj', 'orgaoEntidade.cnpj'],
       ['situacao_nome', 'situacao_compra_nome_pncp', 'situacaoCompraNome'],
       ['valor_total_estimado', 'valorTotalEstimado'],
+      ['valor_total_homologado', 'valorTotalHomologado'],
       ['data_publicacao_pncp', 'dataPublicacaoPncp']
     ],
     ata: [
@@ -249,9 +250,11 @@ export function createDetailsPanel({
       );
       if (field) highlighted.push(field);
     }
+    const complementary = fields.filter(field => field.title === 'Informações complementares');
     return [
       ...highlighted.map(field => ({ ...field, highlight: true })),
-      ...fields.filter(field => !highlighted.includes(field))
+      ...fields.filter(field => !highlighted.includes(field) && !complementary.includes(field)),
+      ...complementary.map(field => ({ ...field, wide: true }))
     ];
   }
   function appendFields(container, fields, className = 'related-values') {
@@ -286,6 +289,7 @@ export function createDetailsPanel({
       if (link) value.append(link);
       else value.textContent = text;
       if (field.highlight) wrap.className = 'detail-highlight';
+      if (field.wide) wrap.className = 'detail-wide';
       wrap.append(el('dt', field.title), value);
       values.append(wrap);
     }

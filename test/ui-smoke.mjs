@@ -767,20 +767,21 @@ try {
   assert((await page.locator('#detail-panel-detalhes dt').count()) > 12);
   assert.match(await page.locator('#detail-panel-detalhes').innerText(), /Modo de disputa/);
   const detailLabels = await page.locator('#detail-panel-detalhes dt').allInnerTexts();
-  // Campos principais primeiro e em negrito; em seguida, a ordem da fonte.
-  assert.deepEqual(detailLabels.slice(0, 6), [
+  // Campos principais primeiro, com valores adjacentes e fonte normal.
+  assert.deepEqual(detailLabels.slice(0, 7), [
     'Controle PNCP',
     'Fonte',
     'Órgão',
     'Situação',
     'Valor total estimado',
+    'Valor total homologado',
     'Publicação no PNCP'
   ]);
   assert.deepEqual(
     await page
       .locator('#detail-panel-detalhes .detail-highlight dd')
       .evaluateAll(nodes => nodes.map(node => getComputedStyle(node).fontWeight)),
-    ['700', '700', '700', '700', '700', '700']
+    ['400', '400', '400', '400', '400', '400', '400']
   );
   assert.equal(await page.locator('.detail-summary').count(), 0);
   check('Detalhes abre com seis abas e todos os campos disponíveis');

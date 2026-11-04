@@ -1726,6 +1726,12 @@ dialog select[multiple] {
   }
 }
 
-.detail-highlight dd {
-  font-weight: 700;
+.detail-grid dt,
+.detail-grid dd,
+.detail-grid a,
+.detail-grid .text-button {
+  font-weight: 400;
+}
+.detail-grid > .detail-wide {
+  grid-column: 1 / -1;
 }

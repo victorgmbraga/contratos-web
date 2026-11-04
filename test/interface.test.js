@@ -465,6 +465,8 @@ test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho cor
   await ui.openDocument(
     project(
       document(1, {
+        valor_total_homologado: '150.00',
+        informacao_complementar: 'Informações adicionais de teste',
         title: 'Edital nº 1/2026',
         item_url: '/compras/00000000000000/2026/1',
         link_sistema_origem: 'https://example.test/compra/1',
@@ -495,7 +497,7 @@ test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho cor
   }
   const grid = ui.nodes.get('detail-panel-detalhes').children[0],
     labels = grid.children.map(n => n.children[0].textContent);
-  // Campos principais primeiro e em negrito; os demais mantêm a ordem da fonte.
+  // Campos principais primeiro, valores adjacentes e informações complementares ao final.
   const highlighted = grid.children.filter(n => n.className === 'detail-highlight').map(n => n.children[0].textContent);
   assert.deepEqual(highlighted, labels.slice(0, highlighted.length));
   assert.deepEqual(highlighted.slice(0, 6), [
@@ -506,6 +508,9 @@ test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho cor
     'Situação',
     'Valor total estimado'
   ]);
+  assert.equal(labels.indexOf('Valor total homologado'), labels.indexOf('Valor total estimado') + 1);
+  assert.equal(labels.at(-1), 'Informações complementares');
+  assert.equal(grid.children.at(-1).className, 'detail-wide');
   const byLabel = label => grid.children[labels.indexOf(label)];
   const sourceLink = byLabel('Fonte').children[1].children[0];
   assert.equal(sourceLink.textContent, 'Compras.gov.br');
