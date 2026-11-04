@@ -2428,6 +2428,24 @@ test('FILTERS-UI-26: decimal com ponto no lugar da vírgula é recusado e bloque
   assert.equal(ui.requests.at(-1).pncp_filters.valor_total_estimado_min, '1000.50');
 });
 
+test('FILTERS-UI-27: campos de data vazios indicam o formato dd/mm/aaaa para navegadores móveis', async () => {
+  const ui = await interfaceFixture({
+    href: 'https://example.test/?tipos_documento=edital&data_publicacao_fim=2026-10-05'
+  });
+  await ui.nodes.get('filters-button').fire('click');
+  const start = ui.field('data_publicacao_inicio'),
+    end = ui.field('data_publicacao_fim');
+  assert.equal(start.dataset.placeholder, 'dd/mm/aaaa');
+  assert.equal(start.dataset.empty, 'true');
+  assert.equal(end.dataset.empty, undefined, 'data preenchida não mostra o formato');
+  start.value = '2026-09-01';
+  await start.fire('input');
+  assert.equal(start.dataset.empty, undefined);
+  start.value = '';
+  await start.fire('input');
+  assert.equal(start.dataset.empty, 'true');
+});
+
 test('FILTERS-UI-16: países, reserva, inteiro zero, percentual e data mantêm seus formatos', async () => {
   const ui = await interfaceFixture();
   await ui.nodes.get('filters-button').fire('click');

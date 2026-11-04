@@ -1012,6 +1012,25 @@ dialog::backdrop {
 .filter-field:has(.filter-reset[hidden]) input[type='date'] {
   color: var(--filter-placeholder);
 }
+/* Em telas de toque e estreitas, o campo de data vazio não mostra formato nativo: exibe "dd/mm/aaaa". */
+@media (pointer: coarse), (max-width: 700px) {
+  .filter-field input[type='date'][data-empty] {
+    position: relative;
+  }
+  .filter-field input[type='date'][data-empty]:not(:focus)::before {
+    content: attr(data-placeholder);
+    position: absolute;
+    inset: 0 auto 0 0;
+    display: flex;
+    align-items: center;
+    padding-inline-start: inherit;
+    color: var(--filter-placeholder);
+    pointer-events: none;
+  }
+  .filter-field input[type='date'][data-empty]:not(:focus)::-webkit-datetime-edit {
+    color: transparent;
+  }
+}
 .filter-field select option {
   color: var(--text, #263f58);
 }

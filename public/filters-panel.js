@@ -154,6 +154,10 @@ export function createFiltersPanel({
         if (value === undefined) setDecimalError(editor, null);
       }
     } else editor.input.value = value === undefined ? '' : String(value);
+    if (editor.cap.type === 'date') {
+      if (editor.input.value) delete editor.input.dataset.empty;
+      else editor.input.dataset.empty = 'true';
+    }
     refreshSelects(editor.input);
     updateDraftActions();
   }
@@ -402,6 +406,8 @@ export function createFiltersPanel({
       }
     } else {
       input.type = cap.type === 'date' ? 'date' : cap.type === 'integer' ? 'number' : 'text';
+      // Navegadores móveis não mostram o formato num campo de data vazio; o CSS exibe este texto.
+      if (cap.type === 'date') input.dataset.placeholder = 'dd/mm/aaaa';
       if (cap.type === 'decimal') {
         input.inputMode = 'decimal';
         input.autocomplete = 'off';

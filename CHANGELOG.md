@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.5.2 — 2026-11-04
+
+### Filtros
+
+- No celular, campos de data vazios passam a mostrar o formato `dd/mm/aaaa`, como os demais campos mostram seus exemplos.
+
 ## 2.5.1 — 2026-11-04
 
 ### Filtros
