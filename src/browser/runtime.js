@@ -16,13 +16,34 @@ export function errorRecord(error) {
 export function createRuntime(input, options = {}) {
   const config = browserSettings(input), client = createBrowserClient(config, options), service = new QueryService(config, client);
   const controllers = new Map();
+  // Operações excedentes aguardam numa fila FIFO em vez de falhar; só uma fila
+  // muito longa (sinal de uso anômalo) devolve CONCURRENCY_LIMIT.
+  const waiting = [];
+  let active = 0;
+  const maxWaiting = config.PNCP_MAX_CONCURRENT_OPERATIONS * 4;
+  function acquireSlot(signal) {
+    if (active < config.PNCP_MAX_CONCURRENT_OPERATIONS) { active++; return Promise.resolve(); }
+    assert(waiting.length < maxWaiting, 'CONCURRENCY_LIMIT', 'Há operações demais em andamento. Tente novamente em instantes.', 429, { retry_after_seconds: 2 }, true);
+    return new Promise((resolve, reject) => {
+      const waiter = { resolve: () => { signal.removeEventListener('abort', abort); resolve(undefined); } };
+      const abort = () => { waiting.splice(waiting.indexOf(waiter), 1); reject(signal.reason); };
+      signal.addEventListener('abort', abort, { once: true });
+      waiting.push(waiter);
+    });
+  }
+  function releaseSlot() {
+    const next = waiting.shift();
+    if (next) next.resolve(); else active--;
+  }
   return {
     async run(id, method, payload = {}, onProgress = () => {}) {
       assert(methods.includes(method), 'NOT_FOUND', 'Operação não disponível.');
       assert(typeof id === 'string' && id.length > 0 && id.length <= 128 && !controllers.has(id), 'INVALID_OPERATION', 'Identificador de operação inválido.');
-      assert(controllers.size < config.PNCP_MAX_CONCURRENT_OPERATIONS, 'CONCURRENCY_LIMIT', 'Há operações demais em andamento. Tente novamente em instantes.', 429, { retry_after_seconds: 2 }, true);
-      const controller = new AbortController(); controllers.set(id, controller);
+      const controller = new AbortController();
       const signal = controller.signal;
+      controllers.set(id, controller);
+      try { await acquireSlot(signal); }
+      catch (error) { controllers.delete(id); throw error; }
       try {
         const allowed = {
           schema: [], execute: ['query'], domains: ['type','normatives','field','priority'], suggest: ['type','field','q','size'],
@@ -46,15 +67,15 @@ export function createRuntime(input, options = {}) {
             const { chunks, metadata } = await service.export(payload.query, signal, id, { onProgress, scope: payload.scope });
             const stamp = metadata.finished_at.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
             const pageSuffix = metadata.export_scope === 'page' ? `-pagina-${metadata.page}` : '';
-            result = { chunks: chunks.map(c => c.buffer), metadata, mime: 'text/csv; charset=utf-8', filename: `compras-pncp-${stamp}${pageSuffix}.csv` };
+            result = { chunks: chunks.map(c => c.buffer), metadata, mime: 'text/csv; charset=utf-8', filename: `contratos-web-${stamp}${pageSuffix}.csv` };
             break;
           }
         }
         signal.throwIfAborted(); return method === 'export' ? result : plain(result);
-      } finally { controllers.delete(id); }
+      } finally { controllers.delete(id); releaseSlot(); }
     },
     cancel(id) { controllers.get(id)?.abort(new DOMException('Operação cancelada.', 'AbortError')); },
-    async close() { for (const controller of controllers.values()) controller.abort(new DOMException('Aplicação encerrada.', 'AbortError')); await client.close(); },
+    async close() { for (const waiter of waiting.splice(0)) waiter.resolve(); for (const controller of controllers.values()) controller.abort(new DOMException('Aplicação encerrada.', 'AbortError')); await client.close(); },
   };
 }
 

@@ -31,6 +31,11 @@ const RESULT_CACHE_TTL = 30000;
 const RESULT_CACHE_LIMIT = 20;
 const filterHeaderIcon='<svg class="header-filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16"/><path d="M7 12h10"/><path d="M10 17h4"/></svg>';
 const filterLabel=name=>state.schema.capabilities.find(c=>c.name===name)?.label || name;
+// Estado compartilhado. Cada módulo altera somente os campos que possui:
+// - app.js: schema, query, lastQuery, lastResult, table, placeholder, abort, status, exportAbort, mobileView, resultCache;
+// - filters-panel.js: draft, domains, domainAbort, legalAbort, legalPending, legalError (reiniciados por filters.reset());
+// - details-panel.js: detailAbort, detailSelection, detailActivate (reiniciados por details.close()).
+// Os demais módulos apenas leem esses campos.
 const state={schema:null,query:/** @type {SearchQuery | null} */(null),lastQuery:/** @type {SearchQuery | null} */(null),lastResult:/** @type {SearchResult | null} */(null),table:null,placeholder:null,abort:null,status:'idle',draft:/** @type {SearchQuery | null} */(null),domains:null,domainAbort:null,legalAbort:null,legalPending:false,legalError:false,detailAbort:null,detailSelection:/** @type {DetailSelection | null} */(null),detailActivate:null,exportAbort:null,mobileView:'cards',resultCache:/** @type {Map<string, import('../types/contracts.js').ResultCacheEntry>} */(new Map())};
 const session=createSession();
 let filterOptionsCache;
@@ -84,7 +89,14 @@ function invalidQueryUrl(error) {
   urlError=error;status('error');$('retry-button').hidden=true;$('clear-button').hidden=false;
   notice(`Parâmetros inválidos na URL: ${error.message} Corrija o link ou ajuste os critérios e pesquise novamente.`,'error');
 }
-function notice(message,kind='') { $('notice-message').textContent=message;$('notice').className='notice '+kind;$('notice').hidden=!message; }
+// As regiões vivas permanecem na árvore acessível: anúncios em contêineres que
+// acabaram de deixar de ser ocultos costumam ser ignorados pelos leitores de tela.
+function announce(message,urgent=false) {
+  const live=$('notice-live'),alert=$('notice-alert');if(!live || !alert)return;
+  live.textContent='';alert.textContent='';
+  if(message)(urgent?alert:live).textContent=message;
+}
+function notice(message,kind='') { $('notice-message').textContent=message;$('notice').className='notice '+kind;$('notice').hidden=!message;announce(message,kind==='error'); }
 function setMobileView(view) {
   if(!['cards','table'].includes(view))return;
   state.mobileView=view;state.table?.setMobileView?.(view);
@@ -94,7 +106,7 @@ function setMobileView(view) {
 }
 function setConnectivity(message,kind='warning') {
   const node=$('connectivity-notice');if(!node)return;
-  node.textContent=message || '';node.dataset.kind=kind;node.hidden=!message;
+  node.textContent=message || '';node.dataset.kind=kind;node.hidden=!message;if(message)announce(message,kind==='offline');
 }
 function updateOnlineStatus() {
   if(window.navigator?.onLine===false)setConnectivity('Sem conexão. Verifique a rede para consultar o PNCP.','offline');
@@ -139,6 +151,7 @@ function updateExportButton() {
   $('export-button-tooltip').textContent=busy?'Consultando e gerando CSV…':'Exportar';
   if(busy)$('export-button-tooltip').hidden=true;
   $('export-button').setAttribute('aria-label',busy?'Gerando CSV':'Exportar');
+  if($('export-button-label'))$('export-button-label').textContent=busy?'Gerando CSV':'Exportar';
   if(busy || !ready)closeExportMenu();
 }
 function status(value,query=state.query) {
@@ -190,10 +203,6 @@ function updateCriteria() {
   }
   selectMenus?.refresh();
 }
-function mergeDomains(domains) {
-  if(!domains?.filters)return;
-  state.domains={...domains,filters:{...state.domains?.filters,...domains.filters}};
-}
 async function hydrateDomains(type) {
   if(!filterOptionsCache || !state.schema || !state.query || state.query.document_type!==type || !Object.keys(state.query.pncp_filters).length)return;
   const caps=state.schema.capabilities.filter(cap=>cap.domain && !cap.reserved && cap.documents.includes(type));
@@ -204,7 +213,7 @@ async function hydrateDomains(type) {
     try {
       const domains=await filterOptionsCache.get(request);
       if(state.query?.document_type!==type)return;
-      mergeDomains(domains);
+      filters.mergeDomains(domains);
     } catch { /* As opções continuam indisponíveis; os filtros seguem funcionando. */ }
   }
   if(state.query?.document_type===type)updateCriteria();
@@ -331,10 +340,10 @@ function renderColumnChoices() {
 }
 function applyQuery(query,{preserveDetails=false}={}) {
   const type=query.document_type,typeChanged=type!==state.query.document_type;
-  state.abort?.abort();state.exportAbort?.abort();filters.stop();state.legalAbort?.abort();
-  session.next('query');session.next('domains');session.next('legal');
+  state.abort?.abort();state.exportAbort?.abort();filters.reset();
+  session.next('query');
   $('filters-dialog').close();if(!preserveDetails)details.close(false);
-  state.query=clone(query);state.domains=null;state.draft=null;urlError=null;
+  state.query=clone(query);urlError=null;
   if(typeChanged) {
     state.lastQuery=null;state.lastResult=null;
     $('result-info').hidden=true;$('result-title').textContent='Resultados';$('result-status').textContent='';$('window-warning').hidden=true;tooltips.hideWindowTooltip();
@@ -393,7 +402,7 @@ async function init() {
   catch(error){urlError=error;}
   state.schema.columns=state.schema.columns_by_document[state.query.document_type];
   filters.renderStatuses();
-  state.placeholder=el('div','Informe uma pesquisa e consulte as contratações do PNCP.');
+  state.placeholder=el('div','Informe uma pesquisa e consulte os documentos do PNCP.');
   const resultInfo=$('result-info');
   state.table=tableFactory({
     container:$('results-table'),columns:tableColumnDefinitions(),renderCell,renderCard,footerContent:resultInfo,

@@ -26,7 +26,7 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${origin}/`);
-  await page.waitForFunction(() => document.querySelector('#result-title')?.textContent === '64 contratações');
+  await page.waitForFunction(() => document.querySelector('#result-title')?.textContent === '64 editais');
   await page.waitForTimeout(300);
   assert.deepEqual(describe(await analyze(page)), [], 'violações na busca em desktop');
 

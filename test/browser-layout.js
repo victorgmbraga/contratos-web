@@ -37,7 +37,7 @@ export async function assertBrowserLayout(browser, url) {
   const page = await context.newPage();
   try {
     await page.goto(url);
-    for (const [type, title] of [['edital','64 contratações'], ['ata','24 atas'], ['contrato','32 contratos']]) {
+    for (const [type, title] of [['edital','64 editais'], ['ata','24 atas'], ['contrato','32 contratos']]) {
       if (await page.locator('#document-type').inputValue() !== type) await page.locator('#document-type').selectOption(type);
       await page.waitForFunction(title => document.querySelector('#result-title').textContent === title, title);
       for (const viewport of [{width:1440,height:1000}, {width:1068,height:630}, {width:390,height:844}]) {

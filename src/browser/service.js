@@ -1,5 +1,6 @@
 import { PROTOCOL_VERSION } from './protocol.js';
 
+/** @param {any} config Configuração pública ou promessa que a resolve. */
 export function createWorkerService(config, { workerFactory = () => new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }), startupTimeout = 15000 } = {}) {
   let worker, ready, failed = false, disposed = false, serial = 0;
   const pending = new Map();
@@ -38,7 +39,8 @@ export function createWorkerService(config, { workerFactory = () => new Worker(n
     const unavailable = event => { if (worker !== instance) return; event.preventDefault?.(); failure(Object.assign(new Error('O serviço de navegador foi interrompido. Tente novamente.'), { code: 'WORKER_UNAVAILABLE', retryable: true })); };
     instance.addEventListener('error', unavailable); instance.addEventListener('messageerror', unavailable);
     const timer = setTimeout(() => failure(Object.assign(new Error('Tempo de inicialização do navegador esgotado.'), { code: 'WORKER_TIMEOUT' })), startupTimeout);
-    ready = send({ type: 'init', config, version: PROTOCOL_VERSION }).then(result => {
+    // O Worker começa a carregar imediatamente; a configuração pode chegar depois (promessa).
+    ready = Promise.resolve(config).then(value => send({ type: 'init', config: value, version: PROTOCOL_VERSION })).then(result => {
       if (result.version !== PROTOCOL_VERSION) throw new Error('Versão do Worker incompatível.');
     }).catch(error => { if (worker === instance) failure(error); throw error; }).finally(() => clearTimeout(timer));
     ready.catch(() => {});

@@ -26,7 +26,7 @@ const cors = http.createServer((req, res) => {
 });
 await new Promise(resolve=>cors.listen(0,'127.0.0.1',resolve));
 try {
-  for(const prefix of ['/','/compras-web/']) {
+  for(const prefix of ['/','/contratos-web/']) {
     const app = createStaticServer(new URL('../dist-browser/',import.meta.url),prefix);
     await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
     const context = await browser.newContext();
@@ -38,8 +38,8 @@ try {
     page.on('pageerror',e=>errors.push(e.message));
     try {
       await page.goto(`http://127.0.0.1:${app.server.address().port}${prefix}`);
-      await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
-      for(const [type,title] of [['ata','24 atas'],['contrato','32 contratos'],['edital','64 contratações']]) {
+      await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 editais');
+      for(const [type,title] of [['ata','24 atas'],['contrato','32 contratos'],['edital','64 editais']]) {
         await page.locator('#document-type').selectOption(type);
         await page.waitForFunction(title=>document.querySelector('#result-title').textContent===title,title);
         assert.equal(await page.locator('#result-info').isVisible(),true,`Rodapé de ${type} em ${prefix}`);
@@ -48,7 +48,7 @@ try {
       assert.deepEqual(api,[]); assert.deepEqual(errors,[]);
       await page.locator('#theme-button').click();
       assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
-      await page.reload();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
+      await page.reload();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 editais');
       assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
       await page.locator('#theme-button').click();
       console.log('PASS Artefato de produção, assets e Worker em '+prefix);

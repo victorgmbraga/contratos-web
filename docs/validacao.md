@@ -71,14 +71,14 @@ O sistema precisa das bibliotecas exigidas pelo navegador. Quando necessário, a
 
 ```sh
 npx playwright install firefox
-COMPRAS_QA_BROWSER=firefox npm run test:browser
+CONTRATOS_QA_BROWSER=firefox npm run test:browser
 ```
 
 Para executar a mesma suíte com WebKit:
 
 ```sh
 npx playwright install webkit
-COMPRAS_QA_BROWSER=webkit npm run test:browser
+CONTRATOS_QA_BROWSER=webkit npm run test:browser
 ```
 
 Para testar os dois navegadores sem recompilar entre as execuções:
@@ -87,7 +87,7 @@ Para testar os dois navegadores sem recompilar entre as execuções:
 npm run build:qa
 npm run test:budget
 npm run test:browser -- --skip-build
-COMPRAS_QA_BROWSER=firefox npm run test:browser -- --skip-build
+CONTRATOS_QA_BROWSER=firefox npm run test:browser -- --skip-build
 ```
 
 `build:qa` gera `dist-browser/` e `dist-browser-test/` uma vez. `--skip-build` exige ambos os builds existentes e apenas os lê. As execuções locais acima devem ser sequenciais, pois usam os mesmos diretórios; no CI, cada navegador recebe uma cópia do mesmo artefato em seu próprio job. O runner informa a duração de cada etapa em linhas `TIME`.
@@ -123,7 +123,7 @@ O teste isolado da tabela está em [`results-table.browser.mjs`](../test/results
 Para guardar evidências localmente quando um teste de navegador falhar, defina um diretório antes da execução:
 
 ```sh
-COMPRAS_QA_DIAGNOSTICS_DIR=/tmp/contratos-evidencias npm run test:browser -- --skip-build
+CONTRATOS_QA_DIAGNOSTICS_DIR=/tmp/contratos-evidencias npm run test:browser -- --skip-build
 ```
 
 Cada etapa que falhar grava `failure.txt`, `console.json`, screenshots das páginas abertas e um trace por contexto quando disponíveis. Abra o trace com `npx playwright show-trace caminho/para/context-1-trace.zip`. O CI salva essas evidências como `browser-failure-chromium`, `browser-failure-firefox` ou `browser-failure-webkit` por sete dias. Os dados do navegador usados nesses testes são sintéticos. Uma etapa bem-sucedida não gera artefatos de diagnóstico. Novas suítes devem chamar `diagnoseBrowserFailure(error)` antes de fechar páginas, contextos ou o navegador, preservando o erro original.
@@ -154,13 +154,13 @@ O script `measure-build.mjs` informa bytes brutos e gzip por asset e totais de J
 
 | Variável | Uso |
 | --- | --- |
-| `COMPRAS_QA_BROWSER` | `chromium` (padrão), `firefox` ou `webkit` |
-| `COMPRAS_QA_BROWSER_EXECUTABLE` | Caminho de um navegador instalado no ambiente |
-| `COMPRAS_QA_CHROMIUM_EXECUTABLE` | Caminho alternativo de executável, usado quando a opção geral não está definida |
-| `COMPRAS_QA_CHROMIUM_MODULE` | Módulo que fornece um executável Chromium |
-| `COMPRAS_QA_PLAYWRIGHT_MODULE` | Módulo Playwright fornecido pelo ambiente |
-| `COMPRAS_QA_SCREENSHOT_DIR` | Diretório existente para as capturas da interface |
-| `COMPRAS_QA_DIAGNOSTICS_DIR` | Diretório para evidências das etapas de navegador que falharem |
+| `CONTRATOS_QA_BROWSER` | `chromium` (padrão), `firefox` ou `webkit` |
+| `CONTRATOS_QA_BROWSER_EXECUTABLE` | Caminho de um navegador instalado no ambiente |
+| `CONTRATOS_QA_CHROMIUM_EXECUTABLE` | Caminho alternativo de executável, usado quando a opção geral não está definida |
+| `CONTRATOS_QA_CHROMIUM_MODULE` | Módulo que fornece um executável Chromium |
+| `CONTRATOS_QA_PLAYWRIGHT_MODULE` | Módulo Playwright fornecido pelo ambiente |
+| `CONTRATOS_QA_SCREENSHOT_DIR` | Diretório existente para as capturas da interface |
+| `CONTRATOS_QA_DIAGNOSTICS_DIR` | Diretório para evidências das etapas de navegador que falharem |
 
 Preserve o proxy e a confiança TLS exigidos pelo ambiente de execução. Um resultado só é aprovado quando o comando termina com código zero. Os resultados e tempos devem ser obtidos da execução em análise.
 

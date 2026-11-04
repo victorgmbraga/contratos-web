@@ -4,15 +4,13 @@ import { initializeButtonMotion } from './button-motion.js';
 import { createApplicationUI } from './app.js';
 import { createWorkerService } from '../src/browser/service.js';
 
-const service = { async call(...args) { return (await ready).call(...args); } };
-const ready = (async () => {
-  const response = await fetch(new URL('./browser-config.json', document.baseURI), { cache: 'no-store', credentials: 'omit' });
+// O Worker é criado antes de a configuração chegar, para que os dois downloads ocorram em paralelo.
+const config = fetch(new URL('./browser-config.json', document.baseURI), { cache: 'no-store', credentials: 'omit' }).then(response => {
   if (!response.ok) throw new Error('Não foi possível carregar a configuração pública.');
-  const config = await response.json();
-  const worker = createWorkerService(config);
-  window.addEventListener('pagehide', event => { if (!event.persisted) worker.close(); });
-  return worker;
-})();
+  return response.json();
+});
+const service = createWorkerService(config);
+window.addEventListener('pagehide', event => { if (!event.persisted) service.close(); });
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register(new URL('./sw.js', document.baseURI)).catch(() => {});
 }

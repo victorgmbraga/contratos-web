@@ -34,7 +34,7 @@ export const documentOrders={
   contrato:[...commonOrders,'numero_contratacao','numero_controle_pncp','data_inicio_vigencia','valor_global'],
 };
 export const orderLabels={'-data':'Mais recentes',data:'Mais antigas',relevancia:'Relevância',numero_controle_pncp:'Controle PNCP','-valor_total_estimado':'Valor total estimado',valor:'Maior valor','-valor':'Menor valor',numero_contratacao:'Número da contratação',data_inicio_vigencia:'Início da vigência',valor_global:'Valor global'};
-export const documentNames={edital:{singular:'contratação',plural:'contratações',label:'Editais e Avisos de Contratações'},ata:{singular:'ata',plural:'atas',label:'Atas de Registro de Preços'},contrato:{singular:'contrato',plural:'contratos',label:'Contratos'}};
+export const documentNames={edital:{singular:'edital',plural:'editais',label:'Editais e Avisos de Contratações'},ata:{singular:'ata',plural:'atas',label:'Atas de Registro de Preços'},contrato:{singular:'contrato',plural:'contratos',label:'Contratos'}};
 const commonColumns=columns.filter(c=>!['modalidade_nome','situacao_compra_nome_pncp','valor_total_estimado','valor_total_homologado','tem_resultado'].includes(c.field));
 const contractColumns=[...commonColumns,
   column('tipo_contrato_nome','Tipo de contrato','text',{visible:true,domain:'tipos_contrato'}),

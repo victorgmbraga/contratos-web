@@ -50,7 +50,7 @@ export async function assertFilterLayout(page) {
     await page.locator('.filters-body').evaluate(body=>body.scrollTop+=24);
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     await checkDropdown();
-    if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.COMPRAS_QA_SCREENSHOT_DIR}/filter-dropdown-${width}.png`});
+    if(process.env.CONTRATOS_QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.CONTRATOS_QA_SCREENSHOT_DIR}/filter-dropdown-${width}.png`});
     const modalFit=await page.locator('#filters-dialog').evaluate(dialog=>{
       const body=dialog.querySelector('.filters-body'),footer=dialog.querySelector('.dialog-footer'),rect=dialog.getBoundingClientRect(),top=footer.getBoundingClientRect().top,fields=dialog.querySelectorAll('.filter-field'),buttonsFit=[...footer.querySelectorAll('button')].every(button=>{const bounds=button.getBoundingClientRect();return bounds.left>=rect.left && bounds.right<=rect.right;});
       body.scrollTop=body.scrollHeight;
@@ -84,5 +84,5 @@ export async function assertFilterLayout(page) {
   await page.locator('#filter-suggestions-naturezas_juridicas .suggestion').first().click();await page.locator('#filters-dialog .dialog-header .close-dialog').click();
   check('Sugestões próximas ao rodapé não bloqueiam as ações e permanecem acessíveis no último campo');
   await page.setViewportSize({width:390,height:844});await page.locator('#filters-button').click();assert(await page.locator('#filters-dialog').isVisible());await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();check('Cabeçalho responsivo mantém busca e filtros visíveis e painéis sem overflow da página');
-  if(process.env.COMPRAS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.COMPRAS_QA_SCREENSHOT_DIR+'/mobile.png',fullPage:true});
+  if(process.env.CONTRATOS_QA_SCREENSHOT_DIR)await page.screenshot({path:process.env.CONTRATOS_QA_SCREENSHOT_DIR+'/mobile.png',fullPage:true});
 }

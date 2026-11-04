@@ -3,6 +3,7 @@ import { validateQuery, validateDomains, validateSuggest, validateDocument, vali
 import { project, identity, plain } from './adapter.js';
 import { operation, delay } from './operation.js';
 import { csvWriter } from './csv.js';
+import { catalogDomains, referenceDomains } from './filter-domains.js';
 import { columnsFor, capabilities, documentNames } from './schema.js';
 
 export const DOMAIN_VALIDATION_TTL = 4 * 60 * 60 * 1000;
@@ -17,14 +18,28 @@ function exportMetadata({data: _data, ...metadata}, rows, scope) {
 }
 export class QueryService {
   constructor(config, client) { this.config=config; this.client=client; this.domainValidationCache=new Map(); }
+  /**
+   * Domínios compartilhados entre a pré-carga da interface e a validação das consultas.
+   * Guarda a promessa para que chamadas simultâneas reutilizem a mesma requisição.
+   */
   async validatedDomains(type, normatives, op, field = null) {
-    const key = field ? `field:${field}` : `search:${type}:${[...(normatives || [])].sort().join('|')}`;
-    const now = Date.now(), cached = this.domainValidationCache.get(key);
-    if (cached && now - cached.at < DOMAIN_VALIDATION_TTL) return cached.value;
-    const value = await this.client.domains(type, normatives, op, field);
-    this.domainValidationCache.set(key, { at: now, value });
-    if (this.domainValidationCache.size > 64) this.domainValidationCache.delete(this.domainValidationCache.keys().next().value);
-    return value;
+    const ownField = field !== null && (Object.hasOwn(catalogDomains, field) || Object.hasOwn(referenceDomains, field));
+    const key = ownField ? `field:${field}` : `search:${type}:${[...(normatives || [])].sort().join('|')}`;
+    for (;;) {
+      const now = Date.now(), cached = this.domainValidationCache.get(key);
+      const entry = cached && now - cached.at < DOMAIN_VALIDATION_TTL ? cached : { at: now, promise: this.client.domains(type, normatives, op, ownField ? field : null) };
+      if (entry !== cached) {
+        this.domainValidationCache.set(key, entry);
+        if (this.domainValidationCache.size > 64) this.domainValidationCache.delete(this.domainValidationCache.keys().next().value);
+        entry.promise.catch(() => { if (this.domainValidationCache.get(key) === entry) this.domainValidationCache.delete(key); });
+      }
+      try { return await entry.promise; }
+      catch (error) {
+        // A requisição compartilhada pode ter sido cancelada por outra operação; esta repete com o próprio sinal.
+        if (entry === cached && !op.signal.aborted && (error?.name === 'AbortError' || error?.code === 'CANCELLED')) continue;
+        throw error;
+      }
+    }
   }
   async verifyDomains(query, op) {
     const short=capabilities(this.config).filter(c=>c.domain_kind==='closed' && Object.hasOwn(query.pncp_filters,c.name));
@@ -43,8 +58,16 @@ export class QueryService {
     const fmt=n=>new Intl.NumberFormat('pt-BR').format(n);
     assert(head.total<=limit && head.total<=10000,'EXPORT_TOO_BROAD',`A busca retornou ${fmt(head.total)} ${documentNames[query.document_type].plural}; o limite de exportação é ${fmt(limit)}. Delimite a pesquisa por texto, período de publicação, UF ou órgão.`,422,{source_total:head.total,limit});
     const seen=new Set(),pages=Math.max(1,Math.ceil(head.total/size));
+    // A próxima página é solicitada enquanto a atual é projetada e codificada,
+    // para que a coleta fique limitada pelo ritmo de chamadas e não pela latência.
+    const depth=Math.max(1,Math.min(2,this.config.PNCP_MAX_CONCURRENT_REQUESTS)),ahead=new Map();
+    let requested=1;
+    const fill=()=>{while(requested<pages && ahead.size<depth){const page=++requested,pending=this.client.search(query,page,size,op);pending.catch(()=>{});ahead.set(page,pending);}};
+    fill();
     for(let page=1;page<=pages;page++) {
-      op.check();const current=page===1?head:await this.client.search(query,page,size,op);
+      op.check();
+      let current=head;
+      if(page>1){current=await ahead.get(page);ahead.delete(page);fill();}
       assert(current.total===head.total,'SOURCE_CHANGED','O total do PNCP mudou durante a coleta. Repita a consulta.',409,{},true);
       assert(current.items.length===Math.min(size,Math.max(0,head.total-(page-1)*size)),'SOURCE_CHANGED','Página incompleta ou inesperadamente vazia na coleta PNCP.',409,{},true);
       const documents=[];
@@ -120,7 +143,7 @@ export class QueryService {
       return {chunks:writer.chunks,metadata};
     }finally{op.finish();}
   }
-  async domains(type,normatives,signal,requestId,field=null,priority='foreground') {validateDomains(type,normatives,field,this.config);const op=operation(this.config,signal,requestId,priority);try{return {...await this.client.domains(type,normatives,op,field),request_id:op.id,queried_at:new Date().toISOString()};}finally{op.finish();}}
+  async domains(type,normatives,signal,requestId,field=null,priority='foreground') {validateDomains(type,normatives,field,this.config);const op=operation(this.config,signal,requestId,priority);try{return {...await this.validatedDomains(type,normatives,op,field),request_id:op.id,queried_at:new Date().toISOString()};}finally{op.finish();}}
   async suggest(type,field,q,size,signal,requestId) {validateSuggest(type,field,q,size,this.config);const op=operation(this.config,signal,requestId);try{return {...await this.client.suggest(type,field,q,size,op),request_id:op.id,queried_at:new Date().toISOString()};}finally{op.finish();}}
   async details(purchase,page,size,signal,requestId) {
     validateDocument(purchase,['edital']);validateDetailPage(page,size);

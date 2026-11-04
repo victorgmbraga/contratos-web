@@ -99,6 +99,17 @@ function setLoadStatus(status,text,busy=false) {
 function scrollListToStart(list) {
   list.scrollIntoView?.({block:'start'});
 }
+// Resumo com os fatos principais do documento e o acesso direto à página oficial no PNCP.
+const SUMMARY_FIELDS={edital:['orgao_nome','situacao_compra_nome_pncp','valor_total_estimado','data_publicacao_pncp'],ata:['orgao_nome','data_inicio_vigencia','data_fim_vigencia','cancelado'],contrato:['fornecedor_nome','valor_global','data_inicio_vigencia','data_fim_vigencia']};
+function detailSummary(doc,kind) {
+  const summary=el('div',undefined,'detail-summary'),columns=state.schema.columns_by_document[kind] || [];
+  const fields=(SUMMARY_FIELDS[kind] || []).map(name=>{const column=columns.find(c=>c.field===name);return column && doc[name]!=null && doc[name]!==''?{field:name,title:name==='cancelado'?'Situação':column.title,type:name==='cancelado'?'text':column.type,value:name==='cancelado'?(doc[name]?'Cancelada':'Vigente'):doc[name]}:null;}).filter(Boolean);
+  if(fields.length)appendFields(summary,fields,'detail-summary-values');
+  const href=doc.numero_controle_pncp?controlLink(doc.numero_controle_pncp):doc.url_pncp,open=href?safeAnchor('Abrir no PNCP',href):null;
+  if(open){open.className='button small detail-open-pncp';open.setAttribute('aria-label',`Abrir no PNCP: ${names(kind)} (abre em nova aba)`);summary.append(open);}
+  return summary;
+}
+function names(kind){return documentName(kind)?.singular || 'documento';}
 function appendFields(container,fields,className='related-values') {
   const values=el('dl',undefined,className);
   for(const field of fields){
@@ -202,6 +213,7 @@ async function openDetails(doc,{tab='detalhes',sync=true,searchReady=Promise.res
   detailController.signal.addEventListener('abort',()=>{summaryObserver?.disconnect();if($('description-dialog').open)$('description-dialog').close();},{once:true});
   more.addEventListener('click',()=>{$('description-content').textContent=objectSummary.textContent;openDialog('description-dialog');});
   const kind=doc.tipo_documento,names=documentName(kind);
+  content.append(detailSummary(doc,kind));
   $('details-kind').textContent=doc.titulo ?? '—';
   $('details-dialog').setAttribute('aria-label',`Detalhes: ${names.singular}`);
   const nav=el('div',undefined,'detail-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label',`Seções: ${names.singular}`);content.append(nav);

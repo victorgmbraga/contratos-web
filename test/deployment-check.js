@@ -24,7 +24,7 @@ export async function verifyDeployment({ baseUrl, directory, revision, fetcher =
   if (!assets.some(name => /\/index-.*\.js$/.test(name)) || !assets.some(name => /\/index-.*\.css$/.test(name)) || !assets.some(name => /\/worker-.*\.js$/.test(name))) {
     throw new Error('O build não contém os bundles principais de JavaScript, CSS e Worker.');
   }
-  const paths = ['index.html', 'pncp-diagnostic.html', 'browser-config.json', 'theme-boot.js', 'sw.js', 'og-image.png', ...assets];
+  const paths = ['index.html', 'pncp-diagnostic.html', 'browser-config.json', 'sw.js', 'og-image.png', ...assets];
   const expected = await Promise.all(paths.map(async path => ({ path, digest: hash(await readFile(join(directory, path))) })));
   let failure;
   for (let attempt = 1; attempt <= attempts; attempt++) {

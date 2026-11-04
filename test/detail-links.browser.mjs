@@ -95,7 +95,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('Parâmetros inválidos na URL'));
   assert.equal(calls('execute'),queries);assert.equal(calls('documentDetails'),details);
   assert.equal(await page.locator('#details-dialog').isVisible(),false);
-  await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 contratações');
+  await page.locator('#clear-button').click();await page.waitForFunction(()=>document.querySelector('#result-title').textContent==='64 editais');
   assert.equal(new URL(page.url()).searchParams.has('detalhe'),false);assert.equal(new URL(page.url()).searchParams.has('aba'),false);
   assert.deepEqual(errors,[]);
   console.log('PASS Link com aba incompatível não consulta o PNCP e permite limpar a URL; sem erros JavaScript');

@@ -5,6 +5,9 @@ export function createFiltersPanel({ document, window, service, state, session, 
 const $ = getElementById;
 const filterFields=new Map();
 let openFilterEditor=null;
+// Filtros mais usados aparecem primeiro, num grupo próprio; os demais seguem por assunto.
+const PRIMARY_FILTERS=['data_publicacao_inicio','data_publicacao_fim','ufs','municipios','orgaos','modalidades','situacoes','valor_total_estimado_min','valor_total_estimado_max','valor_global_min','valor_global_max','data_inicio_vigencia_inicio','data_inicio_vigencia_fim','fornecedores'];
+const FILTER_GROUPS=['Contratação','Item','Resultado do item','Fornecedor','Contrato'];
 
 function renderFilterStatuses() {
   const statuses=state.schema.statuses_by_document[state.query.document_type],statusNames={todos:'Todos',recebendo_proposta:'Recebendo propostas',propostas_encerradas:'Propostas encerradas',vigente:'Vigentes',nao_vigente:'Não vigentes'};
@@ -88,14 +91,17 @@ async function openFilters(column=null) {
   const controller=new AbortController();state.domainAbort=controller;
   const base=getDomains(controller.signal);base.catch(()=>{});
   const loads=[],target=column?.domain || column?.native_range?.[0];
-  for(const groupName of ['Contratação','Item','Resultado do item','Fornecedor','Contrato']) {
-    const caps=state.schema.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.group===groupName && c.documents.includes(state.draft.document_type));
+  const available=state.schema.capabilities.filter(c=>!c.reserved && c.state==='enabled' && c.documents.includes(state.draft.document_type));
+  const primary=PRIMARY_FILTERS.map(name=>available.find(c=>c.name===name)).filter(Boolean);
+  const groups=[['Principais',primary],...FILTER_GROUPS.map(groupName=>[groupName,available.filter(c=>c.group===groupName && !primary.includes(c))])];
+  $('filter-search').value='';$('filter-search-empty').hidden=true;
+  for(const [groupName,caps] of groups) {
     if(!caps.length)continue;
     const group=el('fieldset',undefined,'filter-group'),legend=el('legend',groupName==='Contratação' && state.draft.document_type!=='edital'?'Documento':groupName==='Contrato' && state.draft.document_type==='ata'?'Ata':groupName);
     group.append(legend);
     const grid=el('div',undefined,'filter-grid');group.append(grid);$('filter-groups').append(group);
     for(const cap of caps) {
-      const editor=createFilterEditor(cap);filterFields.set(cap.name,editor);grid.append(editor.area);
+      const editor=createFilterEditor(cap);editor.group=group;filterFields.set(cap.name,editor);grid.append(editor.area);
       if(cap.domain)loads.push(loadFilterOptions(editor,controller.signal,cap.domain_source==='search' && !(cap.name==='amparos_legais' && state.draft.pncp_filters.normativos_base?.length)?base:undefined).then(()=>{
         if(cap.name===target && currentEditor(editor) && !editor.input.disabled && document.activeElement===editor.area)editor.input.focus({preventScroll:true});
       }));
@@ -170,7 +176,7 @@ function populateFilterOptions(editor,domains) {
   // Suggest-only domains may be absent from /filters; typing still queries /suggest.
   const options=domains.filters[cap.domain] === undefined && cap.domain_kind==='suggest'?[]:domains.filters[cap.domain];
   if(!Array.isArray(options) || (!options.length && cap.domain_kind!=='suggest'))throw new Error('O PNCP não forneceu opções para este domínio.');
-  state.domains={...domains,filters:{...state.domains?.filters,...domains.filters}};
+  mergeDomains(domains);
   editor.options=cap.name==='anos'?[...options].sort((a,b)=>{
     const x=/^-?\d+(?:\.\d+)?$/.test(a.id),y=/^-?\d+(?:\.\d+)?$/.test(b.id);
     return x && y?compareDecimal(a.id,b.id):x?-1:y?1:a.label.localeCompare(b.label,'pt-BR');
@@ -295,18 +301,41 @@ function renderSelectedOptions(editor) {
   const area=editor.selectedArea;area.replaceChildren();
   for(const option of editor.selected){const button=el('button',option.label+' ×','selected-option');button.type='button';button.setAttribute('aria-label',`Remover ${option.label} de ${editor.cap.label}`);button.addEventListener('click',async()=>{editor.selected=editor.selected.filter(o=>o.id!==option.id);await editFilter(editor);});area.append(button);}
 }
+function searchFilterFields() {
+  const terms=normalizedOptionText($('filter-search').value).trim().split(/\s+/).filter(Boolean);
+  let visible=0;const groups=new Map();
+  for(const editor of filterFields.values()) {
+    const text=normalizedOptionText(editor.cap.label || editor.cap.name);
+    editor.area.hidden=!terms.every(term=>text.includes(term));
+    if(!editor.area.hidden)visible++;
+    groups.set(editor.group,(groups.get(editor.group) || 0)+(editor.area.hidden?0:1));
+  }
+  for(const [group,count] of groups)group.hidden=count===0;
+  $('filter-search-empty').hidden=visible>0;
+  if(openFilterEditor?.area.hidden)closeFilterDropdown();
+}
 function apply() {
   if(state.legalPending || state.legalError)return null;
   state.draft.q=$('draft-search').value;state.draft.status=$('draft-status').value;
   return structuredClone(state.draft);
 }
+function mergeDomains(domains) {
+  if(!domains?.filters)return;
+  state.domains={...domains,filters:{...state.domains?.filters,...domains.filters}};
+}
+// Descarta rascunho, domínios e consultas pendentes deste painel (troca de consulta ou de tipo).
+function resetFilters() {
+  stopFilterEditors();state.legalAbort?.abort();session.next('legal');
+  state.legalPending=false;state.legalError=false;state.domains=null;state.draft=null;
+}
 function onDialogClose() {
   stopFilterEditors();state.legalAbort?.abort();session.next('legal');
 }
 $('draft-status').addEventListener('change',updateDraftActions);
+$('filter-search').addEventListener('input',searchFilterFields);
 document.addEventListener('select-menu-open',closeFilterDropdown);
 document.addEventListener('pointerdown',event=>{if(openFilterEditor && event.target!==openFilterEditor.input && !openFilterEditor.suggestions.contains(event.target))closeFilterDropdown();});
 $('filters-dialog').querySelector('.filters-body')?.addEventListener('scroll',positionFilterDropdown);
 window.addEventListener('resize',closeFilterDropdown);
-return {open: openFilters, stop: stopFilterEditors, closeDropdown: closeFilterDropdown, positionDropdown: positionFilterDropdown, renderStatuses: renderFilterStatuses, setDraftFilter, clearDraft: clearDraftFilters, apply, onDialogClose};
+return {open: openFilters, stop: stopFilterEditors, reset: resetFilters, mergeDomains, closeDropdown: closeFilterDropdown, positionDropdown: positionFilterDropdown, renderStatuses: renderFilterStatuses, setDraftFilter, clearDraft: clearDraftFilters, apply, onDialogClose};
 }

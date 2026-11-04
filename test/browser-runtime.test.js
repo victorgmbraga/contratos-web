@@ -151,7 +151,18 @@ test('BROWSER-09: cancelamento em leitura libera fila e operações, sem cancela
 test('BROWSER-10: limite de operações recupera após cancelamento e prazo absoluto é conferido', async () => {
   const runtime = createRuntime(settings({ PNCP_MAX_CONCURRENT_OPERATIONS: 1 }), { fetcher: async (_url, { signal }) => { await delay(10000, signal); return json({ items: [], total: 0 }); } });
   const first = runtime.run('1', 'execute', { query: {} }); const aborted = assert.rejects(first, e => e.name === 'AbortError');
-  try { await assert.rejects(runtime.run('2', 'schema'), e => e.code === 'CONCURRENCY_LIMIT'); runtime.cancel('1'); await aborted; assert((await runtime.run('3', 'schema')).columns.length); }
+  try {
+    // Excedentes aguardam na fila e podem ser cancelados antes de iniciar.
+    const queued = runtime.run('2', 'schema'); let settled = false; queued.finally(() => { settled = true; }).catch(() => {});
+    const cancelledWhileQueued = runtime.run('4', 'schema'); const cancelledCheck = assert.rejects(cancelledWhileQueued, e => e.name === 'AbortError');
+    await delay(10); assert.equal(settled, false); runtime.cancel('4'); await cancelledCheck;
+    runtime.cancel('1'); await aborted; assert((await queued).columns.length);
+    assert((await runtime.run('3', 'schema')).columns.length);
+    const blocked = runtime.run('5', 'execute', { query: {} }); const blockedCheck = assert.rejects(blocked, e => e.name === 'AbortError');
+    const overflow = Array.from({ length: 4 }, (_, i) => runtime.run(`q${i}`, 'schema'));
+    await assert.rejects(runtime.run('6', 'schema'), e => e.code === 'CONCURRENCY_LIMIT');
+    runtime.cancel('5'); await blockedCheck; await Promise.all(overflow);
+  }
   finally { await runtime.close(); }
   const op = operation(defaults); op.deadline = Date.now() - 1;
   try { assert.throws(() => op.check(), e => e.code === 'OPERATION_TIMEOUT'); } finally { op.finish(); }
@@ -206,7 +217,8 @@ test('BROWSER-14: cancelar CSV no progresso impede páginas seguintes e permite 
   const fake=fixture(Array.from({length:100},(_,i)=>document(i+1))),runtime=createRuntime(settings(),fake);let progress=0;
   try {
     await assert.rejects(runtime.run('1','export',{query:{}},()=>{progress++;runtime.cancel('1');}),e=>e.name==='AbortError');
-    assert.equal(progress,1);assert.equal(fake.requests.length,1);
+    // Até duas páginas adiantadas podem ter sido solicitadas; o cancelamento as interrompe sem pedir outras.
+    assert.equal(progress,1);assert.ok(fake.requests.length<=3,String(fake.requests.length));
     assert.equal((await runtime.run('2','execute',{query:{}})).data.length,10);
   }finally{await runtime.close();}
 });

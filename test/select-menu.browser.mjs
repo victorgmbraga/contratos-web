@@ -19,6 +19,8 @@ async function bounded(){
   assert.equal(await menu().evaluate(node=>node.scrollWidth<=node.clientWidth),true);
 }
 async function contrast(){
+  // Mede as cores finais: a troca de tema dispara transições de cor de 160 ms nos controles.
+  await page.waitForFunction(()=>document.getAnimations().every(animation=>animation.playState!=='running'));
   assert.equal(await page.evaluate(()=>{
     const rgb=value=>value.match(/[\d.]+/g).map(Number);
     const lum=values=>values.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);

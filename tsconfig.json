@@ -12,7 +12,12 @@
     "skipLibCheck": true,
     "strict": false,
     "noImplicitAny": false,
-    "noUnusedLocals": false,
+    "noUnusedLocals": true,
+    "noImplicitThis": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "alwaysStrict": true,
+    "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": false,
     "verbatimModuleSyntax": false

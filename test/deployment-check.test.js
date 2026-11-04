@@ -12,7 +12,6 @@ async function fixture(t) {
     ['index.html', ['text/html', '<html>nova versão</html>']],
     ['pncp-diagnostic.html', ['text/html', '<html>diagnóstico</html>']],
     ['browser-config.json', ['application/json', '{}']],
-    ['theme-boot.js', ['application/javascript', 'theme()']],
     ['sw.js', ['application/javascript', 'worker()']],
     ['og-image.png', ['image/png', 'image']],
     ['assets/index-test.js', ['application/javascript', 'app()']],

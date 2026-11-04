@@ -70,7 +70,7 @@ try {
   await page.locator('#theme-button').hover();await page.locator('#theme-button-tooltip').waitFor({state:'visible'});
   assert.equal(await page.locator('#theme-button-tooltip').innerText(),'Ativar modo claro');
   await contrast(['#theme-button-tooltip']);
-  for(const [type,title] of [['edital','64 contratações'],['ata','24 atas'],['contrato','32 contratos']]) {
+  for(const [type,title] of [['edital','64 editais'],['ata','24 atas'],['contrato','32 contratos']]) {
     await page.locator('#document-type').selectOption(type);
     await page.waitForFunction(title=>document.querySelector('#result-title').textContent===title,title);
     await contrast(['.brand','.results-col','.results-cell','.results-page','.results-page.active','#search-button','#repository-link','#result-title','#document-type']);

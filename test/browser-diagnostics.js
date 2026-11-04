@@ -63,8 +63,8 @@ export function createBrowserDiagnostics(directory, suite) {
 }
 
 export function beginBrowserDiagnostics(suite) {
-  currentDiagnostics = process.env.COMPRAS_QA_DIAGNOSTICS_DIR
-    ? createBrowserDiagnostics(process.env.COMPRAS_QA_DIAGNOSTICS_DIR, suite)
+  currentDiagnostics = process.env.CONTRATOS_QA_DIAGNOSTICS_DIR
+    ? createBrowserDiagnostics(process.env.CONTRATOS_QA_DIAGNOSTICS_DIR, suite)
     : undefined;
 }
 

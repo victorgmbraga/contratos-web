@@ -14,6 +14,7 @@ function artifactName(job,action) {
 
 test('WORKFLOW-01: Chromium e Firefox validam em paralelo o mesmo build, sem recompilar',()=>{
   const validate=jobs.get('validate'),browser=jobs.get('browser');assert(validate);assert(browser);
+  assert(validate.indexOf('run: npm run format:check')>0 && validate.indexOf('run: npm run format:check')<validate.indexOf('run: npm run lint'),'Formatação conferida antes do lint');
   assert.match(validate,/run: npm run test:coverage/);assert.doesNotMatch(validate,/run: npm test\s*\n/);
   const build=validate.indexOf('run: npm run build:qa'),budget=validate.indexOf('run: npm run test:budget'),upload=validate.indexOf('uses: actions/upload-artifact@');
   assert(build>=0 && budget>build && upload>budget);
@@ -23,11 +24,11 @@ test('WORKFLOW-01: Chromium e Firefox validam em paralelo o mesmo build, sem rec
   const engines=browser.match(/browser: \[([^\]]+)\]/)?.[1].split(',').map(value=>value.trim());
   assert.deepEqual(engines,['chromium','firefox']);
   assert.match(browser,/playwright install --with-deps \$\{\{ matrix\.browser \}\}/);
-  assert.match(browser,/COMPRAS_QA_BROWSER: \$\{\{ matrix\.browser \}\}/);
+  assert.match(browser,/CONTRATOS_QA_BROWSER: \$\{\{ matrix\.browser \}\}/);
   assert.match(browser,/run: npm run test:browser -- --skip-build/);assert.doesNotMatch(browser,/run: npm run build/);
   assert.equal(artifactName(browser,'download-artifact'),artifactName(validate,'upload-artifact'));
   assert.match(browser,/id: browser_tests\n {8}run: npm run test:browser -- --skip-build/);
-  assert.match(browser,/COMPRAS_QA_DIAGNOSTICS_DIR: \$\{\{ runner\.temp \}\}\/browser-diagnostics/);
+  assert.match(browser,/CONTRATOS_QA_DIAGNOSTICS_DIR: \$\{\{ runner\.temp \}\}\/browser-diagnostics/);
   assert.match(browser,/if: failure\(\) && steps\.browser_tests\.conclusion == 'failure'/);
   assert.match(browser,/name: browser-failure-\$\{\{ matrix\.browser \}\}/);
 });
@@ -55,8 +56,8 @@ test('WORKFLOW-03: WebKit roda periodicamente ou sob demanda, com diagnósticos 
   assert.doesNotMatch(webkit,/^ {2}(push|pull_request):/m);
   assert.match(webkit,/playwright install --with-deps webkit/);
   assert(webkit.indexOf('run: npm run build:qa')<webkit.indexOf('run: npm run test:browser -- --skip-build'));
-  assert.match(webkit,/COMPRAS_QA_BROWSER: webkit/);
-  assert.match(webkit,/COMPRAS_QA_DIAGNOSTICS_DIR: \$\{\{ runner\.temp \}\}\/webkit-diagnostics/);
+  assert.match(webkit,/CONTRATOS_QA_BROWSER: webkit/);
+  assert.match(webkit,/CONTRATOS_QA_DIAGNOSTICS_DIR: \$\{\{ runner\.temp \}\}\/webkit-diagnostics/);
   assert.match(webkit,/if: failure\(\) && steps\.webkit_tests\.conclusion == 'failure'/);
   assert.match(webkit,/name: browser-failure-webkit/);
   assert.doesNotMatch(webkit,/uses: actions\/deploy-pages@|pages: write|id-token: write/);
