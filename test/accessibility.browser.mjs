@@ -17,16 +17,18 @@ function describe(result) {
   }
   return serious(result).map(violation => `${violation.id} (${violation.nodes.length}): ${violation.help}`);
 }
-const analyze = page => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+const analyze = page =>
+  new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
 // Modal and drawer transitions change opacity; analyze only after they settle.
-const settle = page => page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
+const settle = page =>
+  page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${origin}/`);
-  await page.waitForFunction(() => document.querySelector('#result-title')?.textContent === '64 contratações');
+  await page.waitForFunction(() => document.querySelector('#result-title')?.textContent === '64 editais');
   await page.waitForTimeout(300);
   assert.deepEqual(describe(await analyze(page)), [], 'violações na busca em desktop');
 
@@ -64,8 +66,13 @@ try {
   await page.keyboard.press('Escape');
 
   assert.deepEqual(errors, [], 'erros JavaScript durante a verificação');
-  console.log('PASS Acessibilidade: axe sem violações críticas ou sérias em busca, filtros, menu de exportação, detalhes, menu mobile e visualização móvel');
-} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {
+  console.log(
+    'PASS Acessibilidade: axe sem violações críticas ou sérias em busca, filtros, menu de exportação, detalhes, menu mobile e visualização móvel'
+  );
+} catch (error) {
+  await diagnoseBrowserFailure(error);
+  throw error;
+} finally {
   await browser.close();
   app.server.close();
 }

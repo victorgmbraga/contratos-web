@@ -15,7 +15,7 @@ Edite [`public/browser-config.json`](../public/browser-config.json) antes de `np
 
 O arquivo inteiro é público. Chaves desconhecidas são rejeitadas; credenciais e variáveis do processo não entram no bundle. O Vite não carrega arquivos `.env` neste projeto. As bases do navegador devem ser exatamente as bases públicas padrão do PNCP.
 
-Cada aba da aplicação possui um Worker, um cliente e uma fila compartilhada entre pesquisa, detalhes e CSV. Concorrência e ritmo são **por aba**, sem coordenação com outras abas ou dispositivos. Excesso de operações gera `CONCURRENCY_LIMIT`, com possibilidade de repetir. Os números de status dos erros são da aplicação; `details.upstream_status` só existe quando houve resposta HTTP legível da fonte.
+Cada aba da aplicação possui um Worker, um cliente e uma fila compartilhada entre pesquisa, detalhes e CSV. Concorrência e ritmo são **por aba**, sem coordenação com outras abas ou dispositivos. Operações além do limite aguardam numa fila FIFO do Worker e podem ser canceladas antes de iniciar; só uma fila com mais de quatro vezes o limite devolve `CONCURRENCY_LIMIT`, com possibilidade de repetir. Os números de status dos erros são da aplicação; `details.upstream_status` só existe quando houve resposta HTTP legível da fonte.
 
 O navegador usa `GET`, `mode: cors`, `credentials: omit`, `cache: no-store`, `redirect: error` e somente `Accept: application/json`. Ele não segue redirecionamentos; o navegador controla o estabelecimento da conexão. CORS, TLS e offline podem resultar em `PNCP_TRANSPORT_ERROR` sem HTTP conhecido. `Retry-After` só é considerado quando CORS permite ler esse cabeçalho; caso contrário, a espera local limitada permanece. O prazo absoluto também é conferido após retomar atividade.
 
@@ -49,7 +49,7 @@ O build e o servidor de desenvolvimento usam `public/browser-config.json`.
 | `PNCP_MAX_RETRIES` | `2` | Novas tentativas após a chamada inicial; `0` desativa novas tentativas |
 | `PNCP_MAX_CONCURRENT_REQUESTS` | `2` | Chamadas simultâneas à fonte por Worker |
 | `PNCP_REQUESTS_PER_SECOND` | `2` | Ritmo de início de chamadas por Worker |
-| `PNCP_MAX_CONCURRENT_OPERATIONS` | `4` | Operações simultâneas; excedentes recebem `CONCURRENCY_LIMIT` |
+| `PNCP_MAX_CONCURRENT_OPERATIONS` | `4` | Operações simultâneas; excedentes aguardam na fila (até quatro vezes este valor) e, além disso, recebem `CONCURRENCY_LIMIT` |
 
 O cliente tenta novamente erros de transporte e respostas HTTP 429, 502, 503 e 504 dentro do orçamento de tentativas e tempo. Aplica espera crescente e considera `Retry-After` da fonte. Uma chamada cancelada antes de começar não reserva um intervalo futuro. A espera entre tentativas ocorre após liberar a vaga de concorrência. HTTP 429 adia também as chamadas que já aguardavam o limitador, respeitando o prazo de cada operação.
 
@@ -79,4 +79,4 @@ As capacidades publicam tipo, cardinalidade, contexto, provedor de domínio e cl
 
 Instalar dependências requer acesso ao registro npm. Cada navegador precisa de acesso HTTPS ao PNCP e respostas com CORS válido. A hospedagem serve módulos, Worker e configuração com MIME correto; consulte [Hospedagem estática](hospedagem-estatica.md). Node.js não é necessário no destino publicado.
 
-Na exportação, os padrões de 100 registros por página e duas chamadas por segundo exigem cerca de 50 segundos para iniciar as 100 buscas de uma coleta de 10.000 documentos, além de domínios, latência e tentativas. O prazo de 120 segundos pode encerrar uma coleta lenta. Refine os critérios ou ajuste os limites conforme a rede e o dispositivo. O CSV é codificado em lotes, limitado a 50 MiB por padrão e transferido como buffers.
+Na exportação, os padrões de 100 registros por página e duas chamadas por segundo exigem cerca de 50 segundos para iniciar as 100 buscas de uma coleta de 10.000 documentos, além de domínios e tentativas. A coleta mantém até duas páginas adiantadas (limitadas por `PNCP_MAX_CONCURRENT_REQUESTS`), de modo que a latência de cada resposta não se soma ao tempo total enquanto ficar abaixo do intervalo do ritmo. O prazo de 120 segundos pode encerrar uma coleta lenta. Refine os critérios ou ajuste os limites conforme a rede e o dispositivo. O CSV é codificado em lotes, limitado a 50 MiB por padrão e transferido como buffers.

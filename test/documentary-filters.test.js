@@ -1,69 +1,168 @@
 import { csvBytes } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {PncpClient} from '../src/pncp-core.js';
-import {QueryService} from '../src/query-core.js';
-import {demoFetch} from './demo-fixtures.js';
-import {config,query,service,document,json} from './helpers.js';
+import { PncpClient } from '../src/pncp-core.js';
+import { QueryService } from '../src/query-core.js';
+import { demoFetch } from './demo-fixtures.js';
+import { config, query, service, document, json } from './helpers.js';
 
-const booleans=['indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','exigencia_conteudo_nacional'];
-const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
+const booleans = [
+  'indicador_orcamento_sigiloso',
+  'tem_ata_registro_preco',
+  'tem_contrato_empenho',
+  'tem_nfe_contrato',
+  'exigencia_conteudo_nacional'
+];
+const demo = () => {
+  const cfg = config();
+  return new QueryService(cfg, new PncpClient(cfg, { fetcher: demoFetch }));
+};
 
-test('DOCUMENTARY-01: origem e modo de disputa aceitam IDs únicos e união de opções',async()=>{
-  const s=demo();
-  for(const [name,field]of [['fontes','usuario_id'],['modos_disputa','modo_disputa_id']]){
-    const cases=name==='fontes'?[[['3'],22],[['5'],21],[['3','5'],43]]:[[['1'],22],[['2'],21],[['1','2'],43]];
-    for(const [values,total]of cases){
-      const result=await s.export(query({pncp_filters:{[name]:values}}));
-      assert.equal(result.metadata.total,total);assert.equal(result.metadata.exported_rows,total);
-      assert((await s.execute(query({size:100,pncp_filters:{[name]:values}}))).data.every(d=>values.includes(d._raw[field])));
+test('DOCUMENTARY-01: origem e modo de disputa aceitam IDs únicos e união de opções', async () => {
+  const s = demo();
+  for (const [name, field] of [
+    ['fontes', 'usuario_id'],
+    ['modos_disputa', 'modo_disputa_id']
+  ]) {
+    const cases =
+      name === 'fontes'
+        ? [
+            [['3'], 22],
+            [['5'], 21],
+            [['3', '5'], 43]
+          ]
+        : [
+            [['1'], 22],
+            [['2'], 21],
+            [['1', '2'], 43]
+          ];
+    for (const [values, total] of cases) {
+      const result = await s.export(query({ pncp_filters: { [name]: values } }));
+      assert.equal(result.metadata.total, total);
+      assert.equal(result.metadata.exported_rows, total);
+      assert(
+        (await s.execute(query({ size: 100, pncp_filters: { [name]: values } }))).data.every(d =>
+          values.includes(d._raw[field])
+        )
+      );
     }
   }
 });
 
-test('DOCUMENTARY-02: booleanos distinguem ausência, true e false na pesquisa e no CSV',async()=>{
-  const s=demo();assert.equal((await s.execute(query())).total,64);
-  for(const name of booleans)for(const value of [true,false]){
-    const input=query({pncp_filters:{[name]:value}}),page=await s.execute(input),csv=await s.export(input);
-    assert.equal(page.total,16);assert.equal(page.data.length,10);assert.equal(csv.metadata.exported_rows,16);
-    assert(page.data.every(d=>d._raw[name]===value));
-    assert.equal(csv.metadata.effective_filters[name],value);
-    assert.equal(csvBytes(csv).toString('utf8').split('\r\n').length,18);
+test('DOCUMENTARY-02: booleanos distinguem ausência, true e false na pesquisa e no CSV', async () => {
+  const s = demo();
+  assert.equal((await s.execute(query())).total, 64);
+  for (const name of booleans)
+    for (const value of [true, false]) {
+      const input = query({ pncp_filters: { [name]: value } }),
+        page = await s.execute(input),
+        csv = await s.export(input);
+      assert.equal(page.total, 16);
+      assert.equal(page.data.length, 10);
+      assert.equal(csv.metadata.exported_rows, 16);
+      assert(page.data.every(d => d._raw[name] === value));
+      assert.equal(csv.metadata.effective_filters[name], value);
+      assert.equal(csvBytes(csv).toString('utf8').split('\r\n').length, 18);
+    }
+});
+
+test('DOCUMENTARY-03: combinação documental mantém predicados nas páginas e na exportação', async () => {
+  const s = demo(),
+    pncp_filters = {
+      fontes: ['3', '5'],
+      modos_disputa: ['1', '2'],
+      ...Object.fromEntries(booleans.map(name => [name, false]))
+    };
+  const first = await s.execute(query({ pncp_filters })),
+    second = await s.execute(query({ pncp_filters, page: 2 })),
+    csv = await s.export(query({ pncp_filters, page: 2 }));
+  assert.equal(first.total, 11);
+  assert.equal(first.data.length, 10);
+  assert.equal(second.data.length, 1);
+  assert.equal(csv.metadata.exported_rows, 11);
+  const documents = [...first.data, ...second.data];
+  const csvIds = csvBytes(csv)
+    .toString('utf8')
+    .split('\r\n')
+    .slice(1, -1)
+    .map(row => row.match(/^"([^"]*)"/)[1]);
+  assert.deepEqual(
+    documents.map(d => d.id),
+    csvIds
+  );
+  assert(
+    documents.every(
+      d =>
+        ['3', '5'].includes(d._raw.usuario_id) &&
+        ['1', '2'].includes(d._raw.modo_disputa_id) &&
+        booleans.every(name => d._raw[name] === false)
+    )
+  );
+});
+
+test('DOCUMENTARY-04: tipos inválidos e capacidades restantes são recusados antes da rede', async () => {
+  const s = service([document(1)]);
+  for (const name of booleans)
+    for (const value of ['false', 0, null, [false]])
+      await assert.rejects(
+        s.service.execute(query({ pncp_filters: { [name]: value } })),
+        e => e.code === 'INVALID_TYPE'
+      );
+  for (const name of ['fontes', 'modos_disputa'])
+    for (const value of ['1', [1], ['nome'], []])
+      await assert.rejects(s.service.execute(query({ pncp_filters: { [name]: value } })));
+  await assert.rejects(
+    s.service.execute(query({ pncp_filters: { permite_adesao: 'true' } })),
+    e => e.code === 'INVALID_TYPE'
+  );
+  await assert.rejects(
+    s.service.execute(query({ pncp_filters: { possui_nfe: true } })),
+    e => e.code === 'DOCUMENT_FILTER_UNAVAILABLE'
+  );
+  assert.equal(s.requests.length, 0);
+});
+
+test('DOCUMENTARY-05: domínios fechados são conferidos e fontes sugeridas chegam intactas ao PNCP', async () => {
+  const s = service([document(1)], {
+    handler: u =>
+      u.pathname.endsWith('/filters')
+        ? json({
+            filters: {
+              modos_disputa: [
+                { id: 1, nome: 'Aberto' },
+                { id: 3, nome: 'Aberto-Fechado' }
+              ]
+            }
+          })
+        : null
+  });
+  const pncp_filters = {
+    fontes: ['3', '5'],
+    modos_disputa: ['1', '3'],
+    ...Object.fromEntries(booleans.map(name => [name, false]))
+  };
+  let domainCached = false;
+  for (const run of [input => s.service.execute(input), input => s.service.export(input)]) {
+    const before = s.requests.length;
+    await run(query({ pncp_filters }));
+    assert.equal(s.requests.length - before, domainCached ? 1 : 2);
+    const u = s.requests.at(-1);
+    assert.equal(u.searchParams.get('fontes'), '3|5');
+    assert.equal(u.searchParams.get('modos_disputa'), '1|3');
+    assert(u.search.includes('3%7C5'));
+    assert(!u.search.includes('%257C'));
+    for (const name of booleans) assert.equal(u.searchParams.get(name), 'false');
+    const beforeInvalid = s.requests.length;
+    await assert.rejects(run(query({ pncp_filters: { modos_disputa: ['999'] } })), e => e.code === 'INVALID_DOMAIN');
+    assert.equal(s.requests.length, beforeInvalid);
+    domainCached = true;
   }
-});
-
-test('DOCUMENTARY-03: combinação documental mantém predicados nas páginas e na exportação',async()=>{
-  const s=demo(),pncp_filters={fontes:['3','5'],modos_disputa:['1','2'],...Object.fromEntries(booleans.map(name=>[name,false]))};
-  const first=await s.execute(query({pncp_filters})),second=await s.execute(query({pncp_filters,page:2})),csv=await s.export(query({pncp_filters,page:2}));
-  assert.equal(first.total,11);assert.equal(first.data.length,10);assert.equal(second.data.length,1);
-  assert.equal(csv.metadata.exported_rows,11);
-  const documents=[...first.data,...second.data];
-  const csvIds=csvBytes(csv).toString('utf8').split('\r\n').slice(1,-1).map(row=>row.match(/^"([^"]*)"/)[1]);
-  assert.deepEqual(documents.map(d=>d.id),csvIds);
-  assert(documents.every(d=>['3','5'].includes(d._raw.usuario_id) && ['1','2'].includes(d._raw.modo_disputa_id) && booleans.every(name=>d._raw[name]===false)));
-});
-
-test('DOCUMENTARY-04: tipos inválidos e capacidades restantes são recusados antes da rede',async()=>{
-  const s=service([document(1)]);
-  for(const name of booleans)for(const value of ['false',0,null,[false]])await assert.rejects(s.service.execute(query({pncp_filters:{[name]:value}})),e=>e.code==='INVALID_TYPE');
-  for(const name of ['fontes','modos_disputa'])for(const value of ['1',[1],['nome'],[]])await assert.rejects(s.service.execute(query({pncp_filters:{[name]:value}})));
-  await assert.rejects(s.service.execute(query({pncp_filters:{permite_adesao:'true'}})),e=>e.code==='INVALID_TYPE');
-  await assert.rejects(s.service.execute(query({pncp_filters:{possui_nfe:true}})),e=>e.code==='DOCUMENT_FILTER_UNAVAILABLE');
-  assert.equal(s.requests.length,0);
-});
-
-test('DOCUMENTARY-05: domínios fechados são conferidos e fontes sugeridas chegam intactas ao PNCP',async()=>{
-  const s=service([document(1)],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{modos_disputa:[{id:1,nome:'Aberto'},{id:3,nome:'Aberto-Fechado'}]}}):null});
-  const pncp_filters={fontes:['3','5'],modos_disputa:['1','3'],...Object.fromEntries(booleans.map(name=>[name,false]))};
-  let domainCached=false;
-  for(const run of [input=>s.service.execute(input),input=>s.service.export(input)]){
-    const before=s.requests.length;await run(query({pncp_filters}));assert.equal(s.requests.length-before,domainCached?1:2);
-    const u=s.requests.at(-1);assert.equal(u.searchParams.get('fontes'),'3|5');assert.equal(u.searchParams.get('modos_disputa'),'1|3');
-    assert(u.search.includes('3%7C5'));assert(!u.search.includes('%257C'));
-    for(const name of booleans)assert.equal(u.searchParams.get(name),'false');
-    const beforeInvalid=s.requests.length;await assert.rejects(run(query({pncp_filters:{modos_disputa:['999']}})),e=>e.code==='INVALID_DOMAIN');
-    assert.equal(s.requests.length,beforeInvalid);domainCached=true;
-  }
-  const missing=service([document(1)],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{}}):null});
-  await assert.rejects(missing.service.execute(query({pncp_filters:{modos_disputa:['1']}})),e=>e.code==='DOMAIN_UNAVAILABLE');assert.equal(missing.requests.length,1);
+  const missing = service([document(1)], {
+    handler: u => (u.pathname.endsWith('/filters') ? json({ filters: {} }) : null)
+  });
+  await assert.rejects(
+    missing.service.execute(query({ pncp_filters: { modos_disputa: ['1'] } })),
+    e => e.code === 'DOMAIN_UNAVAILABLE'
+  );
+  assert.equal(missing.requests.length, 1);
 });

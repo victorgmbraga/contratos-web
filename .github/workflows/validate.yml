@@ -23,6 +23,7 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:coverage
@@ -63,8 +64,8 @@ jobs:
         id: browser_tests
         run: npm run test:browser -- --skip-build
         env:
-          COMPRAS_QA_BROWSER: ${{ matrix.browser }}
-          COMPRAS_QA_DIAGNOSTICS_DIR: ${{ runner.temp }}/browser-diagnostics
+          CONTRATOS_QA_BROWSER: ${{ matrix.browser }}
+          CONTRATOS_QA_DIAGNOSTICS_DIR: ${{ runner.temp }}/browser-diagnostics
       - name: Guardar evidências da falha
         if: failure() && steps.browser_tests.conclusion == 'failure'
         uses: actions/upload-artifact@v7.0.2

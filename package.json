@@ -1,9 +1,9 @@
 {
-  "name": "compras-web-pncp",
-  "version": "2.1.0",
+  "name": "contratos-web",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
-  "description": "Pesquisa PNCP diretamente no navegador, com distribuição estática",
+  "description": "Pesquisa de editais, atas e contratos no PNCP diretamente no navegador, com distribuição estática",
   "license": "MIT",
   "engines": {
     "node": ">=24.0.0"
@@ -12,15 +12,16 @@
     "start": "vite",
     "dev": "vite",
     "test": "node --test --test-concurrency=4 test/*.test.js",
-    "test:coverage": "node --test --test-concurrency=4 --experimental-test-coverage --test-coverage-lines=78 --test-coverage-branches=88 --test-coverage-functions=84 test/*.test.js",
+    "test:coverage": "node --test --test-concurrency=4 --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-coverage-exclude=vite.config.js --test-coverage-lines=80 --test-coverage-branches=89 --test-coverage-functions=85 test/*.test.js",
     "test:budget": "node test/performance-budget.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.contracts.json",
-    "format": "prettier --write \"{src,public,test}/**/*.{js,mjs,css,html}\" \"vite.config.js\" \"eslint.config.js\"",
+    "format": "prettier --write \"{src,public,test,types}/**/*.{js,mjs,ts,css,html}\" \"*.{js,json}\" \"types/*.ts\"",
     "build": "vite build",
     "build:qa": "vite build && vite build --mode test",
     "preview": "vite preview",
-    "test:browser": "node test/browser-smoke.mjs"
+    "test:browser": "node test/browser-smoke.mjs",
+    "format:check": "prettier --check \"{src,public,test,types}/**/*.{js,mjs,ts,css,html}\" \"*.{js,json}\" \"types/*.ts\""
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

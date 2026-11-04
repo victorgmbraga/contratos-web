@@ -1,22 +1,35 @@
 import { assert } from './errors.js';
 
-function cell(value,type) {
-  let text=value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
-  const decimal=type==='decimal' && /^-?\d+(?:\.\d+)?$/.test(text);
-  if(!decimal && /^\s*[=+\-@]/u.test(text))text="'"+text;
-  return '"'+text.replace(/"/g,'""')+'"';
+function cell(value, type) {
+  let text = value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
+  const decimal = type === 'decimal' && /^-?\d+(?:\.\d+)?$/.test(text);
+  if (!decimal && /^\s*[=+\-@]/u.test(text)) text = "'" + text;
+  return '"' + text.replace(/"/g, '""') + '"';
 }
 
 export function csvWriter(columns, limit) {
-  const encoder = new TextEncoder(), chunks = [];
+  const encoder = new TextEncoder(),
+    chunks = [];
   let bytes = 0;
   function append(text) {
     const chunk = encoder.encode(text);
-    assert(bytes + chunk.byteLength <= limit, 'EXPORT_BYTES_LIMIT', 'Limite do buffer CSV excedido. Delimite a pesquisa.', 422);
-    bytes += chunk.byteLength; chunks.push(chunk);
+    assert(
+      bytes + chunk.byteLength <= limit,
+      'EXPORT_BYTES_LIMIT',
+      'Limite do buffer CSV excedido. Delimite a pesquisa.',
+      422
+    );
+    bytes += chunk.byteLength;
+    chunks.push(chunk);
   }
   append('\ufeff' + columns.map(c => cell(c.field)).join(',') + '\r\n');
-  return { chunks, get bytes() { return bytes; }, append(documents) {
-    append(documents.map(doc => columns.map(c => cell(doc[c.field],c.type)).join(',') + '\r\n').join(''));
-  } };
+  return {
+    chunks,
+    get bytes() {
+      return bytes;
+    },
+    append(documents) {
+      append(documents.map(doc => columns.map(c => cell(doc[c.field], c.type)).join(',') + '\r\n').join(''));
+    }
+  };
 }

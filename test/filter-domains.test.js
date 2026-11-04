@@ -8,102 +8,273 @@ import { QueryService } from '../src/query-core.js';
 import { demoFetch } from './demo-fixtures.js';
 import { config, query, service, document, json } from './helpers.js';
 
-const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
+const demo = () => {
+  const cfg = config();
+  return new QueryService(cfg, new PncpClient(cfg, { fetcher: demoFetch }));
+};
 
-test('FILTER-01: catálogo completo habilitado com contextos e proveniência explícitos',()=>{
-  const s=schema(config()),caps=s.capabilities;
-  assert.equal(s.source,'pncp');assert.equal(s.live,true);assert.equal(caps.length,87);
-  assert.deepEqual(s.document_types.filter(type=>type.enabled).map(type=>type.id),['edital','ata','contrato']);
-  assert.equal(caps.filter(c=>!c.reserved&&c.state==='enabled').length,80);
-  assert.equal(caps.filter(c=>c.state==='unsupported_document').length,0);
-  assert.equal(caps.filter(c=>c.state==='pending_validation').length,0);
-  for(const name of ['srp','codigo_ibge','tipos','normativos_base','amparos_legais','fontes_orcamentarias','fontes','modos_disputa','indicador_orcamento_sigiloso','tem_ata_registro_preco','tem_contrato_empenho','tem_nfe_contrato','exigencia_conteudo_nacional'])assert.equal(caps.find(c=>c.name===name).state,'enabled');
-  assert.equal(caps.find(c=>c.name==='paises_fornecedor').validation_status,'integration_tested');
-  for(const name of ['tipos_item','tipos_margens_preferencia']){const c=caps.find(c=>c.name===name);assert.equal(c.type,'enum');assert.equal(c.cardinality,'single');assert.equal(c.domain_kind,'closed');}
-  assert.equal(caps.find(c=>c.name==='municipios_fornecedor').domain_kind,'suggest');
-  assert.equal(caps.find(c=>c.name==='fontes').domain_kind,'suggest');
-  assert.equal(caps.find(c=>c.name==='naturezas_juridicas').domain_source,'catalog');
-  assert.deepEqual(caps.find(c=>c.name==='tipos_contrato').documents,['contrato']);
-  assert.deepEqual(caps.find(c=>c.name==='tipos_margens_preferencia').documents,['edital']);
-});
-
-test('FILTER-02: SRP booleano, IBGE textual e enumeração singular são validados antes da rede',()=>{
-  assert.equal(validateQuery(query({pncp_filters:{srp:false,codigo_ibge:'0300108'}}),config()).pncp_filters.srp,false);
-  for(const pncp_filters of [{srp:'false'},{codigo_ibge:5300108},{codigo_ibge:'530010'},{tipos_item:['S']},{tipos:['Edital']}])assert.throws(()=>validateQuery(query({pncp_filters}),config()));
-  const cfg=config({PNCP_VALIDATED_FILTERS:'tipos_margens_preferencia'});
-  for(const value of [['1'],'1|2','livre',2])assert.throws(()=>validateQuery(query({pncp_filters:{tipos_margens_preferencia:value}}),cfg));
-  assert.throws(()=>validateQuery(query({pncp_filters:{tipos_contrato:['1']}}),config()),e=>e.code==='DOCUMENT_FILTER_UNAVAILABLE');
-});
-
-test('FILTER-03: consulta, CSV e demonstração exercitam os seis filtros documentais',async()=>{
-  const s=demo();
-  assert.equal((await s.execute(query())).total,64);
-  for(const srp of [true,false]){const r=await s.execute(query({pncp_filters:{srp}}));assert.equal(r.total,32);assert(r.data.every(d=>d._raw.srp===srp));}
-  const ibge=await s.execute(query({pncp_filters:{codigo_ibge:'5300108'}}));assert.equal(ibge.total,32);assert(ibge.data.every(d=>d._raw.codigo_ibge==='5300108'));
-  for(const [name,raw]of [['tipos','tipo_id'],['normativos_base','normativo_base_id'],['amparos_legais','amparo_legal_id'],['fontes_orcamentarias','fonte_orcamentaria_id']]){
-    const values={tipos:['1','3'],normativos_base:['1','5'],amparos_legais:['1','19','98'],fontes_orcamentarias:['2','4']}[name];
-    const r=await s.execute(query({pncp_filters:{[name]:values}}));assert.equal(r.total,64);assert(r.data.every(d=>[d._raw[raw]].flat().some(v=>values.includes(v))));
+test('FILTER-01: catálogo completo habilitado com contextos e proveniência explícitos', () => {
+  const s = schema(config()),
+    caps = s.capabilities;
+  assert.equal(s.source, 'pncp');
+  assert.equal(s.live, true);
+  assert.equal(caps.length, 87);
+  assert.deepEqual(
+    s.document_types.filter(type => type.enabled).map(type => type.id),
+    ['edital', 'ata', 'contrato']
+  );
+  assert.equal(caps.filter(c => !c.reserved && c.state === 'enabled').length, 80);
+  assert.equal(caps.filter(c => c.state === 'unsupported_document').length, 0);
+  assert.equal(caps.filter(c => c.state === 'pending_validation').length, 0);
+  for (const name of [
+    'srp',
+    'codigo_ibge',
+    'tipos',
+    'normativos_base',
+    'amparos_legais',
+    'fontes_orcamentarias',
+    'fontes',
+    'modos_disputa',
+    'indicador_orcamento_sigiloso',
+    'tem_ata_registro_preco',
+    'tem_contrato_empenho',
+    'tem_nfe_contrato',
+    'exigencia_conteudo_nacional'
+  ])
+    assert.equal(caps.find(c => c.name === name).state, 'enabled');
+  assert.equal(caps.find(c => c.name === 'paises_fornecedor').validation_status, 'integration_tested');
+  for (const name of ['tipos_item', 'tipos_margens_preferencia']) {
+    const c = caps.find(c => c.name === name);
+    assert.equal(c.type, 'enum');
+    assert.equal(c.cardinality, 'single');
+    assert.equal(c.domain_kind, 'closed');
   }
-  const pncp_filters={srp:true,codigo_ibge:'5300108',tipos:['1'],normativos_base:['1'],amparos_legais:['1','19'],fontes_orcamentarias:['4']};
-  const csv=await s.export(query({pncp_filters}));assert.equal(csv.metadata.exported_rows,32);assert.equal(csvBytes(csv).toString('utf8').split('\r\n').length,34);assert((await s.execute(query({pncp_filters,size:100}))).data.every(d=>d._raw.srp===true));
+  assert.equal(caps.find(c => c.name === 'municipios_fornecedor').domain_kind, 'suggest');
+  assert.equal(caps.find(c => c.name === 'fontes').domain_kind, 'suggest');
+  assert.equal(caps.find(c => c.name === 'naturezas_juridicas').domain_source, 'catalog');
+  assert.deepEqual(caps.find(c => c.name === 'tipos_contrato').documents, ['contrato']);
+  assert.deepEqual(caps.find(c => c.name === 'tipos_margens_preferencia').documents, ['edital']);
 });
 
-test('FILTER-04: IDs fechados e amparo incompatível são recusados antes da busca',async()=>{
-  const s=demo();
-  for(const pncp_filters of [{tipos:['999']},{fontes_orcamentarias:['999']},{normativos_base:['1'],amparos_legais:['98']}])await assert.rejects(s.execute(query({pncp_filters})),e=>e.code==='INVALID_DOMAIN');
-  const valid=await s.execute(query({pncp_filters:{normativos_base:['5'],amparos_legais:['98']}}));assert.equal(valid.total,32);
-  const fake=service([document(1)],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{fontes_orcamentarias:[{id:'4',nome:'Fonte'}]}}):null});
-  await assert.rejects(fake.service.execute(query({pncp_filters:{fontes_orcamentarias:['999']}})),e=>e.code==='INVALID_DOMAIN');
-  assert.equal(fake.requests.length,1);assert(fake.requests[0].pathname.endsWith('/filters'));
+test('FILTER-02: SRP booleano, IBGE textual e enumeração singular são validados antes da rede', () => {
+  assert.equal(
+    validateQuery(query({ pncp_filters: { srp: false, codigo_ibge: '0300108' } }), config()).pncp_filters.srp,
+    false
+  );
+  for (const pncp_filters of [
+    { srp: 'false' },
+    { codigo_ibge: 5300108 },
+    { codigo_ibge: '530010' },
+    { tipos_item: ['S'] },
+    { tipos: ['Edital'] }
+  ])
+    assert.throws(() => validateQuery(query({ pncp_filters }), config()));
+  const cfg = config({ PNCP_VALIDATED_FILTERS: 'tipos_margens_preferencia' });
+  for (const value of [['1'], '1|2', 'livre', 2])
+    assert.throws(() => validateQuery(query({ pncp_filters: { tipos_margens_preferencia: value } }), cfg));
+  assert.throws(
+    () => validateQuery(query({ pncp_filters: { tipos_contrato: ['1'] } }), config()),
+    e => e.code === 'DOCUMENT_FILTER_UNAVAILABLE'
+  );
 });
 
-test('FILTER-05: catálogo preserva IDs alfabéticos, zeros e estado inativo',()=>{
-  assert.deepEqual(normalizeCatalog([{id:'0000',nome:'Não informada',statusAtivo:false},{id:'BRA',nome:'Brasil',codigoPaisBcb:1058,statusAtivo:true}]),[{id:'0000',label:'Não informada',active:false},{id:'BRA',label:'Brasil',active:true}]);
-  for(const invalid of [{items:[]},[null],[{id:null,nome:'A'}],[{id:'1',nome:'A',statusAtivo:'false'}]])assert.throws(()=>normalizeCatalog(invalid),e=>e.code==='INVALID_UPSTREAM');
-});
-
-test('FILTER-06: catálogos usam endpoints específicos e conferem pertencimento',async()=>{
-  const extra={PNCP_VALIDATED_FILTERS:'portes_fornecedor,naturezas_juridicas'};
-  const s=service([document(1)],{handler:u=>u.pathname.endsWith('/portes-empresa')?json([{id:1,nome:'ME',statusAtivo:true}]):u.pathname.endsWith('/naturezas-juridicas')?json([{id:'0000',nome:'Não informada',statusAtivo:false}]):null},extra);
-  const r=await s.service.execute(query({pncp_filters:{portes_fornecedor:['1'],naturezas_juridicas:['0000']}}));assert.equal(r.data.length,1);
-  assert(s.requests.some(u=>u.pathname.endsWith('/portes-empresa')));assert(s.requests.some(u=>u.pathname.endsWith('/naturezas-juridicas')));assert(!s.requests.some(u=>u.pathname.endsWith('/filters')));
-  assert.equal(s.requests.at(-1).searchParams.get('naturezas_juridicas'),'0000');
-  await assert.rejects(s.service.execute(query({pncp_filters:{portes_fornecedor:['999']}})),e=>e.code==='INVALID_DOMAIN');
-});
-
-test('FILTER-07: margem de preferência confere a opção única no domínio remoto',async()=>{
-  const s=service([document(1)],{handler:u=>u.pathname.endsWith('/filters')?json({filters:{tipos_margens_preferencia:[{id:1,nome:'Resolução'}]}}):null},{PNCP_VALIDATED_FILTERS:'tipos_margens_preferencia'});
-  await assert.rejects(s.service.execute(query({pncp_filters:{tipos_margens_preferencia:'2'}})),e=>e.code==='INVALID_DOMAIN');
-  await s.service.execute(query({pncp_filters:{tipos_margens_preferencia:'1'}}));assert.equal(s.requests.at(-1).searchParams.get('tipos_margens_preferencia'),'1');
-});
-
-
-test('FILTER-09: falha de proxy com código numérico mantém erro de transporte',async()=>{
-  const cfg=config(),client=new PncpClient(cfg,{fetcher:async()=>{throw new TypeError('fetch failed',{cause:{code:403}});}}),op=operation(cfg);
-  try{await assert.rejects(client.get('https://pncp.gov.br/api/search/',op),e=>e.code==='PNCP_TRANSPORT_ERROR' && e.status===503);}finally{op.finish();}
-});
-
-test('FILTER-10: sistemas de origem ausentes de filters usam sugestões e IDs na pesquisa e no CSV',async()=>{
-  for(const type of ['edital','contrato']) {
-    const s=service([document(1,{document_type:type})],{handler:url=>
-      url.pathname.endsWith('/filters')?json({filters:{ufs:[{id:'DF',nome:'Distrito Federal'}]}}):
-      url.pathname.endsWith('/suggest')?json({items:[{id:3,nome:'Compras.gov.br'},{id:'0005',nome:'BLL Compras'}]}):null});
-    const domains=await s.service.domains(type);
-    assert.equal(domains.filters.fontes,undefined);
-    const suggestions=await s.service.suggest(type,'fontes','Compras',20);
-    assert.deepEqual(suggestions.items,[{id:'3',label:'Compras.gov.br'},{id:'0005',label:'BLL Compras'}]);
-    assert.equal(s.requests.at(-1).pathname,'/api/search/suggest');
-    assert.deepEqual(Object.fromEntries(s.requests.at(-1).searchParams),{tipos_documento:type,campo:'fontes',q:'Compras',tam_pagina:'20'});
-    const input=query({document_type:type,pncp_filters:{fontes:['3','0005']}}),before=s.requests.length;
-    assert.equal((await s.service.execute(input)).data.length,1);
-    assert.equal((await s.service.export(input,undefined,undefined,{scope:'page'})).metadata.exported_rows,1);
-    assert.equal(s.requests.length,before+2,'Pesquisa e CSV não exigem fontes na lista inicial ausente');
-    for(const request of s.requests.slice(before))assert.equal(request.searchParams.get('fontes'),'3|0005');
-    await assert.rejects(s.service.execute(query({document_type:type,pncp_filters:{fontes:['Compras.gov.br']}})),error=>error.code==='INVALID_DOMAIN');
-    assert.equal(s.requests.length,before+2,'Nomes não são enviados no lugar de IDs');
+test('FILTER-03: consulta, CSV e demonstração exercitam os seis filtros documentais', async () => {
+  const s = demo();
+  assert.equal((await s.execute(query())).total, 64);
+  for (const srp of [true, false]) {
+    const r = await s.execute(query({ pncp_filters: { srp } }));
+    assert.equal(r.total, 32);
+    assert(r.data.every(d => d._raw.srp === srp));
   }
-  const s=service([]);
-  await assert.rejects(s.service.suggest('ata','fontes','Compras',20),error=>error.code==='INVALID_SUGGEST_FIELD');
-  await assert.rejects(s.service.suggest('edital','fontes','Co',20),error=>error.code==='INVALID_SUGGEST');
-  assert.equal(s.requests.length,0);
+  const ibge = await s.execute(query({ pncp_filters: { codigo_ibge: '5300108' } }));
+  assert.equal(ibge.total, 32);
+  assert(ibge.data.every(d => d._raw.codigo_ibge === '5300108'));
+  for (const [name, raw] of [
+    ['tipos', 'tipo_id'],
+    ['normativos_base', 'normativo_base_id'],
+    ['amparos_legais', 'amparo_legal_id'],
+    ['fontes_orcamentarias', 'fonte_orcamentaria_id']
+  ]) {
+    const values = {
+      tipos: ['1', '3'],
+      normativos_base: ['1', '5'],
+      amparos_legais: ['1', '19', '98'],
+      fontes_orcamentarias: ['2', '4']
+    }[name];
+    const r = await s.execute(query({ pncp_filters: { [name]: values } }));
+    assert.equal(r.total, 64);
+    assert(r.data.every(d => [d._raw[raw]].flat().some(v => values.includes(v))));
+  }
+  const pncp_filters = {
+    srp: true,
+    codigo_ibge: '5300108',
+    tipos: ['1'],
+    normativos_base: ['1'],
+    amparos_legais: ['1', '19'],
+    fontes_orcamentarias: ['4']
+  };
+  const csv = await s.export(query({ pncp_filters }));
+  assert.equal(csv.metadata.exported_rows, 32);
+  assert.equal(csvBytes(csv).toString('utf8').split('\r\n').length, 34);
+  assert((await s.execute(query({ pncp_filters, size: 100 }))).data.every(d => d._raw.srp === true));
+});
+
+test('FILTER-04: IDs fechados e amparo incompatível são recusados antes da busca', async () => {
+  const s = demo();
+  for (const pncp_filters of [
+    { tipos: ['999'] },
+    { fontes_orcamentarias: ['999'] },
+    { normativos_base: ['1'], amparos_legais: ['98'] }
+  ])
+    await assert.rejects(s.execute(query({ pncp_filters })), e => e.code === 'INVALID_DOMAIN');
+  const valid = await s.execute(query({ pncp_filters: { normativos_base: ['5'], amparos_legais: ['98'] } }));
+  assert.equal(valid.total, 32);
+  const fake = service([document(1)], {
+    handler: u =>
+      u.pathname.endsWith('/filters') ? json({ filters: { fontes_orcamentarias: [{ id: '4', nome: 'Fonte' }] } }) : null
+  });
+  await assert.rejects(
+    fake.service.execute(query({ pncp_filters: { fontes_orcamentarias: ['999'] } })),
+    e => e.code === 'INVALID_DOMAIN'
+  );
+  assert.equal(fake.requests.length, 1);
+  assert(fake.requests[0].pathname.endsWith('/filters'));
+});
+
+test('FILTER-05: catálogo preserva IDs alfabéticos, zeros e estado inativo', () => {
+  assert.deepEqual(
+    normalizeCatalog([
+      { id: '0000', nome: 'Não informada', statusAtivo: false },
+      { id: 'BRA', nome: 'Brasil', codigoPaisBcb: 1058, statusAtivo: true }
+    ]),
+    [
+      { id: '0000', label: 'Não informada', active: false },
+      { id: 'BRA', label: 'Brasil', active: true }
+    ]
+  );
+  for (const invalid of [
+    { items: [] },
+    [null],
+    [{ id: null, nome: 'A' }],
+    [{ id: '1', nome: 'A', statusAtivo: 'false' }]
+  ])
+    assert.throws(
+      () => normalizeCatalog(invalid),
+      e => e.code === 'INVALID_UPSTREAM'
+    );
+});
+
+test('FILTER-06: catálogos usam endpoints específicos e conferem pertencimento', async () => {
+  const extra = { PNCP_VALIDATED_FILTERS: 'portes_fornecedor,naturezas_juridicas' };
+  const s = service(
+    [document(1)],
+    {
+      handler: u =>
+        u.pathname.endsWith('/portes-empresa')
+          ? json([{ id: 1, nome: 'ME', statusAtivo: true }])
+          : u.pathname.endsWith('/naturezas-juridicas')
+            ? json([{ id: '0000', nome: 'Não informada', statusAtivo: false }])
+            : null
+    },
+    extra
+  );
+  const r = await s.service.execute(
+    query({ pncp_filters: { portes_fornecedor: ['1'], naturezas_juridicas: ['0000'] } })
+  );
+  assert.equal(r.data.length, 1);
+  assert(s.requests.some(u => u.pathname.endsWith('/portes-empresa')));
+  assert(s.requests.some(u => u.pathname.endsWith('/naturezas-juridicas')));
+  assert(!s.requests.some(u => u.pathname.endsWith('/filters')));
+  assert.equal(s.requests.at(-1).searchParams.get('naturezas_juridicas'), '0000');
+  await assert.rejects(
+    s.service.execute(query({ pncp_filters: { portes_fornecedor: ['999'] } })),
+    e => e.code === 'INVALID_DOMAIN'
+  );
+});
+
+test('FILTER-07: margem de preferência confere a opção única no domínio remoto', async () => {
+  const s = service(
+    [document(1)],
+    {
+      handler: u =>
+        u.pathname.endsWith('/filters')
+          ? json({ filters: { tipos_margens_preferencia: [{ id: 1, nome: 'Resolução' }] } })
+          : null
+    },
+    { PNCP_VALIDATED_FILTERS: 'tipos_margens_preferencia' }
+  );
+  await assert.rejects(
+    s.service.execute(query({ pncp_filters: { tipos_margens_preferencia: '2' } })),
+    e => e.code === 'INVALID_DOMAIN'
+  );
+  await s.service.execute(query({ pncp_filters: { tipos_margens_preferencia: '1' } }));
+  assert.equal(s.requests.at(-1).searchParams.get('tipos_margens_preferencia'), '1');
+});
+
+test('FILTER-09: falha de proxy com código numérico mantém erro de transporte', async () => {
+  const cfg = config(),
+    client = new PncpClient(cfg, {
+      fetcher: async () => {
+        throw new TypeError('fetch failed', { cause: { code: 403 } });
+      }
+    }),
+    op = operation(cfg);
+  try {
+    await assert.rejects(
+      client.get('https://pncp.gov.br/api/search/', op),
+      e => e.code === 'PNCP_TRANSPORT_ERROR' && e.status === 503
+    );
+  } finally {
+    op.finish();
+  }
+});
+
+test('FILTER-10: sistemas de origem ausentes de filters usam sugestões e IDs na pesquisa e no CSV', async () => {
+  for (const type of ['edital', 'contrato']) {
+    const s = service([document(1, { document_type: type })], {
+      handler: url =>
+        url.pathname.endsWith('/filters')
+          ? json({ filters: { ufs: [{ id: 'DF', nome: 'Distrito Federal' }] } })
+          : url.pathname.endsWith('/suggest')
+            ? json({
+                items: [
+                  { id: 3, nome: 'Compras.gov.br' },
+                  { id: '0005', nome: 'BLL Compras' }
+                ]
+              })
+            : null
+    });
+    const domains = await s.service.domains(type);
+    assert.equal(domains.filters.fontes, undefined);
+    const suggestions = await s.service.suggest(type, 'fontes', 'Compras', 20);
+    assert.deepEqual(suggestions.items, [
+      { id: '3', label: 'Compras.gov.br' },
+      { id: '0005', label: 'BLL Compras' }
+    ]);
+    assert.equal(s.requests.at(-1).pathname, '/api/search/suggest');
+    assert.deepEqual(Object.fromEntries(s.requests.at(-1).searchParams), {
+      tipos_documento: type,
+      campo: 'fontes',
+      q: 'Compras',
+      tam_pagina: '20'
+    });
+    const input = query({ document_type: type, pncp_filters: { fontes: ['3', '0005'] } }),
+      before = s.requests.length;
+    assert.equal((await s.service.execute(input)).data.length, 1);
+    assert.equal((await s.service.export(input, undefined, undefined, { scope: 'page' })).metadata.exported_rows, 1);
+    assert.equal(s.requests.length, before + 2, 'Pesquisa e CSV não exigem fontes na lista inicial ausente');
+    for (const request of s.requests.slice(before)) assert.equal(request.searchParams.get('fontes'), '3|0005');
+    await assert.rejects(
+      s.service.execute(query({ document_type: type, pncp_filters: { fontes: ['Compras.gov.br'] } })),
+      error => error.code === 'INVALID_DOMAIN'
+    );
+    assert.equal(s.requests.length, before + 2, 'Nomes não são enviados no lugar de IDs');
+  }
+  const s = service([]);
+  await assert.rejects(
+    s.service.suggest('ata', 'fontes', 'Compras', 20),
+    error => error.code === 'INVALID_SUGGEST_FIELD'
+  );
+  await assert.rejects(s.service.suggest('edital', 'fontes', 'Co', 20), error => error.code === 'INVALID_SUGGEST');
+  assert.equal(s.requests.length, 0);
 });

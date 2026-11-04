@@ -19,6 +19,6 @@ export function createProgressEstimator({ smoothing = 0.3, now = Date.now } = {}
       lastAt = at;
       if (!rate || rows >= total) return 0;
       return Math.max(1, Math.ceil((total - rows) / rate));
-    },
+    }
   };
 }

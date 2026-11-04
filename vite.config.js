@@ -1,60 +1,141 @@
 import { defineConfig } from 'vite';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { browserSettings } from './src/browser/client.js';
 
 const root = fileURLToPath(new URL('./public/', import.meta.url));
+// O boot do tema é embutido no HTML (sem requisição extra antes da primeira pintura)
+// e autorizado na CSP pelo hash exato do conteúdo.
+const themeBoot = readFileSync(new URL('./public/theme-boot.js', import.meta.url), 'utf8').trim();
+const themeBootHash = `'sha256-${createHash('sha256').update(themeBoot).digest('base64')}'`;
 
 export default defineConfig(({ command, mode }) => {
   // O servidor de desenvolvimento injeta CSS e o cliente de HMR por <style> e WebSocket.
   // O artefato publicado usa CSS externo e mantém a política restritiva.
   const development = command === 'serve' && mode !== 'production';
-  const csp = "default-src 'self'; script-src 'self'; style-src 'self'" + (development ? " 'unsafe-inline'" : '') + "; img-src 'self' data:; connect-src 'self' https://pncp.gov.br" + (development ? ' ws:' : '') + "; worker-src 'self'; object-src 'none'; base-uri 'self'";
-  const headers = { 'Content-Security-Policy': csp + "; frame-ancestors 'self'", 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
+  const csp =
+    "default-src 'self'; script-src 'self' " +
+    themeBootHash +
+    "; style-src 'self'" +
+    (development ? " 'unsafe-inline'" : '') +
+    "; img-src 'self' data:; connect-src 'self' https://pncp.gov.br" +
+    (development ? ' ws:' : '') +
+    "; worker-src 'self'; object-src 'none'; base-uri 'self'";
+  const headers = {
+    'Content-Security-Policy': csp + "; frame-ancestors 'self'",
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer'
+  };
   const config = async () => {
     const input = JSON.parse(await readFile(new URL('./public/browser-config.json', import.meta.url), 'utf8'));
     const publicConfig = mode === 'test' ? { ...input, PNCP_REQUESTS_PER_SECOND: 100000 } : input;
-    browserSettings(publicConfig); return JSON.stringify(publicConfig, null, 2) + '\n';
+    browserSettings(publicConfig);
+    return JSON.stringify(publicConfig, null, 2) + '\n';
   };
   return {
-    root, publicDir: false, envDir: false, base: './', appType: 'mpa',
+    root,
+    publicDir: false,
+    envDir: false,
+    base: './',
+    appType: 'mpa',
     server: { host: '127.0.0.1', port: 8000, headers, fs: { allow: [fileURLToPath(new URL('./', import.meta.url))] } },
     preview: { host: '127.0.0.1', port: 8000, headers },
-    worker: { format: 'es', plugins: () => mode === 'test' ? [{
-      name: 'controlled-worker-fixtures',
-      load(id) {
-        const normalize = value => value.replaceAll('\\', '/').split('?')[0];
-        if (normalize(id) === normalize(fileURLToPath(new URL('./src/browser/worker.js', import.meta.url)))) {
-          return `import { attachWorker } from './runtime.js';\nimport { uiDemoFetch } from ${JSON.stringify(fileURLToPath(new URL('./test/browser-fixtures.js', import.meta.url)))};\nattachWorker(globalThis, { fetcher: uiDemoFetch });`;
+    worker: {
+      format: 'es',
+      plugins: () =>
+        mode === 'test'
+          ? [
+              {
+                name: 'controlled-worker-fixtures',
+                load(id) {
+                  const normalize = value => value.replaceAll('\\', '/').split('?')[0];
+                  if (normalize(id) === normalize(fileURLToPath(new URL('./src/browser/worker.js', import.meta.url)))) {
+                    return `import { attachWorker } from './runtime.js';\nimport { uiDemoFetch } from ${JSON.stringify(fileURLToPath(new URL('./test/browser-fixtures.js', import.meta.url)))};\nattachWorker(globalThis, { fetcher: uiDemoFetch });`;
+                  }
+                }
+              }
+            ]
+          : []
+    },
+    build: {
+      outDir: mode === 'test' ? '../dist-browser-test' : '../dist-browser',
+      emptyOutDir: true,
+      target: ['es2022'],
+      rolldownOptions: {
+        input: { index: root + 'index.html', diagnostic: root + 'pncp-diagnostic.html' }
+      }
+    },
+    plugins: [
+      {
+        name: 'contratos-web-static-assets',
+        transformIndexHtml: {
+          order: 'pre',
+          handler(html) {
+            return html
+              .replace('<script src="./theme-boot.js" blocking="render"></script>', `<script>${themeBoot}</script>`)
+              .replace(
+                '<head>',
+                `<head>\n<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer">`
+              );
+          }
+        },
+        configureServer(server) {
+          server.middlewares.use('/browser-config.json', async (_req, res) => {
+            try {
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Cache-Control', 'no-store');
+              res.end(await config());
+            } catch {
+              res.statusCode = 500;
+              res.end('Configuração pública inválida.');
+            }
+          });
+        },
+        async generateBundle(_options, bundle) {
+          this.emitFile({ type: 'asset', fileName: 'browser-config.json', source: await config() });
+          this.emitFile({
+            type: 'asset',
+            fileName: 'LICENSE',
+            source: await readFile(new URL('./LICENSE', import.meta.url), 'utf8')
+          });
+          this.emitFile({
+            type: 'asset',
+            fileName: 'THIRD_PARTY_LICENSES.md',
+            source: await readFile(new URL('./THIRD_PARTY_LICENSES.md', import.meta.url), 'utf8')
+          });
+          this.emitFile({
+            type: 'asset',
+            fileName: 'og-image.png',
+            source: await readFile(new URL('./public/og-image.png', import.meta.url))
+          });
+          const assetVersion = createHash('sha256')
+            .update(
+              Object.keys(bundle)
+                .filter(name => name.startsWith('assets/'))
+                .sort()
+                .join('\n')
+            )
+            .digest('hex')
+            .slice(0, 12);
+          const sw = (await readFile(new URL('./public/sw.js', import.meta.url), 'utf8')).replace(
+            "const CACHE = 'contratos-web-assets-v1';",
+            `const CACHE = 'contratos-web-assets-${assetVersion}';`
+          );
+          this.emitFile({ type: 'asset', fileName: 'sw.js', source: sw });
+          this.emitFile({
+            type: 'asset',
+            fileName: '_headers',
+            source:
+              '/*\n' +
+              Object.entries(headers)
+                .map(([name, value]) => `  ${name}: ${value}\n`)
+                .join('') +
+              '  Cache-Control: no-cache\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n'
+          });
         }
-      },
-    }] : [] },
-    build: { outDir: mode === 'test' ? '../dist-browser-test' : '../dist-browser', emptyOutDir: true, target: ['es2022'], rolldownOptions: {
-      input: { index: root + 'index.html', diagnostic: root + 'pncp-diagnostic.html' },
-    } },
-    plugins: [{
-      name: 'compras-static-assets',
-      transformIndexHtml: { order: 'pre', handler(html) {
-        return html.replace('<head>', `<head>\n<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer">`);
-      } },
-      configureServer(server) {
-        server.middlewares.use('/browser-config.json', async (_req, res) => {
-          try { res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(await config()); }
-          catch { res.statusCode = 500; res.end('Configuração pública inválida.'); }
-        });
-      },
-      async generateBundle(_options, bundle) {
-        this.emitFile({ type: 'asset', fileName: 'browser-config.json', source: await config() });
-        this.emitFile({ type: 'asset', fileName: 'LICENSE', source: await readFile(new URL('./LICENSE', import.meta.url), 'utf8') });
-        this.emitFile({ type: 'asset', fileName: 'THIRD_PARTY_LICENSES.md', source: await readFile(new URL('./THIRD_PARTY_LICENSES.md', import.meta.url), 'utf8') });
-        this.emitFile({ type: 'asset', fileName: 'theme-boot.js', source: await readFile(new URL('./public/theme-boot.js', import.meta.url), 'utf8') });
-        this.emitFile({ type: 'asset', fileName: 'og-image.png', source: await readFile(new URL('./public/og-image.png', import.meta.url)) });
-        const assetVersion = createHash('sha256').update(Object.keys(bundle).filter(name => name.startsWith('assets/')).sort().join('\n')).digest('hex').slice(0, 12);
-        const sw = (await readFile(new URL('./public/sw.js', import.meta.url), 'utf8')).replace("const CACHE = 'contratos-web-assets-v1';", `const CACHE = 'contratos-web-assets-${assetVersion}';`);
-        this.emitFile({ type: 'asset', fileName: 'sw.js', source: sw });
-        this.emitFile({ type: 'asset', fileName: '_headers', source: '/*\n' + Object.entries(headers).map(([name, value]) => `  ${name}: ${value}\n`).join('') + '  Cache-Control: no-cache\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n' });
-      },
-    }],
+      }
+    ]
   };
 });

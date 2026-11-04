@@ -13,6 +13,58 @@ flowchart LR
     UI --> CSV[Blob e download local]
 ```
 
+## Decisões de arquitetura
+
+Cada decisão registra o contexto, a escolha e suas consequências. Novas decisões devem seguir o mesmo formato.
+
+### D1. Aplicação estática, sem backend
+
+- **Contexto:** os dados são públicos e o PNCP aceita CORS para leitura.
+- **Decisão:** o navegador consulta o PNCP diretamente; a hospedagem só entrega arquivos.
+- **Consequências:** custo e superfície de ataque mínimos e nenhum dado de usuário no servidor. Em troca, ritmo e concorrência são por aba, não há cache compartilhado entre usuários e CORS, TLS e disponibilidade dependem da fonte.
+
+### D2. Consultas num Web Worker
+
+- **Contexto:** a projeção de páginas, a validação e a geração de CSV de até 10.000 documentos travariam a interface.
+- **Decisão:** um Worker por aba executa validação, rede e CSV; a interface conversa por mensagens com ID, versão de protocolo e cancelamento.
+- **Consequências:** a interface continua responsiva e os buffers do CSV são transferidos sem cópia. O Worker é criado logo no início, em paralelo ao download da configuração, para não alongar a inicialização.
+
+### D3. Parser JSON com números exatos
+
+- **Contexto:** valores monetários e identificadores do PNCP perdem precisão em `number`.
+- **Decisão:** `parseExactJson` preserva o texto de cada número e só converte inteiros seguros.
+- **Consequências:** valores e CSV mantêm a representação da fonte; o parser é código próprio e tem corpus de testes dedicado.
+
+### D4. Ritmo, fila e prioridade compartilhados
+
+- **Contexto:** a fonte limita requisições (HTTP 429) e uma aba pode disparar pesquisa, pré-carga, painéis e CSV ao mesmo tempo.
+- **Decisão:** um único cliente por Worker impõe concorrência e chamadas por segundo, dá prioridade ao primeiro plano e respeita `Retry-After`. Operações excedentes aguardam numa fila FIFO do Worker; só uma fila anormalmente longa devolve `CONCURRENCY_LIMIT`.
+- **Consequências:** o uso é previsível e não depende de qual módulo chamou. A exportação mantém até duas páginas adiantadas para ficar limitada pelo ritmo, não pela latência.
+
+### D5. Domínios validados no Worker e reutilizados
+
+- **Contexto:** filtros de lista fechada precisam de IDs válidos, e as listas são grandes.
+- **Decisão:** o Worker valida os IDs antes de pesquisar ou exportar. A pré-carga da interface e a validação usam o mesmo cache de 4 horas e compartilham a requisição em andamento; a interface também persiste as listas no `localStorage`/IndexedDB.
+- **Consequências:** nenhuma requisição duplicada de `/filters` na mesma aba. O cache do Worker é reconstruído a cada recarga.
+
+### D6. Sem framework nem dependências de produção
+
+- **Contexto:** a interface é uma página única, com poucos componentes e orçamento de tamanho rígido.
+- **Decisão:** módulos ES com DOM nativo, `<dialog>`, `popover` e componentes próprios (tabela, paginação, seletores).
+- **Consequências:** bundle pequeno, CSP restritiva e nenhuma atualização de dependência em produção. Em troca, acessibilidade e estados dos componentes são mantidos pelo projeto e cobertos por testes de navegador com axe.
+
+### D7. Service Worker só para assets com hash
+
+- **Contexto:** o GitHub Pages envia `Cache-Control: max-age=600` para todos os arquivos e ignora `_headers`.
+- **Decisão:** o Service Worker mantém apenas `/assets/*` (nomes com hash) e não intercepta HTML, configuração nem o PNCP.
+- **Consequências:** visitas repetidas não baixam os bundles de novo e não há risco de servir dados desatualizados; não há modo offline.
+
+### D8. Estado compartilhado com dono explícito
+
+- **Contexto:** os painéis precisam ler a consulta e o esquema da aplicação.
+- **Decisão:** um único objeto `state` é passado aos módulos, mas cada campo tem um dono que o altera (comentário em `public/app.js`): `app.js` cuida da consulta e dos resultados; `filters-panel.js` do rascunho e dos domínios, reiniciados por `filters.reset()`; `details-panel.js` da seleção, reiniciada por `details.close()`.
+- **Consequências:** os demais módulos só leem esses campos; mudanças de responsabilidade devem atualizar o comentário e esta seção.
+
 ## Componentes
 
 | Arquivo | Responsabilidade |
@@ -44,12 +96,12 @@ flowchart LR
 | [`public/mobile-layout.js`](../public/mobile-layout.js), [`mobile.css`](../public/mobile.css) | Cabeçalho móvel, ações em popover, adaptação ao viewport visível, áreas seguras e painéis responsivos |
 | [`public/select-menu.js`](../public/select-menu.js), [`select-menu.css`](../public/select-menu.css) | Seletores simples com combobox/listbox, menus em popover, teclado, temas e sincronização dos valores nativos |
 | [`public/browser-entry.js`](../public/browser-entry.js) | Configuração pública e inicialização da distribuição estática |
-| [`public/theme-boot.js`](../public/theme-boot.js), [`theme.js`](../public/theme.js), [`theme.css`](../public/theme.css) | Tema aplicado antes da primeira pintura, preferência, integração com o sistema, sincronização entre abas e paleta escura |
+| [`public/theme-boot.js`](../public/theme-boot.js), [`theme.js`](../public/theme.js), [`theme.css`](../public/theme.css) | Tema aplicado antes da primeira pintura (`theme-boot.js` é embutido no HTML pelo build, autorizado na CSP por hash), preferência, integração com o sistema, sincronização entre abas e paleta escura |
 | [`public/sw.js`](../public/sw.js) | Cache de assets com hash em HTTPS, sem interceptar HTML, configuração ou chamadas ao PNCP |
 | [`vite.config.js`](../vite.config.js) | Aplicação e diagnóstico, Worker ES module, assets relativos, CSP e saída `dist-browser/` |
 | [`test/`](../test/) | Núcleo, DOM, runtime/RPC, layout, acessibilidade com axe e build estático no navegador |
 
-Vite, Playwright, ESLint e Prettier são ferramentas de desenvolvimento. O ESLint é executado na validação e não participa da distribuição; o Prettier atende arquivos alterados. A aplicação não tem dependências de produção, CDN, imports de pacote pendentes ou polyfills de Node.js na distribuição estática.
+Vite, Playwright, ESLint e Prettier são ferramentas de desenvolvimento. O ESLint é executado na validação e não participa da distribuição; o Prettier formata `src/`, `public/`, `test/` e `types/` e é conferido no CI (`npm run format:check`). A aplicação não tem dependências de produção, CDN, imports de pacote pendentes ou polyfills de Node.js na distribuição estática.
 
 `state.query` é a fonte única dos critérios: `updateCriteria` projeta a consulta nos controles do cabeçalho, e a interface só relê os campos ao pesquisar. Os contadores de operação ficam em `session.js`; cada módulo recebe o mesmo registro e invalida respostas antigas com um token novo, sem campos de sequência espalhados pelo estado.
 
@@ -57,31 +109,13 @@ Vite, Playwright, ESLint e Prettier são ferramentas de desenvolvimento. O ESLin
 
 A interface usa `service.call(method, payload, {signal, onProgress})`. A ponte do navegador confirma a versão e envia `{id, method, payload}` ao Worker. Cada resultado, erro ou progresso pertence ao mesmo ID. O `AbortSignal` permanece na interface e seu evento gera uma mensagem de cancelamento. Dados projetados são objetos simples; decimais e identificadores preservam a representação textual exata.
 
-Os métodos são `schema`, `execute`, `domains`, `suggest`, `details`, `related`, `documentDetails`, `documentRelated`, `contractChild` e `export`. Métodos e campos desconhecidos são rejeitados. Se o Worker falhar, todas as promessas pendentes são rejeitadas; a próxima chamada inicializa um novo Worker. O descarte da página encerra o Worker. Fechar um painel cancela suas operações sem encerrar as demais.
+Os métodos são `schema`, `execute`, `domains`, `suggest`, `details`, `related`, `documentDetails`, `documentRelated`, `contractChild` e `export`. Métodos e campos desconhecidos são rejeitados. Operações acima de `PNCP_MAX_CONCURRENT_OPERATIONS` aguardam na fila do Worker e podem ser canceladas antes de iniciar. Se o Worker falhar, todas as promessas pendentes são rejeitadas; a próxima chamada inicializa um novo Worker. O descarte da página encerra o Worker. Fechar um painel cancela suas operações sem encerrar as demais.
 
-A inicialização obtém o esquema e configura colunas e filtros. O Worker valida os critérios e domínios fechados antes de consultar a fonte, reutilizando por quatro horas as opções de validação já consultadas. Cada troca de página faz nova chamada, reutilizando em memória por 30 segundos páginas já visitadas da mesma consulta sem o registro bruto dos editais; ao abrir um documento vindo desse cache, os detalhes completos são consultados na fonte. A fila compartilha concorrência e ritmo entre pesquisa, domínios, painéis e CSV, e operações de primeiro plano passam à frente da pré-carga em segundo plano. A espera entre retentativas libera a vaga de concorrência antes de aguardar, permitindo que outras operações avancem; HTTP 429 continua impondo a pausa compartilhada. O limitador libera o início de cada chamada no instante de envio: esperas canceladas não acumulam atraso, e HTTP 429 atualiza a espera compartilhada, inclusive para operações já enfileiradas. O leitor contabiliza bytes, decodifica o corpo com `TextDecoder` e interpreta JSON com `parseExactJson`. A pesquisa confere tipo documental, total e quantidade de registros antes da projeção.
+A inicialização obtém o esquema e configura colunas e filtros. O Worker valida os critérios e domínios fechados antes de consultar a fonte, reutilizando por quatro horas as opções já consultadas, inclusive pela pré-carga da interface, e compartilhando requisições em andamento. Cada troca de página faz nova chamada, reutilizando em memória por 30 segundos páginas já visitadas da mesma consulta sem o registro bruto dos editais; ao abrir um documento vindo desse cache, os detalhes completos são consultados na fonte. A fila compartilha concorrência e ritmo entre pesquisa, domínios, painéis e CSV, e operações de primeiro plano passam à frente da pré-carga em segundo plano. A espera entre retentativas libera a vaga de concorrência antes de aguardar, permitindo que outras operações avancem; HTTP 429 continua impondo a pausa compartilhada. O limitador libera o início de cada chamada no instante de envio: esperas canceladas não acumulam atraso, e HTTP 429 atualiza a espera compartilhada, inclusive para operações já enfileiradas. O leitor contabiliza bytes, decodifica o corpo com `TextDecoder` e interpreta JSON com `parseExactJson`. A pesquisa confere tipo documental, total e quantidade de registros antes da projeção.
 
 O parser preserva o token numérico em `ExactJsonNumber`, sem conversão intermediária para ponto flutuante. Objetos e arrays usam uma pilha explícita; strings têm seus escapes decodificados pelo `JSON.parse` nativo. Chaves repetidas com valores equivalentes são aceitas e conflitos produzem erro. Propriedades como `__proto__` são tratadas como dados. A marca do tipo numérico é interna e não pode ser simulada por um objeto do JSON. `scalarText` e `decimalText` preservam dígitos e casas decimais; `plain` normaliza iterativamente os dados e converte somente inteiros seguros para números. Instâncias internas não atravessam o RPC. Configuração e cache já normalizados continuam usando `JSON.parse`.
 
 Após receber o esquema, a interface inicia em segundo plano os três domínios de busca, os quatro catálogos auxiliares compartilhados e a enumeração de referência. A pré-carga é sequencial, usa prioridade `background` na fila e não espera para inicializar a tabela. O painel reutiliza essas listas, deduplicando chamadas pendentes; fechar os filtros cancela a espera daquele leitor, sem interromper o carregamento compartilhado. Sugestões por texto continuam consultando a fonte; a conferência de domínios fechados antes da pesquisa/CSV reutiliza por quatro horas as opções já validadas no Worker.
-
-O modal de filtros renderiza todos os campos habilitados e compatíveis com o tipo documental, agrupados por assunto. Cabeçalho e ações permanecem visíveis enquanto o conteúdo rola. Cada alteração atualiza somente o rascunho; **Aplicar e pesquisar** copia os critérios para a consulta, e cancelar os descarta. Booleanos e enumerações possuem o placeholder **Selecionar**, com valor vazio. Campos vazios e listas sem seleção removem critérios, preservando `false` e zero quando informados. Domínios parciais possuem seleção e sugestões independentes por campo, com descarte de respostas antigas. Alterar normativos atualiza os amparos mesmo quando ainda não há amparo selecionado.
-
-Em até 700 px, o modal ocupa o viewport visível; os grupos de filtros ficam em uma área rolável, com cabeçalho e ações fixos. Os controles principais têm área de toque de pelo menos 44 px e os campos de texto usam 16 px. `visualViewport` acompanha a altura disponível e o deslocamento causados pelo teclado, sem redimensionar a interface durante zoom por gesto; `env(safe-area-inset-*)` reserva as áreas seguras do dispositivo.
-
-Todos os filtros de cardinalidade múltipla usam comboboxes de busca, listas com marcação e etiquetas removíveis. Domínios completos usam as opções em cache e busca local sem distinção de acentos; domínios parciais mantêm as sugestões remotas. Os menus ficam no contêiner `filter-popups`, fora do conteúdo rolável, com posição fixa calculada a partir do campo. Ao abrir, a área de filtros rola quando necessário para manter a lista abaixo do campo e fora do rodapé; se não houver espaço suficiente, ela abre acima. A rolagem atualiza essa posição ou fecha o menu se o campo sair da área visível. Apenas um menu permanece aberto; clique externo, perda de foco, Tab e Escape o fecham. As setas e Enter controlam a seleção, com vínculos ARIA entre combobox e listbox.
-
-O campo `help_text` do esquema está vazio. Exemplos de preenchimento ficam somente no placeholder, via `input_hint`, incluindo os limites de ordem de classificação. Datas vazias e os demais placeholders usam a mesma cor semântica do tema; datas preenchidas usam a cor normal do texto. Descrições técnicas de argumentos não são exibidas como ajuda.
-
-`initializeSelectMenus` aplica uma apresentação comum aos selects simples, incluindo controles criados nos filtros e detalhes. O select original conserva valor, eventos, integração com formulários e tamanho intrínseco; fica transparente, fora da navegação por Tab e da árvore acessível. Um botão com papel `combobox` assume o rótulo e os estados, e uma `listbox` em popover nativo exibe opções como texto, a marca de seleção e o destaque de navegação. Rótulos apontam para o novo controle. Nenhuma dependência é adicionada.
-
-Setas, Home/End e busca pelas primeiras letras movem o destaque sem alterar o valor. Enter/Espaço confirma e emite `input`/`change` quando a escolha muda; Escape, Tab, perda de foco e clique externo descartam a navegação. Opções ocultas são omitidas e opções desabilitadas não podem ser escolhidas. Os menus ajustam largura, altura e posição ao viewport visível, abrem acima quando falta espaço abaixo e acompanham a rolagem ou fecham quando o controle sai de vista. Dentro de diálogos e do menu Mais, permanecem na camada superior e no contexto do controle.
-
-Acima de 700 px, menus de seleção simples e múltipla usam transições de opacidade de 160 ms; os modais de filtros e colunas e seus fundos usam 200 ms. O painel de detalhes usa deslizamento de 240 ms. As transições preservam a geometria usada no alinhamento dos menus. `display` e `overlay`, com `allow-discrete` e `@starting-style`, mantêm o conteúdo renderizado até o fim do fechamento. Elementos em fechamento não interceptam cliques, e o modal de filtros conserva a disposição em coluna durante a saída. No mobile, abertura e fechamento continuam imediatos.
-
-Os botões e links apresentados como botões usam transições de cor em `button-motion.css`, sem deslocar ou redimensionar o controle. `button-motion.js` anima os ícones ao passar o ponteiro ou ao receber foco pelo teclado: a lupa percorre a busca, as barras de filtro deslizam em sequência, as divisórias de colunas se aproximam e a seta de exportação se move sem deslocar sua base. Atualização, tema, GitHub, paginação e menu também possuem movimentos próprios. Em dispositivos sem hover, o toque mantém uma animação breve ao acionar o botão. A delegação cobre controles criados dinamicamente; controles desabilitados ou ocupados não iniciam animações.
-
-Um `MutationObserver` acompanha opções, rótulos e estados atualizados em segundo plano. Alterações programáticas de valor na aplicação chamam `refresh`; eventos dos controles nativos e reset de formulário também atualizam a apresentação. Atualizar o texto de opções preserva o destaque em navegação. Controles removidos são descartados; no encerramento da página, listeners e observadores são liberados. A retomada pelo cache de navegação mantém os controles.
 
 Critérios novos começam na primeira página; Atualizar preserva os últimos critérios concluídos e a página. Respostas antigas são descartadas. Falhas identificam e preservam o resultado anterior e desabilitam exportação até a pesquisa concluir novamente.
 
@@ -91,49 +125,11 @@ Antes da primeira consulta, a interface lê a URL e configura tipo documental, c
 
 A paginação remota usa `loadResultsPage` para abrir diretamente a página do link. O seletor de ordenação usa `orders_by_document` e `order_labels` do esquema; o Worker e a leitura da URL validam a mesma compatibilidade. O seletor e os menus de colunas enviam critérios nativos ao PNCP, sem ordenação ou filtragem local. Novos critérios reiniciam a página. Atualizar consulta a página da última pesquisa concluída; repetir uma falha usa a página que falhou.
 
-## Temas
-
-O tema é aplicado por `theme.js`, carregado antes da inicialização das consultas. Sem preferência explícita, `prefers-color-scheme` define o tema e suas mudanças são acompanhadas. O botão de sol/lua salva `light` ou `dark` na chave `contratos-web:theme` do `localStorage`; a escolha prevalece sobre o sistema e eventos `storage` a sincronizam entre abas. Armazenamento indisponível não impede alternar o tema na página. A página de diagnóstico reutiliza a preferência.
-
-`data-theme` no elemento raiz seleciona as cores semânticas de `theme.css` e `color-scheme` adapta os controles nativos. As barras de rolagem usam cores para cada tema e preservam os mecanismos nativos; navegadores com suporte a pseudoelementos exibem polegares arredondados, e os demais usam `scrollbar-color` quando disponível. Os estilos da aplicação e da tabela mantêm os valores originais como alternativas do tema claro. Botões preenchidos têm cores próprias para conservar o contraste dos ícones brancos. O build preserva `blocking="render"` no módulo de entrada para aplicar o tema antes da primeira pintura nos navegadores que suportam esse atributo.
-
-## Tabela de resultados
-
-`createResultsTable` recebe colunas do esquema, o renderizador de células, o conteúdo do rodapé e callbacks de navegação, abertura de documentos e ações de coluna. A aplicação concentra as requisições, os abortos e a confirmação de resultados. `renderPage` aplica somente respostas atuais e concluídas; falhas e cancelamentos conservam linhas, metadados e página confirmados, enquanto a URL e a repetição identificam a consulta que falhou.
-
-O componente usa `table`, `thead`, `tbody` e `colgroup`. Renderiza até 100 linhas da página e somente colunas visíveis, sem virtualização. O cabeçalho permanece fixo na rolagem vertical; rodapé e paginação ficam fora da área rolável. A paginação usa `last_page` do serviço e o componente compartilhado `createPagination`, com até cinco páginas numeradas e botões de primeira, anterior, próxima e última página. No celular, os controles ocupam toda a largura disponível. A busca mantém a janela de até cinco páginas; em detalhes com números longos e telas de até 400 px, a janela diminui para três páginas próximas à atual para conservar a legibilidade. O total real e o aviso da janela de 10.000 documentos pertencem ao rodapé da aplicação.
-
-O callback opcional `renderCard` cria um resumo documental com texto e nós DOM; o componente mantém o acionamento de detalhes e renderiza cartões com os mesmos registros confirmados. Em até 700 px, cartões são a apresentação inicial. Os nós dos cartões são criados somente quando essa visualização está ativa no mobile e são descartados ao ocultá-la; voltar aos cartões usa os registros mais recentes, sem nova consulta. `setMobileView` alterna cartões/tabela em memória, sem pesquisar novamente ou alterar os critérios da URL. Acima desse limite, a tabela permanece visível. A seleção de colunas pertence à tabela e não remove os campos fixos dos cartões. A navegação de cartões e tabela usa o mesmo fluxo remoto de paginação.
-
-`initializeMobileLayout` move as ações secundárias existentes, inclusive **Limpar filtros**, para o popover nativo **Mais** em até 700 px, conservando handlers, estados e nomes acessíveis. A marca fica oculta. A primeira linha contém busca, pesquisar e filtros; a segunda reúne tipo documental, ordenação e o ícone de **Mais**. Os seletores dividem igualmente o espaço restante da segunda linha, que ocupa toda a largura do cabeçalho. O ícone mantém área de toque de 44 px e nome acessível “Mais ações”; o popover abre abaixo dele, ajustado às bordas da tela. A ordem no DOM acompanha a disposição visual para navegação por teclado. Ao ampliar para desktop, os controles retornam às posições originais. O popover fecha ao executar uma ação, mudar a visualização, clicar fora ou pressionar Escape. No mobile, a alternância cartões/tabela é um botão dinâmico que indica a próxima visualização, e as exportações aparecem diretamente como **Exportar consulta** e **Exportar página**. Os listeners e marcadores são descartados com a página; a retomada pelo cache de navegação preserva os controles.
-
-Linhas cujos valores visíveis não mudaram são reaproveitadas nas atualizações. A referência ao registro completo é atualizada mesmo nesse caso, para que a abertura de detalhes use os dados mais recentes. Alterações na definição das colunas invalidam essa renderização.
-
-Visibilidade, ordem e larguras são persistidas por tipo documental no `localStorage` e reaplicadas ao recarregar ou trocar de tipo; **Restaurar padrão** remove a preferência. A leitura valida a estrutura, os booleanos de visibilidade e as larguras numéricas positivas; preferências inválidas são removidas apenas para o tipo afetado, retomando o layout padrão. Pointer Events permitem mover e redimensionar colunas; Alt + setas move o título focado, e as setas/Home ajustam o controle de largura, com mínimo de 85 px. Clicar no título de uma coluna com ordenação nativa alterna crescente/decrescente, e o cabeçalho publica `aria-sort`. Menus têm foco, teclado, fechamento com Escape/clique externo e posição limitada ao viewport. O título do registro tem uma ação focável de detalhes, além do clique na linha. Seleção de texto e controles internos não ativam a linha. Conteúdo do PNCP é montado como texto e nós DOM.
-
-Em colunas com apenas filtragem, o ícone abre o painel diretamente; “Filtrar por esta coluna” aparece como tooltip neutro ao passar o mouse ou focar o botão. Colunas que também permitem ordenação conservam o menu de ações. O painel posiciona o campo correspondente imediatamente, sem aguardar opções de outros filtros. Em intervalos, o foco vai ao limite inicial; quando as opções do campo ainda estão carregando, o foco fica no seu contêiner e passa ao campo assim que ele estiver pronto, desde que o usuário não tenha mudado de foco. Os critérios só são enviados ao clicar em **Aplicar e pesquisar**.
-
-`setStatus` sinaliza carregamento e bloqueia interações; `clear` limpa os registros ao trocar o tipo. `destroy` encerra gestos, menus, listeners e observadores quando a página é descartada. A retomada pelo cache de navegação preserva o componente e o Worker.
-
-## Painéis dos documentos
-
-O cabeçalho do painel usa o título da linha selecionada. A aba ativa e os detalhes completos são iniciados primeiro; as demais primeiras páginas continuam em segundo plano em conexões normais. Com `saveData`, rede lenta ou preferência por dados reduzidos, as abas não ativas ficam adiadas e são consultadas ao serem selecionadas. Contratações iniciam itens, arquivos, atas, contratos/empenhos e histórico. Atas iniciam detalhes completos, partes envolvidas, contratos, arquivos e histórico. Contratos iniciam detalhes completos, empenhos, instrumentos de cobrança, termos, arquivos e histórico. Uma fila do painel limita a duas tarefas ativas; abas preservam dados e paginação, contadores, teclado e recuperação independente. Itens e listagens usam dez registros por página, definidos em `DETAIL_PAGE_SIZE`, e reutilizam `createPagination`: com total conhecido, mostram até cinco páginas próximas à atual e os quatro atalhos; uma única página oculta o controle. Durante uma consulta, todos os botões ficam desabilitados. Falhas mantêm a página confirmada; a restauração de foco fica restrita à própria paginação.
-
-A contagem de registros aparece após a listagem, alinhada à esquerda da paginação no desktop e acima dela no mobile. No desktop, o painel usa uma coluna flexível: cabeçalho, descrição e abas permanecem visíveis, e somente o conteúdo da aba selecionada tem rolagem interna. A descrição ocupa até três linhas; quando ultrapassa esse espaço, **Ver descrição completa** abre um modal com o texto integral e rolagem própria. Um `ResizeObserver` acompanha o tamanho do resumo e é desconectado ao encerrar o painel. O modal de leitura fecha junto do documento; no mobile, a descrição continua integral na área rolável.
-
-O seletor móvel de seções, com nome acessível **Seção dos detalhes** e sem rótulo visível, e as abas usam a mesma função de ativação e os mesmos painéis. Opções acompanham contagens, erros e carregamento; a seção selecionada mantém o spinner durante a consulta. Selecionar uma opção sincroniza `aba` na URL sem refazer consultas. O conteúdo rola separado do título e do botão de fechar, que permanece disponível; abaixo de 401 px, os campos passam a uma coluna.
-
-CNPJ, ano e sequenciais são textos validados. Atas preservam sequenciais da compra e da ata; contratos usam seu próprio sequencial. O detalhe completo confere controle PNCP contra a identidade antes de substituir os campos da busca. Falhas conservam os campos disponíveis.
-
-Itens, arquivos, histórico e termos usam contagens separadas; outros recursos usam o total de envelopes paginados. Instrumentos de cobrança chegam numa lista sem paginação, usam `pagination_source: local_slice` e reutilizam por 30 segundos a lista já baixada ao navegar entre páginas. Arquivos de termos e detalhes de empenhos/instrumentos são consultados sob demanda. Arquivos binários permanecem como links seguros da fonte, sem coleta ao abrir o painel.
-
-No histórico de contratos, a página é consultada mesmo quando a contagem declara zero ou menos páginas. Divergências preservam os eventos com `total` e `total_pages` nulos e `pagination_mode: until_empty`. A interface mantém esse modo durante a navegação no painel e o repassa ao Worker: próximas consultas ignoram a contagem e permitem avançar manualmente até uma página vazia, mesmo depois de páginas incompletas. A aba mostra `Histórico (?)` e **Quantidade desconhecida**; a paginação exibe apenas anterior, página atual e próxima, sem números de páginas adicionais nem atalhos de primeira/última. Contagens coerentes e todas as outras listagens conservam as verificações normais. HTTP de erro, registros inválidos e limites de transporte não são tratados como fim do histórico.
-
-HTTP 404 significa zero nas listas de contratos vinculados a uma contratação e nas listas de empenhos e instrumentos de cobrança de um contrato. Outros 404, inclusive nos detalhes de registros individuais, continuam sendo erro. Listagens que admitem 204 preservam sua semântica, conferindo contagens quando disponíveis; a busca não converte 204 em vazio. Falha de transporte sem HTTP legível nunca vira zero.
+Os comportamentos detalhados da interface (filtros, seletores, temas, tabela e painéis) estão em [Comportamento da interface](interface.md).
 
 ## CSV e recursos
 
-O botão **Exportar** abre um menu com as opções **Toda a consulta** e **Página atual**. Qualquer escopo inicia uma nova coleta com os últimos critérios concluídos, desde a primeira página, ou somente da página atual quando esse escopo é escolhido. A coleta completa usa `PNCP_EXPORT_PAGE_SIZE` (100 por padrão); o escopo **Página atual** preserva `query.page` e `query.size`, independentemente dessa configuração. Cada página confere total, tamanho e identidade; duplicação ou alteração encerra a operação. O Worker projeta uma página e codifica lotes de 25 documentos, devolvendo controle ao loop de eventos entre lotes/páginas. Mantém chunks de bytes e um conjunto de identidades. O resultado contém bytes e metadados compactos.
+O botão **Exportar** abre um menu com as opções **Toda a consulta** e **Página atual**. Qualquer escopo inicia uma nova coleta com os últimos critérios concluídos, desde a primeira página, ou somente da página atual quando esse escopo é escolhido. A coleta completa usa `PNCP_EXPORT_PAGE_SIZE` (100 por padrão); o escopo **Página atual** preserva `query.page` e `query.size`, independentemente dessa configuração. Até duas páginas seguintes ficam solicitadas enquanto a atual é codificada. Cada página confere total, tamanho e identidade; duplicação ou alteração encerra a operação. O Worker projeta uma página e codifica lotes de 25 documentos, devolvendo controle ao loop de eventos entre lotes/páginas. Mantém chunks de bytes e um conjunto de identidades. O resultado contém bytes e metadados compactos.
 
 Progresso contém páginas, linhas, total e bytes. Só a coleta completa transfere os `ArrayBuffer` à interface, junto de nome, MIME e metadados compactos. A interface cria o Blob e revoga a URL após o download. Não há download parcial. Campos textuais que poderiam ser interpretados como fórmulas recebem um apóstrofo antes do conteúdo; valores decimais válidos, inclusive negativos, mantêm sua representação exata. `snapshot_guaranteed` é `false`, pois o PNCP pode mudar entre chamadas.
 

@@ -1,28 +1,22 @@
 import js from '@eslint/js';
 import globals from 'globals';
 
-const languageOptions = (globalsSet) => ({
+const languageOptions = globalsSet => ({
   ecmaVersion: 'latest',
   sourceType: 'module',
-  globals: globalsSet,
+  globals: globalsSet
 });
 
 export default [
   {
-    ignores: [
-      'dist-browser/**',
-      'dist-browser-test/**',
-      'node_modules/**',
-      'coverage/**',
-      '.npm-cache/**',
-    ],
+    ignores: ['dist-browser/**', 'dist-browser-test/**', 'node_modules/**', 'coverage/**', '.npm-cache/**']
   },
   js.configs.recommended,
   {
     files: ['src/**/*.js', 'public/**/*.js'],
     languageOptions: languageOptions({
       ...globals.browser,
-      ...globals.serviceworker,
+      ...globals.serviceworker
     }),
     rules: {
       // Distribution code must not log: diagnostics belong to the application UI.
@@ -38,26 +32,26 @@ export default [
       'no-self-compare': 'error',
       'no-template-curly-in-string': 'error',
       'no-unreachable-loop': 'error',
-      'no-promise-executor-return': 'error',
-    },
+      'no-promise-executor-return': 'error'
+    }
   },
   {
     // The JSON parser deliberately scans control characters in filter values.
     files: ['src/validation.js'],
-    rules: { 'no-control-regex': 'off' },
+    rules: { 'no-control-regex': 'off' }
   },
   {
     // Runs before the module graph and stays ES5 so it never blocks the first paint.
     files: ['public/theme-boot.js'],
-    rules: { 'no-var': 'off' },
+    rules: { 'no-var': 'off' }
   },
   {
     // Browser tests mix Node orchestration with code evaluated inside the page.
     files: ['test/**/*.js', 'test/**/*.mjs'],
-    languageOptions: languageOptions({ ...globals.node, ...globals.browser }),
+    languageOptions: languageOptions({ ...globals.node, ...globals.browser })
   },
   {
     files: ['vite.config.js', 'eslint.config.js'],
-    languageOptions: languageOptions({ ...globals.node }),
-  },
+    languageOptions: languageOptions({ ...globals.node })
+  }
 ];

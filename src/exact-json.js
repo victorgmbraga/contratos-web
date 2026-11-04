@@ -9,7 +9,9 @@ export class ExactJsonNumber {
     numbers.add(this);
     Object.freeze(this);
   }
-  toString() { return this.#source; }
+  toString() {
+    return this.#source;
+  }
   [Symbol.toPrimitive](hint) {
     if (hint === 'number') throw new TypeError('Converta o número exato explicitamente pelo seu texto.');
     return this.#source;
@@ -39,10 +41,17 @@ function equalValues(left, right) {
 
 export function parseExactJson(text) {
   if (typeof text !== 'string') throw new TypeError('JSON deve ser fornecido como texto.');
-  let at = 0, result, rootSet = false;
-  const stack = [], numeric = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
-  const invalid = () => { throw new SyntaxError(`JSON inválido na posição ${at}.`); };
-  const whitespace = () => { while (at < text.length && /[\x20\t\r\n]/.test(text[at])) at++; };
+  let at = 0,
+    result,
+    rootSet = false;
+  const stack = [],
+    numeric = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
+  const invalid = () => {
+    throw new SyntaxError(`JSON inválido na posição ${at}.`);
+  };
+  const whitespace = () => {
+    while (at < text.length && /[\x20\t\r\n]/.test(text[at])) at++;
+  };
   function string() {
     if (text[at] !== '"') return invalid();
     const start = at++;
@@ -55,7 +64,11 @@ export function parseExactJson(text) {
   }
   function accept(value) {
     const parent = stack.at(-1);
-    if (!parent) { result = value; rootSet = true; return; }
+    if (!parent) {
+      result = value;
+      rootSet = true;
+      return;
+    }
     if (parent.array) parent.value.push(value);
     else {
       if (Object.hasOwn(parent.value, parent.key) && !equalValues(parent.value[parent.key], value)) return invalid();
@@ -68,17 +81,23 @@ export function parseExactJson(text) {
     const character = text[at];
     if (character === '{' || character === '[') {
       at++;
-      stack.push({ value: character === '[' ? [] : {}, array: character === '[', state: character === '[' ? 'firstValue' : 'firstKey' });
+      stack.push({
+        value: character === '[' ? [] : {},
+        array: character === '[',
+        state: character === '[' ? 'firstValue' : 'firstKey'
+      });
     } else if (character === '"') accept(string());
-    else if (character === '-' || character >= '0' && character <= '9') {
+    else if (character === '-' || (character >= '0' && character <= '9')) {
       numeric.lastIndex = at;
       const match = numeric.exec(text);
       if (!match) return invalid();
-      at = numeric.lastIndex; accept(new ExactJsonNumber(match[0]));
+      at = numeric.lastIndex;
+      accept(new ExactJsonNumber(match[0]));
     } else {
       const literal = ['true', 'false', 'null'].find(word => text.startsWith(word, at));
       if (!literal) return invalid();
-      at += literal.length; accept(literal === 'true' ? true : literal === 'false' ? false : null);
+      at += literal.length;
+      accept(literal === 'true' ? true : literal === 'false' ? false : null);
     }
   }
   // Containers are accepted into their parent only once complete, so duplicate
@@ -87,20 +106,36 @@ export function parseExactJson(text) {
     whitespace();
     const current = stack.at(-1);
     if (!current) {
-      if (rootSet) { if (at !== text.length) return invalid(); return result; }
-      value(); continue;
+      if (rootSet) {
+        if (at !== text.length) return invalid();
+        return result;
+      }
+      value();
+      continue;
     }
     const close = current.array ? ']' : '}';
     if (current.state === 'separator') {
-      if (text[at] === ',') { at++; current.state = current.array ? 'value' : 'key'; continue; }
+      if (text[at] === ',') {
+        at++;
+        current.state = current.array ? 'value' : 'key';
+        continue;
+      }
       if (text[at] !== close) return invalid();
     } else if ((current.state === 'firstKey' || current.state === 'firstValue') && text[at] === close) {
       // Empty container.
     } else if (!current.array) {
-      current.key = string(); whitespace();
+      current.key = string();
+      whitespace();
       if (text[at++] !== ':') return invalid();
-      current.state = 'value'; value(); continue;
-    } else { value(); continue; }
-    at++; stack.pop(); accept(current.value);
+      current.state = 'value';
+      value();
+      continue;
+    } else {
+      value();
+      continue;
+    }
+    at++;
+    stack.pop();
+    accept(current.value);
   }
 }

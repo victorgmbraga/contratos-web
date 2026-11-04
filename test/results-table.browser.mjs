@@ -1,109 +1,214 @@
 import { diagnoseBrowserFailure } from './browser-diagnostics.js';
 /* global tableFixture */
 import assert from 'node:assert/strict';
-import {createStaticServer} from './static-server.js';
-import {launchTestBrowser} from './browser-launch.js';
-const app=createStaticServer(new URL('../',import.meta.url));
-await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
-const browser=await launchTestBrowser();
+import { createStaticServer } from './static-server.js';
+import { launchTestBrowser } from './browser-launch.js';
+const app = createStaticServer(new URL('../', import.meta.url));
+await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
+const browser = await launchTestBrowser();
 try {
-  const page=await browser.newPage({viewport:{width:1000,height:700}}),errors=[];
-  page.on('pageerror',error=>errors.push(error.message));
+  const page = await browser.newPage({ viewport: { width: 1000, height: 700 } }),
+    errors = [];
+  page.on('pageerror', error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${app.server.address().port}/test/results-table-fixture.html`);
-  await page.locator('.results-row').last().waitFor({state:'attached'});
-  assert.equal(await page.getByRole('table',{name:'Resultados da pesquisa'}).count(),1);
-  assert.equal(await page.locator('.results-row').count(),100);assert.equal(await page.locator('.results-row img').count(),0);
-  assert.equal(await page.evaluate(()=>window.injected),undefined);
-  await page.getByRole('button',{name:'Ver detalhes: Documento 1',exact:true}).press('Enter');
-  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.opened),['Documento 1']);
-  assert.equal(await page.evaluate(()=>{
-    const previous=document.querySelector('.results-row');
-    tableFixture.instance.renderPage({rows:tableFixture.rows.map(row=>({...row,version:2})),page:1,lastPage:100});
-    return document.querySelector('.results-row')===previous;
-  }),true);
-  await page.getByRole('button',{name:'Ver detalhes: Documento 1',exact:true}).press('Enter');
-  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.versions),[1,2]);
-  await page.getByRole('button',{name:'Página 2',exact:true}).click();
-  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.pages),[2]);
-  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'2');
-  assert.equal(await page.evaluate(()=>document.activeElement.dataset.page),'2');
-  await page.getByRole('button',{name:'Filtrar Órgão',exact:true}).click();
-  await page.evaluate(()=>document.querySelector('.results-scroll').dispatchEvent(new Event('scroll')));
-  assert.equal(await page.getByRole('menu').count(),1);
-  await page.getByRole('menuitem',{name:'Ordenar crescente'}).press('Enter');
-  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.actions),[['orgao','asc']]);
-  assert.equal(await page.getByRole('button',{name:'Filtrar Órgão',exact:true}).evaluate(element=>element===document.activeElement),true);
-  await page.getByRole('button',{name:'Filtrar Órgão',exact:true}).click();await page.keyboard.press('End');
-  assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Ordenar decrescente');
-  await page.keyboard.press('Escape');assert.equal(await page.getByRole('menu').count(),0);
-  const filterButton=page.getByRole('button',{name:'Filtrar Objeto',exact:true});
-  assert.equal(await filterButton.getAttribute('aria-haspopup'),null);assert.equal(await filterButton.getAttribute('title'),null);
-  const tooltip=page.locator('#'+await filterButton.getAttribute('aria-describedby'));
-  await filterButton.hover();await tooltip.waitFor({state:'visible'});
-  assert.equal(await tooltip.innerText(),'Filtrar por esta coluna');assert.equal(await page.getByRole('menu').count(),0);
-  assert.deepEqual(await tooltip.evaluate(node=>{const style=getComputedStyle(node);return {background:style.backgroundColor,color:style.color,border:style.borderColor};}),{background:'rgb(255, 255, 255)',color:'rgb(19, 61, 104)',border:'rgb(220, 228, 237)'});
-  await filterButton.click();assert.equal(await tooltip.isVisible(),false);
-  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.actions),[['orgao','asc'],['objeto','filter']]);
-  await page.getByRole('button',{name:'Mover coluna Título',exact:true}).focus();
-  await filterButton.focus();await tooltip.waitFor({state:'visible'});
-  await filterButton.press('Escape');assert.equal(await tooltip.isVisible(),false);
-  await filterButton.press('Enter');
-  assert.deepEqual(await page.evaluate(()=>tableFixture.calls.actions),[['orgao','asc'],['objeto','filter'],['objeto','filter']]);
-  const handle=page.getByRole('separator',{name:'Largura da coluna Título'});
-  await handle.focus();await handle.press('ArrowRight');assert.equal(await handle.getAttribute('aria-valuenow'),'270');
-  await handle.press('Home');assert.equal(await handle.getAttribute('aria-valuenow'),'85');
-  const box=await handle.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+80,box.y+box.height/2,{steps:5});await page.mouse.up();
-  assert.equal(await handle.getAttribute('aria-valuenow'),'165');
-  await page.getByRole('button',{name:'Mover coluna Título',exact:true}).press('Alt+ArrowRight');
-  assert.deepEqual(await page.evaluate(()=>tableFixture.instance.getColumns().map(column=>column.field)),['objeto','titulo','orgao']);
-  assert.equal(await page.getByRole('separator',{name:'Largura da coluna Título'}).getAttribute('aria-valuenow'),'165');
-  const source=await page.getByRole('button',{name:'Mover coluna Título',exact:true}).boundingBox(),target=await page.getByRole('button',{name:'Mover coluna Órgão',exact:true}).boundingBox();
-  await page.mouse.move(source.x+10,source.y+8);await page.mouse.down();await page.mouse.move(target.x+20,target.y+8,{steps:8});await page.mouse.up();
-  assert.deepEqual(await page.evaluate(()=>tableFixture.instance.getColumns().map(column=>column.field)),['objeto','orgao','titulo']);
-  await page.evaluate(()=>tableFixture.instance.setColumnVisibility('titulo',false));assert.equal(await page.getByRole('columnheader').count(),2);
-  await page.evaluate(()=>tableFixture.instance.setColumnVisibility('titulo',true));assert.equal(await page.getByRole('columnheader').count(),3);
-  assert.equal(await page.getByRole('separator',{name:'Largura da coluna Título'}).getAttribute('aria-valuenow'),'165');
-  const headerBefore=await page.locator('.results-header').boundingBox();await page.locator('.results-scroll').evaluate(element=>{element.scrollTop=1000;});
-  assert.equal(Math.round((await page.locator('.results-header').boundingBox()).y),Math.round(headerBefore.y));
-  await page.evaluate(()=>tableFixture.instance.setStatus('loading'));assert.equal(await page.locator('.results-page:not(:disabled)').count(),0);
-  await page.evaluate(()=>tableFixture.instance.setStatus('error'));assert.equal(await page.locator('.results-row').count(),100);
-  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Filtrar Órgão',exact:true}).click();
-  const menu=await page.getByRole('menu').boundingBox();assert(menu.x>=8 && menu.x+menu.width<=382);
+  await page.locator('.results-row').last().waitFor({ state: 'attached' });
+  assert.equal(await page.getByRole('table', { name: 'Resultados da pesquisa' }).count(), 1);
+  assert.equal(await page.locator('.results-row').count(), 100);
+  assert.equal(await page.locator('.results-row img').count(), 0);
+  assert.equal(await page.evaluate(() => window.injected), undefined);
+  await page.getByRole('button', { name: 'Ver detalhes: Documento 1', exact: true }).press('Enter');
+  assert.deepEqual(await page.evaluate(() => tableFixture.calls.opened), ['Documento 1']);
+  assert.equal(
+    await page.evaluate(() => {
+      const previous = document.querySelector('.results-row');
+      tableFixture.instance.renderPage({
+        rows: tableFixture.rows.map(row => ({ ...row, version: 2 })),
+        page: 1,
+        lastPage: 100
+      });
+      return document.querySelector('.results-row') === previous;
+    }),
+    true
+  );
+  await page.getByRole('button', { name: 'Ver detalhes: Documento 1', exact: true }).press('Enter');
+  assert.deepEqual(await page.evaluate(() => tableFixture.calls.versions), [1, 2]);
+  await page.getByRole('button', { name: 'Página 2', exact: true }).click();
+  assert.deepEqual(await page.evaluate(() => tableFixture.calls.pages), [2]);
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'), '2');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.page), '2');
+  await page.getByRole('button', { name: 'Filtrar Órgão', exact: true }).click();
+  await page.evaluate(() => document.querySelector('.results-scroll').dispatchEvent(new Event('scroll')));
+  assert.equal(await page.getByRole('menu').count(), 1);
+  await page.getByRole('menuitem', { name: 'Ordenar crescente' }).press('Enter');
+  assert.deepEqual(await page.evaluate(() => tableFixture.calls.actions), [['orgao', 'asc']]);
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Filtrar Órgão', exact: true })
+      .evaluate(element => element === document.activeElement),
+    true
+  );
+  await page.getByRole('button', { name: 'Filtrar Órgão', exact: true }).click();
+  await page.keyboard.press('End');
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Ordenar decrescente');
   await page.keyboard.press('Escape');
-  await page.getByRole('button',{name:'Primeira página',exact:true}).click();
-  assert.deepEqual(await page.locator('.results-pages button').allTextContents(),['1','2','3','4','5']);
-  assert.equal(await page.locator('.results-paginator input').count(),0);
-  for(const width of [320,360,390,430,700]){
-    await page.setViewportSize({width,height:844});
-    const geometry=await page.locator('.results-paginator').evaluate(nav=>{
-      const rect=nav.getBoundingClientRect(),buttons=[...nav.querySelectorAll('button')].map(button=>button.getBoundingClientRect());
-      return {width:rect.width,parentWidth:nav.parentElement.getBoundingClientRect().width,count:buttons.length,
-        fills:Math.abs(buttons[0].left-rect.left)<1 && Math.abs(buttons.at(-1).right-rect.right)<1,
-        even:buttons.every(button=>Math.abs(button.width-buttons[0].width)<1 && Math.abs(button.top-buttons[0].top)<1 && button.height>=43.99)};
+  assert.equal(await page.getByRole('menu').count(), 0);
+  const filterButton = page.getByRole('button', { name: 'Filtrar Objeto', exact: true });
+  assert.equal(await filterButton.getAttribute('aria-haspopup'), null);
+  assert.equal(await filterButton.getAttribute('title'), null);
+  const tooltip = page.locator('#' + (await filterButton.getAttribute('aria-describedby')));
+  await filterButton.hover();
+  await tooltip.waitFor({ state: 'visible' });
+  assert.equal(await tooltip.innerText(), 'Filtrar por esta coluna');
+  assert.equal(await page.getByRole('menu').count(), 0);
+  assert.deepEqual(
+    await tooltip.evaluate(node => {
+      const style = getComputedStyle(node);
+      return { background: style.backgroundColor, color: style.color, border: style.borderColor };
+    }),
+    { background: 'rgb(255, 255, 255)', color: 'rgb(19, 61, 104)', border: 'rgb(220, 228, 237)' }
+  );
+  await filterButton.click();
+  assert.equal(await tooltip.isVisible(), false);
+  assert.deepEqual(await page.evaluate(() => tableFixture.calls.actions), [
+    ['orgao', 'asc'],
+    ['objeto', 'filter']
+  ]);
+  await page.getByRole('button', { name: 'Mover coluna Título', exact: true }).focus();
+  await filterButton.focus();
+  await tooltip.waitFor({ state: 'visible' });
+  // A rolagem da tabela (como a volta ao topo após renderizar) mantém o tooltip do botão focado.
+  await page
+    .locator('.results-scroll')
+    .first()
+    .evaluate(node => {
+      node.scrollTop = 0;
+      node.dispatchEvent(new Event('scroll'));
     });
-    assert.equal(geometry.count,9);assert(geometry.fills && geometry.even && Math.abs(geometry.width-geometry.parentWidth)<1,JSON.stringify({width,...geometry}));
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.equal(await tooltip.isVisible(), true, 'O tooltip do botão focado permanece após a rolagem');
+  await filterButton.press('Escape');
+  assert.equal(await tooltip.isVisible(), false);
+  await filterButton.press('Enter');
+  assert.deepEqual(await page.evaluate(() => tableFixture.calls.actions), [
+    ['orgao', 'asc'],
+    ['objeto', 'filter'],
+    ['objeto', 'filter']
+  ]);
+  const handle = page.getByRole('separator', { name: 'Largura da coluna Título' });
+  await handle.focus();
+  await handle.press('ArrowRight');
+  assert.equal(await handle.getAttribute('aria-valuenow'), '270');
+  await handle.press('Home');
+  assert.equal(await handle.getAttribute('aria-valuenow'), '85');
+  const box = await handle.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  assert.equal(await handle.getAttribute('aria-valuenow'), '165');
+  await page.getByRole('button', { name: 'Mover coluna Título', exact: true }).press('Alt+ArrowRight');
+  assert.deepEqual(await page.evaluate(() => tableFixture.instance.getColumns().map(column => column.field)), [
+    'objeto',
+    'titulo',
+    'orgao'
+  ]);
+  assert.equal(
+    await page.getByRole('separator', { name: 'Largura da coluna Título' }).getAttribute('aria-valuenow'),
+    '165'
+  );
+  const source = await page.getByRole('button', { name: 'Mover coluna Título', exact: true }).boundingBox(),
+    target = await page.getByRole('button', { name: 'Mover coluna Órgão', exact: true }).boundingBox();
+  await page.mouse.move(source.x + 10, source.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(target.x + 20, target.y + 8, { steps: 8 });
+  await page.mouse.up();
+  assert.deepEqual(await page.evaluate(() => tableFixture.instance.getColumns().map(column => column.field)), [
+    'objeto',
+    'orgao',
+    'titulo'
+  ]);
+  await page.evaluate(() => tableFixture.instance.setColumnVisibility('titulo', false));
+  assert.equal(await page.getByRole('columnheader').count(), 2);
+  await page.evaluate(() => tableFixture.instance.setColumnVisibility('titulo', true));
+  assert.equal(await page.getByRole('columnheader').count(), 3);
+  assert.equal(
+    await page.getByRole('separator', { name: 'Largura da coluna Título' }).getAttribute('aria-valuenow'),
+    '165'
+  );
+  const headerBefore = await page.locator('.results-header').boundingBox();
+  await page.locator('.results-scroll').evaluate(element => {
+    element.scrollTop = 1000;
+  });
+  assert.equal(Math.round((await page.locator('.results-header').boundingBox()).y), Math.round(headerBefore.y));
+  await page.evaluate(() => tableFixture.instance.setStatus('loading'));
+  assert.equal(await page.locator('.results-page:not(:disabled)').count(), 0);
+  await page.evaluate(() => tableFixture.instance.setStatus('error'));
+  assert.equal(await page.locator('.results-row').count(), 100);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Filtrar Órgão', exact: true }).click();
+  const menu = await page.getByRole('menu').boundingBox();
+  assert(menu.x >= 8 && menu.x + menu.width <= 382);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Primeira página', exact: true }).click();
+  assert.deepEqual(await page.locator('.results-pages button').allTextContents(), ['1', '2', '3', '4', '5']);
+  assert.equal(await page.locator('.results-paginator input').count(), 0);
+  for (const width of [320, 360, 390, 430, 700]) {
+    await page.setViewportSize({ width, height: 844 });
+    const geometry = await page.locator('.results-paginator').evaluate(nav => {
+      const rect = nav.getBoundingClientRect(),
+        buttons = [...nav.querySelectorAll('button')].map(button => button.getBoundingClientRect());
+      return {
+        width: rect.width,
+        parentWidth: nav.parentElement.getBoundingClientRect().width,
+        count: buttons.length,
+        fills: Math.abs(buttons[0].left - rect.left) < 1 && Math.abs(buttons.at(-1).right - rect.right) < 1,
+        even: buttons.every(
+          button =>
+            Math.abs(button.width - buttons[0].width) < 1 &&
+            Math.abs(button.top - buttons[0].top) < 1 &&
+            button.height >= 43.99
+        )
+      };
+    });
+    assert.equal(geometry.count, 9);
+    assert(
+      geometry.fills && geometry.even && Math.abs(geometry.width - geometry.parentWidth) < 1,
+      JSON.stringify({ width, ...geometry })
+    );
   }
-  await page.getByRole('button',{name:'Última página',exact:true}).click();
-  assert.deepEqual(await page.locator('.results-pages button').allTextContents(),['96','97','98','99','100']);
-  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'100');
-  assert.equal(await page.getByRole('button',{name:'Última página',exact:true}).isDisabled(),true);
-  await page.getByRole('button',{name:'Página anterior',exact:true}).click();
-  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'99');
-  await page.getByRole('button',{name:'Página 97',exact:true}).press('Enter');
-  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'97');
-  await page.getByRole('button',{name:'Primeira página',exact:true}).click();
-  assert.equal(await page.getByRole('button',{name:'Página anterior',exact:true}).isDisabled(),true);
-  assert.equal(await page.evaluate(()=>document.activeElement.dataset.page),'1');
-  await page.getByRole('button',{name:'Próxima página',exact:true}).click();
-  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'2');
-  await page.getByRole('button',{name:'Página anterior',exact:true}).click();
-  await page.setViewportSize({width:390,height:844});
-  await page.evaluate(()=>{for(const column of tableFixture.columns)tableFixture.instance.setColumnVisibility(column.field,false);});
+  await page.getByRole('button', { name: 'Última página', exact: true }).click();
+  assert.deepEqual(await page.locator('.results-pages button').allTextContents(), ['96', '97', '98', '99', '100']);
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'), '100');
+  assert.equal(await page.getByRole('button', { name: 'Última página', exact: true }).isDisabled(), true);
+  await page.getByRole('button', { name: 'Página anterior', exact: true }).click();
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'), '99');
+  await page.getByRole('button', { name: 'Página 97', exact: true }).press('Enter');
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'), '97');
+  await page.getByRole('button', { name: 'Primeira página', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Página anterior', exact: true }).isDisabled(), true);
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.page), '1');
+  await page.getByRole('button', { name: 'Próxima página', exact: true }).click();
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'), '2');
+  await page.getByRole('button', { name: 'Página anterior', exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => {
+    for (const column of tableFixture.columns) tableFixture.instance.setColumnVisibility(column.field, false);
+  });
   assert(await page.getByText('Selecione ao menos uma coluna.').isVisible());
-  assert.equal(await page.locator('.results-row').count(),0);
-  await page.evaluate(()=>tableFixture.instance.clear());assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'),'1');
-  await page.evaluate(()=>tableFixture.instance.destroy());assert.equal(await page.locator('#results-table>*').count(),0);
-  assert.equal(await page.locator('.results-filter-tooltip').count(),0);
-  assert.deepEqual(errors,[]);
-  console.log('PASS Tabela própria: 100 linhas, números de página, menus, teclado, resize, arraste, visibilidade, rolagem, estados e destruição');
-} catch(error) {await diagnoseBrowserFailure(error);throw error;} finally {await browser.close();await app.close();}
+  assert.equal(await page.locator('.results-row').count(), 0);
+  await page.evaluate(() => tableFixture.instance.clear());
+  assert.equal(await page.locator('[aria-current="page"]').getAttribute('data-page'), '1');
+  await page.evaluate(() => tableFixture.instance.destroy());
+  assert.equal(await page.locator('#results-table>*').count(), 0);
+  assert.equal(await page.locator('.results-filter-tooltip').count(), 0);
+  assert.deepEqual(errors, []);
+  console.log(
+    'PASS Tabela própria: 100 linhas, números de página, menus, teclado, resize, arraste, visibilidade, rolagem, estados e destruição'
+  );
+} catch (error) {
+  await diagnoseBrowserFailure(error);
+  throw error;
+} finally {
+  await browser.close();
+  await app.close();
+}

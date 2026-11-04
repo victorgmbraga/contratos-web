@@ -1,285 +1,904 @@
 import { csvBytes } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseExactJson as parse} from '../src/exact-json.js';
-import {schema,capabilities,columnsFor} from '../src/schema.js';
-import {project,documentIdentity} from '../src/adapter.js';
-import {projectDocument,controlLink,nativeDocumentPath,indexedDocumentFields} from '../src/document-details.js';
-import {PncpClient} from '../src/pncp-core.js';
-import {QueryService} from '../src/query-core.js';
-import {demoFetch,demoAtas,demoContracts} from './demo-fixtures.js';
-import {config,query,json,service,document} from './helpers.js';
+import { parseExactJson as parse } from '../src/exact-json.js';
+import { schema, capabilities, columnsFor } from '../src/schema.js';
+import { project, documentIdentity } from '../src/adapter.js';
+import { projectDocument, controlLink, nativeDocumentPath, indexedDocumentFields } from '../src/document-details.js';
+import { PncpClient } from '../src/pncp-core.js';
+import { QueryService } from '../src/query-core.js';
+import { demoFetch, demoAtas, demoContracts } from './demo-fixtures.js';
+import { config, query, json, service, document } from './helpers.js';
 
-const ata={type:'ata',cnpj:'01234567000189',ano:'2025',sequencial_compra:'57',sequencial:'9'},contract={type:'contrato',cnpj:ata.cnpj,ano:'2026',sequencial:'44'};
-const fixture=(handler,settings={})=>{const cfg=config(settings),requests=[],client=new PncpClient(cfg,{fetcher:async(url,init)=>{const u=new URL(url);requests.push(u);return handler(u,init);}});return {client,requests,service:new QueryService(cfg,client)};};
-const demo=()=>{const cfg=config();return new QueryService(cfg,new PncpClient(cfg,{fetcher:demoFetch}));};
+const ata = { type: 'ata', cnpj: '01234567000189', ano: '2025', sequencial_compra: '57', sequencial: '9' },
+  contract = { type: 'contrato', cnpj: ata.cnpj, ano: '2026', sequencial: '44' };
+const fixture = (handler, settings = {}) => {
+  const cfg = config(settings),
+    requests = [],
+    client = new PncpClient(cfg, {
+      fetcher: async (url, init) => {
+        const u = new URL(url);
+        requests.push(u);
+        return handler(u, init);
+      }
+    });
+  return { client, requests, service: new QueryService(cfg, client) };
+};
+const demo = () => {
+  const cfg = config();
+  return new QueryService(cfg, new PncpClient(cfg, { fetcher: demoFetch }));
+};
 
-test('DOCUMENTS-01: os três tipos publicam colunas, status e os 16 filtros compatíveis com atas',async()=>{
-  const catalog=schema(config());assert.deepEqual(catalog.document_types.filter(d=>d.enabled).map(d=>d.id),['edital','ata','contrato']);
-  assert.deepEqual(catalog.statuses_by_document.ata,['todos','vigente','nao_vigente']);
-  assert.deepEqual(columnsFor('ata'),catalog.columns_by_document.ata);
-  for(const type of ['ata','contrato'])assert(!columnsFor(type).some(c=>['situacao_compra_nome_pncp','valor_total_estimado','valor_total_homologado'].includes(c.field)));
-  assert.equal(capabilities(config()).filter(c=>!c.reserved && c.documents.includes('ata')).length,16);
-  const s=demo(),result=await s.execute(query({document_type:'ata'}));assert.equal(result.total,24);assert.equal(result.data[0].tipo_documento,'ata');
-  const csv=await s.export(query({document_type:'ata'})),header=csvBytes(csv).toString().split('\r\n')[0];assert.equal(csv.metadata.exported_rows,24);
-  assert(header.includes('"permite_adesao"'));assert(header.includes('"cancelado"'));assert(!header.includes('"valor_global"'));assert(!header.includes('"valor_total_estimado"'));
-  for(const status of ['vigente','nao_vigente'])assert.equal((await s.export(query({document_type:'ata',status}))).metadata.exported_rows,12);
+test('DOCUMENTS-01: os três tipos publicam colunas, status e os 16 filtros compatíveis com atas', async () => {
+  const catalog = schema(config());
+  assert.deepEqual(
+    catalog.document_types.filter(d => d.enabled).map(d => d.id),
+    ['edital', 'ata', 'contrato']
+  );
+  assert.deepEqual(catalog.statuses_by_document.ata, ['todos', 'vigente', 'nao_vigente']);
+  assert.deepEqual(columnsFor('ata'), catalog.columns_by_document.ata);
+  for (const type of ['ata', 'contrato'])
+    assert(
+      !columnsFor(type).some(c =>
+        ['situacao_compra_nome_pncp', 'valor_total_estimado', 'valor_total_homologado'].includes(c.field)
+      )
+    );
+  assert.equal(capabilities(config()).filter(c => !c.reserved && c.documents.includes('ata')).length, 16);
+  const s = demo(),
+    result = await s.execute(query({ document_type: 'ata' }));
+  assert.equal(result.total, 24);
+  assert.equal(result.data[0].tipo_documento, 'ata');
+  const csv = await s.export(query({ document_type: 'ata' })),
+    header = csvBytes(csv).toString().split('\r\n')[0];
+  assert.equal(csv.metadata.exported_rows, 24);
+  assert(header.includes('"permite_adesao"'));
+  assert(header.includes('"cancelado"'));
+  assert(!header.includes('"valor_global"'));
+  assert(!header.includes('"valor_total_estimado"'));
+  for (const status of ['vigente', 'nao_vigente'])
+    assert.equal((await s.export(query({ document_type: 'ata', status }))).metadata.exported_rows, 12);
 });
 
-test('DOCUMENTS-02: a ata conserva sequenciais distintos e nunca deriva identificadores da contratação pelo título ou controle',()=>{
-  const raw={document_type:'ata',orgao_cnpj:ata.cnpj,ano:ata.ano,numero_sequencial:ata.sequencial,numero_sequencial_compra_ata:ata.sequencial_compra,item_url:'/atas/01234567000189/2025/57/9',cancelado:false,permite_adesao:false};
-  const row=project(raw);assert.deepEqual(row._document,ata);assert.equal(row._purchase,null);assert.equal(row.url_pncp,'https://pncp.gov.br/app/atas/01234567000189/2025/57/9');assert.equal(row.cancelado,false);
-  for(const name of ['orgao_cnpj','ano','numero_sequencial','numero_sequencial_compra_ata'])assert.equal(documentIdentity({...raw,[name]:null}),null);
-  assert.equal(documentIdentity({...raw,numero_sequencial_compra_ata:'0'}),null);
-  assert.deepEqual(documentIdentity({...raw,ano:'2026'}),ata);
-  assert.equal(documentIdentity({...raw,item_url:'/atas/01234567000189/2025/44/9'}),null);
-  assert.deepEqual(documentIdentity({...raw,document_type:'contrato',ano:contract.ano,numero_sequencial:contract.sequencial}),contract);
-  assert.throws(()=>project({...raw,cancelado:'false'}),e=>e.code==='INVALID_UPSTREAM');
+test('DOCUMENTS-02: a ata conserva sequenciais distintos e nunca deriva identificadores da contratação pelo título ou controle', () => {
+  const raw = {
+    document_type: 'ata',
+    orgao_cnpj: ata.cnpj,
+    ano: ata.ano,
+    numero_sequencial: ata.sequencial,
+    numero_sequencial_compra_ata: ata.sequencial_compra,
+    item_url: '/atas/01234567000189/2025/57/9',
+    cancelado: false,
+    permite_adesao: false
+  };
+  const row = project(raw);
+  assert.deepEqual(row._document, ata);
+  assert.equal(row._purchase, null);
+  assert.equal(row.url_pncp, 'https://pncp.gov.br/app/atas/01234567000189/2025/57/9');
+  assert.equal(row.cancelado, false);
+  for (const name of ['orgao_cnpj', 'ano', 'numero_sequencial', 'numero_sequencial_compra_ata'])
+    assert.equal(documentIdentity({ ...raw, [name]: null }), null);
+  assert.equal(documentIdentity({ ...raw, numero_sequencial_compra_ata: '0' }), null);
+  assert.deepEqual(documentIdentity({ ...raw, ano: '2026' }), ata);
+  assert.equal(documentIdentity({ ...raw, item_url: '/atas/01234567000189/2025/44/9' }), null);
+  assert.deepEqual(
+    documentIdentity({ ...raw, document_type: 'contrato', ano: contract.ano, numero_sequencial: contract.sequencial }),
+    contract
+  );
+  assert.throws(
+    () => project({ ...raw, cancelado: 'false' }),
+    e => e.code === 'INVALID_UPSTREAM'
+  );
 });
 
-test('DOCUMENTS-03: filtros de atas chegam à fonte em pesquisa e CSV; contextos inválidos são recusados antes da rede',async()=>{
-  const caps=capabilities(config()).filter(c=>!c.reserved && c.documents.includes('ata'));
-  const domains=Object.fromEntries(caps.filter(c=>c.domain_source==='search').map(c=>[c.domain,[{id:c.name==='ufs'?'DF':c.name==='anos'?'2026':c.name==='esferas'?'F':c.name==='poderes'?'E':'1'}]]));
-  for(const cap of caps){const value=cap.type==='date'?'2026-09-01':cap.type==='boolean'?false:cap.name==='ufs'?['DF']:cap.name==='anos'?['2026']:cap.name==='esferas'?['F']:cap.name==='poderes'?['E']:['1'];
-    const s=service([document(1,{document_type:'ata',numero_sequencial_compra_ata:'57',cancelado:false,permite_adesao:false})],{handler:u=>u.pathname.endsWith('/filters')?json({filters:domains}):null});
-    const input=query({document_type:'ata',pncp_filters:{[cap.name]:value}});
-    await s.service.execute(input);await s.service.export(input);assert.equal(s.requests.at(-1).searchParams.get(cap.name),Array.isArray(value)?value.join('|'):String(value));assert(s.requests.every(u=>!u.pathname.includes('/orgaos/')));
+test('DOCUMENTS-03: filtros de atas chegam à fonte em pesquisa e CSV; contextos inválidos são recusados antes da rede', async () => {
+  const caps = capabilities(config()).filter(c => !c.reserved && c.documents.includes('ata'));
+  const domains = Object.fromEntries(
+    caps
+      .filter(c => c.domain_source === 'search')
+      .map(c => [
+        c.domain,
+        [
+          {
+            id:
+              c.name === 'ufs'
+                ? 'DF'
+                : c.name === 'anos'
+                  ? '2026'
+                  : c.name === 'esferas'
+                    ? 'F'
+                    : c.name === 'poderes'
+                      ? 'E'
+                      : '1'
+          }
+        ]
+      ])
+  );
+  for (const cap of caps) {
+    const value =
+      cap.type === 'date'
+        ? '2026-09-01'
+        : cap.type === 'boolean'
+          ? false
+          : cap.name === 'ufs'
+            ? ['DF']
+            : cap.name === 'anos'
+              ? ['2026']
+              : cap.name === 'esferas'
+                ? ['F']
+                : cap.name === 'poderes'
+                  ? ['E']
+                  : ['1'];
+    const s = service(
+      [
+        document(1, {
+          document_type: 'ata',
+          numero_sequencial_compra_ata: '57',
+          cancelado: false,
+          permite_adesao: false
+        })
+      ],
+      { handler: u => (u.pathname.endsWith('/filters') ? json({ filters: domains }) : null) }
+    );
+    const input = query({ document_type: 'ata', pncp_filters: { [cap.name]: value } });
+    await s.service.execute(input);
+    await s.service.export(input);
+    assert.equal(s.requests.at(-1).searchParams.get(cap.name), Array.isArray(value) ? value.join('|') : String(value));
+    assert(s.requests.every(u => !u.pathname.includes('/orgaos/')));
   }
-  const s=service([]);for(const input of [query({document_type:'ata',status:'recebendo_proposta'}),query({document_type:'ata',pncp_filters:{valor_global_min:'1'}}),query({document_type:'ata',pncp_filters:{situacoes_item:['1']}})])await assert.rejects(s.service.execute(input));assert.equal(s.requests.length,0);
+  const s = service([]);
+  for (const input of [
+    query({ document_type: 'ata', status: 'recebendo_proposta' }),
+    query({ document_type: 'ata', pncp_filters: { valor_global_min: '1' } }),
+    query({ document_type: 'ata', pncp_filters: { situacoes_item: ['1'] } })
+  ])
+    await assert.rejects(s.service.execute(input));
+  assert.equal(s.requests.length, 0);
 });
 
-test('DOCUMENTS-04: detalhes completos mantêm datas, booleanos, códigos, valores exatos e vínculos seguros',()=>{
-  const raw=parse('{"numeroControlePNCP":"01234567000189-2-000044/2026","orgaoEntidade":{"cnpj":"01234567000189","razaoSocial":"Órgão"},"unidadeOrgao":{"codigoUnidade":"0001"},"valorInicial":9007199254740993.12345,"valorGlobal":0.0000,"niFornecedor":"00123456789012","numeroParcelas":0,"frutoAdesao":false,"receita":false,"numeroControlePncpCompra":"01234567000189-1-000057/2025","numeroControlePncpAta":"01234567000189-1-000057/2025-000009","urlCipi":"javascript:alert(1)"}');
-  const result=projectDocument('contrato',raw),field=name=>result.fields.find(f=>f.field===name);
-  assert.equal(field('valorInicial').value,'9007199254740993.12345');assert.equal(field('valorGlobal').value,'0.0000');assert.equal(field('frutoAdesao').value,false);assert.equal(field('numeroParcelas').value,'0');assert.equal(field('unidadeOrgao.codigoUnidade').value,'0001');assert.equal(field('niFornecedor').value,'00123456789012');
-  assert.deepEqual(field('numeroControlePncpAta').document,{type:'ata',cnpj:'01234567000189',ano:'2025',sequencial:'9',sequencial_compra:'57'});assert.deepEqual(field('numeroControlePncpCompra').document,{type:'edital',cnpj:'01234567000189',ano:'2025',sequencial:'57'});assert.equal(field('numeroControlePncpAta').url,undefined);assert.equal(field('urlCipi').url,null);
-  assert.equal(controlLink('garbage'),null);assert.equal(controlLink('01234567000189-2-000057/2025-000009'),null);
-  const fields=projectDocument('ata',{cancelado:false,possibilidadeAdesao:false,numeroAtaRegistroPreco:'0009',numeroControlePncpCompra:'01234567000189-1-000057/2025'}).fields;assert(fields.some(f=>f.title==='Número da ata' && f.value==='0009'));assert(!fields.some(f=>f.type==='decimal'));
-  for(const record of [[],null,{valorGlobal:false},{orgaoEntidade:[]},{frutoAdesao:'false'}])assert.throws(()=>projectDocument('contrato',record),e=>e.code==='INVALID_UPSTREAM');
+test('DOCUMENTS-04: detalhes completos mantêm datas, booleanos, códigos, valores exatos e vínculos seguros', () => {
+  const raw = parse(
+    '{"numeroControlePNCP":"01234567000189-2-000044/2026","orgaoEntidade":{"cnpj":"01234567000189","razaoSocial":"Órgão"},"unidadeOrgao":{"codigoUnidade":"0001"},"valorInicial":9007199254740993.12345,"valorGlobal":0.0000,"niFornecedor":"00123456789012","numeroParcelas":0,"frutoAdesao":false,"receita":false,"numeroControlePncpCompra":"01234567000189-1-000057/2025","numeroControlePncpAta":"01234567000189-1-000057/2025-000009","urlCipi":"javascript:alert(1)"}'
+  );
+  const result = projectDocument('contrato', raw),
+    field = name => result.fields.find(f => f.field === name);
+  assert.equal(field('valorInicial').value, '9007199254740993.12345');
+  assert.equal(field('valorGlobal').value, '0.0000');
+  assert.equal(field('frutoAdesao').value, false);
+  assert.equal(field('numeroParcelas').value, '0');
+  assert.equal(field('unidadeOrgao.codigoUnidade').value, '0001');
+  assert.equal(field('niFornecedor').value, '00123456789012');
+  assert.deepEqual(field('numeroControlePncpAta').document, {
+    type: 'ata',
+    cnpj: '01234567000189',
+    ano: '2025',
+    sequencial: '9',
+    sequencial_compra: '57'
+  });
+  assert.deepEqual(field('numeroControlePncpCompra').document, {
+    type: 'edital',
+    cnpj: '01234567000189',
+    ano: '2025',
+    sequencial: '57'
+  });
+  assert.equal(field('numeroControlePncpAta').url, undefined);
+  assert.equal(field('urlCipi').url, null);
+  assert.equal(controlLink('garbage'), null);
+  assert.equal(controlLink('01234567000189-2-000057/2025-000009'), null);
+  const fields = projectDocument('ata', {
+    cancelado: false,
+    possibilidadeAdesao: false,
+    numeroAtaRegistroPreco: '0009',
+    numeroControlePncpCompra: '01234567000189-1-000057/2025'
+  }).fields;
+  assert(fields.some(f => f.title === 'Número da ata' && f.value === '0009'));
+  assert(!fields.some(f => f.type === 'decimal'));
+  for (const record of [[], null, { valorGlobal: false }, { orgaoEntidade: [] }, { frutoAdesao: 'false' }])
+    assert.throws(
+      () => projectDocument('contrato', record),
+      e => e.code === 'INVALID_UPSTREAM'
+    );
 });
 
-test('DOCUMENTS-24: órgão e unidade são exibidos como código - nome, como no PNCP',()=>{
-  const native=projectDocument('contrato',{numeroControlePNCP:'01234567000189-2-000044/2026',orgaoEntidade:{cnpj:'01234567000189',razaoSocial:'Órgão público'},unidadeOrgao:{codigoUnidade:'0001',nomeUnidade:'Unidade gestora'},orgaoSubRogado:{cnpj:'98765432000100',razaoSocial:'Órgão sub-rogado'},unidadeSubRogada:{codigoUnidade:'0002',nomeUnidade:'Unidade sub-rogada'},orgaoParteEnvolvida:{cnpj:'11222333000144',razaoSocial:'Órgão participante'},unidadeOrgaoParteEnvolvida:{codigoUnidade:'0003',nomeUnidade:'Unidade participante'},tipoContrato:{nome:'Contrato'},objetoContrato:'Objeto'});
-  const byTitle=title=>native.fields.find(field=>field.title===title);
-  assert.deepEqual([byTitle('Órgão').value,byTitle('Órgão').type],['01234567000189 - Órgão público','cnpj']);
-  assert.equal(byTitle('Unidade').value,'0001 - Unidade gestora');
-  assert.equal(byTitle('Órgão sub-rogado').value,'98765432000100 - Órgão sub-rogado');
-  assert.equal(byTitle('Unidade sub-rogada').value,'0002 - Unidade sub-rogada');
-  assert.equal(byTitle('Órgão participante').value,'11222333000144 - Órgão participante');
-  assert.equal(byTitle('Unidade participante').value,'0003 - Unidade participante');
-  for(const title of ['CNPJ do órgão','Código da unidade','CNPJ do órgão sub-rogado','Código da unidade sub-rogada','Código da unidade participante'])assert(!byTitle(title),title);
-  const indexed=indexedDocumentFields({document_type:'edital',orgao_nome:'Órgão público',orgao_cnpj:'01234567000189',unidade_nome:'Unidade gestora',unidade_codigo:'0001',orgao_subrogado_nome:'Órgão sub-rogado',orgao_subrogado_cnpj:'98765432000100',unidade_subrogada_nome:'Unidade sub-rogada',unidade_subrogada_codigo:'0002'});
-  assert.equal(indexed.find(field=>field.title==='Órgão').value,'01234567000189 - Órgão público');
-  assert.equal(indexed.find(field=>field.title==='Unidade').value,'0001 - Unidade gestora');
-  assert.equal(indexed.find(field=>field.title==='Órgão sub-rogado').value,'98765432000100 - Órgão sub-rogado');
-  assert.equal(indexed.find(field=>field.title==='Unidade sub-rogada').value,'0002 - Unidade sub-rogada');
+test('DOCUMENTS-24: órgão e unidade são exibidos como código - nome, como no PNCP', () => {
+  const native = projectDocument('contrato', {
+    numeroControlePNCP: '01234567000189-2-000044/2026',
+    orgaoEntidade: { cnpj: '01234567000189', razaoSocial: 'Órgão público' },
+    unidadeOrgao: { codigoUnidade: '0001', nomeUnidade: 'Unidade gestora' },
+    orgaoSubRogado: { cnpj: '98765432000100', razaoSocial: 'Órgão sub-rogado' },
+    unidadeSubRogada: { codigoUnidade: '0002', nomeUnidade: 'Unidade sub-rogada' },
+    orgaoParteEnvolvida: { cnpj: '11222333000144', razaoSocial: 'Órgão participante' },
+    unidadeOrgaoParteEnvolvida: { codigoUnidade: '0003', nomeUnidade: 'Unidade participante' },
+    tipoContrato: { nome: 'Contrato' },
+    objetoContrato: 'Objeto'
+  });
+  const byTitle = title => native.fields.find(field => field.title === title);
+  assert.deepEqual([byTitle('Órgão').value, byTitle('Órgão').type], ['01234567000189 - Órgão público', 'cnpj']);
+  assert.equal(byTitle('Unidade').value, '0001 - Unidade gestora');
+  assert.equal(byTitle('Órgão sub-rogado').value, '98765432000100 - Órgão sub-rogado');
+  assert.equal(byTitle('Unidade sub-rogada').value, '0002 - Unidade sub-rogada');
+  assert.equal(byTitle('Órgão participante').value, '11222333000144 - Órgão participante');
+  assert.equal(byTitle('Unidade participante').value, '0003 - Unidade participante');
+  for (const title of [
+    'CNPJ do órgão',
+    'Código da unidade',
+    'CNPJ do órgão sub-rogado',
+    'Código da unidade sub-rogada',
+    'Código da unidade participante'
+  ])
+    assert(!byTitle(title), title);
+  const indexed = indexedDocumentFields({
+    document_type: 'edital',
+    orgao_nome: 'Órgão público',
+    orgao_cnpj: '01234567000189',
+    unidade_nome: 'Unidade gestora',
+    unidade_codigo: '0001',
+    orgao_subrogado_nome: 'Órgão sub-rogado',
+    orgao_subrogado_cnpj: '98765432000100',
+    unidade_subrogada_nome: 'Unidade sub-rogada',
+    unidade_subrogada_codigo: '0002'
+  });
+  assert.equal(indexed.find(field => field.title === 'Órgão').value, '01234567000189 - Órgão público');
+  assert.equal(indexed.find(field => field.title === 'Unidade').value, '0001 - Unidade gestora');
+  assert.equal(indexed.find(field => field.title === 'Órgão sub-rogado').value, '98765432000100 - Órgão sub-rogado');
+  assert.equal(indexed.find(field => field.title === 'Unidade sub-rogada').value, '0002 - Unidade sub-rogada');
 });
 
-test('DOCUMENTS-05: arquivos, histórico e termos consultam o documento correto, com contagem e paginação independente',async()=>{
-  const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(12):json(Array.from({length:u.searchParams.get('pagina')==='1'?10:2},()=>({titulo:'Arquivo',tipoDocumentoNome:'Outros',dataPublicacaoPncp:'2026-09-01',numeroTermoContrato:'001',tipoTermoContratoNome:'Aditivo'}))));
-  for(const d of [ata,contract])for(const resource of ['arquivos','historico',...(d.type==='contrato'?['termos']:[])]){
-    const r=await f.service.documentRelated(d,resource,2,10);assert.equal(r.total,12);assert.equal(r.data.length,2);assert.equal(r.total_pages,2);assert.equal(r.has_more,false);
-    const path=nativeDocumentPath(d,'/api/pncp/v1')+'/'+resource;assert.equal(f.requests.at(-2).pathname,path+'/quantidade');assert.equal(f.requests.at(-1).pathname,path);assert.equal(f.requests.at(-1).searchParams.get('pagina'),'2');
-  }
-  assert(!f.requests.some(u=>/contratos\/2025\/9/.test(u.pathname)));
-});
-
-test('DOCUMENTS-06: partes envolvidas e contratos da ata usam envelope e vínculos dos próprios registros',async()=>{
-  const f=fixture(u=>json({data:u.pathname.endsWith('/partesenvolvidas')?[{tipoParteEnvolvida:{nome:'Gerenciadora'},orgao:{cnpj:'00012345000189',nome:'Órgão'},unidade:{codigo:'0001',nomeUnidade:'Unidade',localidade:{uf:'SP',nomeMunicipio:'São Paulo'}},dataInclusao:'2026-09-01T10:00:00'}]:[{orgaoEntidade:{cnpj:'00987654000100'},anoContrato:2026,sequencialContrato:44,valorGlobal:'9007199254740993.0000',numeroControlePNCP:'00987654000100-2-000044/2026'}],totalRegistros:1,numeroPagina:1}));
-  const parties=await f.service.documentRelated(ata,'partesenvolvidas',1,10),party=parties.data[0].fields;
-  assert.equal(party.find(x=>x.title==='Órgão').value,'00012345000189 - Órgão');assert.equal(party.find(x=>x.title==='Unidade').value,'0001 - Unidade');
-  assert(!party.some(x=>['CNPJ do órgão','Código da unidade'].includes(x.title)));assert.match(f.requests.at(-1).pathname,/compras\/2025\/57\/atas\/9\/partesenvolvidas$/);
-  const linked=await f.service.documentRelated(ata,'contratos',1,10);assert.equal(linked.data[0].url,'https://pncp.gov.br/app/contratos/00987654000100/2026/44');assert.equal(linked.data[0].valor_global,'9007199254740993.0000');
-});
-
-test('DOCUMENTS-07: instrumentos não paginados recebem recorte explícito; empenhos conservam paginação nativa',async()=>{
-  const records=Array.from({length:12},(_,i)=>({sequencialInstrumentoCobranca:i+1,sequencialEmpenho:i+1,numeroInstrumentoCobranca:'0001',numeroEmpenho:'0001',valorTotal:'1234.0000'}));
-  const f=fixture(u=>u.pathname.endsWith('/instrumentocobranca')?json(records):json({data:records.slice(10),totalRegistros:12,numeroPagina:2}));
-  const instruments=await f.service.documentRelated(contract,'instrumentocobranca',2,10);assert.equal(instruments.data.length,2);assert.equal(instruments.data[0].sequencial,'11');assert.equal(instruments.pagination_source,'local_slice');assert.equal(f.requests.at(-1).search,'');
-  const commitments=await f.service.documentRelated(contract,'empenhos',2,10);assert.equal(commitments.total,12);assert.equal(commitments.data.length,2);assert.equal(commitments.pagination_source,'pncp');assert.equal(f.requests.at(-1).searchParams.get('pagina'),'2');
-});
-
-test('DOCUMENTS-25: instrumentos de cobrança reutilizam a lista não paginada entre páginas',async()=>{
-  const records=Array.from({length:12},(_,i)=>({sequencialInstrumentoCobranca:String(i+1),numeroInstrumentoCobranca:String(i+1),tipoInstrumentoCobranca:{nome:'Nota fiscal eletrônica'},dataInclusao:'2026-09-01T10:00:00',valorTotal:'10.00'})),f=fixture(()=>json(records));
-  const first=await f.service.documentRelated(contract,'instrumentocobranca',1,10),second=await f.service.documentRelated(contract,'instrumentocobranca',2,10);
-  assert.equal(f.requests.length,1);assert.equal(first.data.length,10);assert.equal(first.total,12);assert.equal(second.data.length,2);assert.equal(second.page,2);assert.equal(second.pagination_source,'local_slice');
-});
-
-test('DOCUMENTS-08: vazios, falhas, formato e contagens não são confundidos',async()=>{
-  const noContent=fixture(u=>u.pathname.endsWith('/quantidade')?json(0):new Response(null,{status:204}));
-  for(const [d,resources]of [[ata,['partesenvolvidas','contratos','arquivos','historico']],[contract,['empenhos','instrumentocobranca','termos','arquivos','historico']]])for(const resource of resources)assert.equal((await noContent.service.documentRelated(d,resource,1,10)).total,0);
-  const missing=fixture(()=>new Response(null,{status:404}));
-  for(const [d,resources]of [[ata,['partesenvolvidas','contratos','arquivos','historico']],[contract,['termos','arquivos','historico']]])for(const resource of resources)await assert.rejects(missing.service.documentRelated(d,resource,1,10),e=>e.code==='PNCP_HTTP_ERROR' && e.details.upstream_status===404);
-  for(const payload of [{data:[],totalRegistros:1},{data:[{}],totalRegistros:1,numeroPagina:2},{data:{},totalRegistros:0}])await assert.rejects(fixture(()=>json(payload)).service.documentRelated(ata,'partesenvolvidas',1,10));
-  await assert.rejects(fixture(()=>json({})).service.documentRelated(contract,'instrumentocobranca',1,10),e=>e.code==='INVALID_UPSTREAM');
-  await assert.rejects(noContent.service.documentRelated(ata,'termos',1,10),e=>e.code==='NOT_FOUND');
-});
-
-test('DOCUMENTS-13: HTTP 404 nas listas de empenhos e instrumentos de cobrança significa zero registros',async()=>{
-  for(const resource of ['empenhos','instrumentocobranca']){
-    const f=fixture(()=>new Response(null,{status:404})),result=await f.service.documentRelated(contract,resource,1,10);
-    assert.deepEqual(result.data,[]);assert.equal(result.total,0);assert.equal(result.total_pages,1);assert.equal(result.page,1);assert.equal(result.has_more,false);assert.equal(result.complete,true);
-    assert.equal(result.pagination_source,resource==='instrumentocobranca'?'local_slice':'pncp');assert.equal(result.upstream_requests,1);assert.equal(f.requests.length,1);
-    await assert.rejects(f.service.documentRelated(contract,resource,2,10),e=>e.code==='PAGE_OUT_OF_RANGE' && e.details.last_page===1);
-    await assert.rejects(f.service.contractChild(contract,resource,'1'),e=>e.code==='PNCP_HTTP_ERROR' && e.details.upstream_status===404);
-  }
-});
-
-test('DOCUMENTS-14: outras falhas nas listas de empenhos e instrumentos de cobrança continuam sendo erros',async()=>{
-  for(const resource of ['empenhos','instrumentocobranca']){
-    for(const status of [403,500,503])await assert.rejects(fixture(()=>new Response(null,{status})).service.documentRelated(contract,resource,1,10),e=>e.code===(status===503?'PNCP_UNAVAILABLE':'PNCP_HTTP_ERROR') && e.details.upstream_status===status);
-    await assert.rejects(fixture(()=>{throw new TypeError('Failed to fetch');}).service.documentRelated(contract,resource,1,10),e=>e.code==='PNCP_TRANSPORT_ERROR' && !Object.hasOwn(e.details,'upstream_status'));
-    await assert.rejects(fixture(()=>new Response('invalid',{headers:{'Content-Type':'application/json'}})).service.documentRelated(contract,resource,1,10),e=>e.code==='INVALID_UPSTREAM');
-  }
-});
-
-test('DOCUMENTS-09: detalhes dos filhos e arquivos de termos usam o sequencial correto sem expor links inseguros',async()=>{
-  const f=fixture(u=>u.pathname.endsWith('/arquivos')?json([{titulo:'Termo.pdf',tipoDocumentoNome:'Termo aditivo',url:'https://pncp.gov.br/arquivo.pdf'},{titulo:'Inseguro',url:'javascript:alert(1)'}]):new Response('{"numeroEmpenho":"00001","numeroInstrumentoCobranca":"00002","valorTotal":9007199254740993.12345}',{headers:{'Content-Type':'application/json'}}));
-  const files=await f.service.contractChild(contract,'termos','3');assert.equal(files.files.length,2);assert.equal(files.files[1].url,null);assert.match(f.requests.at(-1).pathname,/contratos\/2026\/44\/termos\/3\/arquivos$/);
-  for(const resource of ['empenhos','instrumentocobranca']){const child=await f.service.contractChild(contract,resource,'2');assert.equal(child.fields.find(x=>x.title==='Valor total').value,'9007199254740993.12345');assert.match(f.requests.at(-1).pathname,new RegExp('/'+resource+'/2$'));}
-  for(const [d,res,seq]of [[ata,'termos','3'],[contract,'arquivos','1'],[contract,'termos','0'],[contract,'termos','../1']])await assert.rejects(f.service.contractChild(d,res,seq),e=>e.code==='NOT_FOUND');
-});
-
-
-test('DOCUMENTS-11: demonstração fornece detalhes, registros e vínculos completos de atas e contratos',async()=>{
-  const s=demo();
-  for(const raw of [demoAtas[0],demoContracts[0]]){const d=project(raw)._document,r=await s.documentDetails(d);assert(r.fields.some(f=>f.type==='control' && f.url));assert(r.objeto);for(const resource of d.type==='ata'?['partesenvolvidas','contratos','arquivos','historico']:['empenhos','instrumentocobranca','termos','arquivos','historico'])assert((await s.documentRelated(d,resource,1,10)).data.length>0);}
-});
-
-test('DOCUMENTS-12: detalhes completos recusam identidade incorreta e aceitam ano da ata diferente do ano da compra',async()=>{
-  for(const payload of [{},[],{numeroControlePNCP:'01234567000189-2-000045/2026'}, {numeroControlePNCP:'01234567000189-1-000044/2026'}])await assert.rejects(fixture(()=>json(payload)).service.documentDetails(contract),e=>e.code==='INVALID_UPSTREAM');
-  const f=fixture(()=>json({numeroControlePNCP:'01234567000189-1-000057/2025-000009',anoAta:2026,numeroAtaRegistroPreco:'0009',objetoCompra:'Objeto da ata'}));
-  const detail=await f.service.documentDetails(ata);assert.equal(detail.fields.find(x=>x.field==='anoAta').value,'2026');assert.match(f.requests[0].pathname,/compras\/2025\/57\/atas\/9$/);
-});
-
-test('DOCUMENTS-15: emenda parlamentar de contrato preserva booleanos e ausência sem aceitar tipos inválidos',async()=>{
-  for(const value of [false,true]){
-    const detail=await fixture(()=>json({numeroControlePNCP:'01234567000189-2-000044/2026',emendaParlamentar:value})).service.documentDetails(contract);
-    assert.deepEqual(detail.fields.find(f=>f.field==='emendaParlamentar'),{field:'emendaParlamentar',title:'Emenda parlamentar',type:'boolean',value});
-  }
-  for(const value of [undefined,null])assert(!projectDocument('contrato',{emendaParlamentar:value}).fields.some(f=>f.field==='emendaParlamentar'));
-  for(const value of ['false','true',0,1,{},[]])assert.throws(()=>projectDocument('contrato',{emendaParlamentar:value}),e=>e.code==='INVALID_UPSTREAM');
-});
-
-test('DOCUMENTS-16: histórico de contrato com contagem divergente conserva registros e avança até página vazia',async()=>{
-  for(const total of [0,1,11,99]){
-    const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(total):json(Array.from({length:[2,1,0][Number(u.searchParams.get('pagina'))-1]},(_,i)=>({tipoLogManutencaoNome:`Evento ${i+1}`}))));
-    for(const page of [1,2,3]){
-      const result=await f.service.documentRelated(contract,'historico',page,10,undefined,undefined,page>1?'until_empty':undefined);
-      assert.equal(result.data.length,[2,1,0][page-1]);assert.equal(result.total,null);assert.equal(result.total_pages,null);assert.equal(result.pagination_mode,'until_empty');
-      assert.equal(result.has_more,page<3);assert.equal(result.complete,page===3);assert.equal(result.upstream_requests,page===1?2:1);
+test('DOCUMENTS-05: arquivos, histórico e termos consultam o documento correto, com contagem e paginação independente', async () => {
+  const f = fixture(u =>
+    u.pathname.endsWith('/quantidade')
+      ? json(12)
+      : json(
+          Array.from({ length: u.searchParams.get('pagina') === '1' ? 10 : 2 }, () => ({
+            titulo: 'Arquivo',
+            tipoDocumentoNome: 'Outros',
+            dataPublicacaoPncp: '2026-09-01',
+            numeroTermoContrato: '001',
+            tipoTermoContratoNome: 'Aditivo'
+          }))
+        )
+  );
+  for (const d of [ata, contract])
+    for (const resource of ['arquivos', 'historico', ...(d.type === 'contrato' ? ['termos'] : [])]) {
+      const r = await f.service.documentRelated(d, resource, 2, 10);
+      assert.equal(r.total, 12);
+      assert.equal(r.data.length, 2);
+      assert.equal(r.total_pages, 2);
+      assert.equal(r.has_more, false);
+      const path = nativeDocumentPath(d, '/api/pncp/v1') + '/' + resource;
+      assert.equal(f.requests.at(-2).pathname, path + '/quantidade');
+      assert.equal(f.requests.at(-1).pathname, path);
+      assert.equal(f.requests.at(-1).searchParams.get('pagina'), '2');
     }
-    assert.equal(f.requests.filter(u=>u.pathname.endsWith('/quantidade')).length,1);assert.equal(f.requests.at(-1).searchParams.get('pagina'),'3');
+  assert(!f.requests.some(u => /contratos\/2025\/9/.test(u.pathname)));
+});
+
+test('DOCUMENTS-06: partes envolvidas e contratos da ata usam envelope e vínculos dos próprios registros', async () => {
+  const f = fixture(u =>
+    json({
+      data: u.pathname.endsWith('/partesenvolvidas')
+        ? [
+            {
+              tipoParteEnvolvida: { nome: 'Gerenciadora' },
+              orgao: { cnpj: '00012345000189', nome: 'Órgão' },
+              unidade: { codigo: '0001', nomeUnidade: 'Unidade', localidade: { uf: 'SP', nomeMunicipio: 'São Paulo' } },
+              dataInclusao: '2026-09-01T10:00:00'
+            }
+          ]
+        : [
+            {
+              orgaoEntidade: { cnpj: '00987654000100' },
+              anoContrato: 2026,
+              sequencialContrato: 44,
+              valorGlobal: '9007199254740993.0000',
+              numeroControlePNCP: '00987654000100-2-000044/2026'
+            }
+          ],
+      totalRegistros: 1,
+      numeroPagina: 1
+    })
+  );
+  const parties = await f.service.documentRelated(ata, 'partesenvolvidas', 1, 10),
+    party = parties.data[0].fields;
+  assert.equal(party.find(x => x.title === 'Órgão').value, '00012345000189 - Órgão');
+  assert.equal(party.find(x => x.title === 'Unidade').value, '0001 - Unidade');
+  assert(!party.some(x => ['CNPJ do órgão', 'Código da unidade'].includes(x.title)));
+  assert.match(f.requests.at(-1).pathname, /compras\/2025\/57\/atas\/9\/partesenvolvidas$/);
+  const linked = await f.service.documentRelated(ata, 'contratos', 1, 10);
+  assert.equal(linked.data[0].url, 'https://pncp.gov.br/app/contratos/00987654000100/2026/44');
+  assert.equal(linked.data[0].valor_global, '9007199254740993.0000');
+});
+
+test('DOCUMENTS-07: instrumentos não paginados recebem recorte explícito; empenhos conservam paginação nativa', async () => {
+  const records = Array.from({ length: 12 }, (_, i) => ({
+    sequencialInstrumentoCobranca: i + 1,
+    sequencialEmpenho: i + 1,
+    numeroInstrumentoCobranca: '0001',
+    numeroEmpenho: '0001',
+    valorTotal: '1234.0000'
+  }));
+  const f = fixture(u =>
+    u.pathname.endsWith('/instrumentocobranca')
+      ? json(records)
+      : json({ data: records.slice(10), totalRegistros: 12, numeroPagina: 2 })
+  );
+  const instruments = await f.service.documentRelated(contract, 'instrumentocobranca', 2, 10);
+  assert.equal(instruments.data.length, 2);
+  assert.equal(instruments.data[0].sequencial, '11');
+  assert.equal(instruments.pagination_source, 'local_slice');
+  assert.equal(f.requests.at(-1).search, '');
+  const commitments = await f.service.documentRelated(contract, 'empenhos', 2, 10);
+  assert.equal(commitments.total, 12);
+  assert.equal(commitments.data.length, 2);
+  assert.equal(commitments.pagination_source, 'pncp');
+  assert.equal(f.requests.at(-1).searchParams.get('pagina'), '2');
+});
+
+test('DOCUMENTS-25: instrumentos de cobrança reutilizam a lista não paginada entre páginas', async () => {
+  const records = Array.from({ length: 12 }, (_, i) => ({
+      sequencialInstrumentoCobranca: String(i + 1),
+      numeroInstrumentoCobranca: String(i + 1),
+      tipoInstrumentoCobranca: { nome: 'Nota fiscal eletrônica' },
+      dataInclusao: '2026-09-01T10:00:00',
+      valorTotal: '10.00'
+    })),
+    f = fixture(() => json(records));
+  const first = await f.service.documentRelated(contract, 'instrumentocobranca', 1, 10),
+    second = await f.service.documentRelated(contract, 'instrumentocobranca', 2, 10);
+  assert.equal(f.requests.length, 1);
+  assert.equal(first.data.length, 10);
+  assert.equal(first.total, 12);
+  assert.equal(second.data.length, 2);
+  assert.equal(second.page, 2);
+  assert.equal(second.pagination_source, 'local_slice');
+});
+
+test('DOCUMENTS-08: vazios, falhas, formato e contagens não são confundidos', async () => {
+  const noContent = fixture(u => (u.pathname.endsWith('/quantidade') ? json(0) : new Response(null, { status: 204 })));
+  for (const [d, resources] of [
+    [ata, ['partesenvolvidas', 'contratos', 'arquivos', 'historico']],
+    [contract, ['empenhos', 'instrumentocobranca', 'termos', 'arquivos', 'historico']]
+  ])
+    for (const resource of resources)
+      assert.equal((await noContent.service.documentRelated(d, resource, 1, 10)).total, 0);
+  const missing = fixture(() => new Response(null, { status: 404 }));
+  for (const [d, resources] of [
+    [ata, ['partesenvolvidas', 'contratos', 'arquivos', 'historico']],
+    [contract, ['termos', 'arquivos', 'historico']]
+  ])
+    for (const resource of resources)
+      await assert.rejects(
+        missing.service.documentRelated(d, resource, 1, 10),
+        e => e.code === 'PNCP_HTTP_ERROR' && e.details.upstream_status === 404
+      );
+  for (const payload of [
+    { data: [], totalRegistros: 1 },
+    { data: [{}], totalRegistros: 1, numeroPagina: 2 },
+    { data: {}, totalRegistros: 0 }
+  ])
+    await assert.rejects(fixture(() => json(payload)).service.documentRelated(ata, 'partesenvolvidas', 1, 10));
+  await assert.rejects(
+    fixture(() => json({})).service.documentRelated(contract, 'instrumentocobranca', 1, 10),
+    e => e.code === 'INVALID_UPSTREAM'
+  );
+  await assert.rejects(noContent.service.documentRelated(ata, 'termos', 1, 10), e => e.code === 'NOT_FOUND');
+});
+
+test('DOCUMENTS-13: HTTP 404 nas listas de empenhos e instrumentos de cobrança significa zero registros', async () => {
+  for (const resource of ['empenhos', 'instrumentocobranca']) {
+    const f = fixture(() => new Response(null, { status: 404 })),
+      result = await f.service.documentRelated(contract, resource, 1, 10);
+    assert.deepEqual(result.data, []);
+    assert.equal(result.total, 0);
+    assert.equal(result.total_pages, 1);
+    assert.equal(result.page, 1);
+    assert.equal(result.has_more, false);
+    assert.equal(result.complete, true);
+    assert.equal(result.pagination_source, resource === 'instrumentocobranca' ? 'local_slice' : 'pncp');
+    assert.equal(result.upstream_requests, 1);
+    assert.equal(f.requests.length, 1);
+    await assert.rejects(
+      f.service.documentRelated(contract, resource, 2, 10),
+      e => e.code === 'PAGE_OUT_OF_RANGE' && e.details.last_page === 1
+    );
+    await assert.rejects(
+      f.service.contractChild(contract, resource, '1'),
+      e => e.code === 'PNCP_HTTP_ERROR' && e.details.upstream_status === 404
+    );
   }
 });
 
-test('DOCUMENTS-17: exceção do histórico mantém contagens coerentes e a validação das outras listagens',async()=>{
-  const empty=fixture(u=>u.pathname.endsWith('/quantidade')?json(0):json([]));
-  const zero=await empty.service.documentRelated(contract,'historico',1,10);assert.equal(zero.total,0);assert.equal(zero.total_pages,1);assert.equal(zero.complete,true);assert.equal(empty.requests.length,2);
-  const records=fixture(u=>u.pathname.endsWith('/quantidade')?json(1):json([{tipoLogManutencaoNome:'Evento'}]));
-  const coherent=await records.service.documentRelated(contract,'historico',1,10);assert.equal(coherent.total,1);assert.equal(coherent.has_more,false);
-  const beyond=await records.service.documentRelated(contract,'historico',2,10);assert.equal(beyond.total,null);assert.equal(beyond.data.length,1);assert.equal(beyond.has_more,true);
-  const later=fixture(u=>u.pathname.endsWith('/quantidade')?json(12):json(Array.from({length:u.searchParams.get('pagina')==='1'?10:1},()=>({}))));
-  assert.equal((await later.service.documentRelated(contract,'historico',1,10)).total,12);assert.equal((await later.service.documentRelated(contract,'historico',2,10)).total,null);
-  for(const [d,resource]of [[ata,'historico'],[contract,'arquivos'],[contract,'termos']])await assert.rejects(fixture(u=>u.pathname.endsWith('/quantidade')?json(10):json([{}])).service.documentRelated(d,resource,1,10),e=>e.code==='SOURCE_CHANGED');
-  const edital={...contract,type:'edital'};await assert.rejects(fixture(u=>u.pathname.endsWith('/quantidade')?json(10):json([{}])).service.documentRelated(edital,'historico',1,10),e=>e.code==='SOURCE_CHANGED');
-  for(const payload of [{},[null],Array.from({length:11},()=>({}))])await assert.rejects(fixture(u=>u.pathname.endsWith('/quantidade')?json(10):json(payload)).service.documentRelated(contract,'historico',1,10),e=>e.code==='INVALID_UPSTREAM');
-  await assert.rejects(fixture(()=>json('inválido')).service.documentRelated(contract,'historico',1,10),e=>e.code==='INVALID_UPSTREAM');
-  await assert.rejects(fixture(()=>new Response(null,{status:500})).service.documentRelated(contract,'historico',2,10,undefined,undefined,'until_empty'),e=>e.code==='PNCP_HTTP_ERROR');
-  const noContent=await fixture(()=>new Response(null,{status:204})).service.documentRelated(contract,'historico',3,10,undefined,undefined,'until_empty');assert.equal(noContent.total,null);assert.equal(noContent.has_more,false);assert.equal(noContent.complete,true);
-});
-
-test('DOCUMENTS-18: modo sem total é exclusivo de históricos de contrato e validado antes da rede',async()=>{
-  const f=fixture(()=>json([]));
-  for(const [d,resource,mode]of [[contract,'historico','inválido'],[contract,'historico',null],[contract,'arquivos','until_empty'],[ata,'historico','until_empty'],[{...contract,type:'edital'},'historico','until_empty']])await assert.rejects(f.service.documentRelated(d,resource,1,10,undefined,undefined,mode),e=>e.code==='INVALID_PAGINATION');
-  assert.equal(f.requests.length,0);
-});
-test('DOCUMENTS-19: detalhe completo de edital mantém os campos nativos e os adicionais',async()=>{
-  const purchase={type:'edital',cnpj:'01234567000189',ano:'2025',sequencial:'57'};
-  const rawText='{"numeroControlePNCP":"01234567000189-1-000057/2025","numeroCompra":"0057/2025","anoCompra":2025,"sequencialCompra":57,"tipoInstrumentoConvocatorioCodigo":2,"tipoInstrumentoConvocatorioNome":"Edital","srp":true,"objetoCompra":"Obra de demonstração","valorTotalEstimado":9007199254740993.12345,"valorTotalHomologado":0.0000,"orcamentoSigilosoCodigo":1,"orcamentoSigilosoDescricao":"Compra sem sigilo","modalidadeId":8,"modalidadeNome":"Pregão","modoDisputaId":4,"modoDisputaNome":"Dispensa Com Disputa","situacaoCompraId":1,"situacaoCompraNome":"Divulgada no PNCP","amparoLegal":{"nome":"Lei 14.133/2021, Art. 75, II","descricao":"Dispensa de licitação","codigo":19},"categoriaCodigo":9,"orgaoEntidade":{"cnpj":"01234567000189","razaoSocial":"Órgão"},"unidadeOrgao":{"nomeUnidade":"Unidade","municipioNome":"Município","ufSigla":"DF","codigoIbge":"4318705"},"usuarioNome":"Compras.gov.br","linkSistemaOrigem":"https://example.test/compra/57","linkProcessoEletronico":"https://example.test/processo/57"}',raw=parse(rawText);
-  const f=fixture(()=>new Response(rawText,{headers:{'Content-Type':'application/json'}})),result=await f.service.documentDetails(purchase);
-  assert.equal(f.requests[0].pathname,'/api/consulta/v1/orgaos/01234567000189/compras/2025/57');assert((result.fields.length)>12);assert.equal(result.titulo,'Edital nº 0057/2025');assert.equal(result.objeto,'Obra de demonstração');
-  for(const [field,value]of [['tipoInstrumentoConvocatorioNome','Edital']])assert.equal(result.fields.find(item=>item.field===field)?.value,value);
-  for(const field of ['numeroCompra','anoCompra','sequencialCompra','tipoInstrumentoConvocatorioCodigo','orcamentoSigilosoCodigo','modalidadeId','modoDisputaId','situacaoCompraId','amparoLegal.codigo'])assert(!result.fields.some(item=>item.field===field),field);
-  for(const field of ['orcamentoSigilosoDescricao','modoDisputaNome','amparoLegal.nome','amparoLegal.descricao','unidadeOrgao.codigoIbge','categoriaCodigo'])assert(result.fields.some(item=>item.field===field),field);
-  assert.deepEqual([result.fields[0].field,result.fields[1].field],['numeroControlePNCP','usuarioNome']);assert.equal(result.fields[1].title,'Fonte');assert.equal(result.fields[1].value,'Compras.gov.br');assert.equal(result.fields[1].url,'https://example.test/compra/57');
-  assert.equal(result.fields.find(field=>field.field==='srp').title,'Sistema de Registro de Preços');assert.equal(result.fields.find(field=>field.field==='srp').value,true);
-  assert.deepEqual([result.fields[2].field,result.fields[2].title,result.fields[2].value,result.fields[2].url],['linkProcessoEletronico','Processo eletrônico','Link','https://example.test/processo/57']);
-  assert(!result.fields.some(field=>['objetoCompra','linkSistemaOrigem'].includes(field.field)));assert.equal(result.objeto,'Obra de demonstração');assert.equal(result.link_sistema_origem,'https://example.test/compra/57');
-  assert.equal(result.fields.find(field=>field.field==='valorTotalEstimado').value,'9007199254740993.12345');assert.equal(result.fields.find(field=>field.field==='valorTotalHomologado').value,'0.0000');
-  await assert.rejects(fixture(()=>json({...raw,numeroControlePNCP:'01234567000189-1-000058/2025'})).service.documentDetails(purchase),error=>error.code==='INVALID_UPSTREAM');
-});
-
-test('DOCUMENTS-23: título nativo normaliza espaços e não duplica o ano',()=>{
-  const contract=projectDocument('contrato',{numeroControlePNCP:'10221786000120-2-000728/2025',numeroContratoEmpenho:' 20250874/2025\n',anoContrato:2025,tipoContrato:{nome:'Contrato (termo inicial)'},objetoContrato:'Objeto'});
-  assert.equal(contract.titulo,'Contrato nº 20250874/2025');
-  const commitment=projectDocument('contrato',{numeroControlePNCP:'10221786000120-2-000728/2025',numeroContratoEmpenho:'2026NE006103',anoContrato:2026,tipoContrato:{nome:'Empenho'},objetoContrato:'Objeto'});
-  assert.equal(commitment.titulo,'Empenho nº 2026NE006103/2026');
-});
-
-test('DOCUMENTS-20: histórico extenso de ata mantém o total e permite navegar além de 20000 registros',async()=>{
-  const document={type:'ata',cnpj:'00509968000148',ano:'2025',sequencial_compra:'402',sequencial:'1'},total=62364;
-  const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(total):json(Array.from({length:Math.min(10,total-(Number(u.searchParams.get('pagina'))-1)*10)},()=>({tipoLogManutencaoNome:'Retificação',categoriaLogManutencaoNome:'Ata'}))));
-  for(const page of [1,2,2001,6237]){
-    const result=await f.service.documentRelated(document,'historico',page,10);
-    assert.equal(result.total,total);assert.equal(result.total_pages,6237);assert.equal(result.page,page);
-    assert.equal(result.data.length,page===6237?4:10);assert.equal(result.data[0].evento,'Retificação - Ata');
-    assert.equal(result.has_more,page<6237);assert.equal(result.complete,page===6237);assert.equal(result.upstream_requests,2);
-    assert.equal(f.requests.at(-1).pathname,'/api/pncp/v1/orgaos/00509968000148/compras/2025/402/atas/1/historico');
-    assert.equal(f.requests.at(-1).searchParams.get('pagina'),String(page));assert.equal(f.requests.at(-1).searchParams.get('tamanhoPagina'),'10');
+test('DOCUMENTS-14: outras falhas nas listas de empenhos e instrumentos de cobrança continuam sendo erros', async () => {
+  for (const resource of ['empenhos', 'instrumentocobranca']) {
+    for (const status of [403, 500, 503])
+      await assert.rejects(
+        fixture(() => new Response(null, { status })).service.documentRelated(contract, resource, 1, 10),
+        e =>
+          e.code === (status === 503 ? 'PNCP_UNAVAILABLE' : 'PNCP_HTTP_ERROR') && e.details.upstream_status === status
+      );
+    await assert.rejects(
+      fixture(() => {
+        throw new TypeError('Failed to fetch');
+      }).service.documentRelated(contract, resource, 1, 10),
+      e => e.code === 'PNCP_TRANSPORT_ERROR' && !Object.hasOwn(e.details, 'upstream_status')
+    );
+    await assert.rejects(
+      fixture(
+        () => new Response('invalid', { headers: { 'Content-Type': 'application/json' } })
+      ).service.documentRelated(contract, resource, 1, 10),
+      e => e.code === 'INVALID_UPSTREAM'
+    );
   }
-  await assert.rejects(f.service.documentRelated(document,'historico',6238,10),error=>error.code==='PAGE_OUT_OF_RANGE' && error.details.last_page===6237);
 });
 
-test('DOCUMENTS-22: detalhes indexados preservam todos os campos não vazios, inclusive extras',()=>{
-  const fields=indexedDocumentFields({id:'registro',doc_type:'_doc',index:0,document_type:'edital',numero:'0057/2025',ano:'2025',numero_sequencial:'57',numero_controle_pncp:'01234567000189-1-000057/2025',title:'Edital',description:'Objeto',item_url:'/compras/01234567000189/2025/57',site_url:'/compras/01234567000189/2025/57',link_sistema_origem:'https://example.test/compra/57',data_atualizacao_pncp:'2026-10-22T13:11:05',valor_total_estimado:'53300.00',srp:false,situacao_id:'4',situacao_nome:'Suspensa',orcamento_sigiloso_codigo:'1',orcamento_sigiloso_descricao:'Compra sem sigilo',campo_codigo:'9',usuario_nome:'Compras.gov.br',link_processo_eletronico:'https://example.test/processo/57',amparo_legal_nome:['Lei 14.133/2021, Art. 28, I'],campo_extra:'Valor extra',campo_vazio:null});
-  assert(!fields.some(field=>field.field==='id'));assert(!fields.some(field=>field.field==='situacao_id'));assert(fields.some(field=>field.field==='situacao_nome'));
-  assert(!fields.some(field=>field.field==='orcamento_sigiloso_codigo'));assert.equal(fields.find(field=>field.field==='orcamento_sigiloso_descricao').value,'Compra sem sigilo');assert.equal(fields.find(field=>field.field==='campo_codigo').value,'9');
-  assert.deepEqual([fields[0].field,fields[1].field],['numero_controle_pncp','usuario_nome']);assert.equal(fields[1].title,'Fonte');assert.equal(fields[1].url,'https://example.test/compra/57');
-  assert.deepEqual([fields[2].field,fields[2].title,fields[2].value,fields[2].url],['link_processo_eletronico','Processo eletrônico','Link','https://example.test/processo/57']);
-  for(const field of ['title','item_url','site_url','link_sistema_origem','document_type','description','index','doc_type','numero','ano','numero_sequencial'])assert(!fields.some(item=>item.field===field),field);
-  assert.equal(fields.find(field=>field.field==='valor_total_estimado').type,'decimal');assert.equal(fields.find(field=>field.field==='srp').value,false);assert.equal(fields.find(field=>field.field==='srp').title,'Sistema de Registro de Preços');
-  assert.equal(fields.find(field=>field.field==='amparo_legal_nome').value,'Lei 14.133/2021, Art. 28, I');
-  assert.equal(fields.find(field=>field.field==='campo_extra').value,'Valor extra');assert(!fields.some(field=>field.field==='campo_vazio'));
-  const onlyId=indexedDocumentFields({document_type:'edital',situacao_id:'4'});assert(onlyId.some(field=>field.field==='situacao_id'));
-});
-
-test('DOCUMENTS-21: limite de detalhes considera registros recebidos, inclusive antes do recorte local e sem total',async()=>{
-  const records=Array.from({length:11},()=>({})),settings={PNCP_MAX_DETAIL_ITEMS:10};
-  for(const [document,resource]of [[ata,'historico'],[contract,'historico'],[contract,'arquivos'],[contract,'termos']]){
-    const f=fixture(u=>u.pathname.endsWith('/quantidade')?json(62364):json(records.slice(0,10)),settings);
-    assert.equal((await f.service.documentRelated(document,resource,1,10)).data.length,10);
-    const oversized=fixture(u=>u.pathname.endsWith('/quantidade')?json(62364):json(records),settings);
-    await assert.rejects(oversized.service.documentRelated(document,resource,1,25),error=>error.code==='DETAIL_ITEM_LIMIT');
+test('DOCUMENTS-09: detalhes dos filhos e arquivos de termos usam o sequencial correto sem expor links inseguros', async () => {
+  const f = fixture(u =>
+    u.pathname.endsWith('/arquivos')
+      ? json([
+          { titulo: 'Termo.pdf', tipoDocumentoNome: 'Termo aditivo', url: 'https://pncp.gov.br/arquivo.pdf' },
+          { titulo: 'Inseguro', url: 'javascript:alert(1)' }
+        ])
+      : new Response(
+          '{"numeroEmpenho":"00001","numeroInstrumentoCobranca":"00002","valorTotal":9007199254740993.12345}',
+          { headers: { 'Content-Type': 'application/json' } }
+        )
+  );
+  const files = await f.service.contractChild(contract, 'termos', '3');
+  assert.equal(files.files.length, 2);
+  assert.equal(files.files[1].url, null);
+  assert.match(f.requests.at(-1).pathname, /contratos\/2026\/44\/termos\/3\/arquivos$/);
+  for (const resource of ['empenhos', 'instrumentocobranca']) {
+    const child = await f.service.contractChild(contract, resource, '2');
+    assert.equal(child.fields.find(x => x.title === 'Valor total').value, '9007199254740993.12345');
+    assert.match(f.requests.at(-1).pathname, new RegExp('/' + resource + '/2$'));
   }
-  const unknown=fixture(u=>u.pathname.endsWith('/quantidade')?json(1):json(records),settings);
-  await assert.rejects(unknown.service.documentRelated(contract,'historico',1,25),error=>error.code==='DETAIL_ITEM_LIMIT');
-  const unpaged=fixture(()=>json(records),settings);
-  await assert.rejects(unpaged.service.documentRelated(contract,'instrumentocobranca',1,10),error=>error.code==='DETAIL_ITEM_LIMIT');
-  await assert.rejects(unpaged.service.documentRelated(contract,'instrumentocobranca',1,10),error=>error.code==='DETAIL_ITEM_LIMIT');
-  assert.equal(unpaged.requests.length,2);assert.equal(unpaged.client.unpagedCache.size,0);
-  const limited=fixture(()=>json(records.slice(0,10)),settings);
-  assert.equal((await limited.service.documentRelated(contract,'instrumentocobranca',1,10)).data.length,10);
+  for (const [d, res, seq] of [
+    [ata, 'termos', '3'],
+    [contract, 'arquivos', '1'],
+    [contract, 'termos', '0'],
+    [contract, 'termos', '../1']
+  ])
+    await assert.rejects(f.service.contractChild(d, res, seq), e => e.code === 'NOT_FOUND');
 });
 
-test('DETAIL-CONTROL-01: Controle PNCP abre o portal nos três tipos de documento',()=>{
-  const cases=[
-    ['edital','01234567000189-1-000044/2026','https://pncp.gov.br/app/editais/01234567000189/2026/44'],
-    ['ata','01234567000189-1-000057/2025-000009','https://pncp.gov.br/app/atas/01234567000189/2025/57/9'],
-    ['contrato','10221786000120-2-000728/2025','https://pncp.gov.br/app/contratos/10221786000120/2025/728'],
+test('DOCUMENTS-11: demonstração fornece detalhes, registros e vínculos completos de atas e contratos', async () => {
+  const s = demo();
+  for (const raw of [demoAtas[0], demoContracts[0]]) {
+    const d = project(raw)._document,
+      r = await s.documentDetails(d);
+    assert(r.fields.some(f => f.type === 'control' && f.url));
+    assert(r.objeto);
+    for (const resource of d.type === 'ata'
+      ? ['partesenvolvidas', 'contratos', 'arquivos', 'historico']
+      : ['empenhos', 'instrumentocobranca', 'termos', 'arquivos', 'historico'])
+      assert((await s.documentRelated(d, resource, 1, 10)).data.length > 0);
+  }
+});
+
+test('DOCUMENTS-12: detalhes completos recusam identidade incorreta e aceitam ano da ata diferente do ano da compra', async () => {
+  for (const payload of [
+    {},
+    [],
+    { numeroControlePNCP: '01234567000189-2-000045/2026' },
+    { numeroControlePNCP: '01234567000189-1-000044/2026' }
+  ])
+    await assert.rejects(
+      fixture(() => json(payload)).service.documentDetails(contract),
+      e => e.code === 'INVALID_UPSTREAM'
+    );
+  const f = fixture(() =>
+    json({
+      numeroControlePNCP: '01234567000189-1-000057/2025-000009',
+      anoAta: 2026,
+      numeroAtaRegistroPreco: '0009',
+      objetoCompra: 'Objeto da ata'
+    })
+  );
+  const detail = await f.service.documentDetails(ata);
+  assert.equal(detail.fields.find(x => x.field === 'anoAta').value, '2026');
+  assert.match(f.requests[0].pathname, /compras\/2025\/57\/atas\/9$/);
+});
+
+test('DOCUMENTS-15: emenda parlamentar de contrato preserva booleanos e ausência sem aceitar tipos inválidos', async () => {
+  for (const value of [false, true]) {
+    const detail = await fixture(() =>
+      json({ numeroControlePNCP: '01234567000189-2-000044/2026', emendaParlamentar: value })
+    ).service.documentDetails(contract);
+    assert.deepEqual(
+      detail.fields.find(f => f.field === 'emendaParlamentar'),
+      { field: 'emendaParlamentar', title: 'Emenda parlamentar', type: 'boolean', value }
+    );
+  }
+  for (const value of [undefined, null])
+    assert(
+      !projectDocument('contrato', { emendaParlamentar: value }).fields.some(f => f.field === 'emendaParlamentar')
+    );
+  for (const value of ['false', 'true', 0, 1, {}, []])
+    assert.throws(
+      () => projectDocument('contrato', { emendaParlamentar: value }),
+      e => e.code === 'INVALID_UPSTREAM'
+    );
+});
+
+test('DOCUMENTS-16: histórico de contrato com contagem divergente conserva registros e avança até página vazia', async () => {
+  for (const total of [0, 1, 11, 99]) {
+    const f = fixture(u =>
+      u.pathname.endsWith('/quantidade')
+        ? json(total)
+        : json(
+            Array.from({ length: [2, 1, 0][Number(u.searchParams.get('pagina')) - 1] }, (_, i) => ({
+              tipoLogManutencaoNome: `Evento ${i + 1}`
+            }))
+          )
+    );
+    for (const page of [1, 2, 3]) {
+      const result = await f.service.documentRelated(
+        contract,
+        'historico',
+        page,
+        10,
+        undefined,
+        undefined,
+        page > 1 ? 'until_empty' : undefined
+      );
+      assert.equal(result.data.length, [2, 1, 0][page - 1]);
+      assert.equal(result.total, null);
+      assert.equal(result.total_pages, null);
+      assert.equal(result.pagination_mode, 'until_empty');
+      assert.equal(result.has_more, page < 3);
+      assert.equal(result.complete, page === 3);
+      assert.equal(result.upstream_requests, page === 1 ? 2 : 1);
+    }
+    assert.equal(f.requests.filter(u => u.pathname.endsWith('/quantidade')).length, 1);
+    assert.equal(f.requests.at(-1).searchParams.get('pagina'), '3');
+  }
+});
+
+test('DOCUMENTS-17: exceção do histórico mantém contagens coerentes e a validação das outras listagens', async () => {
+  const empty = fixture(u => (u.pathname.endsWith('/quantidade') ? json(0) : json([])));
+  const zero = await empty.service.documentRelated(contract, 'historico', 1, 10);
+  assert.equal(zero.total, 0);
+  assert.equal(zero.total_pages, 1);
+  assert.equal(zero.complete, true);
+  assert.equal(empty.requests.length, 2);
+  const records = fixture(u =>
+    u.pathname.endsWith('/quantidade') ? json(1) : json([{ tipoLogManutencaoNome: 'Evento' }])
+  );
+  const coherent = await records.service.documentRelated(contract, 'historico', 1, 10);
+  assert.equal(coherent.total, 1);
+  assert.equal(coherent.has_more, false);
+  const beyond = await records.service.documentRelated(contract, 'historico', 2, 10);
+  assert.equal(beyond.total, null);
+  assert.equal(beyond.data.length, 1);
+  assert.equal(beyond.has_more, true);
+  const later = fixture(u =>
+    u.pathname.endsWith('/quantidade')
+      ? json(12)
+      : json(Array.from({ length: u.searchParams.get('pagina') === '1' ? 10 : 1 }, () => ({})))
+  );
+  assert.equal((await later.service.documentRelated(contract, 'historico', 1, 10)).total, 12);
+  assert.equal((await later.service.documentRelated(contract, 'historico', 2, 10)).total, null);
+  for (const [d, resource] of [
+    [ata, 'historico'],
+    [contract, 'arquivos'],
+    [contract, 'termos']
+  ])
+    await assert.rejects(
+      fixture(u => (u.pathname.endsWith('/quantidade') ? json(10) : json([{}]))).service.documentRelated(
+        d,
+        resource,
+        1,
+        10
+      ),
+      e => e.code === 'SOURCE_CHANGED'
+    );
+  const edital = { ...contract, type: 'edital' };
+  await assert.rejects(
+    fixture(u => (u.pathname.endsWith('/quantidade') ? json(10) : json([{}]))).service.documentRelated(
+      edital,
+      'historico',
+      1,
+      10
+    ),
+    e => e.code === 'SOURCE_CHANGED'
+  );
+  for (const payload of [{}, [null], Array.from({ length: 11 }, () => ({}))])
+    await assert.rejects(
+      fixture(u => (u.pathname.endsWith('/quantidade') ? json(10) : json(payload))).service.documentRelated(
+        contract,
+        'historico',
+        1,
+        10
+      ),
+      e => e.code === 'INVALID_UPSTREAM'
+    );
+  await assert.rejects(
+    fixture(() => json('inválido')).service.documentRelated(contract, 'historico', 1, 10),
+    e => e.code === 'INVALID_UPSTREAM'
+  );
+  await assert.rejects(
+    fixture(() => new Response(null, { status: 500 })).service.documentRelated(
+      contract,
+      'historico',
+      2,
+      10,
+      undefined,
+      undefined,
+      'until_empty'
+    ),
+    e => e.code === 'PNCP_HTTP_ERROR'
+  );
+  const noContent = await fixture(() => new Response(null, { status: 204 })).service.documentRelated(
+    contract,
+    'historico',
+    3,
+    10,
+    undefined,
+    undefined,
+    'until_empty'
+  );
+  assert.equal(noContent.total, null);
+  assert.equal(noContent.has_more, false);
+  assert.equal(noContent.complete, true);
+});
+
+test('DOCUMENTS-18: modo sem total é exclusivo de históricos de contrato e validado antes da rede', async () => {
+  const f = fixture(() => json([]));
+  for (const [d, resource, mode] of [
+    [contract, 'historico', 'inválido'],
+    [contract, 'historico', null],
+    [contract, 'arquivos', 'until_empty'],
+    [ata, 'historico', 'until_empty'],
+    [{ ...contract, type: 'edital' }, 'historico', 'until_empty']
+  ])
+    await assert.rejects(
+      f.service.documentRelated(d, resource, 1, 10, undefined, undefined, mode),
+      e => e.code === 'INVALID_PAGINATION'
+    );
+  assert.equal(f.requests.length, 0);
+});
+test('DOCUMENTS-19: detalhe completo de edital mantém os campos nativos e os adicionais', async () => {
+  const purchase = { type: 'edital', cnpj: '01234567000189', ano: '2025', sequencial: '57' };
+  const rawText =
+      '{"numeroControlePNCP":"01234567000189-1-000057/2025","numeroCompra":"0057/2025","anoCompra":2025,"sequencialCompra":57,"tipoInstrumentoConvocatorioCodigo":2,"tipoInstrumentoConvocatorioNome":"Edital","srp":true,"objetoCompra":"Obra de demonstração","valorTotalEstimado":9007199254740993.12345,"valorTotalHomologado":0.0000,"orcamentoSigilosoCodigo":1,"orcamentoSigilosoDescricao":"Compra sem sigilo","modalidadeId":8,"modalidadeNome":"Pregão","modoDisputaId":4,"modoDisputaNome":"Dispensa Com Disputa","situacaoCompraId":1,"situacaoCompraNome":"Divulgada no PNCP","amparoLegal":{"nome":"Lei 14.133/2021, Art. 75, II","descricao":"Dispensa de licitação","codigo":19},"categoriaCodigo":9,"orgaoEntidade":{"cnpj":"01234567000189","razaoSocial":"Órgão"},"unidadeOrgao":{"nomeUnidade":"Unidade","municipioNome":"Município","ufSigla":"DF","codigoIbge":"4318705"},"usuarioNome":"Compras.gov.br","linkSistemaOrigem":"https://example.test/compra/57","linkProcessoEletronico":"https://example.test/processo/57"}',
+    raw = parse(rawText);
+  const f = fixture(() => new Response(rawText, { headers: { 'Content-Type': 'application/json' } })),
+    result = await f.service.documentDetails(purchase);
+  assert.equal(f.requests[0].pathname, '/api/consulta/v1/orgaos/01234567000189/compras/2025/57');
+  assert(result.fields.length > 12);
+  assert.equal(result.titulo, 'Edital nº 0057/2025');
+  assert.equal(result.objeto, 'Obra de demonstração');
+  for (const [field, value] of [['tipoInstrumentoConvocatorioNome', 'Edital']])
+    assert.equal(result.fields.find(item => item.field === field)?.value, value);
+  for (const field of [
+    'numeroCompra',
+    'anoCompra',
+    'sequencialCompra',
+    'tipoInstrumentoConvocatorioCodigo',
+    'orcamentoSigilosoCodigo',
+    'modalidadeId',
+    'modoDisputaId',
+    'situacaoCompraId',
+    'amparoLegal.codigo'
+  ])
+    assert(!result.fields.some(item => item.field === field), field);
+  for (const field of [
+    'orcamentoSigilosoDescricao',
+    'modoDisputaNome',
+    'amparoLegal.nome',
+    'amparoLegal.descricao',
+    'unidadeOrgao.codigoIbge',
+    'categoriaCodigo'
+  ])
+    assert(
+      result.fields.some(item => item.field === field),
+      field
+    );
+  assert.deepEqual([result.fields[0].field, result.fields[1].field], ['numeroControlePNCP', 'usuarioNome']);
+  assert.equal(result.fields[1].title, 'Fonte');
+  assert.equal(result.fields[1].value, 'Compras.gov.br');
+  assert.equal(result.fields[1].url, 'https://example.test/compra/57');
+  assert.equal(result.fields.find(field => field.field === 'srp').title, 'Sistema de Registro de Preços');
+  assert.equal(result.fields.find(field => field.field === 'srp').value, true);
+  assert.deepEqual(
+    [result.fields[2].field, result.fields[2].title, result.fields[2].value, result.fields[2].url],
+    ['linkProcessoEletronico', 'Processo eletrônico', 'Link', 'https://example.test/processo/57']
+  );
+  assert(!result.fields.some(field => ['objetoCompra', 'linkSistemaOrigem'].includes(field.field)));
+  assert.equal(result.objeto, 'Obra de demonstração');
+  assert.equal(result.link_sistema_origem, 'https://example.test/compra/57');
+  assert.equal(result.fields.find(field => field.field === 'valorTotalEstimado').value, '9007199254740993.12345');
+  assert.equal(result.fields.find(field => field.field === 'valorTotalHomologado').value, '0.0000');
+  await assert.rejects(
+    fixture(() => json({ ...raw, numeroControlePNCP: '01234567000189-1-000058/2025' })).service.documentDetails(
+      purchase
+    ),
+    error => error.code === 'INVALID_UPSTREAM'
+  );
+});
+
+test('DOCUMENTS-23: título nativo normaliza espaços e não duplica o ano', () => {
+  const contract = projectDocument('contrato', {
+    numeroControlePNCP: '10221786000120-2-000728/2025',
+    numeroContratoEmpenho: ' 20250874/2025\n',
+    anoContrato: 2025,
+    tipoContrato: { nome: 'Contrato (termo inicial)' },
+    objetoContrato: 'Objeto'
+  });
+  assert.equal(contract.titulo, 'Contrato nº 20250874/2025');
+  const commitment = projectDocument('contrato', {
+    numeroControlePNCP: '10221786000120-2-000728/2025',
+    numeroContratoEmpenho: '2026NE006103',
+    anoContrato: 2026,
+    tipoContrato: { nome: 'Empenho' },
+    objetoContrato: 'Objeto'
+  });
+  assert.equal(commitment.titulo, 'Empenho nº 2026NE006103/2026');
+});
+
+test('DOCUMENTS-20: histórico extenso de ata mantém o total e permite navegar além de 20000 registros', async () => {
+  const document = { type: 'ata', cnpj: '00509968000148', ano: '2025', sequencial_compra: '402', sequencial: '1' },
+    total = 62364;
+  const f = fixture(u =>
+    u.pathname.endsWith('/quantidade')
+      ? json(total)
+      : json(
+          Array.from({ length: Math.min(10, total - (Number(u.searchParams.get('pagina')) - 1) * 10) }, () => ({
+            tipoLogManutencaoNome: 'Retificação',
+            categoriaLogManutencaoNome: 'Ata'
+          }))
+        )
+  );
+  for (const page of [1, 2, 2001, 6237]) {
+    const result = await f.service.documentRelated(document, 'historico', page, 10);
+    assert.equal(result.total, total);
+    assert.equal(result.total_pages, 6237);
+    assert.equal(result.page, page);
+    assert.equal(result.data.length, page === 6237 ? 4 : 10);
+    assert.equal(result.data[0].evento, 'Retificação - Ata');
+    assert.equal(result.has_more, page < 6237);
+    assert.equal(result.complete, page === 6237);
+    assert.equal(result.upstream_requests, 2);
+    assert.equal(f.requests.at(-1).pathname, '/api/pncp/v1/orgaos/00509968000148/compras/2025/402/atas/1/historico');
+    assert.equal(f.requests.at(-1).searchParams.get('pagina'), String(page));
+    assert.equal(f.requests.at(-1).searchParams.get('tamanhoPagina'), '10');
+  }
+  await assert.rejects(
+    f.service.documentRelated(document, 'historico', 6238, 10),
+    error => error.code === 'PAGE_OUT_OF_RANGE' && error.details.last_page === 6237
+  );
+});
+
+test('DOCUMENTS-22: detalhes indexados preservam todos os campos não vazios, inclusive extras', () => {
+  const fields = indexedDocumentFields({
+    id: 'registro',
+    doc_type: '_doc',
+    index: 0,
+    document_type: 'edital',
+    numero: '0057/2025',
+    ano: '2025',
+    numero_sequencial: '57',
+    numero_controle_pncp: '01234567000189-1-000057/2025',
+    title: 'Edital',
+    description: 'Objeto',
+    item_url: '/compras/01234567000189/2025/57',
+    site_url: '/compras/01234567000189/2025/57',
+    link_sistema_origem: 'https://example.test/compra/57',
+    data_atualizacao_pncp: '2026-10-22T13:11:05',
+    valor_total_estimado: '53300.00',
+    srp: false,
+    situacao_id: '4',
+    situacao_nome: 'Suspensa',
+    orcamento_sigiloso_codigo: '1',
+    orcamento_sigiloso_descricao: 'Compra sem sigilo',
+    campo_codigo: '9',
+    usuario_nome: 'Compras.gov.br',
+    link_processo_eletronico: 'https://example.test/processo/57',
+    amparo_legal_nome: ['Lei 14.133/2021, Art. 28, I'],
+    campo_extra: 'Valor extra',
+    campo_vazio: null
+  });
+  assert(!fields.some(field => field.field === 'id'));
+  assert(!fields.some(field => field.field === 'situacao_id'));
+  assert(fields.some(field => field.field === 'situacao_nome'));
+  assert(!fields.some(field => field.field === 'orcamento_sigiloso_codigo'));
+  assert.equal(fields.find(field => field.field === 'orcamento_sigiloso_descricao').value, 'Compra sem sigilo');
+  assert.equal(fields.find(field => field.field === 'campo_codigo').value, '9');
+  assert.deepEqual([fields[0].field, fields[1].field], ['numero_controle_pncp', 'usuario_nome']);
+  assert.equal(fields[1].title, 'Fonte');
+  assert.equal(fields[1].url, 'https://example.test/compra/57');
+  assert.deepEqual(
+    [fields[2].field, fields[2].title, fields[2].value, fields[2].url],
+    ['link_processo_eletronico', 'Processo eletrônico', 'Link', 'https://example.test/processo/57']
+  );
+  for (const field of [
+    'title',
+    'item_url',
+    'site_url',
+    'link_sistema_origem',
+    'document_type',
+    'description',
+    'index',
+    'doc_type',
+    'numero',
+    'ano',
+    'numero_sequencial'
+  ])
+    assert(!fields.some(item => item.field === field), field);
+  assert.equal(fields.find(field => field.field === 'valor_total_estimado').type, 'decimal');
+  assert.equal(fields.find(field => field.field === 'srp').value, false);
+  assert.equal(fields.find(field => field.field === 'srp').title, 'Sistema de Registro de Preços');
+  assert.equal(fields.find(field => field.field === 'amparo_legal_nome').value, 'Lei 14.133/2021, Art. 28, I');
+  assert.equal(fields.find(field => field.field === 'campo_extra').value, 'Valor extra');
+  assert(!fields.some(field => field.field === 'campo_vazio'));
+  const onlyId = indexedDocumentFields({ document_type: 'edital', situacao_id: '4' });
+  assert(onlyId.some(field => field.field === 'situacao_id'));
+});
+
+test('DOCUMENTS-21: limite de detalhes considera registros recebidos, inclusive antes do recorte local e sem total', async () => {
+  const records = Array.from({ length: 11 }, () => ({})),
+    settings = { PNCP_MAX_DETAIL_ITEMS: 10 };
+  for (const [document, resource] of [
+    [ata, 'historico'],
+    [contract, 'historico'],
+    [contract, 'arquivos'],
+    [contract, 'termos']
+  ]) {
+    const f = fixture(u => (u.pathname.endsWith('/quantidade') ? json(62364) : json(records.slice(0, 10))), settings);
+    assert.equal((await f.service.documentRelated(document, resource, 1, 10)).data.length, 10);
+    const oversized = fixture(u => (u.pathname.endsWith('/quantidade') ? json(62364) : json(records)), settings);
+    await assert.rejects(
+      oversized.service.documentRelated(document, resource, 1, 25),
+      error => error.code === 'DETAIL_ITEM_LIMIT'
+    );
+  }
+  const unknown = fixture(u => (u.pathname.endsWith('/quantidade') ? json(1) : json(records)), settings);
+  await assert.rejects(
+    unknown.service.documentRelated(contract, 'historico', 1, 25),
+    error => error.code === 'DETAIL_ITEM_LIMIT'
+  );
+  const unpaged = fixture(() => json(records), settings);
+  await assert.rejects(
+    unpaged.service.documentRelated(contract, 'instrumentocobranca', 1, 10),
+    error => error.code === 'DETAIL_ITEM_LIMIT'
+  );
+  await assert.rejects(
+    unpaged.service.documentRelated(contract, 'instrumentocobranca', 1, 10),
+    error => error.code === 'DETAIL_ITEM_LIMIT'
+  );
+  assert.equal(unpaged.requests.length, 2);
+  assert.equal(unpaged.client.unpagedCache.size, 0);
+  const limited = fixture(() => json(records.slice(0, 10)), settings);
+  assert.equal((await limited.service.documentRelated(contract, 'instrumentocobranca', 1, 10)).data.length, 10);
+});
+
+test('DETAIL-CONTROL-01: Controle PNCP abre o portal nos três tipos de documento', () => {
+  const cases = [
+    ['edital', '01234567000189-1-000044/2026', 'https://pncp.gov.br/app/editais/01234567000189/2026/44'],
+    ['ata', '01234567000189-1-000057/2025-000009', 'https://pncp.gov.br/app/atas/01234567000189/2025/57/9'],
+    ['contrato', '10221786000120-2-000728/2025', 'https://pncp.gov.br/app/contratos/10221786000120/2025/728']
   ];
-  for(const [type,control,url] of cases){
-    const field=projectDocument(type,{numeroControlePNCP:control}).fields.find(entry=>entry.field==='numeroControlePNCP');
-    assert.equal(field.type,'control',type);assert.equal(field.value,control,type);assert.equal(field.url,url,type);
+  for (const [type, control, url] of cases) {
+    const field = projectDocument(type, { numeroControlePNCP: control }).fields.find(
+      entry => entry.field === 'numeroControlePNCP'
+    );
+    assert.equal(field.type, 'control', type);
+    assert.equal(field.value, control, type);
+    assert.equal(field.url, url, type);
   }
-  const invalid=projectDocument('contrato',{numeroControlePNCP:'sem-identidade'}).fields.find(entry=>entry.field==='numeroControlePNCP');
-  assert.equal(invalid.type,'control');assert.equal(invalid.url,null,'identidade inválida não gera link');
+  const invalid = projectDocument('contrato', { numeroControlePNCP: 'sem-identidade' }).fields.find(
+    entry => entry.field === 'numeroControlePNCP'
+  );
+  assert.equal(invalid.type, 'control');
+  assert.equal(invalid.url, null, 'identidade inválida não gera link');
 });
 
-test('DETAIL-ORIGIN-01: Contratação de origem da ata identifica o edital para navegação interna',()=>{
-  const fields=projectDocument('ata',{numeroControlePncpCompra:'01234567000189-1-000057/2025'}).fields;
-  const origin=fields.find(field=>field.field==='numeroControlePncpCompra');
-  assert.equal(origin.type,'purchase');assert.deepEqual(origin.document,{type:'edital',cnpj:'01234567000189',ano:'2025',sequencial:'57'});
-  const invalid=projectDocument('ata',{numeroControlePncpCompra:'sem-identidade'}).fields.find(field=>field.field==='numeroControlePncpCompra');
-  assert.equal(invalid.document,undefined,'identidade inválida não navega');
+test('DETAIL-ORIGIN-01: Contratação de origem da ata identifica o edital para navegação interna', () => {
+  const fields = projectDocument('ata', { numeroControlePncpCompra: '01234567000189-1-000057/2025' }).fields;
+  const origin = fields.find(field => field.field === 'numeroControlePncpCompra');
+  assert.equal(origin.type, 'purchase');
+  assert.deepEqual(origin.document, { type: 'edital', cnpj: '01234567000189', ano: '2025', sequencial: '57' });
+  const invalid = projectDocument('ata', { numeroControlePncpCompra: 'sem-identidade' }).fields.find(
+    field => field.field === 'numeroControlePncpCompra'
+  );
+  assert.equal(invalid.document, undefined, 'identidade inválida não navega');
 });

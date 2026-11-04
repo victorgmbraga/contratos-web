@@ -13,6 +13,12 @@ export function browserSettings(input = {}) {
 export function createBrowserClient(config, { fetcher = globalThis.fetch.bind(globalThis) } = {}) {
   return new PncpClient(config, {
     fetcher,
-    fetchOptions: { mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error', headers: { Accept: 'application/json' } },
+    fetchOptions: {
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'error',
+      headers: { Accept: 'application/json' }
+    }
   });
 }

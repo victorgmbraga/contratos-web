@@ -1,11 +1,30 @@
 import { PROTOCOL_VERSION } from './protocol.js';
 
-export function createWorkerService(config, { workerFactory = () => new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }), startupTimeout = 15000 } = {}) {
-  let worker, ready, failed = false, disposed = false, serial = 0;
+/** @param {any} config Configuração pública ou promessa que a resolve. */
+export function createWorkerService(
+  config,
+  {
+    workerFactory = () => new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }),
+    startupTimeout = 15000
+  } = {}
+) {
+  let worker,
+    ready,
+    failed = false,
+    disposed = false,
+    serial = 0,
+    abortStartup = null;
   const pending = new Map();
   function failure(error) {
-    failed = true; worker?.terminate();
-    for (const task of pending.values()) { task.cleanup(); task.reject(error); }
+    failed = true;
+    worker?.terminate();
+    // Encerra também uma inicialização que ainda aguarda a configuração.
+    abortStartup?.(error);
+    abortStartup = null;
+    for (const task of pending.values()) {
+      task.cleanup();
+      task.reject(error);
+    }
     pending.clear();
   }
   function send(message, options = {}) {
@@ -13,45 +32,107 @@ export function createWorkerService(config, { workerFactory = () => new Worker(n
     return new Promise((resolve, reject) => {
       const abort = () => {
         if (!pending.has(id)) return;
-        pending.delete(id); cleanup();
-        try { worker.postMessage({ type: 'cancel', id }); } catch {}
-        finally { reject(new DOMException('Operação cancelada.', 'AbortError')); }
+        pending.delete(id);
+        cleanup();
+        try {
+          worker.postMessage({ type: 'cancel', id });
+        } catch {
+        } finally {
+          reject(new DOMException('Operação cancelada.', 'AbortError'));
+        }
       };
       const cleanup = () => options.signal?.removeEventListener('abort', abort);
-      if (options.signal?.aborted) { reject(new DOMException('Operação cancelada.', 'AbortError')); return; }
+      if (options.signal?.aborted) {
+        reject(new DOMException('Operação cancelada.', 'AbortError'));
+        return;
+      }
       pending.set(id, { resolve, reject, cleanup, onProgress: options.onProgress });
       options.signal?.addEventListener('abort', abort, { once: true });
-      try { worker.postMessage({ ...message, id }); }
-      catch (error) { pending.delete(id); cleanup(); reject(error); }
+      try {
+        worker.postMessage({ ...message, id });
+      } catch (error) {
+        pending.delete(id);
+        cleanup();
+        reject(error);
+      }
     });
   }
   function start() {
-    failed = false; const instance = workerFactory(); worker = instance;
+    failed = false;
+    const instance = workerFactory();
+    worker = instance;
     instance.addEventListener('message', ({ data }) => {
       if (worker !== instance) return;
-      const task = pending.get(data.id); if (!task) return;
-      if (data.progress) { task.onProgress?.(data.progress); return; }
-      pending.delete(data.id); task.cleanup();
-      if (data.error) { const error = Object.assign(new Error(data.error.message), data.error); task.reject(error); }
-      else task.resolve(data.result);
+      const task = pending.get(data.id);
+      if (!task) return;
+      if (data.progress) {
+        task.onProgress?.(data.progress);
+        return;
+      }
+      pending.delete(data.id);
+      task.cleanup();
+      if (data.error) {
+        const error = Object.assign(new Error(data.error.message), data.error);
+        task.reject(error);
+      } else task.resolve(data.result);
     });
-    const unavailable = event => { if (worker !== instance) return; event.preventDefault?.(); failure(Object.assign(new Error('O serviço de navegador foi interrompido. Tente novamente.'), { code: 'WORKER_UNAVAILABLE', retryable: true })); };
-    instance.addEventListener('error', unavailable); instance.addEventListener('messageerror', unavailable);
-    const timer = setTimeout(() => failure(Object.assign(new Error('Tempo de inicialização do navegador esgotado.'), { code: 'WORKER_TIMEOUT' })), startupTimeout);
-    ready = send({ type: 'init', config, version: PROTOCOL_VERSION }).then(result => {
-      if (result.version !== PROTOCOL_VERSION) throw new Error('Versão do Worker incompatível.');
-    }).catch(error => { if (worker === instance) failure(error); throw error; }).finally(() => clearTimeout(timer));
+    const unavailable = event => {
+      if (worker !== instance) return;
+      event.preventDefault?.();
+      failure(
+        Object.assign(new Error('O serviço de navegador foi interrompido. Tente novamente.'), {
+          code: 'WORKER_UNAVAILABLE',
+          retryable: true
+        })
+      );
+    };
+    instance.addEventListener('error', unavailable);
+    instance.addEventListener('messageerror', unavailable);
+    const startupFailed = new Promise((_resolve, reject) => {
+      abortStartup = reject;
+    });
+    const timer = setTimeout(
+      () =>
+        failure(Object.assign(new Error('Tempo de inicialização do navegador esgotado.'), { code: 'WORKER_TIMEOUT' })),
+      startupTimeout
+    );
+    // O Worker começa a carregar imediatamente; a configuração pode chegar depois (promessa).
+    // O prazo de inicialização e falhas do Worker também valem durante a espera pela configuração.
+    ready = Promise.race([Promise.resolve(config), startupFailed])
+      .then(value => {
+        if (worker !== instance || failed)
+          throw Object.assign(new Error('O serviço de navegador foi interrompido. Tente novamente.'), {
+            code: 'WORKER_UNAVAILABLE',
+            retryable: true
+          });
+        return send({ type: 'init', config: value, version: PROTOCOL_VERSION });
+      })
+      .then(result => {
+        if (result.version !== PROTOCOL_VERSION) throw new Error('Versão do Worker incompatível.');
+      })
+      .catch(error => {
+        if (worker === instance) failure(error);
+        throw error;
+      })
+      .finally(() => {
+        clearTimeout(timer);
+        if (worker === instance) abortStartup = null;
+      });
     ready.catch(() => {});
   }
   start();
   return {
     async call(method, payload = {}, options = {}) {
       if (disposed) throw new Error('Aplicação encerrada.');
-      if (failed) start(); await ready;
+      if (failed) start();
+      await ready;
       if (disposed) throw new DOMException('Aplicação encerrada.', 'AbortError');
       if (options.signal?.aborted) throw new DOMException('Operação cancelada.', 'AbortError');
       return send({ method, payload }, options);
     },
-    close() { disposed = true; failure(new DOMException('Aplicação encerrada.', 'AbortError')); },
+    close() {
+      disposed = true;
+      failure(new DOMException('Aplicação encerrada.', 'AbortError'));
+    }
   };
 }

@@ -11,7 +11,8 @@ Aplicação para pesquisar editais e avisos de contratações, atas de registro 
 - Resultados paginados, tabela com colunas personalizáveis (visibilidade, ordem e largura persistidas por tipo) e cartões para dispositivos móveis.
 - Exportação dos resultados completos ou somente da página atual em CSV pelo menu **Exportar**, com progresso e estimativa de tempo.
 - Links compartilháveis para buscas e detalhes de documentos.
-- Contador de filtros ativos e limpeza do rascunho no modal.
+- Filtros organizados com o grupo **Principais**, busca pelo nome do filtro e contador de critérios ativos.
+- Painel de detalhes com resumo e acesso direto à página oficial no PNCP.
 - Interface responsiva com temas claro e escuro, alternância cartões/tabela no mobile e atalhos `/` e `Ctrl+K` para a busca.
 
 ## Desenvolvimento local
@@ -36,15 +37,22 @@ Abra [http://localhost:8000](http://localhost:8000). As consultas exigem acesso 
 | `npm run build` | Gerar a distribuição estática em `dist-browser/` |
 | `npm run preview` | Servir o build localmente |
 | `npm run test:budget` | Conferir os limites de tamanho do build (requer `npm run build`) |
-| `npm run format` | Formatar os arquivos alterados com Prettier |
+| `npm run format` | Formatar o código com Prettier |
+| `npm run format:check` | Conferir a formatação (executado no CI) |
 
 Para os testes de navegador, instale o Chromium com `npx playwright install chromium` e execute `npm run test:browser`. Mais opções estão no [guia de validação](docs/validacao.md).
 
 A configuração pública fica em [`public/browser-config.json`](public/browser-config.json). O conteúdo de `dist-browser/` pode ser publicado em uma hospedagem estática.
 
-## Documentação técnica
+## Documentação
 
-- [Arquitetura e organização do código](docs/arquitetura.md)
+- [Guia de uso](docs/guia-de-uso.md)
+- [Como contribuir](CONTRIBUTING.md) e [histórico de mudanças](CHANGELOG.md)
+
+### Técnica
+
+- [Arquitetura, decisões e organização do código](docs/arquitetura.md)
+- [Comportamento da interface](docs/interface.md)
 - [Configuração](docs/configuracao.md)
 - [Filtros e consultas ao PNCP](docs/consultas-pncp.md)
 - [Testes e validação](docs/validacao.md)
