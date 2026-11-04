@@ -2404,7 +2404,11 @@ test('FILTERS-UI-17: normativo atualiza amparos ainda sem seleção e reabrir pr
 
 test('FILTER-LABELS-URL: recupera Órgão e Unidade sem cache mesmo quando a busca compartilhada está vazia', async () => {
   for (const type of ['edital', 'ata', 'contrato']) {
-    let lookups = 0;
+    let lookups = 0,
+      release;
+    const namesReady = new Promise(resolve => {
+      release = resolve;
+    });
     const original = { edital: demoDocuments, ata: demoAtas, contrato: demoContracts }[type][0];
     const ui = await interfaceFixture({
       href: `https://example.test/?tipos_documento=${type}&orgaos=90939&unidades=90939&q=semresultado`,
@@ -2413,6 +2417,7 @@ test('FILTER-LABELS-URL: recupera Órgão e Unidade sem cache mesmo quando a bus
         if (parsed.pathname.replace(/\/$/, '') === '/api/search') {
           if (parsed.searchParams.get('q')) return Response.json({ items: [], total: 0 });
           lookups++;
+          await namesReady;
           return Response.json({
             items: [
               {
@@ -2429,6 +2434,8 @@ test('FILTER-LABELS-URL: recupera Órgão e Unidade sem cache mesmo quando a bus
         return demoFetch(url, init);
       }
     });
+    ui.nodes.get('search').value = 'rascunho ainda não pesquisado';
+    release();
     let chips;
     for (let attempt = 0; attempt < 100; attempt++) {
       chips = ui.nodes
@@ -2441,6 +2448,7 @@ test('FILTER-LABELS-URL: recupera Órgão e Unidade sem cache mesmo quando a bus
     assert(chips.includes('Órgão recuperado'), chips);
     assert(chips.includes('Unidade recuperada'), chips);
     assert.equal(lookups, 2);
+    assert.equal(ui.nodes.get('search').value, 'rascunho ainda não pesquisado');
     assert.equal(ui.state().q, 'semresultado');
     await ui.nodes.get('filters-button').fire('click');
     assert.match(ui.nodes.get('filter-selected-orgaos').children[0].textContent, /Órgão recuperado/);

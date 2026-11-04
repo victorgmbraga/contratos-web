@@ -370,6 +370,11 @@ export function createApplicationUI(
     $('filters-button').setAttribute('aria-label', filterLabelText);
     $('filters-button-tooltip').textContent = filterLabelText;
     if ($('clear-button').hidden) $('clear-button-tooltip').hidden = true;
+    updateFilterChips();
+    selectMenus?.refresh();
+  }
+  function updateFilterChips() {
+    const q = state.query;
     $('native-chips').replaceChildren();
     for (const [key, value] of Object.entries(q.pncp_filters)) {
       const cap = state.schema.capabilities.find(c => c.name === key);
@@ -378,7 +383,6 @@ export function createApplicationUI(
         : filterValueText(cap, value);
       $('native-chips').append(el('span', `${filterLabel(key)}: ${label}`, 'filter-chip'));
     }
-    selectMenus?.refresh();
   }
   async function hydrateDomains(type) {
     if (
@@ -407,7 +411,7 @@ export function createApplicationUI(
       }
     }
     await filters.resolveLabels(state.query);
-    if (state.query?.document_type === type) updateCriteria();
+    if (state.query?.document_type === type) updateFilterChips();
   }
   function renderCard(doc) {
     const content = el('div'),
@@ -491,7 +495,7 @@ export function createApplicationUI(
     state.lastQuery = clone(query);
     state.lastResult = result;
     void filters.resolveLabels(query, result.data).then(() => {
-      if (state.query === query || resultCacheKey(state.query) === resultCacheKey(query)) updateCriteria();
+      if (state.query === query || resultCacheKey(state.query) === resultCacheKey(query)) updateFilterChips();
     });
     if (window.navigator?.onLine !== false) setConnectivity('');
     $('result-info').hidden = false;
