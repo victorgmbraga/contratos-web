@@ -212,9 +212,10 @@ export function createDetailsPanel({
         return column && doc[name] != null && doc[name] !== ''
           ? {
               field: name,
-              title: name === 'cancelado' ? 'Situação' : column.title,
+              title: name === 'cancelado' ? 'Cancelamento' : column.title,
               type: name === 'cancelado' ? 'text' : column.type,
-              value: name === 'cancelado' ? (doc[name] ? 'Cancelada' : 'Vigente') : doc[name]
+              // Cancelamento e vigência são independentes: o resumo informa apenas o cancelamento, como os cartões.
+              value: name === 'cancelado' ? (doc[name] ? 'Cancelada' : 'Não cancelada') : doc[name]
             }
           : null;
       })

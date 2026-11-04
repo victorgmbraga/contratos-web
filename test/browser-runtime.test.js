@@ -438,6 +438,51 @@ class FakeWorker extends EventTarget {
     this.terminated = true;
   }
 }
+
+test('BROWSER-18: prazo de inicialização vale enquanto a configuração não chega e não envia init a um Worker encerrado', async () => {
+  let release;
+  const config = new Promise(resolve => {
+    release = resolve;
+  });
+  const workers = [];
+  const bridge = createWorkerService(config, {
+    workerFactory: () => {
+      const w = new FakeWorker();
+      workers.push(w);
+      return w;
+    },
+    startupTimeout: 5
+  });
+  await assert.rejects(bridge.call('schema'), e => e.code === 'WORKER_TIMEOUT');
+  assert.equal(workers[0].terminated, true);
+  release({});
+  await delay(0);
+  assert.equal(workers[0].sent.length, 0, 'Nenhuma mensagem enviada ao Worker encerrado');
+  // A próxima chamada inicia um Worker novo com a configuração já disponível.
+  const next = bridge.call('schema');
+  await delay(0);
+  const init = workers[1].sent.find(message => message.type === 'init');
+  assert.ok(init);
+  const call = workers[1].sent.find(message => message.method === 'schema');
+  workers[1].reply(call.id, { ok: true });
+  assert.deepEqual(await next, { ok: true });
+  bridge.close();
+});
+
+test('BROWSER-19: encerrar a aplicação durante a espera da configuração rejeita as chamadas', async () => {
+  let release;
+  const config = new Promise(resolve => {
+    release = resolve;
+  });
+  const worker = new FakeWorker();
+  const bridge = createWorkerService(config, { workerFactory: () => worker });
+  const pendingCall = bridge.call('schema');
+  bridge.close();
+  await assert.rejects(pendingCall, e => e.name === 'AbortError');
+  release({});
+  await delay(0);
+  assert.equal(worker.sent.length, 0);
+});
 test('BROWSER-11: RPC resolve fora de ordem, descarta resposta cancelada e reinicia após falha', async () => {
   const workers = [];
   const bridge = createWorkerService(

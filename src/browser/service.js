@@ -12,11 +12,15 @@ export function createWorkerService(
     ready,
     failed = false,
     disposed = false,
-    serial = 0;
+    serial = 0,
+    abortStartup = null;
   const pending = new Map();
   function failure(error) {
     failed = true;
     worker?.terminate();
+    // Encerra também uma inicialização que ainda aguarda a configuração.
+    abortStartup?.(error);
+    abortStartup = null;
     for (const task of pending.values()) {
       task.cleanup();
       task.reject(error);
@@ -84,14 +88,25 @@ export function createWorkerService(
     };
     instance.addEventListener('error', unavailable);
     instance.addEventListener('messageerror', unavailable);
+    const startupFailed = new Promise((_resolve, reject) => {
+      abortStartup = reject;
+    });
     const timer = setTimeout(
       () =>
         failure(Object.assign(new Error('Tempo de inicialização do navegador esgotado.'), { code: 'WORKER_TIMEOUT' })),
       startupTimeout
     );
     // O Worker começa a carregar imediatamente; a configuração pode chegar depois (promessa).
-    ready = Promise.resolve(config)
-      .then(value => send({ type: 'init', config: value, version: PROTOCOL_VERSION }))
+    // O prazo de inicialização e falhas do Worker também valem durante a espera pela configuração.
+    ready = Promise.race([Promise.resolve(config), startupFailed])
+      .then(value => {
+        if (worker !== instance || failed)
+          throw Object.assign(new Error('O serviço de navegador foi interrompido. Tente novamente.'), {
+            code: 'WORKER_UNAVAILABLE',
+            retryable: true
+          });
+        return send({ type: 'init', config: value, version: PROTOCOL_VERSION });
+      })
       .then(result => {
         if (result.version !== PROTOCOL_VERSION) throw new Error('Versão do Worker incompatível.');
       })
@@ -99,7 +114,10 @@ export function createWorkerService(
         if (worker === instance) failure(error);
         throw error;
       })
-      .finally(() => clearTimeout(timer));
+      .finally(() => {
+        clearTimeout(timer);
+        if (worker === instance) abortStartup = null;
+      });
     ready.catch(() => {});
   }
   start();
