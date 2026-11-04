@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.2.2 — 2026-11-04
+
+### Interface
+
+- Na aba **Detalhes**, **Controle PNCP**, **Contratação de origem** e **Ata de origem** (quando existirem), **Fonte** e **Processo eletrônico** passam a ser os primeiros campos, em negrito, antes dos campos principais de cada tipo.
+
 ## 2.2.1 — 2026-11-04
 
 ### Interface

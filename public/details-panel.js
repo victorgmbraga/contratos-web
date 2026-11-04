@@ -198,7 +198,7 @@ export function createDetailsPanel({
     list.scrollIntoView?.({ block: 'start' });
   }
   // Campos principais de cada tipo, nas chaves da busca indexada, do esquema e da API nativa.
-  // Aparecem primeiro na aba Detalhes e em negrito.
+  // Aparecem na aba Detalhes logo após Controle PNCP, documentos de origem, Fonte e Processo eletrônico, todos em negrito.
   const HIGHLIGHT_FIELDS = {
     edital: [
       ['orgao_cnpj', 'orgaoEntidade.cnpj'],
@@ -219,10 +219,22 @@ export function createDetailsPanel({
       ['data_fim_vigencia', 'dataVigenciaFim']
     ]
   };
+  // Identificação, documentos de origem e fonte vêm antes dos campos principais de cada tipo.
+  const LEADING_FIELDS = [
+    ['numero_controle_pncp', 'numeroControlePNCP'],
+    ['numero_controle_pncp_compra', 'numeroControlePncpCompra'],
+    ['numero_controle_pncp_ata', 'numeroControlePncpAta'],
+    { keys: ['usuario_nome', 'usuarioNome'], title: 'Fonte' },
+    ['link_processo_eletronico', 'linkProcessoEletronico']
+  ];
   function prioritizeFields(kind, fields) {
     const highlighted = [];
-    for (const keys of HIGHLIGHT_FIELDS[kind] || []) {
-      const field = fields.find(item => keys.includes(item.field) && !highlighted.includes(item));
+    for (const entry of [...LEADING_FIELDS, ...(HIGHLIGHT_FIELDS[kind] || [])]) {
+      const keys = Array.isArray(entry) ? entry : entry.keys,
+        title = Array.isArray(entry) ? null : entry.title;
+      const field = fields.find(
+        item => keys.includes(item.field) && (!title || item.title === title) && !highlighted.includes(item)
+      );
       if (field) highlighted.push(field);
     }
     return [

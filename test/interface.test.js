@@ -498,9 +498,14 @@ test('DETAIL-TABS-01: rótulos, campos, vínculos ARIA e links de cabeçalho cor
   // Campos principais primeiro e em negrito; os demais mantêm a ordem da fonte.
   const highlighted = grid.children.filter(n => n.className === 'detail-highlight').map(n => n.children[0].textContent);
   assert.deepEqual(highlighted, labels.slice(0, highlighted.length));
-  assert.deepEqual(highlighted.slice(0, 3), ['Órgão', 'Situação', 'Valor total estimado']);
-  const rest = labels.slice(highlighted.length);
-  assert.deepEqual(rest.slice(0, 3), ['Controle PNCP', 'Fonte', 'Processo eletrônico']);
+  assert.deepEqual(highlighted.slice(0, 6), [
+    'Controle PNCP',
+    'Fonte',
+    'Processo eletrônico',
+    'Órgão',
+    'Situação',
+    'Valor total estimado'
+  ]);
   const byLabel = label => grid.children[labels.indexOf(label)];
   const sourceLink = byLabel('Fonte').children[1].children[0];
   assert.equal(sourceLink.textContent, 'Compras.gov.br');
