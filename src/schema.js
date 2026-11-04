@@ -34,6 +34,12 @@ export const columns = [
     native_range: ['data_publicacao_inicio', 'data_publicacao_fim']
   }),
   column('data_atualizacao_pncp', 'Atualização', 'date'),
+  // Em editais, o índice do PNCP usa a vigência para o período de recebimento de propostas.
+  column('data_inicio_vigencia', 'Início das propostas', 'datetime', {
+    width: 175,
+    native_range: ['data_inicio_vigencia_inicio', 'data_inicio_vigencia_fim']
+  }),
+  column('data_fim_vigencia', 'Fim das propostas', 'datetime', { width: 175 }),
   column('valor_total_estimado', 'Valor estimado', 'decimal', {
     visible: true,
     width: 175,
@@ -48,7 +54,7 @@ export const columns = [
 ];
 export const reserved = ['tipos_documento', 'q', 'status', 'ordenacao', 'pagina', 'tam_pagina', 'total'];
 export const documentStatuses = {
-  edital: ['todos', 'recebendo_proposta', 'propostas_encerradas'],
+  edital: ['todos', 'recebendo_proposta', 'propostas_encerradas', 'encerradas'],
   ata: ['todos', 'vigente', 'nao_vigente'],
   contrato: ['todos', 'vigente', 'nao_vigente']
 };
@@ -83,7 +89,9 @@ const commonColumns = columns.filter(
       'situacao_compra_nome_pncp',
       'valor_total_estimado',
       'valor_total_homologado',
-      'tem_resultado'
+      'tem_resultado',
+      'data_inicio_vigencia',
+      'data_fim_vigencia'
     ].includes(c.field)
 );
 const contractColumns = [

@@ -2,6 +2,18 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.3.0 — 2026-11-04
+
+### Pesquisa
+
+- Editais ganham o status **Encerradas** (`encerradas`), como no portal do PNCP; "Propostas encerradas" passa a se chamar **Em julgamento (propostas encerradas)**.
+- Filtro de **início do recebimento de propostas** (`data_inicio_vigencia_inicio`/`fim`) habilitado para editais, no grupo **Principais**.
+- Colunas opcionais **Início das propostas** e **Fim das propostas** (data e hora) em editais, também incluídas no CSV.
+
+### Testes
+
+- IDs de teste duplicados renomeados (`BROWSER-30/31`, `FILTERS-UI-23/24`).
+
 ## 2.2.2 — 2026-11-04
 
 ### Interface

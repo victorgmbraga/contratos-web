@@ -107,7 +107,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Componente de tabela | Cem linhas, conteúdo tratado como texto, paginação, foco, menus, teclado, redimensionamento, movimentação, visibilidade, cabeçalho fixo e destruição |
 | Paginação compartilhada | [`test/pagination.browser.mjs`](../test/pagination.browser.mjs): janela de páginas, atalhos, teclado/foco, carregamento, total desconhecido e números longos nos dois temas, de 320 a 1068 px |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
-| Interface | Presença e tipos dos 71/16/31 filtros compatíveis, interações representativas por controle, nomes acessíveis do cabeçalho, três tipos, links, histórico, paginação, painéis, CSV e cancelamento; o núcleo confere exaustivamente os 80 filtros |
+| Interface | Presença e tipos dos 73/16/31 filtros compatíveis, interações representativas por controle, nomes acessíveis do cabeçalho, três tipos, links, histórico, paginação, painéis, CSV e cancelamento; o núcleo confere exaustivamente os 80 filtros |
 | Botões | Transições de cor sem alterar a geometria, movimentos específicos de busca, filtros, colunas, exportação e tema no hover e no foco por teclado, feedback de toque e paginação recriada durante a consulta |
 | Seletores | Menus reais, teclado e cancelamento, busca por letras, URL/Voltar, filtros, menu Mais, detalhes, temas/contraste, limites do viewport, estados e opções dinâmicas, formulários e texto não confiável |
 | Temas | Alternância, restauração, sincronização, contraste mínimo de 4,5:1 nos textos verificados e 3:1 nas barras de rolagem, interação das barras, filtros, detalhes, avisos, carregamento e tela pequena |

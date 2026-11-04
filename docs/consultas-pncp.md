@@ -28,7 +28,7 @@ Esses métodos são locais, não URLs HTTP. Campos e métodos desconhecidos são
 | `api_version` | `"2.0"` | `"2.0"` |
 | `document_type` | `"edital"` | `"edital"`, `"ata"` ou `"contrato"` |
 | `q` | `""` | Texto de até 128 caracteres |
-| `status` | `"todos"` | Em edital: `"todos"`, `"recebendo_proposta"`, `"propostas_encerradas"`; em ata e contrato: `"todos"`, `"vigente"`, `"nao_vigente"` |
+| `status` | `"todos"` | Em edital: `"todos"`, `"recebendo_proposta"`, `"propostas_encerradas"` (em julgamento), `"encerradas"`; em ata e contrato: `"todos"`, `"vigente"`, `"nao_vigente"` |
 | `pncp_filters` | `{}` | Objeto de filtros habilitados |
 | `order` | `"-data"` | Critério nativo compatível com o tipo documental, conforme a tabela abaixo |
 | `page` | `1` | Inteiro positivo; `page × size` não pode superar 10.000 |
@@ -135,7 +135,8 @@ Os campos de sub-rogação, itens, resultados, fornecedores e contratos estão a
 | `tipos_contrato` | Lista de IDs conferidos no domínio de contratos; exclusivo de contrato |
 | `possui_nfe` | Booleano exclusivo de contrato |
 | `fornecedores_subcontratados` | Lista de IDs numéricos em strings obtidos por opções parciais ou sugestões; exclusivo de contrato |
-| `data_assinatura_inicio/fim`, `data_inicio_vigencia_inicio/fim` | Datas reais `AAAA-MM-DD`; ata e contrato; o segundo intervalo restringe a data de início da vigência |
+| `data_assinatura_inicio/fim` | Datas reais `AAAA-MM-DD`; ata e contrato |
+| `data_inicio_vigencia_inicio/fim` | Datas reais `AAAA-MM-DD`; restringem a data de início da vigência em atas e contratos e, em editais, o início do recebimento de propostas (o PNCP indexa esse período como vigência). A capacidade informa o rótulo de edital em `labels_by_document` |
 | `valor_global_min/max` | Decimais não negativos em strings; exclusivo de contrato |
 
 Filtros de itens, resultados e características de fornecedores nessa tabela são exclusivos de edital, exceto onde indicado. Confira `documents` no esquema para a compatibilidade dos demais campos. Intervalos invertidos são rejeitados antes da rede; decimais são comparados sem conversão para ponto flutuante.
@@ -150,11 +151,11 @@ Booleanos exigem valores JSON, sem aspas: `false` é enviado ao PNCP como `false
 
 Filtros de itens selecionam **contratações** na busca nativa. Tabela e CSV continuam contendo uma linha por contratação. Os detalhes exibem todos os itens, inclusive os que não satisfazem os critérios. Uma condição verdadeira na busca pode coexistir com itens que a informam como falsa nos detalhes. Não há garantia de que condições diferentes incidam sobre o mesmo item; a aplicação não aplica um refinamento local para impor essa correlação. Os nomes enviados à busca continuam sendo `categorias_leilao` e `beneficios`, embora os domínios usem aliases.
 
-`service.call("schema", {})` informa `columns`, `columns_by_document`, `capabilities`, `statuses`, `statuses_by_document`, `orders`, `orders_by_document`, `order_labels` e `limits`. O catálogo em [`src/pncp-arguments.json`](../src/pncp-arguments.json) contém 87 argumentos: sete controles reservados ao adaptador e 80 filtros. São 71 aplicáveis a edital, 16 a ata e 31 a contrato. `columns`, `statuses` e `orders` usam os padrões de edital; os mapas por documento fornecem os valores próprios de cada tipo, e `order_labels` contém os nomes exibidos no seletor. A compatibilidade de filtros é definida por `documents`.
+`service.call("schema", {})` informa `columns`, `columns_by_document`, `capabilities`, `statuses`, `statuses_by_document`, `orders`, `orders_by_document`, `order_labels` e `limits`. O catálogo em [`src/pncp-arguments.json`](../src/pncp-arguments.json) contém 87 argumentos: sete controles reservados ao adaptador e 80 filtros. São 73 aplicáveis a edital, 16 a ata e 31 a contrato. `columns`, `statuses` e `orders` usam os padrões de edital; os mapas por documento fornecem os valores próprios de cada tipo, e `order_labels` contém os nomes exibidos no seletor. A compatibilidade de filtros é definida por `documents`.
 
 Atas aceitam `ufs`, `orgaos`, `unidades`, `municipios`, `esferas`, `poderes`, `anos`, `modalidades`, `tipos`, `permite_adesao`, `data_publicacao_inicio/fim`, `data_assinatura_inicio/fim` e `data_inicio_vigencia_inicio/fim`. Filtros de itens, resultados e valores contratuais não são aplicáveis a atas.
 
-Cada capacidade também informa `label`, `group`, `input_hint`, `help_text`, `cardinality`, `domain_source`, `domain_kind`, `evidence` e `validation_status`. `input_hint` fornece exemplos para o placeholder; `help_text` está vazio. `description` mantém a descrição técnica do argumento. O tipo `enum` é singular: `tipos_item` e `tipos_margens_preferencia` usam uma string escolhida no domínio. Unidades de medida preservam caixa e espaços; `UNIDADE` e `Unidade ` são valores distintos.
+Cada capacidade também informa `label` (e, quando o mesmo parâmetro tem significado próprio num tipo, `labels_by_document`), `group`, `input_hint`, `help_text`, `cardinality`, `domain_source`, `domain_kind`, `evidence` e `validation_status`. `input_hint` fornece exemplos para o placeholder; `help_text` está vazio. `description` mantém a descrição técnica do argumento. O tipo `enum` é singular: `tipos_item` e `tipos_margens_preferencia` usam uma string escolhida no domínio. Unidades de medida preservam caixa e espaços; `UNIDADE` e `Unidade ` são valores distintos.
 
 `state: enabled` informa disponibilidade. `validation_status` classifica a validação como `sampled_live` (amostragem da fonte), `integration_tested` (cobertura automatizada da aplicação) ou `operator_declared` (declaração via [PNCP_VALIDATED_FILTERS](configuracao.md#metadados-de-validação-dos-filtros)). Essas classificações não garantem todas as combinações de filtros ou a disponibilidade do PNCP. Para conferir a integração em um domínio, use o [diagnóstico do PNCP](validacao.md#diagnóstico-do-pncp).
 

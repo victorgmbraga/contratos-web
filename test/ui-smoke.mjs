@@ -973,9 +973,9 @@ try {
   assert.equal(await page.locator('#filter-suggestions-anos .suggestion').innerText(), '2026');
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   check('Domínio de anos no formato real do PNCP');
-  assert.equal(await assertFilterCatalog('edital'), 71);
+  assert.equal(await assertFilterCatalog('edital'), 73);
   await assertRepresentativeFilters();
-  check('Os 71 filtros de contratações têm controles compatíveis com seus tipos');
+  check('Os 73 filtros de editais têm controles compatíveis com seus tipos');
   await page.locator('#document-type').selectOption('contrato');
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '32 contratos');
   assert(await page.locator('.results-col[data-field="valor_global"]').isVisible());

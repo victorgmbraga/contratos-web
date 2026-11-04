@@ -182,5 +182,12 @@ export function filterPresentation(name, documents) {
               : name.includes('valor')
                 ? 'Ex.: 1000.50 (reais)'
                 : null;
-  return { label, group, input_hint, help_text: '' };
+  // O mesmo parâmetro do PNCP tem significado próprio em editais: período de recebimento de propostas.
+  const labels_by_document =
+    name === 'data_inicio_vigencia_inicio' && documents.includes('edital')
+      ? { edital: 'Início do recebimento de propostas a partir de' }
+      : name === 'data_inicio_vigencia_fim' && documents.includes('edital')
+        ? { edital: 'Início do recebimento de propostas até' }
+        : null;
+  return { label, ...(labels_by_document ? { labels_by_document } : {}), group, input_hint, help_text: '' };
 }

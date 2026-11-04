@@ -14,6 +14,11 @@ const time = value => {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? String(value) : timeFormatter.format(parsed);
 };
+// Data e hora como publicadas pelo PNCP (sem fuso), sem conversão pelo relógio local.
+const dateTime = value => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(String(value ?? ''));
+  return match ? `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}` : date(value);
+};
 const date = value =>
   value ? (/^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10).split('-').reverse().join('/') : value) : '—';
 function quantity(value) {
@@ -38,17 +43,19 @@ export function createCellRenderer(el) {
         ? '—'
         : column.type === 'date'
           ? date(value)
-          : column.type === 'decimal'
-            ? money(value)
-            : column.type === 'boolean'
-              ? value
-                ? 'Sim'
-                : 'Não'
-              : column.mask === 'cnpj'
-                ? formatCnpj(value)
-                : column.mask === 'cpf-cnpj'
-                  ? formatCpfCnpj(value)
-                  : String(value)
+          : column.type === 'datetime'
+            ? dateTime(value)
+            : column.type === 'decimal'
+              ? money(value)
+              : column.type === 'boolean'
+                ? value
+                  ? 'Sim'
+                  : 'Não'
+                : column.mask === 'cnpj'
+                  ? formatCnpj(value)
+                  : column.mask === 'cpf-cnpj'
+                    ? formatCpfCnpj(value)
+                    : String(value)
     );
     if (column.field === 'objeto_compra') {
       node.className = 'object-text';
@@ -89,4 +96,4 @@ export function formatCpfCnpj(value) {
   if (digits.length === 11) return formatCpf(digits);
   return String(value);
 }
-export { fmtInt, time, date, quantity, money };
+export { fmtInt, time, date, dateTime, quantity, money };

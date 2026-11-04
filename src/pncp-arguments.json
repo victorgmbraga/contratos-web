@@ -278,14 +278,14 @@
   {
     "name": "data_inicio_vigencia_inicio",
     "format": "data",
-    "context": "C A",
-    "description": "Limite inicial aplicado à data de início da vigência do contrato ou da ata."
+    "context": "E C A",
+    "description": "Limite inicial aplicado à data de início da vigência do contrato ou da ata; em editais, ao início do recebimento de propostas."
   },
   {
     "name": "data_inicio_vigencia_fim",
     "format": "data",
-    "context": "C A",
-    "description": "Limite final aplicado à data de início da vigência. Não filtra a data final da vigência."
+    "context": "E C A",
+    "description": "Limite final aplicado à data de início da vigência (em editais, do recebimento de propostas). Não filtra a data final."
   },
   {
     "name": "data_assinatura_inicio",
