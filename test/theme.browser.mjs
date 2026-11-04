@@ -164,7 +164,7 @@ try {
     await page.locator('#filters-button').click();
     await page.locator('#filter-ufs:not(:disabled)').waitFor();
     if (type === 'edital') await scrollbar('.filters-body', { vertical: true });
-    await contrast(['#filters-title', '#draft-status', '.filter-field label', '#apply-filters']);
+    await contrast(['#filters-title', '#filter-search', '.filter-field label', '#apply-filters']);
     await page.locator('#filter-ufs').click();
     await page.locator('#filter-suggestions-ufs').waitFor({ state: 'visible' });
     await contrast(['#filter-suggestions-ufs .suggestion']);

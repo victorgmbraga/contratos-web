@@ -1295,7 +1295,7 @@ test('QUERY-URL-UI-01: link inicial restaura contrato, texto, filtros, status, o
   assert.equal(url.searchParams.get('demo'), '1');
   assert.equal(url.hash, '#resultados');
   await ui.nodes.get('filters-button').fire('click');
-  assert.equal(ui.nodes.get('draft-status').value, 'vigente');
+  assert.equal(ui.nodes.get('status').value, 'vigente');
   assert.equal(ui.draft().pncp_filters.possui_nfe, false);
 });
 
@@ -1353,7 +1353,7 @@ test('QUERY-URL-UI-03: Voltar e Avançar restauram critérios, página, colunas 
   await ui.nodes.get('document-type').fire('change');
   await ui.nodes.get('filters-button').fire('click');
   await ui.setFilter('possui_nfe', false);
-  ui.nodes.get('draft-status').value = 'vigente';
+  ui.nodes.get('status').value = 'vigente';
   await ui.nodes.get('apply-filters').fire('click');
   const length = ui.browser.entries.length,
     requests = ui.requests.length;
@@ -1665,12 +1665,12 @@ test('FILTERS-UI-01: aplicar texto, período e status envia apenas critérios na
   const ui = await interfaceFixture();
   await ui.nodes.get('filters-button').fire('click');
   assert.equal(ui.requests.length, 1);
-  ui.nodes.get('draft-search').value = 'Oracle';
+  ui.nodes.get('search').value = 'Oracle';
   ui.nodes.get('filter-data_publicacao_inicio').value = '2026-09-01';
   await ui.nodes.get('filter-data_publicacao_inicio').fire('input');
   ui.nodes.get('filter-data_publicacao_fim').value = '2026-09-30';
   await ui.nodes.get('filter-data_publicacao_fim').fire('input');
-  ui.nodes.get('draft-status').value = 'recebendo_proposta';
+  ui.nodes.get('status').value = 'recebendo_proposta';
   await ui.nodes.get('apply-filters').fire('click');
   assert.equal(ui.requests.length, 2);
   assert.deepEqual(ui.requests[1], {
@@ -1693,7 +1693,7 @@ test('FILTERS-UI-02: cancelar mantém a consulta; limpar remove todos os critér
   await ui.nodes.get('search-form').fire('submit');
   const before = ui.state();
   await ui.nodes.get('filters-button').fire('click');
-  ui.nodes.get('draft-search').value = 'texto cancelado';
+  ui.nodes.get('search').value = 'texto cancelado';
   ui.nodes.get('filter-data_publicacao_inicio').value = '2026-09-20';
   await ui.nodes.get('filter-data_publicacao_inicio').fire('input');
   ui.nodes.get('filters-dialog').close();
@@ -2003,7 +2003,7 @@ test('FILTERS-UI-04: mostra todos os filtros compatíveis, agrupados, sem seleto
 
 test('FILTERS-UI-23: período de propostas em editais e vigência em contratos usam rótulos próprios', async () => {
   const ui = await interfaceFixture();
-  const statusTexts = () => ui.nodes.get('draft-status').children.map(option => option.textContent);
+  const statusTexts = () => ui.nodes.get('status').children.map(option => option.textContent);
   await ui.nodes.get('filters-button').fire('click');
   const labelOf = name => ui.nodes.get(`filter-field-${name}`).children[0].children[0].textContent;
   assert.equal(labelOf('data_inicio_vigencia_inicio'), 'Início do recebimento de propostas a partir de');
@@ -2478,7 +2478,7 @@ test('HEADER-STATUS: status temporal pesquisa imediatamente e sincroniza URL, mo
     assert.equal(ui.state().q, 'texto preservado');
     assert.equal(new URL(ui.browser.href()).searchParams.get('status'), status);
     await ui.nodes.get('filters-button').fire('click');
-    assert.equal(ui.nodes.get('draft-status').value, status);
+    assert.equal(ui.nodes.get('status').value, status);
     assert.equal(ui.nodes.get('status').value, status);
     ui.nodes.get('filters-dialog').close();
   }
@@ -2814,7 +2814,7 @@ test('CONTRACTS-UI-01: trocar o tipo reinicia critérios, colunas e status e per
   assert(ui.tableColumns().some(c => c.field === 'valor_global'));
   assert(!ui.tableColumns().some(c => c.field === 'valor_total_estimado'));
   assert.deepEqual(
-    ui.nodes.get('draft-status').children.map(o => o.value),
+    ui.nodes.get('status').children.map(o => o.value),
     ['todos', 'vigente', 'nao_vigente']
   );
   const domainsBefore = ui.domainRequests.length;
@@ -2888,13 +2888,13 @@ test('ATAS-UI-01: trocar para atas ajusta status, colunas, filtros, contagem e C
   assert(ui.tableColumns().some(c => c.field === 'cancelado'));
   assert(!ui.tableColumns().some(c => c.field === 'valor_total_estimado'));
   assert.deepEqual(
-    ui.nodes.get('draft-status').children.map(c => c.value),
+    ui.nodes.get('status').children.map(c => c.value),
     ['todos', 'vigente', 'nao_vigente']
   );
   await ui.nodes.get('filters-button').fire('click');
   assert.equal(ui.fieldNames().length, 16);
   assert.equal(ui.field('situacoes_item'), undefined);
-  ui.nodes.get('draft-status').value = 'vigente';
+  ui.nodes.get('status').value = 'vigente';
   await ui.nodes.get('apply-filters').fire('click');
   assert.equal(ui.nodes.get('result-title').textContent, '12 atas');
   await ui.nodes.get('export-all-button').fire('click');
@@ -3503,8 +3503,10 @@ test('COLUMNS-UI-02: configuração inválida não impede iniciar a pesquisa nem
 
 test('DRAFT-FILTERS-UI-01: contador de ativos e limpeza do rascunho', async () => {
   const ui = await interfaceFixture();
+  assert.equal(ui.nodes.has('draft-search'), false);
+  assert.equal(ui.nodes.has('draft-status'), false);
   await ui.nodes.get('filters-button').fire('click');
-  assert.equal(ui.focusedField(), 'draft-search');
+  assert.equal(ui.focusedField(), 'filter-search');
   assert.equal(ui.nodes.get('filter-active-count').hidden, true);
   assert.equal(ui.nodes.get('clear-draft-filters').disabled, true);
   await ui.setFilter('srp', false);
@@ -3518,22 +3520,20 @@ test('DRAFT-FILTERS-UI-01: contador de ativos e limpeza do rascunho', async () =
   assert.equal(ui.nodes.get('clear-draft-filters').disabled, true);
 });
 
-test('DRAFT-FILTERS-UI-02: status conta como filtro ativo e Limpar filtros também restaura texto e status', async () => {
+test('DRAFT-FILTERS-UI-02: limpar o modal preserva texto e status do cabeçalho', async () => {
   const ui = await interfaceFixture();
+  ui.nodes.get('search').value = 'Oracle';
+  ui.nodes.get('status').value = 'recebendo_proposta';
+  await ui.nodes.get('status').fire('change');
   await ui.nodes.get('filters-button').fire('click');
-  ui.nodes.get('draft-search').value = 'Oracle';
-  ui.nodes.get('draft-status').value = 'recebendo_proposta';
-  await ui.nodes.get('draft-status').fire('change');
-  assert.equal(ui.nodes.get('filter-active-count').textContent, '1');
+  assert.equal(ui.nodes.get('filter-active-count').hidden, true);
   await ui.setFilter('srp', false);
-  assert.equal(ui.nodes.get('filter-active-count').textContent, '2');
-  assert.equal(ui.nodes.get('filter-active-count').getAttribute('aria-label'), '2 filtros ativos');
+  assert.equal(ui.nodes.get('filter-active-count').textContent, '1');
   await ui.nodes.get('clear-draft-filters').fire('click');
   assert.deepEqual(ui.draft().pncp_filters, {});
-  assert.equal(ui.draft().q, '');
-  assert.equal(ui.draft().status, 'todos');
-  assert.equal(ui.nodes.get('draft-search').value, '');
-  assert.equal(ui.nodes.get('draft-status').value, 'todos');
+  await ui.nodes.get('apply-filters').fire('click');
+  assert.equal(ui.state().q, 'Oracle');
+  assert.equal(ui.state().status, 'recebendo_proposta');
 });
 
 test('NOTICE-UI-01: fecha o aviso e o reexibe em uma nova mensagem', async () => {

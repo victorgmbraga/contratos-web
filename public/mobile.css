@@ -245,12 +245,8 @@
     padding-right: 2px;
     scroll-padding-top: 8px;
   }
-  .filter-grid,
-  .filters-basics {
+  .filter-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .filters-basics {
-    gap: 0;
   }
   .filters-modal > .dialog-footer {
     margin-top: 10px;

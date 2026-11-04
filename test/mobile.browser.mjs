@@ -241,7 +241,7 @@ try {
     await page.locator('.filters-body').evaluate(node => {
       node.scrollTop = 0;
     });
-    await page.locator('#draft-search').fill('descartar');
+    await page.locator('#filter-search').fill('descartar');
     await page.locator('#filters-dialog .dialog-header .close-dialog').click();
     assert.equal(await page.locator('#search').inputValue(), '');
   }
@@ -376,9 +376,9 @@ try {
   await page.locator('#filters-button').click();
   await fits('#apply-filters', { height: true });
   await page.setViewportSize({ width: 360, height: 400 });
-  await page.locator('#draft-search').click();
+  await page.locator('#filter-search').click();
   await fits('#apply-filters', { height: true });
-  await fits('#draft-search', { height: true });
+  await fits('#filter-search', { height: true });
   await page.locator('#filters-dialog .close-dialog[aria-label="Fechar"]').click();
   await page.setViewportSize({ width: 360, height: 800 });
   await more();

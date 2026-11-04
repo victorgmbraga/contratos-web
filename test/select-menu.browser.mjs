@@ -168,7 +168,8 @@ try {
   await control('details-section').press('Escape');
   await page.locator('#details-dialog .close-dialog').click();
   await page.locator('#filters-button').click();
-  await control('draft-status').click();
+  await page.locator('#filter-field-srp').scrollIntoViewIfNeeded();
+  await control('filter-srp').click();
   await page.locator('.filters-body').evaluate(node => {
     node.scrollTop = 10000;
   });

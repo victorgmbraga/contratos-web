@@ -107,8 +107,8 @@ export function createFiltersPanel({
         vigente: 'Vigentes',
         nao_vigente: 'Não vigentes'
       };
-    for (const id of ['draft-status', 'status']) {
-      const select = $(id);
+    {
+      const select = $('status');
       select.replaceChildren();
       for (const value of statuses) {
         const option = el('option', statusNames[value] || value);
@@ -152,8 +152,7 @@ export function createFiltersPanel({
   }
   function updateDraftActions() {
     if (!state.draft) return;
-    const status = $('draft-status')?.value ?? state.draft.status,
-      active = Object.keys(state.draft.pncp_filters).length + (status === 'todos' ? 0 : 1),
+    const active = Object.keys(state.draft.pncp_filters).length,
       count = $('filter-active-count');
     if (count) {
       count.textContent = String(active);
@@ -174,10 +173,6 @@ export function createFiltersPanel({
     if ($('legal-error')) $('legal-error').hidden = true;
     if ($('apply-filters')) $('apply-filters').disabled = false;
     state.draft.pncp_filters = {};
-    state.draft.q = '';
-    state.draft.status = 'todos';
-    $('draft-search').value = '';
-    $('draft-status').value = 'todos';
     for (const editor of filterFields.values()) syncFilterEditor(editor);
     updateDraftActions();
   }
@@ -254,14 +249,12 @@ export function createFiltersPanel({
     $('legal-error').hidden = true;
     state.draft = structuredClone(state.query);
     state.draft.q = $('search').value;
-    $('draft-search').value = state.draft.q;
-    $('draft-status').value = state.draft.status;
     filterFields.clear();
     $('filter-groups').replaceChildren();
     $('filter-popups').replaceChildren();
     $('filters-title').textContent = `Filtros · ${documentName().label}`;
     openDialog('filters-dialog');
-    if (!column) $('draft-search').focus({ preventScroll: true });
+    if (!column) $('filter-search').focus({ preventScroll: true });
     const controller = new AbortController();
     state.domainAbort = controller;
     const base = getDomains(controller.signal);
@@ -743,8 +736,8 @@ export function createFiltersPanel({
   }
   function apply() {
     if (state.legalPending || state.legalError) return null;
-    state.draft.q = $('draft-search').value;
-    state.draft.status = $('draft-status').value;
+    state.draft.q = $('search').value;
+    state.draft.status = $('status').value;
     return structuredClone(state.draft);
   }
   function mergeDomains(domains) {
@@ -766,7 +759,6 @@ export function createFiltersPanel({
     state.legalAbort?.abort();
     session.next('legal');
   }
-  $('draft-status').addEventListener('change', updateDraftActions);
   $('filter-search').addEventListener('input', searchFilterFields);
   document.addEventListener('select-menu-open', closeFilterDropdown);
   document.addEventListener('pointerdown', event => {

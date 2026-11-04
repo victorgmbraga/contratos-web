@@ -469,8 +469,8 @@ try {
     await sharedPage.waitForFunction(() => document.querySelector('#result-title').textContent === '32 contratos');
     assert.equal(new URL(sharedPage.url()).searchParams.get('tipos_documento'), 'contrato');
     assert.equal(new URL(sharedPage.url()).searchParams.has('srp'), false);
+    await sharedPage.locator('#status').selectOption('vigente');
     await sharedPage.locator('#filters-button').click();
-    await sharedPage.locator('#draft-status').selectOption('vigente');
     await sharedPage.locator(`#filter-${'possui_nfe'}`).selectOption('false');
     await sharedPage.locator('#apply-filters').click();
     await sharedPage.waitForFunction(() => !document.querySelector('#export-button').disabled);
@@ -982,8 +982,8 @@ try {
   assert(await page.locator('.results-col[data-field="valor_global"]').isVisible());
   assert.equal(await page.locator('.results-col[data-field="valor_total_estimado"]').count(), 0);
   check('Troca para contratos consulta a fonte e apresenta as colunas próprias');
+  await page.locator('#status').selectOption('vigente');
   await page.locator('#filters-button').click();
-  await page.locator('#draft-status').selectOption('vigente');
   await page.locator('#apply-filters').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '16 contratos');
   await page.locator('#clear-button').click();
@@ -1132,8 +1132,8 @@ try {
   check('Detalhes de ata conservam os vínculos e a navegação para a contratação de origem');
   await page.locator('#details-dialog .close-dialog').click();
   page.off(serviceEvent, observeAta);
+  await page.locator('#status').selectOption('vigente');
   await page.locator('#filters-button').click();
-  await page.locator('#draft-status').selectOption('vigente');
   await page.locator('#apply-filters').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '12 atas');
   const ataDownload = page.waitForEvent('download');

@@ -860,11 +860,7 @@ dialog::backdrop {
   scrollbar-gutter: stable;
   padding-right: 8px;
 }
-.filters-basics {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 16px;
-}
+
 .filter-active-count {
   display: inline-flex;
   align-items: center;
@@ -1059,12 +1055,8 @@ dialog::backdrop {
   }
 }
 @media (max-width: 650px) {
-  .filter-grid,
-  .filters-basics {
+  .filter-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .filters-basics {
-    gap: 0;
   }
 }
 .dialog-header {
