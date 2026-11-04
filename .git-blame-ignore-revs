@@ -1,0 +1,5 @@
+# Commits só de formatação, ignorados por `git blame`
+# (git config blame.ignoreRevsFile .git-blame-ignore-revs).
+
+# Formata o código com Prettier em 120 colunas
+032752b67bdd9e989daa3f17f866a187fdf44a3a
