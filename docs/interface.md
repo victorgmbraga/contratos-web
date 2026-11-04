@@ -24,7 +24,7 @@ Um `MutationObserver` acompanha opções, rótulos e estados atualizados em segu
 
 ## Acessibilidade dos avisos e ações
 
-Os botões de ícone têm nome acessível em `aria-label`. Os tooltips visuais repetem esse nome e por isso não são vinculados por `aria-describedby`, evitando leitura duplicada. Acima de 1280 px, **Filtros** e **Exportar** também exibem o texto do rótulo.
+Os botões de ícone têm nome acessível em `aria-label`. Os tooltips visuais repetem esse nome e por isso não são vinculados por `aria-describedby`, evitando leitura duplicada.
 
 Avisos e mudanças de conectividade são anunciados por duas regiões vivas sempre presentes (`#notice-live`, educada, e `#notice-alert`, para erros e ausência de conexão). O aviso visual continua em `#notice`; as regiões não ficam dentro de contêineres ocultos, o que faria leitores de tela ignorarem o anúncio.
 

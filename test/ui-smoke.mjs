@@ -624,7 +624,7 @@ try {
     assert.equal(await button.getAttribute('aria-label'), accessibleLabel);
     assert.equal(await button.getAttribute('title'), null);
     assert.equal(await button.locator('svg').count(), 1);
-    assert.equal(await button.locator('span:not(.count-badge):not(.button-label)').count(), 0);
+    assert.equal(await button.locator('span:not(.count-badge)').count(), 0);
     // O tooltip repete o nome acessível e não é anunciado novamente como descrição.
     assert.equal(await button.getAttribute('aria-describedby'), null);
     await button.hover();

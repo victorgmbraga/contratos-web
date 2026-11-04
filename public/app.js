@@ -272,7 +272,6 @@ export function createApplicationUI(
     $('export-button-tooltip').textContent = busy ? 'Consultando e gerando CSV…' : 'Exportar';
     if (busy) $('export-button-tooltip').hidden = true;
     $('export-button').setAttribute('aria-label', busy ? 'Gerando CSV' : 'Exportar');
-    if ($('export-button-label')) $('export-button-label').textContent = busy ? 'Gerando CSV' : 'Exportar';
     if (busy || !ready) closeExportMenu();
   }
   function status(value, query = state.query) {
