@@ -34,7 +34,9 @@ try {
     assert(Math.abs(button.y + button.height / 2 - (field.y + field.height / 2)) <= 1, 'Botão centralizado no campo');
     await trigger.click();
     await panel.waitFor();
-    assert.equal(await trigger.getAttribute('aria-expanded'), 'true');
+    await page.waitForFunction(
+      () => document.querySelector('#search-help-button').getAttribute('aria-expanded') === 'true'
+    );
     const box = await panel.boundingBox();
     assert(box.x >= 0 && box.x + box.width <= width, `Painel cabe na tela em ${width}px`);
     await page.waitForFunction(() => document.getAnimations().every(animation => animation.playState !== 'running'));
@@ -47,6 +49,10 @@ try {
       audit.violations.map(violation => violation.id),
       []
     );
+    // As dicas ficam recolhidas abaixo das buscas prontas.
+    const tips = page.locator('.search-help-tips');
+    assert.equal(await tips.getAttribute('open'), null);
+    await tips.locator('> summary').click();
     assert.deepEqual(await page.locator('.search-help-example').allInnerTexts(), [
       'microsoft office',
       'microsoft OR o365 OR office',
@@ -82,6 +88,7 @@ try {
     assert.equal(await page.evaluate(() => document.activeElement.id), 'search-help-button');
     // O exemplo preenche a busca sem pesquisar; Enter confirma e o texto vai ao PNCP como digitado.
     await trigger.click();
+    if ((await tips.getAttribute('open')) === null) await tips.locator('> summary').click();
     // Só pesquisas contam: a pré-carga das listas de filtros pode continuar em segundo plano.
     const searches = () => pncp.filter(url => url.startsWith('https://pncp.gov.br/api/search/?')).length;
     const before = searches();

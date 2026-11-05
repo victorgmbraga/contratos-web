@@ -53,6 +53,7 @@ const files = [
   'pagination.browser.mjs',
   'municipality-filter.browser.mjs',
   'search-help.browser.mjs',
+  'search-library.browser.mjs',
   'filter-options-cache.browser.mjs',
   'browser-diagnostics.browser.mjs'
 ];

@@ -8,6 +8,8 @@ import {
   closedDomains,
   filterPresentation
 } from './filter-domains.js';
+// O PNCP aceita consultas longas (listas de termos com OR); 1.000 caracteres cobre as buscas prontas.
+export const MAX_QUERY_TEXT = 1000;
 export { domainAliases } from './filter-domains.js';
 
 const column = (field, title, type = 'text', extra = {}) => ({ field, title, type, ...extra });
@@ -292,7 +294,7 @@ export function schema(config) {
       default_page_size: config.PNCP_PAGE_SIZE,
       search_window: 10000,
       export_documents: config.PNCP_MAX_EXPORT_DOCUMENTS,
-      max_q_length: 128
+      max_q_length: MAX_QUERY_TEXT
     }
   };
 }

@@ -115,6 +115,11 @@
     height: 36px;
   }
   .search-help-example,
+  .search-help-tips > summary,
+  .search-library-choice,
+  .search-library-remove,
+  .save-search-row input,
+  .save-search-row .button,
   .search-help-fields > summary {
     min-height: 44px;
   }

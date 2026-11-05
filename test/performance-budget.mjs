@@ -12,10 +12,10 @@ const sizeOf = pattern =>
   [...sizes].filter(([name]) => pattern.test(name)).reduce((total, [, size]) => total + size, 0);
 const kb = value => (value / 1024).toFixed(2);
 const checks = [
-  ['JS da aplicação', sizeOf(/^index-.*\.js$/), 47 * 1024],
+  ['JS da aplicação', sizeOf(/^index-.*\.js$/), 50 * 1024],
   ['CSS da aplicação', sizeOf(/^index-.*\.css$/), 12 * 1024],
   ['Worker', sizeOf(/^worker-.*\.js$/), 38 * 1024],
-  ['JavaScript total', sizeOf(/\.js$/), 78 * 1024],
+  ['JavaScript total', sizeOf(/\.js$/), 82 * 1024],
   ['CSS total', sizeOf(/\.css$/), 20 * 1024]
 ];
 let failed = false;

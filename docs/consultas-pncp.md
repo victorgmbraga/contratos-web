@@ -27,7 +27,7 @@ Esses métodos são locais, não URLs HTTP. Campos e métodos desconhecidos são
 | --- | --- | --- |
 | `api_version` | `"2.0"` | `"2.0"` |
 | `document_type` | `"edital"` | `"edital"`, `"ata"` ou `"contrato"` |
-| `q` | `""` | Texto de até 128 caracteres |
+| `q` | `""` | Texto de até 1.000 caracteres |
 | `status` | `"todos"` | Em edital: `"todos"`, `"recebendo_proposta"`, `"propostas_encerradas"` (em julgamento), `"encerradas"`; em ata e contrato: `"todos"`, `"vigente"`, `"nao_vigente"` |
 | `pncp_filters` | `{}` | Objeto de filtros habilitados |
 | `order` | `"-data"` | Critério nativo compatível com o tipo documental, conforme a tabela abaixo |
@@ -58,7 +58,7 @@ Os parâmetros GET da página são lidos pela interface estática. Os critérios
 | Parâmetro | Padrão | Formato |
 | --- | --- | --- |
 | `tipos_documento` | `edital` | Um tipo: `edital`, `ata` ou `contrato` |
-| `q` | Vazio | Texto de até 128 caracteres, codificado pela URL |
+| `q` | Vazio | Texto de até 1.000 caracteres, codificado pela URL |
 | `status` | `todos` | Status temporal compatível com o tipo documental |
 | `ordenacao` | `-data` | Código da tabela de ordenações, compatível com `tipos_documento` |
 | `pagina` | `1` | Inteiro de 1 a 100; a interface usa 100 registros por página |

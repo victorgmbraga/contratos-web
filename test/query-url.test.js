@@ -116,12 +116,23 @@ test('QUERY-URL-04: remove critérios antigos e mantém origem, subdiretório, d
   assert.equal(writeQueryUrl(encoded, query, definition), encoded);
 });
 
+test('QUERY-URL-06: a busca textual aceita até 1.000 caracteres, como listas de termos com OR', () => {
+  const definition = schema(config()),
+    q = 'termo OR '.repeat(111) + 'fim';
+  assert.equal(q.length, 1002);
+  assert.equal(readQueryUrl('https://x.test/?q=' + encodeURIComponent(q.slice(0, 1000)), definition).q.length, 1000);
+  assert.throws(
+    () => readQueryUrl('https://x.test/?q=' + encodeURIComponent(q.slice(0, 1001)), definition),
+    /1\.000 caracteres/
+  );
+});
+
 test('QUERY-URL-05: entradas inválidas não viram valores falsos, zero ou busca sem filtros', () => {
   for (const search of [
     '?tipos_documento=irp',
     '?tipos_documento=contrato&srp=false',
     '?tipos_documento=ata&status=recebendo_proposta',
-    '?q=' + 'a'.repeat(129),
+    '?q=' + 'a'.repeat(1001),
     '?ordenacao=outra',
     '?pagina=0',
     '?pagina=-1',

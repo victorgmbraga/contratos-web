@@ -78,7 +78,7 @@
             ><input
               id="search"
               type="search"
-              maxlength="128"
+              maxlength="1000"
               placeholder="Busque por objeto, órgão ou palavras-chave"
               autocomplete="off"
               aria-keyshortcuts="/ Control+K"
@@ -87,16 +87,14 @@
               type="button"
               class="search-help-button"
               id="search-help-button"
-              aria-label="Dicas de busca"
+              aria-label="Buscas prontas e dicas"
               aria-haspopup="dialog"
               aria-expanded="false"
               aria-controls="search-help"
               popovertarget="search-help"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8" />
-                <path d="M12 17.2h.01" />
+                <path d="M6.5 3.5h11v17l-5.5-3.8-5.5 3.8z" />
               </svg>
             </button>
           </div>
@@ -222,62 +220,91 @@
             /></svg
         ></a>
         <div id="search-help" popover="auto" role="dialog" aria-labelledby="search-help-title">
-          <h2 id="search-help-title">Dicas de busca</h2>
-          <p class="search-help-intro">Escolha um exemplo para usá-lo na busca.</p>
-          <dl class="search-help-list">
-            <div>
-              <dt>Todas as palavras</dt>
-              <dd>
-                <button type="button" class="search-help-example" data-query="microsoft office">
-                  microsoft office
-                </button>
-              </dd>
-            </div>
-            <div>
-              <dt>Qualquer uma (<code>OR</code> em maiúsculas)</dt>
-              <dd>
-                <button type="button" class="search-help-example" data-query="microsoft OR o365 OR office">
-                  microsoft OR o365 OR office
-                </button>
-              </dd>
-            </div>
-            <div>
-              <dt>Excluir um termo (<code>NOT</code>)</dt>
-              <dd>
-                <button type="button" class="search-help-example" data-query="office NOT microsoft">
-                  office NOT microsoft
-                </button>
-              </dd>
-            </div>
-            <div>
-              <dt>Frase exata (entre aspas)</dt>
-              <dd>
-                <button type="button" class="search-help-example" data-query='"microsoft office"'>
-                  "microsoft office"
-                </button>
-              </dd>
-            </div>
-          </dl>
-          <p class="search-help-note">
-            Maiúsculas não fazem diferença. <code>or</code> minúsculo, <code>-</code> e <code>*</code> não funcionam
-            como operadores. A busca não se restringe ao objeto: veja abaixo onde o PNCP procura.
-          </p>
-          <details class="search-help-fields">
-            <summary>Onde a busca procura</summary>
-            <p>Segundo o PNCP, nas contratações a busca considera:</p>
-            <ul>
-              <li>Número de controle PNCP da contratação (com máscara)</li>
-              <li>Número da contratação (número e ano)</li>
-              <li>Descrição do objeto e informação complementar da contratação</li>
-              <li>CNPJ ou nome do órgão/entidade, inclusive sub-rogado</li>
-              <li>Código ou nome da unidade compradora/vendedora, inclusive sub-rogada</li>
-              <li>Descrição ou informação complementar dos itens</li>
-              <li>Código GTIN e código ou descrição NCM/NBS</li>
-              <li>Código de patrimônio ou de registro imobiliário</li>
-              <li>CNPJ, CPF ou nome de fornecedor ou arrematante</li>
-              <li>Número de identificação ou nome de fornecedor/arrematante estrangeiro</li>
-              <li>Ano da contratação</li>
-            </ul>
+          <h2 id="search-help-title">Buscas prontas e dicas</h2>
+          <section aria-labelledby="search-presets-title">
+            <h3 id="search-presets-title">Buscas prontas</h3>
+            <p class="search-help-intro">
+              Editais de serviço divulgados, com itens em andamento ou homologados. Depois de pesquisar, ajuste os
+              filtros se precisar.
+            </p>
+            <ul id="search-presets" class="search-library-list"></ul>
+          </section>
+          <section aria-labelledby="saved-searches-title">
+            <h3 id="saved-searches-title">Minhas buscas</h3>
+            <p id="saved-searches-empty" class="search-help-intro">Nenhuma busca salva neste navegador.</p>
+            <ul id="saved-searches" class="search-library-list"></ul>
+            <form id="save-search-form" class="save-search-form">
+              <label for="save-search-name">Salvar a busca atual (texto, filtros e status)</label>
+              <span class="save-search-row"
+                ><input
+                  id="save-search-name"
+                  type="text"
+                  maxlength="60"
+                  autocomplete="off"
+                  placeholder="Nome, ex.: Microsoft em SP"
+                /><button type="submit" class="button small">Salvar</button></span
+              >
+              <p id="save-search-status" class="save-search-status" role="status"></p>
+            </form>
+          </section>
+          <details class="search-help-tips">
+            <summary>Dicas de busca</summary>
+            <p class="search-help-intro">Escolha um exemplo para usá-lo na busca.</p>
+            <dl class="search-help-list">
+              <div>
+                <dt>Todas as palavras</dt>
+                <dd>
+                  <button type="button" class="search-help-example" data-query="microsoft office">
+                    microsoft office
+                  </button>
+                </dd>
+              </div>
+              <div>
+                <dt>Qualquer uma (<code>OR</code> em maiúsculas)</dt>
+                <dd>
+                  <button type="button" class="search-help-example" data-query="microsoft OR o365 OR office">
+                    microsoft OR o365 OR office
+                  </button>
+                </dd>
+              </div>
+              <div>
+                <dt>Excluir um termo (<code>NOT</code>)</dt>
+                <dd>
+                  <button type="button" class="search-help-example" data-query="office NOT microsoft">
+                    office NOT microsoft
+                  </button>
+                </dd>
+              </div>
+              <div>
+                <dt>Frase exata (entre aspas)</dt>
+                <dd>
+                  <button type="button" class="search-help-example" data-query='"microsoft office"'>
+                    "microsoft office"
+                  </button>
+                </dd>
+              </div>
+            </dl>
+            <p class="search-help-note">
+              Maiúsculas não fazem diferença. <code>or</code> minúsculo, <code>-</code> e <code>*</code> não funcionam
+              como operadores. A busca não se restringe ao objeto: veja abaixo onde o PNCP procura.
+            </p>
+            <details class="search-help-fields">
+              <summary>Onde a busca procura</summary>
+              <p>Segundo o PNCP, nas contratações a busca considera:</p>
+              <ul>
+                <li>Número de controle PNCP da contratação (com máscara)</li>
+                <li>Número da contratação (número e ano)</li>
+                <li>Descrição do objeto e informação complementar da contratação</li>
+                <li>CNPJ ou nome do órgão/entidade, inclusive sub-rogado</li>
+                <li>Código ou nome da unidade compradora/vendedora, inclusive sub-rogada</li>
+                <li>Descrição ou informação complementar dos itens</li>
+                <li>Código GTIN e código ou descrição NCM/NBS</li>
+                <li>Código de patrimônio ou de registro imobiliário</li>
+                <li>CNPJ, CPF ou nome de fornecedor ou arrematante</li>
+                <li>Número de identificação ou nome de fornecedor/arrematante estrangeiro</li>
+                <li>Ano da contratação</li>
+              </ul>
+            </details>
           </details>
         </div>
         <div id="more-actions" popover="auto" role="group" aria-label="Mais ações">
@@ -363,6 +390,7 @@
       </section>
     </main>
     <div id="search-button-tooltip" class="tooltip" role="tooltip" hidden>Pesquisar</div>
+    <div id="search-help-button-tooltip" class="tooltip" role="tooltip" hidden>Buscas prontas e dicas</div>
     <div id="cancel-button-tooltip" class="tooltip" role="tooltip" hidden>Cancelar pesquisa</div>
     <div id="filters-button-tooltip" class="tooltip" role="tooltip" hidden>Filtros</div>
     <div id="clear-button-tooltip" class="tooltip" role="tooltip" hidden>Limpar filtros</div>

@@ -2,6 +2,19 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.8.0 — 2026-11-05
+
+### Busca
+
+- **Buscas prontas**, no painel do botão de marcador ao fim do campo de busca: Microsoft, Oracle, Adobe, Symantec e Broadcom, antivírus e proteção de endpoints, Graebert e CAD, MongoDB e NoSQL, desenvolvimento de software e infraestrutura/service desk. São as pesquisas dos scripts de extração do PNCP, em editais de serviço divulgados com itens em andamento ou homologados (as duas últimas também na esfera federal e em pregão eletrônico). Escolher uma aplica os termos com `OR` e os filtros e pesquisa.
+- **Minhas buscas**: salve a busca atual com um nome neste navegador (até 30), use-a depois com um clique ou remova-a.
+- A busca textual passa a aceitar até 1.000 caracteres (antes, 128), para listas de termos com `OR`. O PNCP aceita consultas desse tamanho.
+- As dicas de busca ficam numa seção recolhível do mesmo painel.
+
+### Desempenho
+
+- Limites do orçamento de JavaScript: aplicação de 47 para 50 KiB e total de 78 para 82 KiB com gzip, por causa das listas de termos das buscas prontas.
+
 ## 2.7.1 — 2026-11-05
 
 ### Busca

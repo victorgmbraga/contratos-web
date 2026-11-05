@@ -1,5 +1,5 @@
 import { assert, checkKeys } from './errors.js';
-import { capabilities, reserved, documentStatuses, documentOrders } from './schema.js';
+import { capabilities, reserved, documentStatuses, documentOrders, MAX_QUERY_TEXT } from './schema.js';
 
 export function validateDocumentType(type) {
   assert(Object.hasOwn(documentStatuses, type), 'DOCUMENT_TYPE_UNAVAILABLE', 'Escolha edital, ata ou contrato.', 409);
@@ -260,9 +260,9 @@ export function validateQuery(input, config) {
     409
   );
   assert(
-    typeof q.q === 'string' && q.q.length <= 128,
+    typeof q.q === 'string' && q.q.length <= MAX_QUERY_TEXT,
     'INVALID_QUERY_TEXT',
-    'A busca textual permite até 128 caracteres.'
+    `A busca textual permite até ${MAX_QUERY_TEXT.toLocaleString('pt-BR')} caracteres.`
   );
   assert(
     documentStatuses[q.document_type].includes(q.status),

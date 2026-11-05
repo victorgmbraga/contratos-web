@@ -18,9 +18,18 @@ Digite palavras do objeto, do órgão ou outros termos no campo de busca e press
 
 Ao abrir a página sem critérios, a aplicação mostra os documentos mais recentes do tipo escolhido.
 
+### Buscas prontas e buscas salvas
+
+O botão de marcador no fim do campo de busca abre **Buscas prontas e dicas**:
+
+- **Buscas prontas** pesquisam editais de serviço divulgados, com itens em andamento ou homologados, por fornecedor ou tema: Microsoft, Oracle, Adobe, Symantec e Broadcom, antivírus e proteção de endpoints, Graebert e CAD, MongoDB e NoSQL, e, só na esfera federal e em pregão eletrônico, desenvolvimento de software e infraestrutura/service desk. Escolher uma preenche o texto (os termos combinados com `OR`) e os filtros e pesquisa na hora; depois, ajuste os filtros se precisar.
+- **Minhas buscas** guarda neste navegador a busca atual (texto, mesmo que ainda não pesquisado, filtros, status e tipo de documento) com o nome que você escolher. Um nome já usado é substituído. Cabem até 30 buscas; o **×** remove uma delas. As buscas salvas não vão para outros navegadores; para compartilhar uma consulta, copie o link.
+
+A busca textual aceita até 1.000 caracteres, o suficiente para listas de termos com `OR`.
+
 ### Combinar termos
 
-A busca do PNCP aceita operadores. O botão **?** no fim do campo mostra estas dicas, e cada exemplo pode ser escolhido para preencher a busca:
+A busca do PNCP aceita operadores. A seção **Dicas de busca** do mesmo painel mostra estes exemplos, e cada um pode ser escolhido para preencher a busca:
 
 | Para encontrar | Digite | Exemplo |
 | --- | --- | --- |

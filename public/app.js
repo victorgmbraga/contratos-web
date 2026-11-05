@@ -10,6 +10,7 @@ import { createColumnLayout } from './column-layout.js';
 import { createTooltips } from './tooltips.js';
 import { createDetailsPanel } from './details-panel.js';
 import { createFiltersPanel } from './filters-panel.js';
+import { initializeSearchLibrary } from './search-library.js';
 import { createMunicipalityCatalog, fetchMunicipalityCatalog } from './municipality-catalog.js';
 import { createSession } from './session.js';
 import { createProgressEstimator } from './progress.js';
@@ -91,6 +92,7 @@ export function createApplicationUI(
     searchFocusReturn = false;
   const toolbarButtonIds = [
     'theme-button',
+    'search-help-button',
     'search-button',
     'cancel-button',
     'filters-button',
@@ -803,6 +805,17 @@ export function createApplicationUI(
     });
     resultInfo.hidden = false;
     initializeMobileLayout({ document, window });
+    initializeSearchLibrary({
+      document,
+      window,
+      schema: state.schema,
+      size: TABLE_PAGE_SIZE,
+      current: () => ({ ...state.query, q: $('search').value }),
+      run: query => {
+        applyQuery(query);
+        return execute();
+      }
+    });
     selectMenus = initializeSelectMenus({ document, window });
     $('mobile-view-button').addEventListener('click', () =>
       setMobileView(state.mobileView === 'cards' ? 'table' : 'cards')
