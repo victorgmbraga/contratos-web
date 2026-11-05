@@ -29,7 +29,17 @@ A busca do PNCP aceita operadores. O botão **?** no fim do campo mostra estas d
 | Excluir um termo | `NOT` antes do termo | `office NOT microsoft` |
 | Uma frase exata | o texto entre aspas | `"microsoft office"` |
 
-Maiúsculas não fazem diferença nos termos. `or` minúsculo é tratado como palavra comum, e `-` e `*` não funcionam como operadores. O PNCP procura o texto no objeto e também na descrição dos itens: uma busca por `microsoft` traz, por exemplo, compras de notebooks com Windows. Não há como restringir a busca só ao objeto.
+Maiúsculas não fazem diferença nos termos. `or` minúsculo é tratado como palavra comum, e `-` e `*` não funcionam como operadores. A busca não se restringe ao objeto: uma busca por `microsoft` traz, por exemplo, compras de notebooks com Windows, porque o termo aparece nos itens. Segundo o PNCP, nas contratações o texto é procurado em:
+
+- número de controle PNCP (com máscara) e número da contratação (número e ano);
+- descrição do objeto e informação complementar;
+- CNPJ ou nome do órgão/entidade e código ou nome da unidade compradora/vendedora, inclusive sub-rogados;
+- descrição ou informação complementar dos itens, código GTIN e código ou descrição NCM/NBS;
+- código de patrimônio ou de registro imobiliário;
+- CNPJ, CPF, nome ou identificação (estrangeiros) de fornecedor ou arrematante;
+- ano da contratação.
+
+Não há como restringir a busca a um desses campos. A lista também aparece em **Onde a busca procura**, nas dicas de busca.
 
 ## Filtrar
 

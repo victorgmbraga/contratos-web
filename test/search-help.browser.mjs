@@ -53,10 +53,32 @@ try {
       'office NOT microsoft',
       '"microsoft office"'
     ]);
+    // A lista de campos pesquisados pelo PNCP fica recolhida e abre pelo teclado.
+    const fields = page.locator('.search-help-fields');
+    assert.equal(await fields.getAttribute('open'), null);
+    await fields.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await fields.getAttribute('open'), '');
+    const items = await fields.locator('li').allInnerTexts();
+    assert.equal(items.length, 11);
+    assert(items.includes('Descrição ou informação complementar dos itens'));
+    const open = await panel.boundingBox();
+    assert(
+      open.y + open.height <= (await page.evaluate(() => innerHeight)) + 1,
+      'Painel aberto cabe na altura da tela'
+    );
+    const contrast = await new AxeBuilder({ page }).include('#search-help').withTags(['wcag2aa']).analyze();
+    assert.deepEqual(
+      contrast.violations.map(violation => violation.id),
+      []
+    );
     // Escape fecha e devolve o foco ao botão.
     await page.keyboard.press('Escape');
-    await page.waitForFunction(() => !document.querySelector('#search-help').matches(':popover-open'));
-    assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
+    await page.waitForFunction(
+      () =>
+        !document.querySelector('#search-help').matches(':popover-open') &&
+        document.querySelector('#search-help-button').getAttribute('aria-expanded') === 'false'
+    );
     assert.equal(await page.evaluate(() => document.activeElement.id), 'search-help-button');
     // O exemplo preenche a busca sem pesquisar; Enter confirma e o texto vai ao PNCP como digitado.
     await trigger.click();

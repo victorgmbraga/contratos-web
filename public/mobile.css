@@ -114,7 +114,8 @@
     width: 36px;
     height: 36px;
   }
-  .search-help-example {
+  .search-help-example,
+  .search-help-fields > summary {
     min-height: 44px;
   }
   /* A lupa do campo fica oculta no celular; o rótulo continua associado ao campo. */

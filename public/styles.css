@@ -397,6 +397,55 @@ p {
   gap: 10px;
   margin: 12px 0 0;
 }
+.search-help-fields {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.search-help-fields > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--heading, #17314e);
+  list-style: none;
+}
+.search-help-fields > summary::-webkit-details-marker {
+  display: none;
+}
+/* Mesma seta dos grupos de filtros. */
+.search-help-fields > summary::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin: 0 3px 0 1px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.2s ease-out;
+}
+.search-help-fields[open] > summary::before {
+  transform: rotate(45deg);
+}
+.search-help-fields > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.search-help-fields p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+.search-help-fields ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.search-help-fields li + li {
+  margin-top: 2px;
+}
 .search-help-list dt {
   font-weight: 600;
   color: var(--heading, #17314e);

@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.7.1 — 2026-11-05
+
+### Busca
+
+- As dicas de busca ganharam a seção recolhível **Onde a busca procura**, com os campos que o PNCP informa pesquisar nas contratações: números de controle e da contratação, objeto e informação complementar, órgão e unidade (inclusive sub-rogados), itens, GTIN, NCM/NBS, patrimônio ou registro imobiliário, fornecedores e ano. O guia de uso traz a mesma lista.
+
 ## 2.7.0 — 2026-11-05
 
 ### Busca

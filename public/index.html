@@ -259,9 +259,26 @@
             </div>
           </dl>
           <p class="search-help-note">
-            A busca do PNCP considera o objeto e também a descrição dos itens; maiúsculas não fazem diferença.
-            <code>or</code> minúsculo, <code>-</code> e <code>*</code> não funcionam como operadores.
+            Maiúsculas não fazem diferença. <code>or</code> minúsculo, <code>-</code> e <code>*</code> não funcionam
+            como operadores. A busca não se restringe ao objeto: veja abaixo onde o PNCP procura.
           </p>
+          <details class="search-help-fields">
+            <summary>Onde a busca procura</summary>
+            <p>Segundo o PNCP, nas contratações a busca considera:</p>
+            <ul>
+              <li>Número de controle PNCP da contratação (com máscara)</li>
+              <li>Número da contratação (número e ano)</li>
+              <li>Descrição do objeto e informação complementar da contratação</li>
+              <li>CNPJ ou nome do órgão/entidade, inclusive sub-rogado</li>
+              <li>Código ou nome da unidade compradora/vendedora, inclusive sub-rogada</li>
+              <li>Descrição ou informação complementar dos itens</li>
+              <li>Código GTIN e código ou descrição NCM/NBS</li>
+              <li>Código de patrimônio ou de registro imobiliário</li>
+              <li>CNPJ, CPF ou nome de fornecedor ou arrematante</li>
+              <li>Número de identificação ou nome de fornecedor/arrematante estrangeiro</li>
+              <li>Ano da contratação</li>
+            </ul>
+          </details>
         </div>
         <div id="more-actions" popover="auto" role="group" aria-label="Mais ações">
           <button type="button" id="mobile-view-button" class="button" aria-label="Ver como tabela" data-view="table">
