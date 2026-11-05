@@ -116,6 +116,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Descrições e cartões | [`test/details-overflow.browser.mjs`](../test/details-overflow.browser.mjs): abas acessíveis com descrições extensas, leitura completa segura, fechamento/histórico e cartões criados somente quando visíveis |
 | Acessibilidade | [`test/accessibility.browser.mjs`](../test/accessibility.browser.mjs): axe-core nas regras WCAG 2.0, 2.1 e 2.2 A/AA sobre a busca em desktop, o modal de filtros, o diálogo de colunas, o menu de exportação, o painel de detalhes e a visualização móvel; falha em violações críticas ou sérias |
 | Cache no navegador | Quota real de `localStorage`, compactação, reutilização após reinicialização e expiração |
+| Municípios e recentes | [`test/municipality-filter.browser.mjs`](../test/municipality-filter.browser.mjs): relação do IBGE carregada só ao usar o campo, busca desde a primeira letra sem consultar o PNCP, nome após recarregar, usados recentemente e axe nas listas com títulos e orientações |
 | Service Worker | Instalação, cache de assets, atualização, remoção seletiva de caches antigos e resposta pela rede quando o armazenamento falha |
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), nos três tipos em 1440, 1068 e 390 pixels; o subdiretório conserva seus testes de assets, Worker e links |

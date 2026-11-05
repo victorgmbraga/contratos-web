@@ -10,6 +10,7 @@ import { createColumnLayout } from './column-layout.js';
 import { createTooltips } from './tooltips.js';
 import { createDetailsPanel } from './details-panel.js';
 import { createFiltersPanel } from './filters-panel.js';
+import { createMunicipalityCatalog, fetchMunicipalityCatalog } from './municipality-catalog.js';
 import { createSession } from './session.js';
 import { createProgressEstimator } from './progress.js';
 
@@ -24,7 +25,10 @@ export function createApplicationUI(
     window = globalThis.window,
     tableFactory = createResultsTable,
     optionsCacheSettings = {},
-    schedule = globalThis.setTimeout
+    schedule = globalThis.setTimeout,
+    municipalityCatalog = createMunicipalityCatalog(
+      fetchMunicipalityCatalog((input, init) => window.fetch(input, init))
+    )
   } = {}
 ) {
   // Elementos variam entre input, select, button e dialog; os contratos do DOM
@@ -123,7 +127,8 @@ export function createApplicationUI(
     documentName,
     openDialog,
     refreshSelects: node => selectMenus?.refresh(node),
-    getCache: () => filterOptionsCache
+    getCache: () => filterOptionsCache,
+    municipalities: municipalityCatalog
   });
   function resultCacheKey(query) {
     return writeQueryUrl('https://cache.invalid/', query, state.schema);

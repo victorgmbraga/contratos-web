@@ -1,6 +1,8 @@
 import { compareDecimal } from '../src/validation.js';
 import { decimalKind, formatDecimalInput, parseDecimalInput, sanitizeDecimalInput } from './decimal-input.js';
 import { createFilterLabelCache } from '../src/browser/filter-label-cache.js';
+import { createRecentFilterOptions } from '../src/browser/recent-filter-options.js';
+import { MUNICIPALITY_FIELDS } from './municipality-catalog.js';
 
 // Modal de filtros: rascunho, editores de domínio, sugestões e amparos por normativo.
 export function createFiltersPanel({
@@ -14,16 +16,21 @@ export function createFiltersPanel({
   documentName,
   openDialog,
   refreshSelects,
-  getCache
+  getCache,
+  municipalities
 }) {
   const $ = getElementById;
   const filterFields = new Map();
   // Sugestões são listas parciais; preserve os rótulos selecionados por tipo e campo.
   const selectedLabels = createFilterLabelCache(() => window.localStorage);
   const labelKey = (type, name, id) => JSON.stringify([type, name, id]);
+  // Opções escolhidas recentemente nos campos com sugestão, mostradas antes de digitar.
+  const recents = createRecentFilterOptions(() => window.localStorage);
+  let municipalityCatalogFailed = false;
   function optionLabel(name, id, type = state.query.document_type) {
     const cap = state.schema.capabilities.find(cap => cap.name === name);
     return (
+      (MUNICIPALITY_FIELDS.includes(name) ? municipalities?.get(id)?.label : undefined) ??
       selectedLabels.get(labelKey(type, name, id)) ??
       state.domains?.filters[cap?.domain]?.find(option => option.id === id)?.label ??
       id
@@ -32,6 +39,9 @@ export function createFiltersPanel({
   const pendingLabels = new Map();
   async function resolveLabels(query, rows = []) {
     const type = query.document_type;
+    // Municípios usam o código IBGE: o rótulo vem da relação local, sem consultar o PNCP.
+    if (municipalities && MUNICIPALITY_FIELDS.some(field => query.pncp_filters[field]?.length))
+      await municipalities.load().catch(() => {});
     for (const [field, idField, nameField] of [
       ['orgaos', 'orgao_id', 'orgao_nome'],
       ['unidades', 'unidade_id', 'unidade_orgao_nome_unidade']
@@ -252,6 +262,8 @@ export function createFiltersPanel({
   }
   async function openFilters(column = null) {
     stopFilterEditors();
+    // Uma falha anterior ao carregar os municípios pode ser tentada de novo a cada abertura.
+    if (!municipalities?.list) municipalityCatalogFailed = false;
     state.legalAbort?.abort();
     session.next('legal');
     state.legalPending = false;
@@ -263,6 +275,10 @@ export function createFiltersPanel({
     filterFields.clear();
     $('filter-groups').replaceChildren();
     $('filter-popups').replaceChildren();
+    const optionsRegion = el('p', '', 'sr-only');
+    optionsRegion.id = 'filter-options-status';
+    optionsRegion.setAttribute('role', 'status');
+    $('filter-popups').append(optionsRegion);
     $('filters-title').textContent = `Filtros · ${documentName().label}`;
     openDialog('filters-dialog');
     if (!column) $('filter-search').focus({ preventScroll: true });
@@ -388,8 +404,12 @@ export function createFiltersPanel({
     if (cap.domain && cap.cardinality === 'multiple') {
       editor.input = el('input');
       editor.input.type = 'search';
-      editor.input.placeholder =
-        cap.domain_kind === 'suggest' ? 'Digite ao menos 3 caracteres' : 'Buscar e selecionar opções';
+      editor.municipal = Boolean(municipalities) && MUNICIPALITY_FIELDS.includes(cap.name);
+      editor.input.placeholder = editor.municipal
+        ? 'Buscar município'
+        : cap.domain_kind === 'suggest'
+          ? 'Digite ao menos 3 caracteres'
+          : 'Buscar e selecionar opções';
       editor.input.autocomplete = 'off';
       editor.selected = [];
     } else if (cap.domain) {
@@ -465,6 +485,8 @@ export function createFiltersPanel({
     }
     area.append(error);
     syncFilterEditor(editor);
+    // Seleções vindas da URL ganham o nome do município assim que a relação carrega.
+    if (editor.municipal && editor.selected.length) loadMunicipalities();
     return editor;
   }
   async function editFilter(editor) {
@@ -515,7 +537,7 @@ export function createFiltersPanel({
     }
     if (editor.selected) {
       editor.visibleOptions = null;
-      if (openFilterEditor === editor) showSuggestions(editor, filterChoices(editor));
+      if (openFilterEditor === editor) renderChoices(editor);
     } else {
       input.replaceChildren();
       const empty = el('option', 'Selecionar');
@@ -614,8 +636,13 @@ export function createFiltersPanel({
     openFilterEditor = editor;
     editor.suggestions.hidden = false;
     editor.input.setAttribute('aria-expanded', 'true');
-    if (editor.cap.domain_kind !== 'suggest' || editor.input.value.trim().length < 3 || editor.visibleOptions)
-      showSuggestions(editor, filterChoices(editor));
+    if (
+      editor.municipal ||
+      editor.cap.domain_kind !== 'suggest' ||
+      editor.input.value.trim().length < 3 ||
+      editor.visibleOptions
+    )
+      renderChoices(editor);
     positionFilterDropdown();
   }
   function updateFilterChoices(editor) {
@@ -639,9 +666,9 @@ export function createFiltersPanel({
     if (!currentEditor(editor) || editor.input.disabled) return;
     const key = labelKey(editor.draft.document_type, editor.cap.name, option.id);
     selectedLabels.set(key, option.label);
-    editor.selected = editor.selected.some(value => value.id === option.id)
-      ? editor.selected.filter(value => value.id !== option.id)
-      : [...editor.selected, option];
+    const removing = editor.selected.some(value => value.id === option.id);
+    if (!removing && editor.cap.domain_kind === 'suggest') recents.add(editor.cap.name, option);
+    editor.selected = removing ? editor.selected.filter(value => value.id !== option.id) : [...editor.selected, option];
     await editFilter(editor);
     positionFilterDropdown();
   }
@@ -682,15 +709,14 @@ export function createFiltersPanel({
     editor.visibleOptions = null;
     if (openFilterEditor !== editor) openFilterDropdown(editor);
     const q = editor.input.value.trim();
-    if (editor.cap.domain_kind !== 'suggest' || q.length < 3) {
-      showSuggestions(editor, filterChoices(editor));
+    if ((editor.municipal && !municipalityCatalogFailed) || editor.cap.domain_kind !== 'suggest' || q.length < 3) {
+      renderChoices(editor);
       return;
     }
     editor.choices = [];
     editor.input.removeAttribute('aria-activedescendant');
-    const loading = el('p', 'Consultando opções do PNCP…', 'panel-note');
-    loading.setAttribute('role', 'status');
-    editor.suggestions.replaceChildren(loading);
+    editor.suggestions.replaceChildren();
+    appendListNote(editor, 'Consultando opções do PNCP…');
     editor.suggestTimer = setTimeout(async () => {
       const controller = new AbortController();
       editor.suggestAbort = controller;
@@ -700,48 +726,159 @@ export function createFiltersPanel({
           { type: editor.draft.document_type, field: editor.cap.name, q, size: 20 },
           { signal: controller.signal }
         );
-        if (currentEditor(editor) && token === editor.suggestSeq) showSuggestions(editor, result.items);
+        if (currentEditor(editor) && token === editor.suggestSeq) showSuggestions(editor, [{ options: result.items }]);
       } catch (error) {
         if (error.name !== 'AbortError' && currentEditor(editor) && token === editor.suggestSeq) {
           editor.choices = [];
-          editor.suggestions.replaceChildren(el('p', 'Sugestões indisponíveis. Tente novamente.', 'panel-note'));
+          editor.suggestions.replaceChildren();
+          appendListNote(editor, 'Sugestões indisponíveis. Tente novamente.');
           editor.error.textContent = error.message;
           editor.error.hidden = false;
         }
       }
     }, 450);
   }
-  function showSuggestions(editor, options) {
+  // Relação local de municípios: carrega uma vez e atualiza o campo aberto e os nomes escolhidos.
+  function loadMunicipalities() {
+    if (!municipalities || municipalities.list) return;
+    municipalities.load().then(
+      () => {
+        for (const editor of filterFields.values()) {
+          if (!editor.municipal || !currentEditor(editor)) continue;
+          editor.selected = editor.selected.map(option => ({
+            ...option,
+            label: optionLabel(editor.cap.name, option.id, editor.draft.document_type)
+          }));
+          renderSelectedOptions(editor);
+          if (openFilterEditor === editor) renderChoices(editor);
+        }
+      },
+      () => {
+        // Sem a relação, os campos voltam às sugestões do PNCP (a partir de três caracteres).
+        municipalityCatalogFailed = true;
+        if (openFilterEditor?.municipal) searchFilterOptions(openFilterEditor);
+      }
+    );
+  }
+  function recentChoices(editor, text) {
+    const term = normalizedOptionText(text);
+    return recents
+      .list(editor.cap.name)
+      .map(option => ({ ...option, label: (editor.municipal && municipalities.get(option.id)?.label) || option.label }))
+      .filter(option => !term || normalizedOptionText(option.label).includes(term));
+  }
+  const fmtCount = value => new Intl.NumberFormat('pt-BR').format(value);
+  // Escolhe o que a lista do campo mostra: opções do domínio, municípios locais ou recentes.
+  function renderChoices(editor) {
+    const text = editor.input.value.trim();
+    if (editor.municipal && !municipalityCatalogFailed) {
+      const list = municipalities.list;
+      if (!list) {
+        showSuggestions(editor, [], 'Carregando municípios…');
+        loadMunicipalities();
+        return;
+      }
+      const ufs = editor.cap.name === 'municipios' ? editor.draft.pncp_filters.ufs || [] : [];
+      const recent = text ? [] : recentChoices(editor, '');
+      const known = new Set(recent.map(option => option.id));
+      const { items, total } = municipalities.search(text, { ufs });
+      const found = items.filter(item => !known.has(item.id)).map(({ id, label }) => ({ id, label }));
+      const heading = text ? undefined : ufs.length ? `Municípios de ${ufs.join(', ')}` : 'Capitais';
+      const note =
+        total > items.length
+          ? `Mostrando ${fmtCount(items.length)} de ${fmtCount(total)} municípios. Continue digitando para refinar.`
+          : !text && !ufs.length
+            ? `Digite para buscar entre os ${fmtCount(list.length)} municípios.`
+            : '';
+      showSuggestions(
+        editor,
+        [
+          { heading: 'Usados recentemente', options: recent },
+          { heading: recent.length ? heading : undefined, options: found }
+        ],
+        note
+      );
+      return;
+    }
+    if (editor.cap.domain_kind === 'suggest' && text.length < 3) {
+      // Antes da busca no PNCP: recentes e as opções parciais que a lista inicial trouxer.
+      const recent = recentChoices(editor, text),
+        known = new Set(recent.map(option => option.id)),
+        term = normalizedOptionText(text);
+      const partial = (editor.options || [])
+        .filter(option => !known.has(option.id) && (!term || normalizedOptionText(option.label).includes(term)))
+        .slice(0, 20);
+      showSuggestions(
+        editor,
+        [
+          { heading: 'Usados recentemente', options: recent },
+          { heading: recent.length && partial.length ? 'Outras opções' : undefined, options: partial }
+        ],
+        recent.length || partial.length
+          ? 'Digite ao menos 3 caracteres para buscar outras opções no PNCP.'
+          : 'Digite ao menos 3 caracteres para buscar no PNCP.'
+      );
+      return;
+    }
+    showSuggestions(editor, [{ options: filterChoices(editor) }]);
+  }
+  /**
+   * @param {{ heading?: string, options: { id: string, label: string, active?: boolean }[] }[]} groups
+   * @param {string} [note] Orientação exibida depois das opções.
+   */
+  function showSuggestions(editor, groups, note = '') {
     const list = editor.suggestions;
     list.replaceChildren();
+    const options = groups.flatMap(group => group.options);
     editor.visibleOptions = options;
     editor.choices = [];
     editor.activeIndex = -1;
     editor.input.removeAttribute('aria-activedescendant');
-    if (!options.length) {
-      const empty = el('p', 'Nenhuma opção encontrada.', 'panel-note');
-      empty.setAttribute('role', 'status');
-      list.append(empty);
+    if (!options.length && !note) appendListNote(editor, 'Nenhuma opção encontrada.');
+    else optionsStatus('');
+    let index = 0;
+    for (const group of groups) {
+      if (!group.options.length) continue;
+      // O título é visual; leitores de tela recebem as opções com o nome do campo.
+      if (group.heading) {
+        const heading = el('p', group.heading, 'panel-note suggestion-heading');
+        heading.setAttribute('aria-hidden', 'true');
+        list.append(heading);
+      }
+      for (const option of group.options) appendSuggestion(editor, option, index++);
     }
-    for (const [index, option] of options.entries()) {
-      const label = option.label + (option.active === false ? ' (inativa)' : ''),
-        button = el('button', undefined, 'suggestion'),
-        check = el('span', undefined, 'suggestion-check');
-      check.setAttribute('aria-hidden', 'true');
-      button.type = 'button';
-      button.tabIndex = -1;
-      button.id = `filter-option-${editor.cap.name}-${index}`;
-      button.dataset.value = option.id;
-      button.setAttribute('role', 'option');
-      button.setAttribute('aria-label', label);
-      button.append(check, el('span', label));
-      button.addEventListener('mousedown', event => event.preventDefault());
-      button.addEventListener('click', () => toggleFilterChoice(editor, option));
-      editor.choices.push({ option, button, check });
-      list.append(button);
-    }
+    if (note) appendListNote(editor, note, 'suggestion-hint');
     updateFilterChoices(editor);
     positionFilterDropdown();
+  }
+  // Uma listbox só pode conter opções acessíveis: as orientações ficam visíveis na lista, mas são
+  // anunciadas pela região de status do painel, fora dela.
+  function appendListNote(editor, text, className = '') {
+    const note = el('p', text, `panel-note${className ? ' ' + className : ''}`);
+    note.setAttribute('aria-hidden', 'true');
+    editor.suggestions.append(note);
+    optionsStatus(text);
+  }
+  function optionsStatus(text) {
+    const region = $('filter-options-status');
+    if (region && region.textContent !== text) region.textContent = text;
+  }
+  function appendSuggestion(editor, option, index) {
+    const label = option.label + (option.active === false ? ' (inativa)' : ''),
+      button = el('button', undefined, 'suggestion'),
+      check = el('span', undefined, 'suggestion-check');
+    check.setAttribute('aria-hidden', 'true');
+    button.type = 'button';
+    button.tabIndex = -1;
+    button.id = `filter-option-${editor.cap.name}-${index}`;
+    button.dataset.value = option.id;
+    button.setAttribute('role', 'option');
+    button.setAttribute('aria-label', label);
+    button.append(check, el('span', label));
+    button.addEventListener('mousedown', event => event.preventDefault());
+    button.addEventListener('click', () => toggleFilterChoice(editor, option));
+    editor.choices.push({ option, button, check });
+    editor.suggestions.append(button);
   }
   function renderSelectedOptions(editor) {
     const area = editor.selectedArea;

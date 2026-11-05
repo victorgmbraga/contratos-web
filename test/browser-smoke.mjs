@@ -43,6 +43,7 @@ for (const name of [
   'detail-links.browser.mjs',
   'details-overflow.browser.mjs',
   'filter-options-cache.browser.mjs',
+  'municipality-filter.browser.mjs',
   'accessibility.browser.mjs'
 ])
   await runFile(name);
