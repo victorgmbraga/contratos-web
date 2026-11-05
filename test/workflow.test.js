@@ -20,6 +20,16 @@ function artifactName(job, action) {
   return name;
 }
 
+// Navegadores em cache por versão do Playwright; instalação com limite de tempo e até três tentativas.
+function assertBrowserInstall(job, browser) {
+  assert.match(job, /uses: actions\/cache@[^\n]+\n {8}with:\n {10}path: ~\/\.cache\/ms-playwright\n/);
+  assert(job.includes(`key: playwright-\${{ runner.os }}-${browser}-\${{ hashFiles('package-lock.json') }}`));
+  assert(job.includes(`timeout 150 npx playwright install --with-deps ${browser}`));
+  assert.match(job, /for attempt in 1 2 3; do/);
+  assert(job.indexOf('uses: actions/cache@') < job.indexOf('npx playwright install'));
+  assert(job.indexOf('npx playwright install') < job.indexOf('run: npm run test:browser'));
+}
+
 test('WORKFLOW-01: Chromium e Firefox validam em paralelo o mesmo build, sem recompilar', () => {
   const validate = jobs.get('validate'),
     browser = jobs.get('browser');
@@ -46,6 +56,7 @@ test('WORKFLOW-01: Chromium e Firefox validam em paralelo o mesmo build, sem rec
     .map(value => value.trim());
   assert.deepEqual(engines, ['chromium', 'firefox']);
   assert.match(browser, /playwright install --with-deps \$\{\{ matrix\.browser \}\}/);
+  assertBrowserInstall(browser, '${{ matrix.browser }}');
   assert.match(browser, /CONTRATOS_QA_BROWSER: \$\{\{ matrix\.browser \}\}/);
   assert.match(browser, /run: npm run test:browser -- --skip-build/);
   assert.doesNotMatch(browser, /run: npm run build/);
@@ -89,6 +100,7 @@ test('WORKFLOW-03: WebKit roda periodicamente ou sob demanda, com diagnósticos 
   assert.match(webkit, /workflow_dispatch:/);
   assert.doesNotMatch(webkit, /^ {2}(push|pull_request):/m);
   assert.match(webkit, /playwright install --with-deps webkit/);
+  assertBrowserInstall(webkit, 'webkit');
   assert(webkit.indexOf('run: npm run build:qa') < webkit.indexOf('run: npm run test:browser -- --skip-build'));
   assert.match(webkit, /CONTRATOS_QA_BROWSER: webkit/);
   assert.match(webkit, /CONTRATOS_QA_DIAGNOSTICS_DIR: \$\{\{ runner\.temp \}\}\/webkit-diagnostics/);

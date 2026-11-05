@@ -1,6 +1,6 @@
 {
   "name": "contratos-web",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "private": true,
   "type": "module",
   "description": "Pesquisa de editais, atas e contratos no PNCP diretamente no navegador, com distribuição estática",

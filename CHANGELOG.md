@@ -2,6 +2,13 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.6.1 — 2026-11-05
+
+### Testes
+
+- Os testes de navegador rodam em processos separados, até três ao mesmo tempo, e o roteiro de interface foi dividido em três partes (`ui-smoke-1/2/3.mjs`) com as mesmas verificações. A suíte local passou de cerca de 2 min para cerca de 55 s; `--serial` mantém a execução de um arquivo por vez.
+- No CI, os navegadores do Playwright ficam em cache e a instalação tem limite de tempo com até três tentativas, evitando os travamentos no download.
+
 ## 2.6.0 — 2026-11-05
 
 ### Filtros
