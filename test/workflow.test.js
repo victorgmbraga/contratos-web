@@ -23,11 +23,22 @@ function artifactName(job, action) {
 // Navegadores em cache por versão do Playwright; instalação com limite de tempo e até três tentativas.
 function assertBrowserInstall(job, browser) {
   assert.match(job, /uses: actions\/cache@[^\n]+\n {8}with:\n {10}path: ~\/\.cache\/ms-playwright\n/);
-  assert(job.includes(`key: playwright-\${{ runner.os }}-${browser}-\${{ hashFiles('package-lock.json') }}`));
-  assert(job.includes(`timeout 150 npx playwright install --with-deps ${browser}`));
+  // A chave acompanha a revisão do navegador, não o package-lock (que muda a cada versão do app).
+  assert(
+    job.includes(
+      `key: playwright-\${{ runner.os }}-${browser}-\${{ hashFiles('node_modules/playwright-core/browsers.json') }}`
+    )
+  );
+  // Dependências do sistema num passo próprio, com retentativas do apt e sem timeout que deixe o apt órfão.
+  assert(job.includes(`npx playwright install-deps ${browser}`));
+  assert.match(job, /Acquire::Retries/);
+  assert(job.includes(`timeout 150 npx playwright install ${browser};`));
+  assert(!job.includes('--with-deps'), 'O download do navegador não instala pacotes do sistema');
   assert.match(job, /for attempt in 1 2 3; do/);
-  assert(job.indexOf('uses: actions/cache@') < job.indexOf('npx playwright install'));
-  assert(job.indexOf('npx playwright install') < job.indexOf('run: npm run test:browser'));
+  assert(job.indexOf('run: npm ci') < job.indexOf('uses: actions/cache@'));
+  assert(job.indexOf('uses: actions/cache@') < job.indexOf('install-deps'));
+  assert(job.indexOf('install-deps') < job.indexOf(`timeout 150 npx playwright install ${browser}`));
+  assert(job.indexOf(`timeout 150 npx playwright install ${browser}`) < job.indexOf('run: npm run test:browser'));
 }
 
 test('WORKFLOW-01: Chromium e Firefox validam em paralelo o mesmo build, sem recompilar', () => {
@@ -55,7 +66,6 @@ test('WORKFLOW-01: Chromium e Firefox validam em paralelo o mesmo build, sem rec
     .split(',')
     .map(value => value.trim());
   assert.deepEqual(engines, ['chromium', 'firefox']);
-  assert.match(browser, /playwright install --with-deps \$\{\{ matrix\.browser \}\}/);
   assertBrowserInstall(browser, '${{ matrix.browser }}');
   assert.match(browser, /CONTRATOS_QA_BROWSER: \$\{\{ matrix\.browser \}\}/);
   assert.match(browser, /run: npm run test:browser -- --skip-build/);
@@ -99,7 +109,6 @@ test('WORKFLOW-03: WebKit roda periodicamente ou sob demanda, com diagnósticos 
   assert.match(webkit, /schedule:\n {4}- cron: '[^']+'/);
   assert.match(webkit, /workflow_dispatch:/);
   assert.doesNotMatch(webkit, /^ {2}(push|pull_request):/m);
-  assert.match(webkit, /playwright install --with-deps webkit/);
   assertBrowserInstall(webkit, 'webkit');
   assert(webkit.indexOf('run: npm run build:qa') < webkit.indexOf('run: npm run test:browser -- --skip-build'));
   assert.match(webkit, /CONTRATOS_QA_BROWSER: webkit/);

@@ -8,6 +8,11 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 
 - O resumo de filtros aplicados mostra o nome da opção também nos filtros de escolha única com lista de opções: **Tipo de item** (Material ou Serviço, em vez de M ou S) e **Tipo de margem de preferência**.
 
+### Integração contínua
+
+- A instalação do navegador no CI separa as dependências do sistema (apt, com retentativas e tempo limite) do download do navegador (com limite e três tentativas). Antes, o limite de tempo interrompia o `npx`, mas deixava o `apt-get` rodando com o bloqueio do dpkg, e as tentativas seguintes falhavam na hora.
+- O cache dos navegadores usa a revisão definida pelo Playwright em vez do `package-lock.json`, que muda a cada versão do app e fazia o cache quase nunca ser reaproveitado.
+
 ## 2.8.0 — 2026-11-05
 
 ### Busca

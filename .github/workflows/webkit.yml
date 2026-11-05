@@ -20,19 +20,27 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:qa
-      # O navegador fica em cache por versão do Playwright; a instalação tem limite de tempo e repete
-      # em caso de falha, pois o download ocasionalmente trava nos runners.
+      # O navegador fica em cache pela revisão definida no Playwright. As dependências do sistema
+      # (apt) e o download do navegador são passos separados: o apt tem retentativas e tempo limite
+      # próprios, e o download do navegador, que ocasionalmente trava, tem limite e até três tentativas
+      # sem processos do apt que possam segurar o bloqueio do dpkg entre elas.
       - name: Restaurar navegadores do Playwright
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-webkit-${{ hashFiles('package-lock.json') }}
+          key: playwright-${{ runner.os }}-webkit-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
+      - name: Instalar as dependências do sistema do navegador
+        timeout-minutes: 10
+        run: |
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
+            sudo tee /etc/apt/apt.conf.d/80-ci-retries > /dev/null
+          npx playwright install-deps webkit
       - name: Instalar o navegador do Playwright
-        timeout-minutes: 9
+        timeout-minutes: 8
         run: |
           for attempt in 1 2 3; do
-            if timeout 150 npx playwright install --with-deps webkit; then exit 0; fi
-            echo "::warning::Instalação do navegador falhou ou excedeu o tempo (tentativa $attempt de 3)."
+            if timeout 150 npx playwright install webkit; then exit 0; fi
+            echo "::warning::Download do navegador falhou ou excedeu o tempo (tentativa $attempt de 3)."
             sleep 10
           done
           exit 1
