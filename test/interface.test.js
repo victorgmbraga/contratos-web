@@ -2092,6 +2092,19 @@ test('FILTER-OPTIONS-UI-01B: chips usam o nome da opção assim que o cache de d
   assert.match(chip, /^Órgão: Ministério da Gestão e da Inovação$/);
 });
 
+test('FILTER-OPTIONS-UI-01C: chips de filtros com uma única opção mostram o nome, não o código', async () => {
+  const ui = await interfaceFixture({
+    href: 'https://example.test/contratos-web/?tipos_item=S&tipos_margens_preferencia=1'
+  });
+  const chips = () =>
+    ui.nodes
+      .get('native-chips')
+      .children.map(node => node.textContent)
+      .sort();
+  for (let i = 0; i < 40 && !chips().some(text => text.includes('Serviço')); i++) await tick();
+  assert.deepEqual(chips(), ['Tipo de item: Serviço', 'Tipo de margem de preferência: Resolução CIIA-PAC']);
+});
+
 test('FILTER-OPTIONS-UI-02: nova inicialização reusa o armazenamento até quatro horas e atualiza depois', async () => {
   const storage = memoryStorage();
   let time = 1000;

@@ -386,9 +386,12 @@ export function createApplicationUI(
     $('native-chips').replaceChildren();
     for (const [key, value] of Object.entries(q.pncp_filters)) {
       const cap = state.schema.capabilities.find(c => c.name === key);
+      // Filtros com domínio mostram o nome da opção, com uma ou várias escolhas (ex.: Tipo de item: Serviço).
       const label = Array.isArray(value)
         ? value.map(id => filters.optionLabel(key, id)).join(', ')
-        : filterValueText(cap, value);
+        : cap?.domain
+          ? filters.optionLabel(key, String(value))
+          : filterValueText(cap, value);
       $('native-chips').append(el('span', `${filterLabel(key)}: ${label}`, 'filter-chip'));
     }
   }

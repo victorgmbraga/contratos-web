@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.8.1 — 2026-11-05
+
+### Filtros
+
+- O resumo de filtros aplicados mostra o nome da opção também nos filtros de escolha única com lista de opções: **Tipo de item** (Material ou Serviço, em vez de M ou S) e **Tipo de margem de preferência**.
+
 ## 2.8.0 — 2026-11-05
 
 ### Busca
