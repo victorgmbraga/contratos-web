@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-// Responsive geometry belongs to the mobile suite; business flows stay in ui-smoke.
+// Responsive geometry belongs to the mobile suite; business flows stay in ui-smoke-*.mjs.
 export async function assertFilterLayout(page) {
   const filter = name => page.locator(`#filter-${name}`);
   const check = message => console.log('PASS ' + message);

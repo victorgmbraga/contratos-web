@@ -59,7 +59,22 @@ jobs:
       - uses: actions/download-artifact@v8.0.2
         with:
           name: browser-builds
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      # O navegador fica em cache por versão do Playwright; a instalação tem limite de tempo e repete
+      # em caso de falha, pois o download ocasionalmente trava nos runners.
+      - name: Restaurar navegadores do Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+      - name: Instalar o navegador do Playwright
+        timeout-minutes: 9
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 150 npx playwright install --with-deps ${{ matrix.browser }}; then exit 0; fi
+            echo "::warning::Instalação do navegador falhou ou excedeu o tempo (tentativa $attempt de 3)."
+            sleep 10
+          done
+          exit 1
       - name: Executar testes no navegador
         id: browser_tests
         run: npm run test:browser -- --skip-build

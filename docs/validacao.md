@@ -97,7 +97,15 @@ npm run test:browser -- --skip-build
 CONTRATOS_QA_BROWSER=firefox npm run test:browser -- --skip-build
 ```
 
-`build:qa` gera `dist-browser/` e `dist-browser-test/` uma vez. `--skip-build` exige ambos os builds existentes e apenas os lê. As execuções locais acima devem ser sequenciais, pois usam os mesmos diretórios; no CI, cada navegador recebe uma cópia do mesmo artefato em seu próprio job. O runner informa a duração de cada etapa em linhas `TIME`.
+`build:qa` gera `dist-browser/` e `dist-browser-test/` uma vez. `--skip-build` exige ambos os builds existentes e apenas os lê. As execuções locais acima devem ser sequenciais, pois usam os mesmos diretórios; no CI, cada navegador recebe uma cópia do mesmo artefato em seu próprio job. O runner informa a duração de cada etapa em linhas `TIME` e o total em `TIME browser-total`.
+
+Cada arquivo de teste roda num processo próprio ([`test/browser-file.mjs`](../test/browser-file.mjs)), com seu navegador e servidor estático numa porta livre, e até três arquivos rodam ao mesmo tempo (o número de núcleos menos um, limitado a três). A saída de cada arquivo é impressa inteira quando ele termina, e depois de uma falha nenhum arquivo novo começa. Use `--serial` para executar um arquivo por vez com a saída ao vivo, ou `CONTRATOS_QA_BROWSER_WORKERS=2` para escolher o número de processos:
+
+```sh
+npm run test:browser -- --skip-build --serial
+CONTRATOS_QA_BROWSER_WORKERS=2 npm run test:browser -- --skip-build
+node test/browser-file.mjs ui-smoke-2.mjs   # um único arquivo
+```
 
 O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as seguintes etapas:
 
@@ -107,7 +115,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Componente de tabela | Cem linhas, conteúdo tratado como texto, paginação, foco, menus, teclado, redimensionamento, movimentação, visibilidade, cabeçalho fixo e destruição |
 | Paginação compartilhada | [`test/pagination.browser.mjs`](../test/pagination.browser.mjs): janela de páginas, atalhos, teclado/foco, carregamento, total desconhecido e números longos nos dois temas, de 320 a 1068 px |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
-| Interface | Presença e tipos dos 73/16/31 filtros compatíveis, interações representativas por controle, nomes acessíveis do cabeçalho, três tipos, links, histórico, paginação, painéis, CSV e cancelamento; o núcleo confere exaustivamente os 80 filtros |
+| Interface ([`ui-smoke-1.mjs`](../test/ui-smoke-1.mjs), [`-2`](../test/ui-smoke-2.mjs) e [`-3`](../test/ui-smoke-3.mjs), com a sessão comum em [`ui-smoke-session.js`](../test/ui-smoke-session.js)) | Presença e tipos dos 73/16/31 filtros compatíveis, interações representativas por controle, nomes acessíveis do cabeçalho, três tipos, links, histórico, paginação, painéis, CSV e cancelamento; o núcleo confere exaustivamente os 80 filtros |
 | Botões | Transições de cor sem alterar a geometria, movimentos específicos de busca, filtros, colunas, exportação e tema no hover e no foco por teclado, feedback de toque e paginação recriada durante a consulta |
 | Seletores | Menus reais, teclado e cancelamento, busca por letras, URL/Voltar, filtros, menu Mais, detalhes, temas/contraste, limites do viewport, estados e opções dinâmicas, formulários e texto não confiável |
 | Temas | Alternância, restauração, sincronização, contraste mínimo de 4,5:1 nos textos verificados e 3:1 nas barras de rolagem, interação das barras, filtros, detalhes, avisos, carregamento e tela pequena |
@@ -135,7 +143,7 @@ CONTRATOS_QA_DIAGNOSTICS_DIR=/tmp/contratos-evidencias npm run test:browser -- -
 
 Cada etapa que falhar grava `failure.txt`, `console.json`, screenshots das páginas abertas e um trace por contexto quando disponíveis. Abra o trace com `npx playwright show-trace caminho/para/context-1-trace.zip`. O CI salva essas evidências como `browser-failure-chromium`, `browser-failure-firefox` ou `browser-failure-webkit` por sete dias. Os dados do navegador usados nesses testes são sintéticos. Uma etapa bem-sucedida não gera artefatos de diagnóstico. Novas suítes devem chamar `diagnoseBrowserFailure(error)` antes de fechar páginas, contextos ou o navegador, preservando o erro original.
 
-O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa formatação, lint, as duas verificações de tipos e os testes com cobertura uma vez; gera os dois builds, verifica o orçamento e compartilha `browser-builds`. A matriz `browser` executa Chromium e Firefox em paralelo, cada um instalando apenas seu navegador e testando os mesmos arquivos com `--skip-build`. Uma falha não cancela a coleta de resultados do outro navegador. O job `deploy` depende de `validate` e de toda a matriz, baixa o mesmo artefato e envia apenas `dist-browser/` ao Pages, sem recompilar. Após publicar, [`test/verify-deployment.mjs`](../test/verify-deployment.mjs) compara a página e os recursos principais do domínio público com o build validado, incluindo o tipo de conteúdo HTTP. Até oito tentativas, com intervalo de cinco segundos, acomodam a propagação do Pages. A verificação não consulta o PNCP.
+O workflow [`validate.yml`](../.github/workflows/validate.yml) executa em pull requests e pushes para `main`, além de permitir execução manual. O job `validate` executa formatação, lint, as duas verificações de tipos e os testes com cobertura uma vez; gera os dois builds, verifica o orçamento e compartilha `browser-builds`. A matriz `browser` executa Chromium e Firefox em paralelo, cada um instalando apenas seu navegador e testando os mesmos arquivos com `--skip-build`. O navegador fica em cache (`~/.cache/ms-playwright`, por versão do `package-lock.json`), e a instalação tem limite de 150 s por tentativa, com até três tentativas, porque o download ocasionalmente trava nos runners. Uma falha não cancela a coleta de resultados do outro navegador. O job `deploy` depende de `validate` e de toda a matriz, baixa o mesmo artefato e envia apenas `dist-browser/` ao Pages, sem recompilar. Após publicar, [`test/verify-deployment.mjs`](../test/verify-deployment.mjs) compara a página e os recursos principais do domínio público com o build validado, incluindo o tipo de conteúdo HTTP. Até oito tentativas, com intervalo de cinco segundos, acomodam a propagação do Pages. A verificação não consulta o PNCP.
 
 Somente `main`, fora de pull requests, é publicada; falha ou cancelamento da validação impede o deploy. Se a verificação posterior falhar, a publicação já ocorreu e o job fica com erro para sinalizar o problema. As permissões de escrita de Pages e identidade ficam restritas ao job de deploy. A recomendação é exigir as verificações desse workflow em `main` (**Settings → Branches → Require status checks**), já que o repositório não controla a proteção de branch por arquivo.
 
