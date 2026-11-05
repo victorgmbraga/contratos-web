@@ -199,6 +199,10 @@
     min-height: 44px;
     font-size: 1rem;
   }
+  .filters-modal .filter-field :is(input, select),
+  .filters-modal .filter-field > .select-control {
+    min-height: 44px;
+  }
   .filter-reset {
     min-width: 44px;
     min-height: 44px;

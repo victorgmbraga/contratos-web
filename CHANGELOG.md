@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.5.4 — 2026-11-05
+
+### Filtros
+
+- O espaçamento vertical do modal de filtros fica uniforme: campos de data, texto, lista e seleção múltipla têm a mesma altura, e áreas vazias (opções escolhidas) e margens extras das listas não aumentam mais algumas linhas.
+
 ## 2.5.3 — 2026-11-04
 
 ### Filtros
