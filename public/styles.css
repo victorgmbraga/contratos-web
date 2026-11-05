@@ -953,6 +953,10 @@ dialog::backdrop {
 }
 .filter-field {
   --filter-placeholder: var(--placeholder, #757575);
+  /* Coluna com espaçamento único: campos com e sem ajuda, erro ou opções escolhidas mantêm o mesmo ritmo. */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   min-width: 0;
 }
 .filter-field-heading {
@@ -960,7 +964,7 @@ dialog::backdrop {
   align-items: flex-start;
   justify-content: space-between;
   gap: 6px;
-  min-height: 28px;
+  min-height: 24px;
 }
 .filter-field-heading label {
   cursor: pointer;
@@ -981,13 +985,18 @@ dialog::backdrop {
   stroke-width: 2;
 }
 .filter-field label {
-  margin-bottom: 6px;
+  margin-bottom: 0;
   font-weight: 500;
 }
 .filter-field input,
 .filter-field select {
   width: 100%;
   font-weight: 400;
+}
+/* Data, texto e lista têm alturas nativas diferentes; a mesma altura evita linhas desiguais. */
+.filters-modal .filter-field :is(input, select),
+.filters-modal .filter-field > .select-control {
+  min-height: 42px;
 }
 .filter-field input:focus,
 .filter-finder input:focus {
@@ -1042,10 +1051,6 @@ dialog::backdrop {
 .filter-field select option[value=''] {
   color: var(--filter-placeholder);
 }
-.filter-field > input,
-.filter-field > select {
-  margin-bottom: 6px;
-}
 .filter-help {
   margin: 0;
   font-size: 0.75rem;
@@ -1054,7 +1059,7 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 .filter-field .inline-error {
-  margin: 8px 0;
+  margin: 0;
   font-size: 0.75rem;
 }
 #filter-popups {
@@ -1109,7 +1114,10 @@ dialog::backdrop {
   color: white;
 }
 .filter-field .selected-options {
-  margin: 6px 0;
+  margin: 0;
+}
+.filter-field .selected-options:empty {
+  display: none;
 }
 .filter-field .selected-option {
   text-align: left;
