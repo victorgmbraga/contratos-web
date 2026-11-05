@@ -95,6 +95,7 @@ async function headerLayout(width) {
   assert(boxes.order.x + boxes.order.width < boxes.more.x, 'Mais fica à direita dos seletores');
   await page.locator('#search').focus();
   const sequence = [
+    'search-help-button',
     'search-button',
     'filters-button',
     'document-type-control',

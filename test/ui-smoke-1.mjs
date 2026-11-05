@@ -33,7 +33,9 @@ try {
     await page.waitForFunction(() => window.dialogClosed, undefined, { timeout: 5000 });
   }
   await page.mouse.move(0, 0);
+  // Busca → Dicas de busca → Pesquisar → Filtros.
   await page.locator('#search').focus();
+  await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'filters-button');

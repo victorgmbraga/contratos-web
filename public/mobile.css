@@ -110,7 +110,18 @@
     gap: 6px;
     min-height: 44px;
   }
-  .search-field > svg {
+  .search-help-button {
+    width: 36px;
+    height: 36px;
+  }
+  .search-help-example {
+    min-height: 44px;
+  }
+  /* A lupa do campo fica oculta no celular; o rótulo continua associado ao campo. */
+  .search-field-icon {
+    display: contents;
+  }
+  .search-field-icon > svg {
     display: none;
   }
   .search-field input {

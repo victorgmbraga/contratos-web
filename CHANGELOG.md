@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.7.0 — 2026-11-05
+
+### Busca
+
+- Botão **Dicas de busca** (?) no fim do campo de busca, com os operadores que o PNCP aceita: `OR` em maiúsculas para qualquer termo (`microsoft OR o365 OR office`), `NOT` para excluir e aspas para frase exata. Cada exemplo preenche a busca. O painel avisa que o PNCP procura o texto também na descrição dos itens, e o guia de uso ganhou a seção **Combinar termos**.
+
 ## 2.6.1 — 2026-11-05
 
 ### Testes

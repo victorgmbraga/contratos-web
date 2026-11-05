@@ -18,6 +18,19 @@ Digite palavras do objeto, do órgão ou outros termos no campo de busca e press
 
 Ao abrir a página sem critérios, a aplicação mostra os documentos mais recentes do tipo escolhido.
 
+### Combinar termos
+
+A busca do PNCP aceita operadores. O botão **?** no fim do campo mostra estas dicas, e cada exemplo pode ser escolhido para preencher a busca:
+
+| Para encontrar | Digite | Exemplo |
+| --- | --- | --- |
+| Todas as palavras | os termos separados por espaço | `microsoft office` |
+| Qualquer uma delas | `OR`, em maiúsculas, entre os termos | `microsoft OR o365 OR office` |
+| Excluir um termo | `NOT` antes do termo | `office NOT microsoft` |
+| Uma frase exata | o texto entre aspas | `"microsoft office"` |
+
+Maiúsculas não fazem diferença nos termos. `or` minúsculo é tratado como palavra comum, e `-` e `*` não funcionam como operadores. O PNCP procura o texto no objeto e também na descrição dos itens: uma busca por `microsoft` traz, por exemplo, compras de notebooks com Windows. Não há como restringir a busca só ao objeto.
+
 ## Filtrar
 
 O botão **Filtros** abre o modal com todos os filtros compatíveis com o tipo:

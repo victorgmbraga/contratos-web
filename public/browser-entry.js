@@ -1,6 +1,7 @@
 import './browser-styles.css';
 import './theme.js';
 import { initializeButtonMotion } from './button-motion.js';
+import { initializeSearchHelp } from './search-help.js';
 import { createApplicationUI } from './app.js';
 import { createWorkerService } from '../src/browser/service.js';
 
@@ -20,4 +21,5 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register(new URL('./sw.js', document.baseURI)).catch(() => {});
 }
 initializeButtonMotion(document);
+initializeSearchHelp(document, window);
 createApplicationUI(service);

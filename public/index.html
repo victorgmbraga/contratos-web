@@ -69,11 +69,12 @@
           </svg>
         </button>
         <form id="search-form" class="search-row" role="search" aria-label="Pesquisar contratações">
-          <label class="search-field"
-            ><svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="m16 16 5 5" /></svg
-            ><span class="sr-only">Busca textual no PNCP</span
+          <div class="search-field">
+            <label for="search" class="search-field-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="m16 16 5 5" /></svg
+              ><span class="sr-only">Busca textual no PNCP</span></label
             ><input
               id="search"
               type="search"
@@ -81,7 +82,27 @@
               placeholder="Busque por objeto, órgão ou palavras-chave"
               autocomplete="off"
               aria-keyshortcuts="/ Control+K"
-          /></label>
+              aria-describedby="search-help-summary"
+            /><button
+              type="button"
+              class="search-help-button"
+              id="search-help-button"
+              aria-label="Dicas de busca"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+              aria-controls="search-help"
+              popovertarget="search-help"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8" />
+                <path d="M12 17.2h.01" />
+              </svg>
+            </button>
+          </div>
+          <span id="search-help-summary" class="sr-only"
+            >Use OR em maiúsculas para qualquer termo, NOT para excluir e aspas para frase exata.</span
+          >
           <button
             type="submit"
             class="button primary icon-only search-action"
@@ -200,6 +221,48 @@
               d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
             /></svg
         ></a>
+        <div id="search-help" popover="auto" role="dialog" aria-labelledby="search-help-title">
+          <h2 id="search-help-title">Dicas de busca</h2>
+          <p class="search-help-intro">Escolha um exemplo para usá-lo na busca.</p>
+          <dl class="search-help-list">
+            <div>
+              <dt>Todas as palavras</dt>
+              <dd>
+                <button type="button" class="search-help-example" data-query="microsoft office">
+                  microsoft office
+                </button>
+              </dd>
+            </div>
+            <div>
+              <dt>Qualquer uma (<code>OR</code> em maiúsculas)</dt>
+              <dd>
+                <button type="button" class="search-help-example" data-query="microsoft OR o365 OR office">
+                  microsoft OR o365 OR office
+                </button>
+              </dd>
+            </div>
+            <div>
+              <dt>Excluir um termo (<code>NOT</code>)</dt>
+              <dd>
+                <button type="button" class="search-help-example" data-query="office NOT microsoft">
+                  office NOT microsoft
+                </button>
+              </dd>
+            </div>
+            <div>
+              <dt>Frase exata (entre aspas)</dt>
+              <dd>
+                <button type="button" class="search-help-example" data-query='"microsoft office"'>
+                  "microsoft office"
+                </button>
+              </dd>
+            </div>
+          </dl>
+          <p class="search-help-note">
+            A busca do PNCP considera o objeto e também a descrição dos itens; maiúsculas não fazem diferença.
+            <code>or</code> minúsculo, <code>-</code> e <code>*</code> não funcionam como operadores.
+          </p>
+        </div>
         <div id="more-actions" popover="auto" role="group" aria-label="Mais ações">
           <button type="button" id="mobile-view-button" class="button" aria-label="Ver como tabela" data-view="table">
             <svg class="view-icon-table" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
