@@ -2,12 +2,20 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
-## 2.5.5 — 2026-11-05
+## 2.6.1 — 2026-11-05
 
 ### Testes
 
 - Os testes de navegador rodam em processos separados, até três ao mesmo tempo, e o roteiro de interface foi dividido em três partes (`ui-smoke-1/2/3.mjs`) com as mesmas verificações. A suíte local passou de cerca de 2 min para cerca de 55 s; `--serial` mantém a execução de um arquivo por vez.
 - No CI, os navegadores do Playwright ficam em cache e a instalação tem limite de tempo com até três tentativas, evitando os travamentos no download.
+
+## 2.6.0 — 2026-11-05
+
+### Filtros
+
+- **Município** e **Município do fornecedor** passam a usar a relação oficial do IBGE (5.571 municípios), carregada só quando o campo é usado: ao abrir, mostram as capitais ou os municípios das UFs escolhidas, e a busca funciona desde a primeira letra, sem acentos e aceitando a UF no termo. Os nomes aparecem como `Município/UF`, inclusive em links compartilhados, sem consultar o PNCP. Se a relação não carregar, os campos voltam às sugestões do PNCP.
+- Órgão, unidade, fornecedor, fonte/plataforma e os campos sub-rogados, que dependem da busca do PNCP a partir de três caracteres, mostram antes disso as opções **usadas recentemente** neste navegador (até oito por campo).
+- As orientações dentro das listas de opções ("Digite ao menos 3 caracteres…", "Consultando opções…") passam a ser anunciadas por uma região de status fora da lista, corrigindo uma violação de acessibilidade (`aria-required-children`).
 
 ## 2.5.4 — 2026-11-05
 

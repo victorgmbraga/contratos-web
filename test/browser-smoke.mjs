@@ -51,6 +51,7 @@ const files = [
   'button-motion.browser.mjs',
   'results-table.browser.mjs',
   'pagination.browser.mjs',
+  'municipality-filter.browser.mjs',
   'filter-options-cache.browser.mjs',
   'browser-diagnostics.browser.mjs'
 ];

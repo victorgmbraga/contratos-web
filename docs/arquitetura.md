@@ -83,6 +83,8 @@ Cada decisão registra o contexto, a escolha e suas consequências. Novas decis�
 | [`src/browser/service.js`](../src/browser/service.js), [`protocol.js`](../src/browser/protocol.js) | Ponte por ID, versão, cancelamento local, descarte de respostas tardias e recuperação de falha |
 | [`src/browser/filter-options-cache.js`](../src/browser/filter-options-cache.js), [`options-db.js`](../src/browser/options-db.js) | Pré-carregamento dos domínios dos três tipos, cache local com validade de 4 horas, deduplicação, opções dependentes de normativos e fallback em IndexedDB quando o `localStorage` não está disponível |
 | [`src/browser/filter-label-cache.js`](../src/browser/filter-label-cache.js) | Nomes de opções selecionadas, persistidos por tipo documental, campo e ID para restaurar a apresentação após recarregar |
+| [`src/browser/recent-filter-options.js`](../src/browser/recent-filter-options.js) | Opções escolhidas recentemente nos campos com sugestão, por campo, mostradas antes da busca de três caracteres |
+| [`public/municipality-catalog.js`](../public/municipality-catalog.js), [`municipios-ibge.json`](../public/municipios-ibge.json) | Relação de municípios do IBGE carregada sob demanda, busca local e rótulos `Município/UF` dos filtros por código IBGE |
 | [`src/browser/query-url.js`](../src/browser/query-url.js) | Leitura e escrita de parâmetros GET, conversão de filtros tipados e validação compartilhada de links de pesquisa |
 | [`src/browser/detail-url.js`](../src/browser/detail-url.js) | Identidade documental e aba nos parâmetros GET, com validação por tipo de documento |
 | [`public/app.js`](../public/app.js) | Interface inicializada com serviço e tabela injetáveis; consultas, DOM, histórico da URL e download |

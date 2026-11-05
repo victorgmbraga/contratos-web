@@ -51,7 +51,7 @@ export default [
     languageOptions: languageOptions({ ...globals.node, ...globals.browser })
   },
   {
-    files: ['vite.config.js', 'eslint.config.js'],
+    files: ['vite.config.js', 'eslint.config.js', 'scripts/**/*.mjs'],
     languageOptions: languageOptions({ ...globals.node })
   }
 ];

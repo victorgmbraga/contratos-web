@@ -194,6 +194,9 @@
   .filter-options-popup > .panel-note {
     min-height: 44px;
   }
+  .filter-options-popup > .suggestion-heading {
+    min-height: 0;
+  }
   dialog input:not([type='checkbox']),
   dialog select {
     min-height: 44px;

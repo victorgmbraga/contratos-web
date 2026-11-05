@@ -87,7 +87,7 @@ CNPJ exige 14 dígitos, ano exige quatro e sequenciais são inteiros positivos d
 | Campos | Formato |
 | --- | --- |
 | `ufs` | Lista de siglas, por exemplo `["DF", "GO"]` |
-| `orgaos`, `unidades`, `municipios` | Listas de IDs numéricos como strings, obtidos dos domínios ou sugestões |
+| `orgaos`, `unidades`, `municipios` | Listas de IDs numéricos como strings, obtidos dos domínios ou sugestões; `municipios` usa o código IBGE, que a interface obtém da relação local de municípios |
 | `codigo_ibge` | String com exatamente sete dígitos, por exemplo `"5300108"`; não é o ID de `municipios` |
 | `srp` | Booleano `true` ou `false`; omitir o filtro não restringe por SRP |
 | `indicador_orcamento_sigiloso`, `exigencia_conteudo_nacional` | Booleanos `true` ou `false` da contratação |
@@ -129,7 +129,7 @@ Os campos de sub-rogação, itens, resultados, fornecedores e contratos estão a
 | `data_homologacao_inicio/fim` | Datas reais `AAAA-MM-DD`, referentes ao resultado |
 | `resultado_quantidade_homologado_min/max`, `resultado_valor_unitario_homologado_min/max`, `resultado_valor_total_homologado_min/max` | Decimais não negativos em strings |
 | `resultado_percentual_desconto_min/max` | Decimais em strings entre `"0"` e `"100"`, sem `%` |
-| `municipios_fornecedor` | Lista de IDs numéricos em strings, fornecidos por sugestões |
+| `municipios_fornecedor` | Lista de códigos IBGE em strings; a interface os obtém da relação local de municípios |
 | `paises_fornecedor` | Lista de IDs alfabéticos de três letras do catálogo, como `"BRA"`; não enviar códigos BCB |
 | `portes_fornecedor`, `naturezas_juridicas` | Listas de IDs numéricos em strings, conferidas nos catálogos; zeros à esquerda são preservados |
 | `tipos_contrato` | Lista de IDs conferidos no domínio de contratos; exclusivo de contrato |
@@ -197,7 +197,7 @@ Sem `field`, ou com um filtro da busca, a origem é `/api/search/filters`. Para 
 
 Opções desses catálogos podem incluir `active: false`; a interface identifica opções inativas e permite consultar registros associados a elas. O aplicativo valida e envia os IDs do catálogo de países, sem conversão BCB.
 
-Domínios fechados são conferidos pelo Worker antes da pesquisa e da exportação. Reservas/remanescentes usam a enumeração fixa do portal, com `domain_source: reference` e sem requisição externa para obter essas opções. Domínios parciais utilizam sugestões e não são tratados como listas exaustivas; incluem sistemas de origem, sub-rogação, fornecedores, municípios de fornecedores e unidades de medida.
+Domínios fechados são conferidos pelo Worker antes da pesquisa e da exportação. Reservas/remanescentes usam a enumeração fixa do portal, com `domain_source: reference` e sem requisição externa para obter essas opções. Domínios parciais utilizam sugestões e não são tratados como listas exaustivas; incluem sistemas de origem, sub-rogação, fornecedores, municípios de fornecedores e unidades de medida. O `/api/search/suggest` exige ao menos três caracteres em `q` e responde 400 a termos menores; por isso a interface usa a relação local do IBGE para os municípios e mostra as opções usadas recentemente nos demais campos.
 
 Na inicialização, a interface pré-carrega em segundo plano as opções de `edital`, `ata` e `contrato`, os quatro catálogos compartilhados e a referência fixa. São oito operações locais `domains`, sete delas com consulta externa quando não há cache válido. As listas normalizadas ficam no `localStorage` por 4 horas desde o carregamento, sem renovar a validade em leituras. Abrir o modal preenche todos os filtros compatíveis usando essas listas; entradas vencidas são descartadas e obtidas novamente na inicialização ou no próximo uso. Falhas de uma lista não bloqueiam os demais campos; o campo afetado mostra o erro e permite tentar novamente. Armazenamento indisponível usa memória. O cache não altera as consultas de validação do Worker, pesquisa, detalhes, CSV ou sugestões por texto.
 

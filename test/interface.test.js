@@ -11,6 +11,12 @@ import { config, service, document, memoryStorage } from './helpers.js';
 import { FILTER_OPTIONS_TTL } from '../src/browser/filter-options-cache.js';
 import { project } from '../src/adapter.js';
 import pncpOptions from './fixtures/pncp-options.json' with { type: 'json' };
+import { createMunicipalityCatalog } from '../public/municipality-catalog.js';
+import { RECENT_FILTER_OPTIONS_KEY } from '../src/browser/recent-filter-options.js';
+
+const municipalityFile = new URL('../public/municipios-ibge.json', import.meta.url);
+const localMunicipalities = () =>
+  createMunicipalityCatalog(async () => JSON.parse(await readFile(municipalityFile, 'utf8')));
 
 const pendingDownloadCleanups = new Set();
 afterEach(() => {
@@ -324,7 +330,8 @@ async function interfaceFixture(options = {}) {
     window: view,
     tableFactory,
     optionsCacheSettings: options.cacheSettings,
-    schedule
+    schedule,
+    municipalityCatalog: options.municipalityCatalog ?? localMunicipalities()
   });
   await uiCore.ready;
   if (options.waitOptions !== false) await uiCore.state.optionsReady;
@@ -2709,7 +2716,7 @@ test('FILTERS-UI-21: múltiplos usam busca local sem acentos, alternam opções 
 });
 
 test(
-  'FILTERS-UI-23: município do fornecedor ausente da lista inicial permite sugestões, aplicação e cache',
+  'FILTERS-UI-23: sem a relação local de municípios, o município do fornecedor volta às sugestões do PNCP',
   { timeout: 10000 },
   async () => {
     const storage = memoryStorage(),
@@ -2732,7 +2739,11 @@ test(
       delete data.filters.modalidades;
       return Response.json(data);
     };
-    const ui = await interfaceFixture({ storage, itemFetcher: provider });
+    const offline = () =>
+      createMunicipalityCatalog(async () => {
+        throw new Error('Relação indisponível');
+      });
+    const ui = await interfaceFixture({ storage, itemFetcher: provider, municipalityCatalog: offline() });
     await ui.nodes.get('filters-button').fire('click');
     const input = ui.field('municipios_fornecedor');
     assert.equal(input.disabled, false);
@@ -2763,7 +2774,12 @@ test(
     await ui.nodes.get('apply-filters').fire('click');
     assert.deepEqual(ui.requests.at(-1).pncp_filters.municipios_fornecedor, ['5300108']);
     assert.equal(new URL(ui.browser.href()).searchParams.get('municipios_fornecedor'), '5300108');
-    const restored = await interfaceFixture({ storage, itemFetcher: provider, href: ui.browser.href() });
+    const restored = await interfaceFixture({
+      storage,
+      itemFetcher: provider,
+      href: ui.browser.href(),
+      municipalityCatalog: offline()
+    });
     assert.equal(restored.domainRequests.length, 0);
     await restored.nodes.get('filters-button').fire('click');
     assert.equal(restored.field('municipios_fornecedor').disabled, false);
@@ -2874,6 +2890,131 @@ test('FILTERS-UI-22: refocar uma busca remota pendente preserva o carregamento e
   await option.fire('click');
   assert.deepEqual(ui.draft().pncp_filters.orgaos, ['77']);
   assert.equal(ui.requests.length, 1);
+});
+
+const optionTexts = async (ui, name) => {
+  await ui.options(name);
+  const list = ui.nodes.get(`filter-suggestions-${name}`);
+  // A relação de municípios é lida do disco; aguarda até sair do estado de carregamento.
+  for (let i = 0; i < 50 && (i === 0 || list.children[0]?.textContent === 'Carregando municípios…'); i++) {
+    await settle();
+    if (list.children[0]?.textContent === 'Carregando municípios…') await new Promise(r => setTimeout(r, 10));
+  }
+  return list.children.map(node => ({
+    tag: node.tagName,
+    text: node.tagName === 'button' ? node.getAttribute('aria-label') : node.textContent,
+    value: node.dataset.value
+  }));
+};
+
+test('FILTERS-UI-25: municípios usam a relação do IBGE desde a primeira letra, priorizando as UFs escolhidas', async () => {
+  const storage = memoryStorage(),
+    ui = await interfaceFixture({ storage });
+  await ui.nodes.get('filters-button').fire('click');
+  const input = ui.field('municipios');
+  assert.equal(input.placeholder, 'Buscar município');
+  // Sem texto e sem UF: capitais, com a orientação para buscar.
+  let items = await optionTexts(ui, 'municipios');
+  const buttons = items.filter(item => item.tag === 'button');
+  assert.equal(buttons.length, 27);
+  assert(buttons.some(item => item.text === 'Brasília/DF' && item.value === '5300108'));
+  assert.match(items.at(-1).text, /Digite para buscar entre os 5\.571 municípios/);
+  // Uma letra já busca localmente, sem consultar o PNCP.
+  input.value = 'b';
+  await input.fire('input');
+  items = (await optionTexts(ui, 'municipios')).filter(item => item.tag === 'button');
+  assert.equal(items.length, 50);
+  assert(items.every(item => /^B/i.test(item.text)));
+  assert.equal(ui.suggestRequests.length, 0);
+  input.value = 'bom jesus pi';
+  await input.fire('input');
+  items = (await optionTexts(ui, 'municipios')).filter(item => item.tag === 'button');
+  assert.equal(items[0].text, 'Bom Jesus/PI');
+  // Com UF escolhida, a lista sem texto mostra os municípios dessa UF.
+  await ui.editFilter('ufs', ['DF']);
+  input.value = '';
+  await input.fire('input');
+  items = await optionTexts(ui, 'municipios');
+  assert.deepEqual(
+    items.filter(item => item.tag === 'button').map(item => item.text),
+    ['Brasília/DF']
+  );
+  // Com texto, municípios das UFs escolhidas vêm antes dos demais.
+  input.value = 'bras';
+  await input.fire('input');
+  items = (await optionTexts(ui, 'municipios')).filter(item => item.tag === 'button');
+  assert.equal(items[0].text, 'Brasília/DF');
+  assert(items.length > 1);
+  const brasilia = (await ui.options('municipios')).find(button => button.dataset.value === '5300108');
+  await brasilia.fire('click');
+  await ui.nodes.get('apply-filters').fire('click');
+  assert.deepEqual(ui.requests.at(-1).pncp_filters.municipios, ['5300108']);
+  assert.equal(ui.suggestRequests.length, 0);
+  // Um link compartilhado mostra o nome do município, sem consultar o PNCP.
+  const restored = await interfaceFixture({ href: ui.browser.href() });
+  await settle();
+  assert(
+    restored.nodes.get('native-chips').children.some(chip => chip.textContent === 'Município: Brasília/DF'),
+    'chip com o nome do município'
+  );
+  // A escolha vira recente e aparece primeiro ao reabrir.
+  const again = await interfaceFixture({ storage });
+  await again.nodes.get('filters-button').fire('click');
+  items = await optionTexts(again, 'municipios');
+  assert.equal(items[0].text, 'Usados recentemente');
+  assert.equal(items[1].value, '5300108');
+  assert.equal(items[2].text, 'Capitais');
+  assert.equal(items.filter(item => item.value === '5300108').length, 1);
+});
+
+test('FILTERS-UI-26: campos com sugestão do PNCP mostram as opções usadas recentemente antes de digitar', async () => {
+  const storage = memoryStorage();
+  const withoutOrgans = async (url, init) => {
+    const response = await demoFetch(url, init);
+    if (!new URL(url).pathname.endsWith('/filters')) return response;
+    const data = await response.json();
+    delete data.filters.orgaos;
+    return Response.json(data);
+  };
+  let ui = await interfaceFixture({ storage, itemFetcher: withoutOrgans });
+  await ui.nodes.get('filters-button').fire('click');
+  let items = await optionTexts(ui, 'orgaos');
+  assert.deepEqual(items, [{ tag: 'p', text: 'Digite ao menos 3 caracteres para buscar no PNCP.', value: undefined }]);
+  // Seleções feitas em outro momento (aqui, gravadas por uma sessão anterior) ficam disponíveis.
+  storage.setItem(
+    RECENT_FILTER_OPTIONS_KEY,
+    JSON.stringify({
+      orgaos: [
+        ['7', 'Ministério da Demonstração'],
+        ['8', 'Tribunal de Exemplo']
+      ]
+    })
+  );
+  ui = await interfaceFixture({ storage, itemFetcher: withoutOrgans });
+  await ui.nodes.get('filters-button').fire('click');
+  items = await optionTexts(ui, 'orgaos');
+  assert.deepEqual(
+    items.map(item => item.text),
+    [
+      'Usados recentemente',
+      'Ministério da Demonstração',
+      'Tribunal de Exemplo',
+      'Digite ao menos 3 caracteres para buscar outras opções no PNCP.'
+    ]
+  );
+  const input = ui.field('orgaos');
+  input.value = 'ex';
+  await input.fire('input');
+  items = await optionTexts(ui, 'orgaos');
+  assert.deepEqual(
+    items.filter(item => item.tag === 'button').map(item => item.value),
+    ['8']
+  );
+  assert.equal(ui.suggestRequests.length, 0);
+  await (await ui.options('orgaos'))[0].fire('click');
+  assert.deepEqual(ui.draft().pncp_filters.orgaos, ['8']);
+  // A opção escolhida passa a ser a mais recente.
+  assert.deepEqual(JSON.parse(storage.getItem(RECENT_FILTER_OPTIONS_KEY)).orgaos[0], ['8', 'Tribunal de Exemplo']);
 });
 
 test('CONTRACTS-UI-01: trocar o tipo reinicia critérios, colunas e status e permite consultar e exportar contratos', async () => {
