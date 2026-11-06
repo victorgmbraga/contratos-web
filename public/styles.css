@@ -412,6 +412,10 @@ p {
 .search-library-list:empty {
   display: none;
 }
+.search-library-message {
+  padding: 4px 0;
+  color: var(--muted);
+}
 .search-library-list > li {
   display: flex;
   gap: 4px;

@@ -19,8 +19,13 @@ try {
     const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme });
     await routePncp(context);
     const page = await context.newPage(),
-      errors = [];
+      errors = [],
+      presetRequests = [];
     page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => {
+      if (/\/assets\/search-presets-[\w-]+\.json$/.test(new URL(request.url()).pathname))
+        presetRequests.push(request.url());
+    });
     const url = `http://127.0.0.1:${app.server.address().port}/`;
     await page.goto(url);
     await page.waitForFunction(() => !document.querySelector('#refresh-button').disabled);
@@ -28,7 +33,11 @@ try {
       await page.locator('#search-help-button').click();
       await page.locator('#search-help').waitFor();
     };
+    // As listas de termos ficam fora do JavaScript inicial e só são baixadas ao abrir o painel.
+    assert.equal(presetRequests.length, 0, 'Buscas prontas baixadas antes de abrir o painel');
     await open();
+    await page.locator('#search-presets .search-library-name').first().waitFor();
+    assert.equal(presetRequests.length, 1);
     const presets = page.locator('#search-presets .search-library-name');
     assert.equal(await presets.count(), 9);
     assert.equal(await presets.first().innerText(), 'Microsoft');

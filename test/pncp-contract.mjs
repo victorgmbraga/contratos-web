@@ -3,10 +3,10 @@
 // depende, usando o mesmo serviço do Worker com o fetch do Node:
 //   node test/pncp-contract.mjs
 // CONTRATOS_PNCP_REPORT=arquivo.md grava um relatório em Markdown (usado pelo workflow semanal).
-import { writeFile } from 'node:fs/promises';
 import { createRuntime } from '../src/browser/runtime.js';
 import { MAX_QUERY_TEXT } from '../src/schema.js';
-import { PRESETS, presetSearch, readSearch } from '../public/search-library.js';
+import { readFile, writeFile } from 'node:fs/promises';
+import { parsePresets, presetSearch, readSearch } from '../public/search-library.js';
 
 const settings = { PNCP_MAX_RETRIES: 4, PNCP_READ_TIMEOUT_SECONDS: 60, PNCP_OPERATION_TIMEOUT_SECONDS: 180 };
 const runtime = createRuntime(settings, { fetcher: (url, init) => fetch(url, init) });
@@ -124,7 +124,10 @@ await check(`Busca textual com ${fmt(MAX_QUERY_TEXT)} caracteres`, async () => {
 
 await check('Buscas prontas abaixo da janela de 10.000 resultados', async () => {
   const totals = [];
-  for (const preset of PRESETS) {
+  const presets = parsePresets(
+    JSON.parse(await readFile(new URL('../public/search-presets.json', import.meta.url), 'utf8'))
+  );
+  for (const preset of presets) {
     const query = readSearch(presetSearch(preset), schema, 10);
     const count = (await call('execute', { query })).total;
     expect(count > 0, `${preset.name} não trouxe resultados`);

@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { schema, MAX_QUERY_TEXT } from '../src/schema.js';
 import { defaults } from '../src/settings.js';
 import { readQueryUrl } from '../src/browser/query-url.js';
+import { readFile } from 'node:fs/promises';
 import {
-  PRESETS,
   createSavedSearches,
+  fetchPresets,
+  parsePresets,
   describeQuery,
   MAX_SAVED_SEARCHES,
   presetSearch,
@@ -17,6 +19,8 @@ import {
 import { memoryStorage } from './helpers.js';
 
 const definition = schema(defaults);
+const presetFile = new URL('../public/search-presets.json', import.meta.url);
+const PRESETS = parsePresets(JSON.parse(await readFile(presetFile, 'utf8')));
 
 test('SEARCH-LIBRARY-01: as buscas prontas são consultas válidas de editais dentro do limite de texto', () => {
   assert.equal(new Set(PRESETS.map(preset => preset.id)).size, PRESETS.length);
@@ -108,5 +112,26 @@ test('SEARCH-LIBRARY-04: dados inválidos são descartados e armazenamento indis
   assert.deepEqual(
     quota.list().map(entry => entry.name),
     ['B', 'A']
+  );
+});
+
+test('SEARCH-LIBRARY-05: as buscas prontas vêm de um arquivo à parte, validado ao carregar', async () => {
+  assert.equal(PRESETS.length, 9);
+  for (const invalid of [null, {}, { presets: {} }, { presets: [{ id: 'x', name: 'X', terms: [], filters: {} }] }])
+    assert.throws(() => parsePresets(invalid), /Buscas prontas inválidas/);
+  assert.throws(
+    () => parsePresets({ presets: [{ id: 'x', name: 'X', terms: ['a'], filters: { ufs: 1 } }] }),
+    /Buscas prontas inválidas/
+  );
+  const urls = [];
+  const loaded = await fetchPresets(async url => {
+    urls.push(String(url));
+    return new Response(await readFile(presetFile, 'utf8'));
+  })();
+  assert.deepEqual(loaded, PRESETS);
+  assert.match(urls[0], /\/public\/search-presets\.json$/);
+  await assert.rejects(
+    fetchPresets(async () => new Response('', { status: 404 }))(),
+    /Não foi possível carregar as buscas prontas/
   );
 });

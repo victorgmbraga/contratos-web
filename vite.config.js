@@ -11,6 +11,19 @@ const root = fileURLToPath(new URL('./public/', import.meta.url));
 const themeBoot = readFileSync(new URL('./public/theme-boot.js', import.meta.url), 'utf8').trim();
 const themeBootHash = `'sha256-${createHash('sha256').update(themeBoot).digest('base64')}'`;
 
+// O catálogo de argumentos do PNCP traz uma descrição longa de cada parâmetro, útil como
+// documentação no repositório mas não usada pela aplicação: o bundle leva só os demais campos.
+const argumentsFile = fileURLToPath(new URL('./src/pncp-arguments.json', import.meta.url));
+const compactArguments = () => ({
+  name: 'contratos-web-compact-arguments',
+  enforce: 'pre',
+  async load(id) {
+    if (id.replaceAll('\\', '/').split('?')[0] !== argumentsFile.replaceAll('\\', '/')) return null;
+    const list = JSON.parse(await readFile(argumentsFile, 'utf8'));
+    return JSON.stringify(list.map(({ description: _description, ...argument }) => argument));
+  }
+});
+
 export default defineConfig(({ command, mode }) => {
   // O servidor de desenvolvimento injeta CSS e o cliente de HMR por <style> e WebSocket.
   // O artefato publicado usa CSS externo e mantém a política restritiva.
@@ -47,6 +60,7 @@ export default defineConfig(({ command, mode }) => {
       plugins: () =>
         mode === 'test'
           ? [
+              compactArguments(),
               {
                 name: 'controlled-worker-fixtures',
                 load(id) {
@@ -57,17 +71,21 @@ export default defineConfig(({ command, mode }) => {
                 }
               }
             ]
-          : []
+          : [compactArguments()]
     },
     build: {
       outDir: mode === 'test' ? '../dist-browser-test' : '../dist-browser',
       emptyOutDir: true,
       target: ['es2022'],
+      // Dados em JSON (buscas prontas, municípios) ficam em arquivos próprios, baixados sob demanda,
+      // em vez de embutidos no JavaScript como data: URL.
+      assetsInlineLimit: file => (file.endsWith('.json') ? false : undefined),
       rolldownOptions: {
         input: { index: root + 'index.html', diagnostic: root + 'pncp-diagnostic.html' }
       }
     },
     plugins: [
+      compactArguments(),
       {
         name: 'contratos-web-static-assets',
         transformIndexHtml: {

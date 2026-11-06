@@ -72,7 +72,7 @@ Cada decisão registra o contexto, a escolha e suas consequências. Novas decis�
 | [`src/settings.js`](../src/settings.js) | Padrões e validação de configuração portável; whitelist pública |
 | [`src/operation.js`](../src/operation.js) | Operações, cancelamento, prazo absoluto e contadores de recursos |
 | [`src/validation.js`](../src/validation.js) | Consultas, filtros, domínios, sugestões, identidades e paginação; valida antes da rede no Worker |
-| [`src/schema.js`](../src/schema.js), [`src/pncp-arguments.json`](../src/pncp-arguments.json) e [`src/filter-domains.js`](../src/filter-domains.js) | Colunas, 80 filtros, compatibilidade documental, domínios e apresentação |
+| [`src/schema.js`](../src/schema.js), [`src/pncp-arguments.json`](../src/pncp-arguments.json) e [`src/filter-domains.js`](../src/filter-domains.js) | Colunas, 80 filtros, compatibilidade documental, domínios e apresentação; o build remove as descrições do catálogo de argumentos, que só documentam o repositório |
 | [`src/pncp-core.js`](../src/pncp-core.js) | Serialização, fila, ritmo, tentativas, leitura incremental, normalização e caminhos PNCP |
 | [`src/exact-json.js`](../src/exact-json.js) | Parser JSON com pilha explícita, validação da gramática e representação exata dos números |
 | [`src/query-core.js`](../src/query-core.js) | Pesquisa, validação de domínios, metadados, detalhes e coleta por páginas |
@@ -92,7 +92,7 @@ Cada decisão registra o contexto, a escolha e suas consequências. Novas decis�
 | [`public/details-panel.js`](../public/details-panel.js) | Seleção do documento em detalhe, abas, itens e listagens vinculadas, com paginação, cancelamento e descarte de respostas antigas |
 | [`public/format.js`](../public/format.js) | Formatação de datas, quantidades e valores; células da tabela e classes de situação |
 | [`public/tooltips.js`](../public/tooltips.js) | Tooltips da barra de ferramentas e do aviso de janela de resultados |
-| [`public/search-help.js`](../public/search-help.js), [`search-library.js`](../public/search-library.js) | Popover de buscas prontas, buscas salvas no navegador e dicas com os operadores do PNCP |
+| [`public/search-help.js`](../public/search-help.js), [`search-library.js`](../public/search-library.js), [`search-presets.json`](../public/search-presets.json) | Popover de buscas prontas (carregadas do JSON ao abrir), buscas salvas no navegador e dicas com os operadores do PNCP |
 | [`public/column-layout.js`](../public/column-layout.js) | Persistência de visibilidade, ordem e largura das colunas por tipo documental |
 | [`public/session.js`](../public/session.js) | Contadores de operação por tipo; um token novo invalida respostas pendentes do token anterior |
 | [`public/results-table.js`](../public/results-table.js), [`results-table.css`](../public/results-table.css) | Tabela semântica, cartões móveis, menus, visibilidade, ordem e largura de colunas |

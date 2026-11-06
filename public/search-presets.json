@@ -1,0 +1,218 @@
+{
+ "fonte": "Buscas dos scripts de extração do PNCP (filtragem v6 e extractor v8)",
+ "presets": [
+  {
+   "id": "microsoft",
+   "name": "Microsoft",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2"
+   },
+   "terms": [
+    "microsoft",
+    "m365",
+    "o365",
+    "sqlsvrstd",
+    "sqlcal",
+    "sql server",
+    "office",
+    "exchgsvrstd",
+    "exchange",
+    "project",
+    "MSDNPltfrms",
+    "Dyn365",
+    "WinRmtDsktp",
+    "EntCAL",
+    "SharePoint",
+    "VSPro",
+    "visual studio",
+    "WinSvr",
+    "SysCtr",
+    "CISSte",
+    "defender",
+    "windows",
+    "alng",
+    "azure",
+    "d365",
+    "system center",
+    "msdn",
+    "win vda",
+    "ms cloud",
+    "power bi",
+    "win remote",
+    "teams",
+    "ecal alng",
+    "sfb server",
+    "win server",
+    "cis suite",
+    "office audit",
+    "professional desktop",
+    "ecalbridge",
+    "win e3",
+    "win e5",
+    "ccal bridge",
+    "enterprise desktop",
+    "biztalk",
+    "visio",
+    "dynamics",
+    "win enterprise",
+    "identity manager",
+    "power apps",
+    "powerapps",
+    "win rights",
+    "core cal"
+   ]
+  },
+  {
+   "id": "oracle",
+   "name": "Oracle",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2"
+   },
+   "terms": [
+    "oracle",
+    "exadata",
+    "mysql",
+    "exacc"
+   ]
+  },
+  {
+   "id": "adobe",
+   "name": "Adobe",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2"
+   },
+   "terms": [
+    "adobe",
+    "creative cloud",
+    "acrobat",
+    "photoshop",
+    "adobe stock"
+   ]
+  },
+  {
+   "id": "symantec",
+   "name": "Symantec e Broadcom",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2"
+   },
+   "terms": [
+    "symantec",
+    "broadcom"
+   ]
+  },
+  {
+   "id": "antivirus",
+   "name": "Antivírus e proteção de endpoints",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2"
+   },
+   "terms": [
+    "kaspersky",
+    "antivirus",
+    "anti-virus",
+    "antimalware",
+    "endpoint security",
+    "endpoint protection",
+    "endpoint detection and response",
+    "extended detection and response",
+    "network detection and response",
+    "data loss prevention",
+    "mcafee",
+    "crowdstrike",
+    "sentinelone",
+    "trend micro",
+    "sophos",
+    "eset",
+    "trellix",
+    "bitdefender"
+   ]
+  },
+  {
+   "id": "cad",
+   "name": "Graebert e CAD",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2"
+   },
+   "terms": [
+    "graebert",
+    "ares commander",
+    "ares trinity",
+    "ares kudo",
+    "software cad",
+    "DWG",
+    "DXF"
+   ]
+  },
+  {
+   "id": "mongodb",
+   "name": "MongoDB e NoSQL",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2"
+   },
+   "terms": [
+    "mongodb",
+    "nosql",
+    "dbaas"
+   ]
+  },
+  {
+   "id": "desenvolvimento",
+   "name": "Desenvolvimento de software (federal)",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2",
+    "esferas": "F",
+    "modalidades": "6"
+   },
+   "terms": [
+    "fábrica de software",
+    "pontos de função",
+    "ponto de função",
+    "desenvolvimento de software",
+    "desenvolvimento de sistemas",
+    "desenvolvimento de aplicações",
+    "desenvolvimento e manutenção de sistemas",
+    "sustentação de sistemas",
+    "métodos ágeis",
+    "práticas ágeis"
+   ]
+  },
+  {
+   "id": "infraestrutura",
+   "name": "Infraestrutura e service desk (federal)",
+   "filters": {
+    "tipos_item": "S",
+    "situacoes": "1",
+    "situacoes_item": "1|2",
+    "esferas": "F",
+    "modalidades": "6"
+   },
+   "terms": [
+    "service desk",
+    "operação de infraestrutura",
+    "sustentação de infraestrutura",
+    "suporte à infraestrutura de TIC",
+    "serviços gerenciados de segurança",
+    "central de serviços",
+    "help desk",
+    "suporte ao banco de dados",
+    "pentest"
+   ]
+  }
+ ]
+}

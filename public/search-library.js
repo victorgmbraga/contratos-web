@@ -4,146 +4,38 @@ import { readQueryUrl, writeQueryUrl } from '../src/browser/query-url.js';
 // o usuário salva neste navegador. Uma busca é guardada como os parâmetros da URL da consulta:
 // a leitura passa pela mesma validação de um link compartilhado.
 
-// Filtros comuns: itens de serviço, contratação divulgada e itens em andamento ou homologados.
-const SERVICES = { tipos_item: 'S', situacoes: '1', situacoes_item: '1|2' };
-// Desenvolvimento e infraestrutura: também esfera federal e pregão eletrônico.
-const FEDERAL_SERVICES = { ...SERVICES, esferas: 'F', modalidades: '6' };
+/** @typedef {{ id: string, name: string, terms: string[], filters: Record<string, string> }} Preset */
 
-/** @type {{ id: string, name: string, terms: string[], filters: Record<string, string> }[]} */
-export const PRESETS = [
-  {
-    id: 'microsoft',
-    name: 'Microsoft',
-    filters: SERVICES,
-    terms: [
-      'microsoft',
-      'm365',
-      'o365',
-      'sqlsvrstd',
-      'sqlcal',
-      'sql server',
-      'office',
-      'exchgsvrstd',
-      'exchange',
-      'project',
-      'MSDNPltfrms',
-      'Dyn365',
-      'WinRmtDsktp',
-      'EntCAL',
-      'SharePoint',
-      'VSPro',
-      'visual studio',
-      'WinSvr',
-      'SysCtr',
-      'CISSte',
-      'defender',
-      'windows',
-      'alng',
-      'azure',
-      'd365',
-      'system center',
-      'msdn',
-      'win vda',
-      'ms cloud',
-      'power bi',
-      'win remote',
-      'teams',
-      'ecal alng',
-      'sfb server',
-      'win server',
-      'cis suite',
-      'office audit',
-      'professional desktop',
-      'ecalbridge',
-      'win e3',
-      'win e5',
-      'ccal bridge',
-      'enterprise desktop',
-      'biztalk',
-      'visio',
-      'dynamics',
-      'win enterprise',
-      'identity manager',
-      'power apps',
-      'powerapps',
-      'win rights',
-      'core cal'
-    ]
-  },
-  { id: 'oracle', name: 'Oracle', filters: SERVICES, terms: ['oracle', 'exadata', 'mysql', 'exacc'] },
-  {
-    id: 'adobe',
-    name: 'Adobe',
-    filters: SERVICES,
-    terms: ['adobe', 'creative cloud', 'acrobat', 'photoshop', 'adobe stock']
-  },
-  { id: 'symantec', name: 'Symantec e Broadcom', filters: SERVICES, terms: ['symantec', 'broadcom'] },
-  {
-    id: 'antivirus',
-    name: 'Antivírus e proteção de endpoints',
-    filters: SERVICES,
-    terms: [
-      'kaspersky',
-      'antivirus',
-      'anti-virus',
-      'antimalware',
-      'endpoint security',
-      'endpoint protection',
-      'endpoint detection and response',
-      'extended detection and response',
-      'network detection and response',
-      'data loss prevention',
-      'mcafee',
-      'crowdstrike',
-      'sentinelone',
-      'trend micro',
-      'sophos',
-      'eset',
-      'trellix',
-      'bitdefender'
-    ]
-  },
-  {
-    id: 'cad',
-    name: 'Graebert e CAD',
-    filters: SERVICES,
-    terms: ['graebert', 'ares commander', 'ares trinity', 'ares kudo', 'software cad', 'DWG', 'DXF']
-  },
-  { id: 'mongodb', name: 'MongoDB e NoSQL', filters: SERVICES, terms: ['mongodb', 'nosql', 'dbaas'] },
-  {
-    id: 'desenvolvimento',
-    name: 'Desenvolvimento de software (federal)',
-    filters: FEDERAL_SERVICES,
-    terms: [
-      'fábrica de software',
-      'pontos de função',
-      'ponto de função',
-      'desenvolvimento de software',
-      'desenvolvimento de sistemas',
-      'desenvolvimento de aplicações',
-      'desenvolvimento e manutenção de sistemas',
-      'sustentação de sistemas',
-      'métodos ágeis',
-      'práticas ágeis'
-    ]
-  },
-  {
-    id: 'infraestrutura',
-    name: 'Infraestrutura e service desk (federal)',
-    filters: FEDERAL_SERVICES,
-    terms: [
-      'service desk',
-      'operação de infraestrutura',
-      'sustentação de infraestrutura',
-      'suporte à infraestrutura de TIC',
-      'serviços gerenciados de segurança',
-      'central de serviços',
-      'help desk',
-      'suporte ao banco de dados',
-      'pentest'
-    ]
-  }
-];
+// As buscas prontas ficam em search-presets.json (asset com hash, baixado ao abrir o painel), fora do
+// JavaScript inicial: as listas de termos são a maior parte do seu tamanho.
+const valid = value => typeof value === 'string' && value.trim().length > 0;
+/** @param {unknown} data @returns {Preset[]} */
+export function parsePresets(data) {
+  const presets = /** @type {any} */ (data)?.presets;
+  if (
+    !Array.isArray(presets) ||
+    !presets.every(
+      preset =>
+        valid(preset?.id) &&
+        valid(preset.name) &&
+        Array.isArray(preset.terms) &&
+        preset.terms.length > 0 &&
+        preset.terms.every(valid) &&
+        preset.filters &&
+        typeof preset.filters === 'object' &&
+        Object.values(preset.filters).every(valid)
+    )
+  )
+    throw new Error('Buscas prontas inválidas.');
+  return presets.map(({ id, name, terms, filters }) => ({ id, name, terms: [...terms], filters: { ...filters } }));
+}
+export function fetchPresets(fetcher = globalThis.fetch) {
+  return async () => {
+    const response = await fetcher(new URL('./search-presets.json', import.meta.url));
+    if (!response.ok) throw new Error('Não foi possível carregar as buscas prontas.');
+    return parsePresets(await response.json());
+  };
+}
 
 /** Termos de várias palavras vão entre aspas; todos se combinam com OR. */
 export const presetText = preset => preset.terms.map(term => (term.includes(' ') ? `"${term}"` : term)).join(' OR ');
@@ -244,9 +136,17 @@ export function createSavedSearches(getStorage = () => globalThis.localStorage) 
 /**
  * Monta as listas do painel de buscas (#search-help).
  * @param {{ document: Document, window: Window, schema: any, size: number, current: () => any,
- *   run: (query: any) => unknown }} options
+ *   run: (query: any) => unknown, loadPresets?: () => Promise<Preset[]> }} options
  */
-export function initializeSearchLibrary({ document, window, schema, size, current, run }) {
+export function initializeSearchLibrary({
+  document,
+  window,
+  schema,
+  size,
+  current,
+  run,
+  loadPresets = fetchPresets((input, init) => window.fetch(input, init))
+}) {
   const describe = describeQuery;
   const $ = id => document.getElementById(id);
   const panel = $('search-help'),
@@ -275,11 +175,38 @@ export function initializeSearchLibrary({ document, window, schema, size, curren
     });
     return button;
   }
-  for (const preset of PRESETS) {
-    const item = document.createElement('li'),
-      query = readSearch(presetSearch(preset), schema, size);
-    item.append(choice(preset.name, describe(query), () => readSearch(presetSearch(preset), schema, size)));
-    presets.append(item);
+  /** @type {Promise<void> | null} */
+  let presetsLoading = null;
+  function note(text) {
+    const item = document.createElement('li');
+    item.className = 'search-library-message';
+    item.textContent = text;
+    presets.replaceChildren(item);
+  }
+  // Baixadas na primeira abertura; uma falha permite tentar de novo ao reabrir o painel.
+  function renderPresets() {
+    presetsLoading ??= (async () => {
+      note('Carregando buscas prontas…');
+      try {
+        const list = await loadPresets();
+        presets.replaceChildren();
+        for (const preset of list) {
+          let query;
+          try {
+            query = readSearch(presetSearch(preset), schema, size);
+          } catch {
+            continue;
+          }
+          const item = document.createElement('li');
+          item.append(choice(preset.name, describe(query), () => readSearch(presetSearch(preset), schema, size)));
+          presets.append(item);
+        }
+      } catch {
+        presetsLoading = null;
+        note('Não foi possível carregar as buscas prontas. Feche e abra o painel para tentar de novo.');
+      }
+    })();
+    return presetsLoading;
   }
   function renderSaved() {
     saved.replaceChildren();
@@ -323,10 +250,11 @@ export function initializeSearchLibrary({ document, window, schema, size, curren
   });
   panel.addEventListener('beforetoggle', event => {
     if (event.newState === 'open') {
+      void renderPresets();
       renderSaved();
       status.textContent = '';
     }
   });
   renderSaved();
-  return { renderSaved };
+  return { renderSaved, renderPresets };
 }
