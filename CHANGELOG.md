@@ -16,6 +16,7 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 ### Integração contínua
 
 - `actions/cache` atualizado para a v6.1.0 (Node 24); todas as actions em versões exatas.
+- Os pacotes do sistema usados pelos navegadores ficam em cache entre execuções, e o passo que os instala tem 15 minutos: o espelho do Ubuntu chegou a entregar as fontes a cerca de 30 KB/s e estourou o limite anterior de 10 minutos.
 - Auditoria das dependências de execução no CI (a aplicação publicada não tem nenhuma); o Dependabot já existente segue propondo as demais atualizações.
 
 ## 2.8.1 — 2026-11-05

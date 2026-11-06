@@ -31,6 +31,11 @@ function assertBrowserInstall(job, browser) {
   );
   // Dependências do sistema num passo próprio, com retentativas do apt e sem timeout que deixe o apt órfão.
   assert(job.includes(`npx playwright install-deps ${browser}`));
+  // Pacotes .deb em cache, restaurados antes e guardados depois da instalação.
+  assert(job.includes(`key: apt-browser-\${{ runner.os }}-${browser}-\${{ github.run_id }}`));
+  assert(job.includes(`restore-keys: apt-browser-\${{ runner.os }}-${browser}-`));
+  assert(job.indexOf('sudo cp ~/.cache/apt-browser/') < job.indexOf('install-deps'));
+  assert(job.indexOf('install-deps') < job.indexOf('cp /var/cache/apt/archives/'));
   assert.match(job, /Acquire::Retries/);
   assert(job.includes(`timeout 150 npx playwright install ${browser};`));
   assert(!job.includes('--with-deps'), 'O download do navegador não instala pacotes do sistema');

@@ -45,7 +45,7 @@ jobs:
   browser:
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
       actions: read
@@ -72,12 +72,23 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
+      # Os pacotes .deb das dependências ficam em cache: o espelho do Ubuntu às vezes entrega as
+      # fontes a dezenas de KB/s. A chave muda a cada execução para o cache acompanhar novas versões.
+      - name: Restaurar pacotes do sistema do navegador
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.cache/apt-browser
+          key: apt-browser-${{ runner.os }}-${{ matrix.browser }}-${{ github.run_id }}
+          restore-keys: apt-browser-${{ runner.os }}-${{ matrix.browser }}-
       - name: Instalar as dependências do sistema do navegador
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
-          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAPT::Keep-Downloaded-Packages "true";\n' |
             sudo tee /etc/apt/apt.conf.d/80-ci-retries > /dev/null
+          mkdir -p ~/.cache/apt-browser
+          sudo cp ~/.cache/apt-browser/*.deb /var/cache/apt/archives/ 2> /dev/null || true
           npx playwright install-deps ${{ matrix.browser }}
+          cp /var/cache/apt/archives/*.deb ~/.cache/apt-browser/ 2> /dev/null || true
       - name: Instalar o navegador do Playwright
         timeout-minutes: 8
         run: |
