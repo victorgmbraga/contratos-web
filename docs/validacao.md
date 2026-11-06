@@ -195,6 +195,18 @@ Em um celular, confira que busca, filtros, tipo documental e ordenação permane
 
 Os testes de navegador usam dados sintéticos de [`test/demo-fixtures.js`](../test/demo-fixtures.js): 64 editais, 24 atas e 32 contratos. Os status de vigência usam a data fixa `2026-10-07`; relevância e recebimento de propostas não reproduzem integralmente a fonte. Os links são ilustrativos.
 
+## Contrato com o PNCP real
+
+Os testes do CI usam dados sintéticos e não percebem mudanças na API do PNCP, que não é versionada. O workflow [`pncp-contract.yml`](../.github/workflows/pncp-contract.yml) roda toda segunda-feira (e manualmente) [`test/pncp-contract.mjs`](../test/pncp-contract.mjs), que usa o mesmo serviço do Worker com o `fetch` do Node para conferir:
+
+- busca dos três tipos e as colunas exibidas por padrão (nenhuma pode vir vazia em uma amostra de 100 documentos);
+- um filtro de cada tipo (lista, enumeração, booleano, data, decimal, situação dos itens), que precisa restringir o total sem zerá-lo, e o status temporal;
+- os operadores das dicas de busca (E, `OR`, `NOT`, aspas), a busca com 1.000 caracteres e as buscas prontas abaixo da janela de 10.000 resultados;
+- listas de filtros, catálogo de países, sugestões (o PNCP responde 400 com menos de três caracteres) e o código IBGE dos municípios;
+- detalhes e itens dos documentos de referência usados pelo diagnóstico.
+
+Falhas temporárias (PNCP indisponível ou limite de requisições) repetem a verificação e, se persistirem, ficam registradas como sem resposta do PNCP: o workflow avisa, sem falhar. Uma quebra de contrato falha o workflow, publica o relatório no resumo da execução e abre a issue "Verificação semanal do PNCP falhou" ou comenta na que estiver aberta. Para rodar localmente: `node test/pncp-contract.mjs` (cerca de 2 minutos).
+
 ## Diagnóstico do PNCP
 
 Abra [`pncp-diagnostic.html`](../public/pncp-diagnostic.html) servido pelo mesmo domínio HTTPS da aplicação. **Verificar acesso** consulta diretamente o PNCP na página e no Worker. **Cancelar** interrompe a verificação; **Salvar evidência** baixa um JSON com origem, data, navegador, status/cabeçalhos legíveis e resultado das operações.

@@ -117,3 +117,19 @@ test('WORKFLOW-03: WebKit roda periodicamente ou sob demanda, com diagnósticos 
   assert.match(webkit, /name: browser-failure-webkit/);
   assert.doesNotMatch(webkit, /uses: actions\/deploy-pages@|pages: write|id-token: write/);
 });
+
+test('WORKFLOW-04: o contrato com o PNCP real é verificado toda semana e uma falha abre ou atualiza uma issue', async () => {
+  const contract = await readFile(new URL('pncp-contract.yml', root), 'utf8');
+  assert.match(contract, /schedule:\n {4}- cron: '[^']+'/);
+  assert.match(contract, /workflow_dispatch:/);
+  assert.doesNotMatch(contract, /^ {2}(push|pull_request):/m);
+  assert.match(contract, /issues: write/);
+  assert.match(contract, /run: npm ci/);
+  assert.match(contract, /node test\/pncp-contract\.mjs/);
+  // Só a quebra de contrato (código 1) gera issue; falta de resposta do PNCP (código 2) apenas avisa.
+  assert.match(contract, /if \[ "\$code" = 2 \]; then/);
+  assert.match(contract, /if: failure\(\) && steps\.contract\.outputs\.code == '1'/);
+  assert.match(contract, /gh issue list --state open/);
+  assert.match(contract, /gh issue comment/);
+  assert.match(contract, /gh issue create/);
+});

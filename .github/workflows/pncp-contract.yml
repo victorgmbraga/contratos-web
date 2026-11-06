@@ -1,0 +1,57 @@
+name: Verificar contrato com o PNCP
+# Os testes do CI usam dados sintéticos; esta verificação semanal consulta o PNCP real para
+# detectar mudanças na API (campos, filtros, operadores e limites) antes que quebrem o site.
+on:
+  schedule:
+    - cron: '41 9 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: pncp-contract
+  cancel-in-progress: false
+jobs:
+  pncp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Consultar o PNCP real
+        id: contract
+        run: |
+          set +e
+          node test/pncp-contract.mjs
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          cat "$CONTRATOS_PNCP_REPORT" >> "$GITHUB_STEP_SUMMARY" 2> /dev/null || true
+          if [ "$code" = 2 ]; then
+            echo "::warning::O PNCP não respondeu a algumas verificações; nenhuma mudança de contrato foi detectada."
+            exit 0
+          fi
+          exit "$code"
+        env:
+          CONTRATOS_PNCP_REPORT: ${{ runner.temp }}/pncp-contract.md
+      # Uma issue aberta por vez: novas falhas viram comentários na mesma issue.
+      - name: Registrar a falha numa issue
+        if: failure() && steps.contract.outputs.code == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPORT: ${{ runner.temp }}/pncp-contract.md
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Verificação semanal do PNCP falhou"
+          body="$(cat "$REPORT" 2> /dev/null || echo 'A verificação terminou antes de gerar o relatório; veja o log.')
+
+          Execução: $RUN_URL"
+          issue=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
