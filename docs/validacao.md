@@ -195,6 +195,10 @@ Em um celular, confira que busca, filtros, tipo documental e ordenação permane
 
 Os testes de navegador usam dados sintéticos de [`test/demo-fixtures.js`](../test/demo-fixtures.js): 64 editais, 24 atas e 32 contratos. Os status de vigência usam a data fixa `2026-10-07`; relevância e recebimento de propostas não reproduzem integralmente a fonte. Os links são ilustrativos.
 
+## Esperas nos testes
+
+Testes esperam condições, não intervalos fixos. Nos testes de interface com DOM simulado, `until(condição)` aguarda com prazo em tempo (5 s), e não um número de rodadas do laço de eventos, que varia sob cobertura e execução em paralelo. Nos testes de navegador, as esperas usam `waitForFunction`, `waitFor` ou o fim das animações (`document.getAnimations()`); pausas fixas só aparecem onde o teste comprova que algo não acontece (por exemplo, que nenhum download ocorre depois de cancelar). Atributos atualizados em eventos assíncronos, como `aria-expanded` no evento `toggle` de um popover, também são aguardados em vez de lidos logo após o clique.
+
 ## Contrato com o PNCP real
 
 Os testes do CI usam dados sintéticos e não percebem mudanças na API do PNCP, que não é versionada. O workflow [`pncp-contract.yml`](../.github/workflows/pncp-contract.yml) roda toda segunda-feira (e manualmente) [`test/pncp-contract.mjs`](../test/pncp-contract.mjs), que usa o mesmo serviço do Worker com o `fetch` do Node para conferir:

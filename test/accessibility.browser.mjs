@@ -21,8 +21,12 @@ function describe(result) {
 const analyze = page =>
   new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
 // Modal and drawer transitions change opacity; analyze only after they settle.
+// Dois quadros deixam o navegador iniciar transições disparadas por layout (ex.: troca de viewport).
 const settle = page =>
-  page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
+  page.evaluate(async () => {
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {})));
+  });
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
@@ -30,7 +34,7 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${origin}/`);
   await page.waitForFunction(() => document.querySelector('#result-title')?.textContent === '64 editais');
-  await page.waitForTimeout(300);
+  await settle(page);
   assert.deepEqual(describe(await analyze(page)), [], 'violações na busca em desktop');
 
   await openAllFilters(page);
@@ -57,7 +61,6 @@ try {
 
   await page.locator('#details-dialog .close-dialog').first().click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(300);
   await settle(page);
   assert.deepEqual(describe(await analyze(page)), [], 'violações na visualização móvel');
   await page.locator('#more-actions-button').click();

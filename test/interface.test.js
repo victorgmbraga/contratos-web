@@ -426,6 +426,17 @@ async function interfaceFixture(options = {}) {
 async function settle() {
   for (let i = 0; i < 8; i++) await tick();
 }
+// Espera uma condição com prazo em tempo, não em número de rodadas do laço de eventos: sob carga
+// (cobertura, testes em paralelo), respostas assíncronas podem precisar de muito mais rodadas.
+async function until(predicate, timeout = 5000) {
+  const deadline = Date.now() + timeout;
+  while (!predicate()) {
+    if (Date.now() > deadline) return false;
+    await tick();
+    if (!predicate()) await new Promise(resolve => setTimeout(resolve, 2));
+  }
+  return true;
+}
 
 test('FILTER-YEARS-UI-01: preserva anos fora de AAAA nas opções, seleções, busca, URL e cache dos três tipos', async () => {
   const storage = memoryStorage(),
@@ -2084,12 +2095,9 @@ test('FILTER-OPTIONS-UI-01: inicializa todas as listas e reabrir filtros dos tr�
 
 test('FILTER-OPTIONS-UI-01B: chips usam o nome da opção assim que o cache de domínios é hidratado', async () => {
   const ui = await interfaceFixture({ href: 'https://example.test/contratos-web/?orgaos=1' });
-  let chip = ui.nodes.get('native-chips').children[0]?.textContent || '';
-  for (let i = 0; i < 40 && !chip.includes('Ministério'); i++) {
-    await tick();
-    chip = ui.nodes.get('native-chips').children[0]?.textContent || '';
-  }
-  assert.match(chip, /^Órgão: Ministério da Gestão e da Inovação$/);
+  const chip = () => ui.nodes.get('native-chips').children[0]?.textContent || '';
+  await until(() => chip().includes('Ministério'));
+  assert.match(chip(), /^Órgão: Ministério da Gestão e da Inovação$/);
 });
 
 test('FILTER-OPTIONS-UI-01C: chips de filtros com uma única opção mostram o nome, não o código', async () => {
@@ -2101,7 +2109,7 @@ test('FILTER-OPTIONS-UI-01C: chips de filtros com uma única opção mostram o n
       .get('native-chips')
       .children.map(node => node.textContent)
       .sort();
-  for (let i = 0; i < 40 && !chips().some(text => text.includes('Serviço')); i++) await tick();
+  await until(() => chips().some(text => text.includes('Serviço')));
   assert.deepEqual(chips(), ['Tipo de item: Serviço', 'Tipo de margem de preferência: Resolução CIIA-PAC']);
 });
 
@@ -2536,15 +2544,13 @@ test('FILTER-LABELS-URL: recupera Órgão e Unidade sem cache mesmo quando a bus
     });
     ui.nodes.get('search').value = 'rascunho ainda não pesquisado';
     release();
-    let chips;
-    for (let attempt = 0; attempt < 100; attempt++) {
-      chips = ui.nodes
+    const text = () =>
+      ui.nodes
         .get('native-chips')
         .children.map(node => node.textContent)
         .join(' ');
-      if (chips.includes('Unidade recuperada')) break;
-      await tick();
-    }
+    await until(() => text().includes('Unidade recuperada'));
+    const chips = text();
     assert(chips.includes('Órgão recuperado'), chips);
     assert(chips.includes('Unidade recuperada'), chips);
     assert.equal(lookups, 2);
@@ -2909,10 +2915,8 @@ const optionTexts = async (ui, name) => {
   await ui.options(name);
   const list = ui.nodes.get(`filter-suggestions-${name}`);
   // A relação de municípios é lida do disco; aguarda até sair do estado de carregamento.
-  for (let i = 0; i < 50 && (i === 0 || list.children[0]?.textContent === 'Carregando municípios…'); i++) {
-    await settle();
-    if (list.children[0]?.textContent === 'Carregando municípios…') await new Promise(r => setTimeout(r, 10));
-  }
+  await settle();
+  await until(() => list.children[0]?.textContent !== 'Carregando municípios…');
   return list.children.map(node => ({
     tag: node.tagName,
     text: node.tagName === 'button' ? node.getAttribute('aria-label') : node.textContent,
