@@ -20,7 +20,13 @@ const compactArguments = () => ({
   async load(id) {
     if (id.replaceAll('\\', '/').split('?')[0] !== argumentsFile.replaceAll('\\', '/')) return null;
     const list = JSON.parse(await readFile(argumentsFile, 'utf8'));
-    return JSON.stringify(list.map(({ description: _description, ...argument }) => argument));
+    return JSON.stringify(
+      list.map(argument => {
+        const compact = { ...argument };
+        delete compact.description;
+        return compact;
+      })
+    );
   }
 });
 
