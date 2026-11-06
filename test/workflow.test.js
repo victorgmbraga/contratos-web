@@ -133,3 +133,17 @@ test('WORKFLOW-04: o contrato com o PNCP real é verificado toda semana e uma fa
   assert.match(contract, /gh issue comment/);
   assert.match(contract, /gh issue create/);
 });
+
+test('WORKFLOW-05: actions em versões exatas, auditoria das dependências de execução e Dependabot', async () => {
+  for (const name of ['validate.yml', 'webkit.yml', 'pncp-contract.yml']) {
+    const workflow = await readFile(new URL(name, root), 'utf8');
+    const uses = [...workflow.matchAll(/uses: ([^\s]+)/g)].map(match => match[1]);
+    assert(uses.length > 0, name);
+    for (const action of uses) assert.match(action, /^actions\/[\w-]+@v\d+\.\d+\.\d+$/, `${name}: ${action}`);
+  }
+  const validate = await readFile(new URL('validate.yml', root), 'utf8');
+  assert(validate.indexOf('run: npm audit --omit=dev') > validate.indexOf('run: npm ci'));
+  const dependabot = await readFile(new URL('../dependabot.yml', root), 'utf8');
+  assert.match(dependabot, /package-ecosystem: npm/);
+  assert.match(dependabot, /package-ecosystem: github-actions/);
+});

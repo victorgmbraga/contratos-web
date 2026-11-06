@@ -2,6 +2,22 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.9.0 — 2026-11-06
+
+### Qualidade
+
+- Verificação semanal do contrato com o PNCP real (`pncp-contract.yml`): busca e colunas padrão dos três tipos, um filtro de cada tipo, status temporal, operadores de busca, busca com 1.000 caracteres, buscas prontas abaixo da janela de 10.000 resultados, listas e catálogos, sugestões e detalhes de documentos de referência. Uma mudança na API abre (ou atualiza) uma issue; falta de resposta do PNCP só gera aviso.
+- Testes esperam condições com prazo em tempo, e não um número fixo de rodadas do laço de eventos ou pausas fixas antes de medir, para não falhar de forma intermitente sob carga.
+
+### Desempenho
+
+- JavaScript total de 80,06 para 74,83 KiB com gzip: as buscas prontas passam a um arquivo baixado ao abrir o painel, e o build remove do bundle as descrições do catálogo de argumentos do PNCP, que só documentam o repositório.
+
+### Integração contínua
+
+- `actions/cache` atualizado para a v6.1.0 (Node 24); todas as actions em versões exatas.
+- Auditoria das dependências de execução no CI (a aplicação publicada não tem nenhuma); o Dependabot já existente segue propondo as demais atualizações.
+
 ## 2.8.1 — 2026-11-05
 
 ### Filtros

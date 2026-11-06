@@ -25,7 +25,7 @@ jobs:
       # próprios, e o download do navegador, que ocasionalmente trava, tem limite e até três tentativas
       # sem processos do apt que possam segurar o bloqueio do dpkg entre elas.
       - name: Restaurar navegadores do Playwright
-        uses: actions/cache@v4
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-webkit-${{ hashFiles('node_modules/playwright-core/browsers.json') }}

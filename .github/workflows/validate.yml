@@ -23,6 +23,10 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      # A aplicação publicada não tem dependências de execução; esta etapa barra uma que entre com
+      # vulnerabilidade conhecida. As de desenvolvimento são acompanhadas pelo Dependabot.
+      - name: Auditar dependências de execução
+        run: npm audit --omit=dev
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
@@ -64,7 +68,7 @@ jobs:
       # próprios, e o download do navegador, que ocasionalmente trava, tem limite e até três tentativas
       # sem processos do apt que possam segurar o bloqueio do dpkg entre elas.
       - name: Restaurar navegadores do Playwright
-        uses: actions/cache@v4
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
