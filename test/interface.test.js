@@ -150,13 +150,15 @@ async function interfaceFixture(options = {}) {
   const core = new QueryService(cfg, new PncpClient(cfg, { fetcher: provider })),
     requests = [],
     itemRequests = [],
+    resultRequests = [],
     relatedRequests = [],
     documentRequests = [],
     childRequests = [],
     exportRequests = [],
     domainRequests = [],
     suggestRequests = [];
-  let detailFailures = options.detailFailures || 0;
+  let detailFailures = options.detailFailures || 0,
+    resultFailures = options.resultFailures || 0;
   const service = {
     async call(method, payload = {}, callOptions = {}) {
       callOptions.signal?.throwIfAborted();
@@ -196,6 +198,12 @@ async function interfaceFixture(options = {}) {
           result = options.itemHandler
             ? await options.itemHandler(payload, callOptions, core)
             : await core.details(payload.document, payload.page, payload.size, callOptions.signal);
+          break;
+        case 'itemResults':
+          resultRequests.push(payload);
+          if (resultFailures-- > 0)
+            throw Object.assign(new Error('Falha temporária do resultado.'), { code: 'PNCP_HTTP_ERROR' });
+          result = await core.itemResults(payload.document, payload.item, callOptions.signal);
           break;
         case 'documentDetails':
           documentRequests.push(payload);
@@ -393,6 +401,7 @@ async function interfaceFixture(options = {}) {
     all,
     requests,
     itemRequests,
+    resultRequests,
     relatedRequests,
     documentRequests,
     childRequests,
@@ -3808,4 +3817,74 @@ test('EXPORT-CLEANUP-UI-01: libera a URL do CSV somente após o prazo de limpeza
   assert.equal(ui.downloadCleanups[0].delay, 10000);
   ui.downloadCleanups[0].callback();
   assert.deepEqual(revoked, [ui.downloads[0].href]);
+});
+
+test('DETAILS-RESULTS-01: resultados homologados carregam ao abrir a aba Itens, separados do estimado', async () => {
+  const ui = await interfaceFixture({
+    itemFetcher: url => {
+      const path = new URL(url).pathname;
+      if (path.endsWith('/itens/quantidade')) return Promise.resolve(2);
+      if (path.endsWith('/itens'))
+        return Promise.resolve(
+          new Response(
+            `[{"numeroItem":1,"descricao":"Memória","valorUnitarioEstimado":1719.81,"quantidade":2,"valorTotal":3439.62,"temResultado":true},
+              {"numeroItem":2,"descricao":"Cabo","valorUnitarioEstimado":10,"quantidade":1,"valorTotal":10,"temResultado":false}]`,
+            { headers: { 'Content-Type': 'application/json' } }
+          )
+        );
+      if (path.endsWith('/itens/1/resultados'))
+        return Promise.resolve(
+          new Response(
+            `[{"sequencialResultado":1,"nomeRazaoSocialFornecedor":"PTN Parts Ltda","niFornecedor":"41358941000189","tipoPessoa":"PJ","porteFornecedorNome":"ME","situacaoCompraItemResultadoNome":"Informado","ordemClassificacaoSrp":1,"quantidadeHomologada":2.00000,"valorUnitarioHomologado":1000.0000,"valorTotalHomologado":2000.0000,"percentualDesconto":0.0000,"dataResultado":"2026-10-14","dataCancelamento":null},
+              {"sequencialResultado":2,"nomeRazaoSocialFornecedor":"Fulano de Tal","niFornecedor":"12345678909","tipoPessoa":"PF","situacaoCompraItemResultadoNome":"Informado","ordemClassificacaoSrp":2,"quantidadeHomologada":1,"valorUnitarioHomologado":1900.1234,"valorTotalHomologado":1900.1234,"dataResultado":"2026-10-14","dataCancelamento":null}]`,
+            { headers: { 'Content-Type': 'application/json' } }
+          )
+        );
+      return demoFetch(url);
+    }
+  });
+  await ui.openDocument(project(document(1)));
+  assert(ui.all.some(n => n.className === 'item-card'));
+  assert.equal(ui.resultRequests.length, 0, 'A aba Detalhes visível não consulta resultados');
+  await ui.nodes.get('detail-tab-itens').fire('click');
+  assert(await until(() => ui.all.some(n => n.className === 'item-results-list')));
+  assert.deepEqual(ui.resultRequests, [
+    { document: { type: 'edital', cnpj: '00000000000000', ano: '2026', sequencial: '1' }, item: 1 }
+  ]);
+  const suppliers = ui.all.filter(n => n.className === 'item-result-supplier').map(n => n.textContent);
+  assert.deepEqual(suppliers, ['PTN Parts Ltda · CNPJ 41.358.941/0001-89', 'Fulano de Tal · Pessoa física']);
+  assert(!ui.all.some(n => /123\.456\.789-09|12345678909/.test(n.textContent ?? '')), 'CPF não é exibido');
+  const values = ui.all
+    .filter(n => n.className === 'item-values item-result-values')
+    .map(n => n.children.map(field => [field.children[0].textContent, field.children[1].textContent]));
+  assert.deepEqual(values[0], [
+    ['Valor unitário homologado', 'R$ 1.000,00'],
+    ['Quantidade homologada', '2'],
+    ['Valor total homologado', 'R$ 2.000,00'],
+    ['Data do resultado', '14/10/2026'],
+    ['Comparação com o estimado', '41,9% abaixo do estimado']
+  ]);
+  assert.equal(values[1][0][1], 'R$ 1.900,1234');
+  assert.equal(values[1][4][1], '10,5% acima do estimado');
+  assert(ui.all.some(n => n.className === 'item-meta' && n.textContent === 'Informado · Porte ME · 1º classificado'));
+  // Rever a aba não repete a consulta.
+  await ui.nodes.get('detail-tab-detalhes').fire('click');
+  await ui.nodes.get('detail-tab-itens').fire('click');
+  await tick();
+  assert.equal(ui.resultRequests.length, 1);
+});
+
+test('DETAILS-RESULTS-02: falha no resultado permite repetir só aquele item', async () => {
+  const ui = await interfaceFixture({ resultFailures: 1 });
+  await ui.openDocument(project(document(1)));
+  await ui.nodes.get('detail-tab-itens').fire('click');
+  const retry = () => ui.all.find(n => n.textContent === 'Tentar consultar o resultado');
+  assert(await until(() => retry()?.hidden === false));
+  assert.equal(retry().hidden, false);
+  assert(ui.all.some(n => /Não foi possível consultar o resultado. Falha temporária/.test(n.textContent ?? '')));
+  await retry().fire('click');
+  assert(await until(() => ui.all.some(n => n.className === 'item-results-list')));
+  assert.equal(ui.resultRequests.length, 2);
+  assert.equal(retry().hidden, true);
+  assert(ui.all.some(n => n.className === 'item-result-supplier'));
 });

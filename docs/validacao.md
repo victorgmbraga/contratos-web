@@ -211,7 +211,7 @@ Os testes do CI usam dados sintéticos e não percebem mudanças na API do PNCP,
 - um filtro de cada tipo (lista, enumeração, booleano, data, decimal, situação dos itens), que precisa restringir o total sem zerá-lo, e o status temporal;
 - os operadores das dicas de busca (E, `OR`, `NOT`, aspas), a busca com 1.000 caracteres e as buscas prontas abaixo da janela de 10.000 resultados;
 - listas de filtros, catálogo de países, sugestões (o PNCP responde 400 com menos de três caracteres) e o código IBGE dos municípios;
-- detalhes e itens dos documentos de referência usados pelo diagnóstico.
+- detalhes, itens e resultado homologado de item dos documentos de referência usados pelo diagnóstico.
 
 Falhas temporárias (PNCP indisponível ou limite de requisições) repetem a verificação e, se persistirem, ficam registradas como sem resposta do PNCP: o workflow avisa, sem falhar. Uma quebra de contrato falha o workflow, publica o relatório no resumo da execução e abre a issue "Verificação semanal do PNCP falhou" ou comenta na que estiver aberta. Para rodar localmente: `node test/pncp-contract.mjs` (cerca de 2 minutos).
 

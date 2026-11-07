@@ -198,6 +198,17 @@ await check('Itens de edital de referência', async () => {
   return `${items.total_items} itens`;
 });
 
+await check('Resultado homologado de item de referência', async () => {
+  const results = await call('itemResults', { document: documents[0], item: 1 });
+  expect(results.data.length > 0, 'item homologado sem resultado');
+  const [first] = results.data;
+  expect(
+    /^\d+(\.\d+)?$/.test(first.valor_unitario_homologado ?? '') && first.fornecedor && first.tipo_pessoa,
+    'resultado sem valor unitário homologado, fornecedor ou tipo de pessoa'
+  );
+  return `${results.data.length} resultado(s); unitário ${first.valor_unitario_homologado}`;
+});
+
 await runtime.close();
 const failed = results.filter(result => result.status === 'falhou'),
   unavailable = results.filter(result => result.status === 'indisponível'),

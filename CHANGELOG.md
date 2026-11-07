@@ -2,6 +2,13 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.10.0 — 2026-11-07
+
+### Funcionalidades
+
+- Resultado homologado dos itens de edital na aba **Itens**: fornecedor, quantidade, valores unitário e total homologados, data e a comparação do unitário homologado com o estimado, em bloco separado dos valores estimados. Itens de registro de preços mostram um resultado por fornecedor classificado. O CPF de pessoa física não é exibido.
+- Novo método `itemResults` no Worker (protocolo 2), com decimais exatos e validação da resposta do PNCP; a verificação semanal com o PNCP real passou a conferir o resultado de um item de referência.
+
 ## 2.9.0 — 2026-11-06
 
 ### Qualidade

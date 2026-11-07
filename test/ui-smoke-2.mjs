@@ -78,6 +78,13 @@ try {
   await page.locator('.item-card').first().waitFor();
   assert.match(await page.locator('.item-card').first().innerText(), /Homologado/);
   check('Detalhes carregam itens automaticamente');
+  await page.locator('.item-result-supplier').first().waitFor();
+  assert.match(
+    await page.locator('.item-results').first().innerText(),
+    /Valor unitário homologado[\s\S]*Comparação com o estimado/
+  );
+  assert.doesNotMatch(await page.locator('#detail-panel-itens').innerText(), /000\.001-91/);
+  check('Itens com resultado mostram o valor homologado à parte do estimado, sem CPF');
   for (const [resource, pattern] of [
     ['arquivos', /Baixar arquivo/],
     ['atas', /Vigência/],

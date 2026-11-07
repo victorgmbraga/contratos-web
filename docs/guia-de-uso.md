@@ -81,6 +81,8 @@ O PNCP permite navegar somente pelos primeiros 10.000 resultados de uma pesquisa
 
 Clique em uma linha ou cartão para abrir o painel de detalhes. Na aba **Detalhes**, a identificação (Controle PNCP, documentos de origem, fonte e processo eletrônico) e os campos principais (como órgão, situação, valor e datas) aparecem primeiro, em negrito; o link de **Controle PNCP** abre a página oficial do documento. As abas mostram todos os campos, itens, arquivos, documentos vinculados e o histórico. Abas de listas carregam em segundo plano; com economia de dados ativada, elas só carregam quando selecionadas.
 
+Em editais, a aba **Itens** mostra, para cada item já homologado, o **resultado homologado** separado dos valores estimados: fornecedor, quantidade, valor unitário e total homologados, data do resultado e quanto o valor unitário homologado ficou abaixo ou acima do estimado. Em registro de preços, aparece um resultado por fornecedor classificado. O CPF de fornecedores pessoa física não é exibido. Os resultados são consultados no PNCP quando a aba Itens é aberta.
+
 ## Compartilhar
 
 O endereço da página guarda o tipo, o texto, os filtros, a ordenação, a página e o documento aberto. Copie o link para compartilhar exatamente a mesma consulta; **Voltar** e **Avançar** do navegador também restauram as consultas anteriores.

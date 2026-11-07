@@ -357,6 +357,26 @@ export class QueryService {
       op.finish();
     }
   }
+  async itemResults(purchase, item, signal, requestId) {
+    validateDocument(purchase, ['edital']);
+    assert(Number.isSafeInteger(item) && item > 0, 'INVALID_ITEM', 'Número do item inválido.');
+    const op = operation(this.config, signal, requestId);
+    try {
+      const data = await this.client.itemResults(purchase, item, op);
+      return {
+        api_version: '2.0',
+        request_id: op.id,
+        source: 'pncp',
+        item,
+        data,
+        total: data.length,
+        queried_at: new Date().toISOString(),
+        upstream_requests: op.requests
+      };
+    } finally {
+      op.finish();
+    }
+  }
   async related(purchase, resource, page, size, signal, requestId) {
     validateDocument(purchase, ['edital']);
     validateDetailPage(page, size);

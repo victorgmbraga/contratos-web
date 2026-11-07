@@ -1888,6 +1888,39 @@ dialog select[multiple] {
   overflow-wrap: anywhere;
   line-height: 1.5;
 }
+.item-results {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.item-results h5 {
+  font-size: 0.8125rem;
+  margin: 0;
+  color: var(--heading, #295575);
+}
+.item-results .items-status {
+  margin: 7px 0;
+}
+.item-results-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item-result + .item-result {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.item-card .item-result-supplier {
+  font-weight: 600;
+  margin: 7px 0 2px;
+  overflow-wrap: anywhere;
+}
+.item-result-values {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 10px;
+}
 .item-pager {
   margin: 13px 0;
 }

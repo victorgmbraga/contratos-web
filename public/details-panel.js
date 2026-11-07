@@ -1,4 +1,5 @@
 import { createPagination } from './pagination.js';
+import { renderItemResults } from './item-results.js';
 import { money, date, time, fmtInt, quantity, formatCnpj, formatCpfCnpj } from './format.js';
 import { detailDocumentPath, writeDetailUrl } from '../src/browser/detail-url.js';
 import {
@@ -609,6 +610,7 @@ export function createDetailsPanel({
         tab.button.tabIndex = i === index ? 0 : -1;
         tab.panel.hidden = i !== index;
       });
+      tabs[index].onShow?.();
       if (state.detailSelection) {
         state.detailSelection.tab = tabs[index].button.dataset.resource;
         if (write) syncDetailUrl();
@@ -849,10 +851,62 @@ export function createDetailsPanel({
       section.append(list, itemStatus, pager);
       itemStatus.setAttribute('role', 'status');
       const updateItems = addTab('itens', 'Itens', section);
+      tabs.at(-1).onShow = loadPendingResults;
       let page = 1,
         controller = null,
         itemsLoaded = false,
-        itemSeq = 0;
+        itemSeq = 0,
+        /** @type {(() => Promise<void>)[]} */
+        pendingResults = [];
+      // Resultados homologados: um pedido por item com resultado, feito só com a aba Itens visível
+      // para não atrasar as demais abas carregadas em segundo plano.
+      function loadPendingResults() {
+        const loads = pendingResults;
+        pendingResults = [];
+        return Promise.all(loads.map(load => load()));
+      }
+      function itemResultBlock(card, item, signal, current) {
+        const block = el('section', undefined, 'item-results'),
+          status = el('p', 'Resultado homologado: aguardando consulta.', 'items-status item-results-status'),
+          retryResult = el('button', 'Tentar consultar o resultado', 'button small');
+        block.setAttribute('aria-label', `Resultado do item ${item.numeroItem}`);
+        status.setAttribute('role', 'status');
+        retryResult.type = 'button';
+        retryResult.hidden = true;
+        block.append(el('h5', 'Resultado homologado'), status, retryResult);
+        card.append(block);
+        async function load() {
+          retryResult.hidden = true;
+          setLoadStatus(status, 'Consultando o resultado no PNCP…', true);
+          block.setAttribute('aria-busy', 'true');
+          try {
+            const result = await schedule(
+              () =>
+                service.call(
+                  'itemResults',
+                  { document: { type: 'edital', ...doc._purchase }, item: item.numeroItem },
+                  { signal }
+                ),
+              signal
+            );
+            if (!current()) return;
+            block.querySelector('.item-results-list')?.remove();
+            if (result.data.length) {
+              status.hidden = true;
+              block.append(renderItemResults(el, result.data, item.valorUnitarioEstimado));
+            } else setLoadStatus(status, 'O PNCP ainda não publicou o resultado deste item.', false);
+          } catch (error) {
+            if (current() && error.name !== 'AbortError') {
+              setLoadStatus(status, `Não foi possível consultar o resultado. ${error.message}`, false);
+              retryResult.hidden = false;
+            }
+          } finally {
+            if (current()) block.setAttribute('aria-busy', 'false');
+          }
+        }
+        retryResult.addEventListener('click', load);
+        return load;
+      }
       async function itemPage(target) {
         controller?.abort();
         controller = new AbortController();
@@ -878,6 +932,7 @@ export function createDetailsPanel({
           if (!current()) return;
           page = result.page;
           list.replaceChildren();
+          pendingResults = [];
           itemsLoaded = true;
           updateItems(result.total_items, 'loaded');
           for (const item of result.data) {
@@ -902,9 +957,12 @@ export function createDetailsPanel({
               values.append(field);
             }
             card.append(values);
+            if (item.temResultado === true && Number.isSafeInteger(item.numeroItem) && item.numeroItem > 0)
+              pendingResults.push(itemResultBlock(card, item, signal, current));
             list.append(card);
           }
           if (!result.data.length) list.append(el('p', 'Esta contratação não possui itens.', 'panel-note'));
+          if (!section.hidden) loadPendingResults();
           const first = result.data.length ? (page - 1) * result.size + 1 : 0,
             last = result.data.length ? first + result.data.length - 1 : 0;
           itemsTitle.textContent = `Itens da contratação (${fmtInt(result.total_items)})`;

@@ -636,6 +636,22 @@ export function demoFetch(url) {
             totalPaginas: Math.max(1, Math.ceil(records.length / size)),
             numeroPagina: page
           };
+  } else if (/\/itens\/\d+\/resultados$/.test(u.pathname)) {
+    const [, sequence, item] = u.pathname.match(/compras\/\d+\/(\d+)\/itens\/(\d+)\/resultados$/),
+      records = (demoResults[Number(sequence) - 1] || []).filter(r => r.numeroItem === Number(item));
+    if (!records.length || demoItems[Number(sequence) - 1]?.[Number(item) - 1]?.temResultado !== true)
+      return Promise.resolve(new Response(null, { status: 204 }));
+    result = records.map((r, index) => ({
+      ...r,
+      sequencialResultado: index + 1,
+      situacaoCompraItemResultadoNome: 'Informado',
+      nomeRazaoSocialFornecedor: index === 0 ? 'Fornecedor Sintético de Demonstração Ltda' : 'Pessoa Física Sintética',
+      niFornecedor: index === 0 ? '00000000000191' : '00000000191',
+      tipoPessoa: index === 0 ? 'PJ' : 'PF',
+      porteFornecedorNome: index === 0 ? 'ME' : null,
+      dataCancelamento: null,
+      motivoCancelamento: null
+    }));
   } else if (u.pathname.endsWith('/itens/quantidade')) {
     const index = Number(u.pathname.match(/compras\/\d+\/(\d+)\/itens/)[1]) - 1;
     result = demoItems[index]?.length ?? 0;

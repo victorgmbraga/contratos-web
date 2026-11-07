@@ -11,6 +11,7 @@ O Worker consulta `https://pncp.gov.br/api/search/` para pesquisa, filtros e sug
 | `domains` | `{type, normatives, field}` | Opções normalizadas e avisos; `normatives` e `field` podem ser omitidos |
 | `suggest` | `{type, field, q, size}` | Sugestões de IDs e rótulos |
 | `details` | `{document, page, size}` | Quantidade e página de itens de contratação |
+| `itemResults` | `{document, item}` | Resultados homologados de um item de contratação |
 | `related` | `{document, resource, page, size}` | Listagem vinculada a uma contratação |
 | `documentDetails` | `{document}` | Campos documentais de edital, ata ou contrato |
 | `documentRelated` | `{document, resource, page, size, pagination_mode?}` | Listagem dos detalhes de qualquer tipo documental |
@@ -221,6 +222,12 @@ A resposta contém `items` com pares `{id, label}`, `request_id` e `queried_at`.
 Cada requisição consulta a quantidade de itens e, quando o total é positivo, a página pedida. O serviço verifica se a quantidade de itens recebida corresponde ao total informado. Retorna `data`, `page`, `size`, `total_items`, `total_pages`, `has_more`, `complete`, `source`, `api_version`, `request_id`, `queried_at`, `upstream_requests`, `pagination_note` e `snapshot_guaranteed: false`. `complete` indica que a página atual é a última; não significa que todas as páginas foram baixadas.
 
 A interface consulta os itens em páginas de 10 registros ao abrir os detalhes e ao navegar entre suas páginas. Quando faltam identificadores originais válidos, informa a ausência e não faz uma chamada de itens.
+
+### Resultado homologado dos itens
+
+`service.call("itemResults", {document, item})` usa a mesma identidade de edital e o número do item (`numeroItem`, inteiro positivo). Consulta `/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens/{item}/resultados`, que devolve a lista completa, sem paginação, e `204` para item sem resultado (tratado como lista vazia). Retorna `data`, `total`, `item`, `source`, `api_version`, `request_id`, `queried_at` e `upstream_requests`. Cada resultado traz `fornecedor`, `fornecedor_ni`, `tipo_pessoa`, `porte`, `situacao`, `ordem_classificacao_srp`, `quantidade_homologada`, `valor_unitario_homologado`, `valor_total_homologado`, `percentual_desconto`, `moeda_estrangeira`, `valor_nominal_moeda_estrangeira`, `data_resultado`, `data_cancelamento` e `motivo_cancelamento`; quantidades e valores são textos decimais exatos, como no restante do serviço. Respostas que não sejam uma lista de objetos, com campos de tipo incompatível ou com mais de 500 resultados são rejeitadas com `INVALID_UPSTREAM`.
+
+Na aba **Itens**, cada item com `temResultado` mostra o resultado homologado em bloco próprio, abaixo dos valores estimados: fornecedor, situação, porte, classificação (quando há mais de um resultado), quantidade, valores unitário e total homologados, data e a comparação do unitário homologado com o unitário estimado (percentual com uma casa, calculado sobre os decimais exatos). Os valores estimados e homologados nunca são somados nem combinados numa média. O CNPJ aparece só para pessoa jurídica; de pessoa física, o painel indica "Pessoa física" sem exibir o CPF. As consultas são feitas, uma por item da página, somente com a aba Itens visível (e não em segundo plano), para não atrasar as demais abas; uma falha mostra a mensagem e um botão para repetir apenas aquele item.
 
 ## Listagens nos detalhes de uma contratação
 

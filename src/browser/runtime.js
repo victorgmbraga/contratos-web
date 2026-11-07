@@ -12,6 +12,7 @@ const methods = [
   'domains',
   'suggest',
   'details',
+  'itemResults',
   'related',
   'documentDetails',
   'documentRelated',
@@ -114,6 +115,7 @@ export function createRuntime(input, options = {}) {
           domains: ['type', 'normatives', 'field', 'priority'],
           suggest: ['type', 'field', 'q', 'size'],
           details: ['document', 'page', 'size'],
+          itemResults: ['document', 'item'],
           related: ['document', 'resource', 'page', 'size'],
           documentDetails: ['document'],
           documentRelated: ['document', 'resource', 'page', 'size', 'pagination_mode'],
@@ -144,6 +146,9 @@ export function createRuntime(input, options = {}) {
             break;
           case 'details':
             result = await service.details(payload.document, payload.page, payload.size, signal, id);
+            break;
+          case 'itemResults':
+            result = await service.itemResults(payload.document, payload.item, signal, id);
             break;
           case 'related':
             result = await service.related(payload.document, payload.resource, payload.page, payload.size, signal, id);

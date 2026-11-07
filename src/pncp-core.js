@@ -1,6 +1,6 @@
-import { parseExactJson as parse } from './exact-json.js';
+import { parseExactJson as parse, isExactJsonNumber } from './exact-json.js';
 import { AppError, assert, fail } from './errors.js';
-import { scalarText, itemSituation } from './adapter.js';
+import { scalarText, itemSituation, decimalText } from './adapter.js';
 import { domainAliases, catalogDomains, referenceDomains, partialDomains } from './filter-domains.js';
 import { relatedResources, projectRelated } from './related.js';
 import {
@@ -76,6 +76,50 @@ export function normalizeCatalog(value) {
     );
     return { id, label, ...(option.statusAtivo === undefined ? {} : { active: option.statusAtivo }) };
   });
+}
+// Um item de registro de preços tem um resultado por fornecedor classificado; o limite só barra
+// respostas anômalas.
+export const MAX_ITEM_RESULTS = 500;
+const resultText = (record, field) => {
+  const value = record[field];
+  assert(
+    value == null || typeof value === 'string' || typeof value === 'number' || isExactJsonNumber(value),
+    'INVALID_UPSTREAM',
+    `Campo ${field} do resultado com tipo incompatível no PNCP.`,
+    502,
+    { field }
+  );
+  const text = scalarText(value)?.trim();
+  return text ? text : null;
+};
+const resultName = (record, field) => {
+  const value = record[field];
+  if (value && typeof value === 'object' && !Array.isArray(value) && !isExactJsonNumber(value))
+    return resultText(value, 'nome');
+  return resultText(record, field);
+};
+/** Resultado homologado de um item: valores decimais como texto exato, sem conversão. */
+export function projectItemResult(record) {
+  const text = field => resultText(record, field),
+    decimal = field => decimalText(record[field]);
+  return {
+    sequencial: text('sequencialResultado'),
+    situacao: text('situacaoCompraItemResultadoNome'),
+    fornecedor: text('nomeRazaoSocialFornecedor'),
+    fornecedor_ni: text('niFornecedor'),
+    tipo_pessoa: text('tipoPessoa'),
+    porte: text('porteFornecedorNome'),
+    ordem_classificacao_srp: text('ordemClassificacaoSrp'),
+    quantidade_homologada: decimal('quantidadeHomologada'),
+    valor_unitario_homologado: decimal('valorUnitarioHomologado'),
+    valor_total_homologado: decimal('valorTotalHomologado'),
+    percentual_desconto: decimal('percentualDesconto'),
+    moeda_estrangeira: resultName(record, 'moedaEstrangeira'),
+    valor_nominal_moeda_estrangeira: decimal('valorNominalMoedaEstrangeira'),
+    data_resultado: text('dataResultado'),
+    data_cancelamento: text('dataCancelamento'),
+    motivo_cancelamento: text('motivoCancelamento')
+  };
 }
 export class PncpClient {
   /**
@@ -404,6 +448,25 @@ export class PncpClient {
       );
     }
     return items;
+  }
+  // Resultados (valores homologados) de um item; o PNCP devolve a lista inteira, sem paginação,
+  // e 204 para item sem resultado.
+  async itemResults(purchase, item, op) {
+    const result = await this.get(
+      `${this.config.PNCP_DETAIL_BASE_URL}/orgaos/${purchase.cnpj}/compras/${purchase.ano}/${purchase.sequencial}/itens/${item}/resultados`,
+      op,
+      true
+    );
+    assert(
+      result === null ||
+        (Array.isArray(result) &&
+          result.length <= MAX_ITEM_RESULTS &&
+          result.every(v => v && typeof v === 'object' && !Array.isArray(v) && !isExactJsonNumber(v))),
+      'INVALID_UPSTREAM',
+      'Serviço de resultados do item retornou formato inesperado.',
+      502
+    );
+    return (result || []).map(projectItemResult);
   }
   async relatedPage(purchase, resource, page, size, op) {
     assert(relatedResources.includes(resource), 'NOT_FOUND', 'Listagem não encontrada.', 404);
