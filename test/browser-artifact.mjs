@@ -7,6 +7,7 @@ import { launchTestBrowser } from './browser-launch.js';
 import { assertBrowserLayout } from './browser-layout.js';
 import { demoDocument } from './demo-fixtures.js';
 import { routePncp } from './pncp-route.js';
+import { PROTOCOL_VERSION } from '../src/browser/protocol.js';
 const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 assert.deepEqual(
   Object.keys(manifest.dependencies || {}),
@@ -176,66 +177,69 @@ try {
   const page = await browser.newPage();
   try {
     await page.goto(`http://127.0.0.1:${app.server.address().port}/pncp-diagnostic.html`);
-    const report = await page.evaluate(async workerPath => {
-      const worker = new Worker(workerPath, { type: 'module' }),
-        pending = new Map();
-      let seq = 0,
-        beats = 0;
-      const timer = setInterval(() => beats++, 10);
-      worker.onmessage = ({ data }) => {
-        const task = pending.get(data.id);
-        if (!task) return;
-        if (data.progress) {
-          task.progress?.(data.progress);
-          return;
-        }
-        pending.delete(data.id);
-        data.error ? task.reject(data.error) : task.resolve(data.result);
-      };
-      function call(message, progress) {
-        const id = String(++seq);
-        return new Promise((resolve, reject) => {
-          pending.set(id, { resolve, reject, progress });
-          worker.postMessage({ ...message, id });
-        });
-      }
-      try {
-        await call({ type: 'init', version: 1, config: { PNCP_REQUESTS_PER_SECOND: 100000, PNCP_PAGE_SIZE: 100 } });
-        const started = performance.now(),
-          progress = [];
-        const result = await call({ method: 'export', payload: { query: { q: 'benchmark-ui' } } }, p =>
-          progress.push(p)
-        );
-        const report = {
-          rows: result.metadata.exported_rows,
-          bytes: result.chunks.reduce((n, c) => n + c.byteLength, 0),
-          requests: result.metadata.upstream_requests,
-          pages: progress.length,
-          elapsed_ms: Math.round(performance.now() - started),
-          interface_ticks: beats,
-          metadata_has_documents: 'data' in result.metadata,
-          worker_heap_measurement: 'unavailable'
+    const report = await page.evaluate(
+      async ([workerPath, version]) => {
+        const worker = new Worker(workerPath, { type: 'module' }),
+          pending = new Map();
+        let seq = 0,
+          beats = 0;
+        const timer = setInterval(() => beats++, 10);
+        worker.onmessage = ({ data }) => {
+          const task = pending.get(data.id);
+          if (!task) return;
+          if (data.progress) {
+            task.progress?.(data.progress);
+            return;
+          }
+          pending.delete(data.id);
+          data.error ? task.reject(data.error) : task.resolve(data.result);
         };
-        let cancelId = String(seq + 1),
-          lastProgress;
-        try {
-          await call({ method: 'export', payload: { query: { q: 'benchmark-ui' } } }, p => {
-            lastProgress = p;
-            worker.postMessage({ type: 'cancel', id: cancelId });
+        function call(message, progress) {
+          const id = String(++seq);
+          return new Promise((resolve, reject) => {
+            pending.set(id, { resolve, reject, progress });
+            worker.postMessage({ ...message, id });
           });
-          report.cancelled = false;
-        } catch (e) {
-          report.cancelled = e.name === 'AbortError';
-          report.cancelled_after_rows = lastProgress?.rows;
         }
-        const next = await call({ method: 'execute', payload: { query: { document_type: 'ata' } } });
-        report.recovered_total = next.total;
-        return report;
-      } finally {
-        clearInterval(timer);
-        worker.terminate();
-      }
-    }, './assets/' + workerFile);
+        try {
+          await call({ type: 'init', version, config: { PNCP_REQUESTS_PER_SECOND: 100000, PNCP_PAGE_SIZE: 100 } });
+          const started = performance.now(),
+            progress = [];
+          const result = await call({ method: 'export', payload: { query: { q: 'benchmark-ui' } } }, p =>
+            progress.push(p)
+          );
+          const report = {
+            rows: result.metadata.exported_rows,
+            bytes: result.chunks.reduce((n, c) => n + c.byteLength, 0),
+            requests: result.metadata.upstream_requests,
+            pages: progress.length,
+            elapsed_ms: Math.round(performance.now() - started),
+            interface_ticks: beats,
+            metadata_has_documents: 'data' in result.metadata,
+            worker_heap_measurement: 'unavailable'
+          };
+          let cancelId = String(seq + 1),
+            lastProgress;
+          try {
+            await call({ method: 'export', payload: { query: { q: 'benchmark-ui' } } }, p => {
+              lastProgress = p;
+              worker.postMessage({ type: 'cancel', id: cancelId });
+            });
+            report.cancelled = false;
+          } catch (e) {
+            report.cancelled = e.name === 'AbortError';
+            report.cancelled_after_rows = lastProgress?.rows;
+          }
+          const next = await call({ method: 'execute', payload: { query: { document_type: 'ata' } } });
+          report.recovered_total = next.total;
+          return report;
+        } finally {
+          clearInterval(timer);
+          worker.terminate();
+        }
+      },
+      ['./assets/' + workerFile, PROTOCOL_VERSION]
+    );
     assert.equal(report.rows, 10000);
     assert.equal(report.requests, 100);
     assert.equal(report.pages, 100);
