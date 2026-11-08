@@ -2,6 +2,13 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.10.1 — 2026-11-08
+
+### Dependências
+
+- Playwright 1.65.0, Vite 8.3.6 e globals 17.14.0.
+- `minimatch` 11.0.5 forçado por `overrides` no lugar da versão usada pelo ESLint, que tinha uma vulnerabilidade moderada (GHSA-g3hv-75wg-m249); `npm audit` sem vulnerabilidades.
+
 ## 2.10.0 — 2026-11-07
 
 ### Funcionalidades
