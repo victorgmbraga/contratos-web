@@ -45,17 +45,13 @@ export async function uiDemoFetch(url, init) {
     }));
     const size = Number(u.searchParams.get('tam_pagina')),
       page = Number(u.searchParams.get('pagina'));
+    // A partir da segunda página, a coleta do CSV só termina pelo cancelamento: um prazo fixo
+    // deixava a exportação concluir antes do clique em Cancelar CSV (o WebKit espera a animação
+    // do botão acabar antes de clicar).
     if (u.searchParams.get('q') === 'csv-lenta-ui' && page > 1)
-      await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          init.signal.removeEventListener('abort', abort);
-          resolve();
-        }, 500);
-        const abort = () => {
-          clearTimeout(timer);
-          reject(init.signal.reason);
-        };
-        init.signal.addEventListener('abort', abort, { once: true });
+      await new Promise((_, reject) => {
+        init.signal.throwIfAborted();
+        init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true });
       });
     return Response.json({ items: docs.slice((page - 1) * size, page * size), total: docs.length });
   }
