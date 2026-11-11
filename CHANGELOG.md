@@ -2,6 +2,16 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.10.2 — 2026-11-11
+
+### Dependências
+
+- Vite 8.3.8.
+
+### Testes
+
+- A verificação semanal com o PNCP real passa a registrar como falta de resposta, e não como mudança de contrato, a indisponibilidade do PNCP na verificação das sugestões.
+
 ## 2.10.1 — 2026-11-08
 
 ### Dependências
