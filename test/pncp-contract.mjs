@@ -161,8 +161,13 @@ await check('Sugestões exigem três caracteres e usam IDs do IBGE nos municípi
     if (short && short.status < 500) break;
     await new Promise(resolve => setTimeout(resolve, attempt * 3000));
   }
+  // PNCP fora do ar em todas as tentativas: indisponibilidade, não mudança de contrato.
+  if (!short || short.status >= 500)
+    throw Object.assign(new Error(`O PNCP não respondeu à sugestão curta (${short?.status ?? 'erro de rede'}).`), {
+      retryable: true
+    });
   expect(
-    short?.status === 400,
+    short.status === 400,
     `com dois caracteres o PNCP respondeu ${short.status}; a busca local de municípios e os recentes supõem 400`
   );
   const organs = await call('suggest', { type: 'edital', field: 'orgaos', q: 'universidade', size: 5 });
