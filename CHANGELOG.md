@@ -2,6 +2,12 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## 2.10.3 — 2026-11-16
+
+### Dependências
+
+- ESLint 10.15.0, Playwright 1.65.1 e Prettier 3.10.1.
+
 ## 2.10.2 — 2026-11-11
 
 ### Dependências
