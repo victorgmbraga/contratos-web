@@ -57,6 +57,13 @@
 }
 
 @media (max-width: 700px) {
+  * {
+    scrollbar-width: none;
+  }
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
   body {
     height: var(--viewport-height, 100dvh);
   }
@@ -335,7 +342,7 @@
     min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable;
+    scrollbar-gutter: auto;
   }
   .detail-object {
     font-size: 0.9375rem;

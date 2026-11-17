@@ -242,10 +242,15 @@ try {
     '.result-card-values dd'
   ]);
   await page.keyboard.press('Escape');
-  await scrollbar('.results-scroll', { vertical: true });
+  const hiddenScrollbar = selector =>
+    page.locator(selector).evaluate(node => {
+      node.scrollTop = 40;
+      return { width: getComputedStyle(node).scrollbarWidth, scrolls: node.scrollTop > 0 };
+    });
+  assert.deepEqual(await hiddenScrollbar('.results-scroll'), { width: 'none', scrolls: true });
   await openAllFilters(page);
   await page.locator('#filter-ufs:not(:disabled)').waitFor();
-  await scrollbar('.filters-body', { vertical: true });
+  assert.deepEqual(await hiddenScrollbar('.filters-body'), { width: 'none', scrolls: true });
   await page.locator('#filters-dialog .dialog-header .close-dialog').click();
   await page.screenshot({ path: join(tmpdir(), 'contratos-dark-mobile.png') });
   await page.goto(new URL('pncp-diagnostic.html', url).href);

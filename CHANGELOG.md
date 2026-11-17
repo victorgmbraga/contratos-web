@@ -4,6 +4,8 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 
 ## Próxima versão
 
+- Oculta as barras de rolagem no layout mobile e preserva a rolagem do conteúdo.
+
 - Preserva entradas decimais negativas para correção, revela filtros inválidos e valida intervalos antes de aplicar a busca.
 - Valida buscas antes de salvar e informa quando elas ficam disponíveis apenas na sessão.
 - Oferece retorno à última página disponível quando uma página de resultados deixa de existir.
