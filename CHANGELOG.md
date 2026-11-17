@@ -2,6 +2,15 @@
 
 As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão fica em [`package.json`](package.json); o site publicado acompanha a `main`.
 
+## Próxima versão
+
+- Preserva entradas decimais negativas para correção, revela filtros inválidos e valida intervalos antes de aplicar a busca.
+- Valida buscas antes de salvar e informa quando elas ficam disponíveis apenas na sessão.
+- Oferece retorno à última página disponível quando uma página de resultados deixa de existir.
+- Consulta o catálogo local de municípios mesmo quando a lista inicial do PNCP falha.
+- Cancela páginas pendentes ao encerrar a exportação CSV e limita a quantidade de opções renderizadas nos filtros.
+- Exclui a pasta de navegadores do lint e inclui avisos de auditoria das ferramentas de desenvolvimento no CI.
+
 ## 2.10.3 — 2026-11-16
 
 ### Dependências

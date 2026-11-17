@@ -23,7 +23,7 @@ Ao abrir a página sem critérios, a aplicação mostra os documentos mais recen
 O botão de marcador no fim do campo de busca abre **Buscas prontas e dicas**:
 
 - **Buscas prontas** pesquisam editais de serviço divulgados, com itens em andamento ou homologados, por fornecedor ou tema: Microsoft, Oracle, Adobe, Symantec e Broadcom, antivírus e proteção de endpoints, Graebert e CAD, MongoDB e NoSQL, e, só na esfera federal e em pregão eletrônico, desenvolvimento de software e infraestrutura/service desk. Escolher uma preenche o texto (os termos combinados com `OR`) e os filtros e pesquisa na hora; depois, ajuste os filtros se precisar.
-- **Minhas buscas** guarda neste navegador a busca atual (texto, mesmo que ainda não pesquisado, filtros, status e tipo de documento) com o nome que você escolher. Um nome já usado é substituído. Cabem até 30 buscas; o **×** remove uma delas. As buscas salvas não vão para outros navegadores; para compartilhar uma consulta, copie o link.
+- **Minhas buscas** guarda neste navegador a busca atual (texto, mesmo que ainda não pesquisado, filtros, status e tipo de documento) com o nome que você escolher. Um nome já usado é substituído. Cabem até 30 buscas; o **×** remove uma delas. Se o armazenamento falhar, o painel informa que a busca fica disponível apenas na sessão atual. As buscas salvas não vão para outros navegadores; para compartilhar uma consulta, copie o link.
 
 A busca textual aceita até 1.000 caracteres, o suficiente para listas de termos com `OR`.
 
@@ -67,6 +67,8 @@ Os filtros se combinam: o resultado precisa atender a todos. Dentro de um mesmo 
 
 O ícone de funil no cabeçalho de uma coluna abre diretamente o filtro correspondente.
 
+Se um campo estiver inválido ao aplicar os filtros, o modal mantém o rascunho e leva você até o campo. Valores negativos são recusados. Em listas extensas, digite parte do nome ou o ID para encontrar opções além das primeiras 50.
+
 ## Ler os resultados
 
 - A tabela mostra até 100 documentos por página; no celular, os resultados aparecem como cartões, e o menu **Mais** alterna para tabela.
@@ -97,6 +99,8 @@ O botão **Exportar** oferece:
 O arquivo usa UTF-8 com separador vírgula e inclui todas as colunas do tipo, mesmo as ocultas na tabela. Como a exportação consulta a fonte de novo, os dados podem diferir ligeiramente do que estava na tela. Abra-o no Excel, LibreOffice ou Google Planilhas.
 
 ## Quando algo dá errado
+
+Se uma página de resultados deixar de existir, a opção **Ir para a página** leva à última página disponível com os mesmos critérios.
 
 - **PNCP instável**: a tabela mantém o último resultado confirmado; use **Tentar novamente** em alguns instantes.
 - **Sem conexão**: um aviso aparece até a rede voltar.

@@ -54,7 +54,8 @@ export function operation(config, parentSignal, requestId = globalThis.crypto.ra
         );
       if (controller.signal.aborted) throw controller.signal.reason;
     },
-    finish() {
+    finish(cancelPending = false) {
+      if (cancelPending) controller.abort();
       clearTimeout(timeout);
       parentSignal?.removeEventListener('abort', abort);
     }

@@ -25,6 +25,7 @@ const messages = {
  */
 export function sanitizeDecimalInput(kind, text) {
   const raw = String(text ?? '');
+  if (/[-−()]/.test(raw)) return raw;
   const allowed = kind === 'percent' ? /[^\d,]/g : /[^\d.,]/g;
   let body = raw.replace(allowed, '');
   const comma = body.indexOf(',');
@@ -44,6 +45,7 @@ export function parseDecimalInput(kind, text) {
   let body = String(text ?? '').trim();
   if (kind === 'money') body = body.replace(/^R\$\s*/, '');
   if (kind === 'percent') body = body.replace(/\s*%$/, '');
+  if (/[-−()]/.test(body)) return { value: undefined, error: 'Informe um valor sem sinal negativo.' };
   if (!body) return { value: undefined };
   // Ponto só é aceito como separador de milhar em grupos de três dígitos.
   const match = /^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$/.exec(body);

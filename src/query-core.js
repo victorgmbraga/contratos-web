@@ -288,7 +288,7 @@ export class QueryService {
       const metadata = exportMetadata(this.metadata(query, [], total, op, true), rows, 'all');
       return { chunks: writer.chunks, metadata };
     } finally {
-      op.finish();
+      op.finish(true);
     }
   }
   async domains(type, normatives, signal, requestId, field = null, priority = 'foreground') {

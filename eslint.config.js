@@ -9,7 +9,14 @@ const languageOptions = globalsSet => ({
 
 export default [
   {
-    ignores: ['dist-browser/**', 'dist-browser-test/**', 'node_modules/**', 'coverage/**', '.npm-cache/**']
+    ignores: [
+      'dist-browser/**',
+      'dist-browser-test/**',
+      'node_modules/**',
+      'coverage/**',
+      '.npm-cache/**',
+      '.playwright/**'
+    ]
   },
   js.configs.recommended,
   {

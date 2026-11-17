@@ -310,6 +310,8 @@ export function createApplicationUI(
     $('search-button').hidden = busy;
     $('cancel-button').hidden = !busy;
     $('retry-button').hidden = value !== 'error';
+    $('retry-button').textContent = 'Tentar novamente';
+    delete $('retry-button').dataset.page;
     if (!busy) $('cancel-button-tooltip').hidden = true;
     $('refresh-button').disabled = !state.lastQuery || busy;
     updateExportButton();
@@ -578,6 +580,13 @@ export function createApplicationUI(
           notice('Consulta cancelada. Nenhum novo resultado foi aplicado.', 'warning');
         } else {
           status('error');
+          if (error.code === 'PAGE_OUT_OF_RANGE') {
+            const page = error.details?.last_page;
+            if (Number.isSafeInteger(page) && page > 0 && page < query.page) {
+              $('retry-button').dataset.page = String(page);
+              $('retry-button').textContent = `Ir para a página ${page}`;
+            }
+          }
           $('notice').dataset.code = error.code || '';
           notice(`${error.message}${state.lastResult ? '\nA tabela mantém o resultado anterior.' : ''}`, 'error');
           if (
@@ -908,7 +917,10 @@ export function createApplicationUI(
       updateCriteria();
       await loadPage(page, 'push', { force: true });
     });
-    $('retry-button').addEventListener('click', () => loadPage(state.query.page, 'push', { force: true }));
+    $('retry-button').addEventListener('click', () => {
+      const page = Number($('retry-button').dataset.page);
+      return loadPage(page || state.query.page, page ? 'replace' : 'push', { force: true });
+    });
     $('cancel-button').addEventListener('click', () => {
       state.abort?.abort();
     });

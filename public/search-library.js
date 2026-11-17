@@ -112,6 +112,9 @@ export function createSavedSearches(getStorage = () => globalThis.localStorage) 
   }
   read();
   return {
+    get persistent() {
+      return Boolean(storage);
+    },
     list() {
       read();
       return entries.map(entry => ({ ...entry }));
@@ -217,7 +220,7 @@ export function initializeSearchLibrary({
       try {
         query = readSearch(entry.search, schema, size);
       } catch {
-        continue; // Busca salva por uma versão anterior que não é mais válida.
+        query = null;
       }
       const item = document.createElement('li'),
         remove = document.createElement('button');
@@ -231,10 +234,9 @@ export function initializeSearchLibrary({
         status.textContent = `Busca “${entry.name}” removida.`;
         name.focus();
       });
-      item.append(
-        choice(entry.name, describe(query), () => readSearch(entry.search, schema, size)),
-        remove
-      );
+      const use = choice(entry.name, query ? describe(query) : 'Critérios indisponíveis', () => query);
+      use.disabled = !query;
+      item.append(use, remove);
       saved.append(item);
     }
   }
@@ -242,10 +244,19 @@ export function initializeSearchLibrary({
     event.preventDefault();
     const query = current(),
       label = name.value.trim() || query.q.slice(0, MAX_NAME) || 'Busca sem texto';
-    if (store.save(label, querySearch(query, schema))) {
+    const search = querySearch(query, schema);
+    try {
+      readSearch(search, schema, size);
+    } catch {
+      status.textContent = 'Corrija os critérios da consulta antes de salvar a busca.';
+      return;
+    }
+    if (store.save(label, search)) {
       name.value = '';
       renderSaved();
-      status.textContent = `Busca “${label}” salva neste navegador.`;
+      status.textContent = store.persistent
+        ? `Busca “${label}” salva neste navegador.`
+        : `Busca “${label}” salva apenas nesta sessão.`;
     } else status.textContent = 'Não foi possível salvar a busca.';
   });
   panel.addEventListener('beforetoggle', event => {

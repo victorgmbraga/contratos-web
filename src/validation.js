@@ -234,7 +234,9 @@ export function validateFilters(filters, config, documentType = 'edital') {
       assert(
         map[key].type === 'decimal' ? compareDecimal(out[key], out[pair]) <= 0 : out[key] <= out[pair],
         'INVERTED_RANGE',
-        `Intervalo invertido: ${key} / ${pair}.`
+        `Intervalo invertido: ${key} / ${pair}.`,
+        400,
+        { field: key, end_field: pair }
       );
   }
   return out;

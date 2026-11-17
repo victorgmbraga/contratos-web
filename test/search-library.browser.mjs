@@ -96,6 +96,33 @@ try {
     assert.deepEqual(errors, []);
     await context.close();
   }
+  const noQuota = await browser.newContext();
+  await routePncp(noQuota);
+  await noQuota.addInitScript(() => {
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'contratos-web:saved-searches:v1') throw new DOMException('Sem espaço', 'QuotaExceededError');
+      return set.call(this, key, value);
+    };
+  });
+  const page = await noQuota.newPage();
+  await page.goto(`http://127.0.0.1:${app.server.address().port}/`);
+  await page.locator('#search-help-button').click();
+  await page.locator('#search').evaluate(input => {
+    input.value = 'a'.repeat(1001);
+  });
+  await page.locator('#save-search-name').fill('Inválida');
+  await page.locator('#save-search-form button[type=submit]').click();
+  assert.match(await page.locator('#save-search-status').innerText(), /Corrija os critérios/);
+  assert.equal(await page.locator('#saved-searches .search-library-choice').count(), 0);
+  await page.locator('#search').evaluate(input => {
+    input.value = 'firewall';
+  });
+  await page.locator('#save-search-name').fill('Sessão');
+  await page.locator('#save-search-form button[type=submit]').click();
+  assert.match(await page.locator('#save-search-status').innerText(), /apenas nesta sessão/);
+  assert.equal(await page.locator('#saved-searches .search-library-choice').count(), 1);
+  await noQuota.close();
   console.log('PASS Buscas prontas pesquisam com texto e filtros; buscas salvas persistem, pesquisam e são removidas');
 } catch (error) {
   await diagnoseBrowserFailure(error);

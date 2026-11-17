@@ -19,7 +19,7 @@ Cada aba da aplicação possui um Worker, um cliente e uma fila compartilhada en
 
 O navegador usa `GET`, `mode: cors`, `credentials: omit`, `cache: no-store`, `redirect: error` e somente `Accept: application/json`. Ele não segue redirecionamentos; o navegador controla o estabelecimento da conexão. CORS, TLS e offline podem resultar em `PNCP_TRANSPORT_ERROR` sem HTTP conhecido. `Retry-After` só é considerado quando CORS permite ler esse cabeçalho; caso contrário, a espera local limitada permanece. O prazo absoluto também é conferido após retomar atividade.
 
-O cache de opções da interface é independente do cache HTTP: usa `localStorage` com validade fixa de 4 horas, definida em `src/browser/filter-options-cache.js`, sem chave de configuração pública. Pesquisa, detalhes, CSV, sugestões por texto e validação de domínios no Worker continuam consultando o PNCP.
+O cache de opções da interface é independente do cache HTTP: usa `localStorage` com validade fixa de 4 horas, definida em `src/browser/filter-options-cache.js`, sem chave de configuração pública. O Worker mantém em memória, por aba, as respostas de domínio que já buscou, reutilizando-as por até quatro horas. As listas persistidas pela interface também podem ser lidas do IndexedDB quando o armazenamento local não comporta as opções.
 
 ## Endereço e fonte
 

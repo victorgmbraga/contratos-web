@@ -1153,8 +1153,13 @@ dialog::backdrop {
   margin-bottom: 16px;
 }
 .filters-modal > .dialog-footer {
+  flex-wrap: wrap;
   margin-top: 16px;
   padding-top: 16px;
+}
+#filter-validation-error {
+  flex-basis: 100%;
+  margin: 0;
 }
 .filters-body {
   min-height: 0;

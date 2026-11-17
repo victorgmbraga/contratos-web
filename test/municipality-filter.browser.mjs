@@ -98,6 +98,24 @@ try {
   await audit('orgaos');
   console.log('PASS Listas com recentes, títulos e orientações passam no axe e anunciam a orientação');
   assert.deepEqual(errors, []);
+  const withoutDomains = await browser.newContext();
+  await routePncp(withoutDomains);
+  await withoutDomains.route('https://pncp.gov.br/api/search/filters?**', route =>
+    route.fulfill({
+      status: 400,
+      json: { message: 'Domínio indisponível' },
+      headers: { 'Access-Control-Allow-Origin': '*' }
+    })
+  );
+  const independent = await withoutDomains.newPage();
+  await independent.goto(page.url().split('?')[0]);
+  await openAllFilters(independent);
+  const municipality = independent.locator('#filter-municipios');
+  await municipality.fill('brasília');
+  await independent.locator('#filter-suggestions-municipios [data-value="5300108"]').click();
+  await independent.locator('#apply-filters').click();
+  await independent.waitForFunction(() => new URL(location.href).searchParams.get('municipios') === '5300108');
+  await withoutDomains.close();
 } catch (error) {
   await diagnoseBrowserFailure(error);
   throw error;

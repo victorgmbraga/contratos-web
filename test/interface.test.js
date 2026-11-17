@@ -1430,6 +1430,16 @@ test('QUERY-URL-UI-04: atualizar, repetir falha e exportar preservam a página e
   assert.equal(ui.browser.entries.length, 1);
 });
 
+test('QUERY-URL-UI: página que deixou de existir oferece retorno à última disponível', async () => {
+  const ui = await interfaceFixture({ href: 'https://example.test/?q=firewall&pagina=2' });
+  const button = ui.nodes.get('retry-button');
+  assert.equal(button.textContent, 'Ir para a página 1');
+  await button.fire('click');
+  assert.equal(new URL(ui.browser.href()).searchParams.get('pagina'), '1');
+  assert.equal(new URL(ui.browser.href()).searchParams.get('q'), 'firewall');
+  assert.equal(ui.nodes.get('result-title').textContent, '6 editais');
+});
+
 test('QUERY-URL-UI-05: URL inválida mostra erro sem pesquisa inicial e pode ser corrigida pela interface', async () => {
   for (const search of ['?pagina=101', '?tipos_documento=contrato&srp=false', '?srp=0', '?q=a&q=b']) {
     const ui = await interfaceFixture({ href: 'https://example.test/' + search });
@@ -2434,7 +2444,7 @@ test('FILTERS-UI-25: valores, percentuais e quantidades usam vírgula decimal e 
     '12,5%',
     'percentual aceita só dígitos, vírgula e %'
   );
-  await type('item_quantidade_max', '10,5');
+  await type('item_quantidade_max', '2.000,5');
   await ui.nodes.get('apply-filters').fire('click');
   const filters = ui.requests.at(-1).pncp_filters;
   assert.equal(filters.valor_total_estimado_min, '1234.56');
@@ -2442,7 +2452,7 @@ test('FILTERS-UI-25: valores, percentuais e quantidades usam vírgula decimal e 
   assert.equal(filters.valor_total_homologado_min, '1000');
   assert.equal(filters.resultado_percentual_desconto_min, '12.5');
   assert.equal(filters.item_quantidade_min, '1500.25');
-  assert.equal(filters.item_quantidade_max, '10.5');
+  assert.equal(filters.item_quantidade_max, '2000.5');
 });
 
 test('FILTERS-UI-26: decimal com ponto no lugar da vírgula é recusado e bloqueia a aplicação', async () => {
@@ -2463,6 +2473,41 @@ test('FILTERS-UI-26: decimal com ponto no lugar da vírgula é recusado e bloque
   assert.equal(ui.nodes.get('filter-error-valor_total_estimado_min').hidden, true);
   await ui.nodes.get('apply-filters').fire('click');
   assert.equal(ui.requests.at(-1).pncp_filters.valor_total_estimado_min, '1000.50');
+});
+
+test('FILTERS-UI: sinal negativo oculto impede pesquisar e volta a ficar visível', async () => {
+  const ui = await interfaceFixture();
+  await ui.nodes.get('filters-button').fire('click');
+  const field = ui.field('valor_total_estimado_min');
+  field.value = '-1.000,50';
+  await field.fire('input');
+  const finder = ui.nodes.get('filter-search');
+  finder.value = 'modalidade';
+  await finder.fire('input');
+  await ui.nodes.get('apply-filters').fire('click');
+  assert.equal(ui.requests.length, 1);
+  assert.equal(ui.nodes.get('filters-dialog').open, true);
+  assert.equal(finder.value, '');
+  assert.equal(ui.focusedField(), field.id);
+  assert.equal(field.value, '-1.000,50');
+  assert.match(ui.nodes.get('filter-error-valor_total_estimado_min').textContent, /sinal negativo/);
+  await ui.nodes.get('clear-draft-filters').fire('click');
+  assert.equal(field.value, '');
+  assert.equal(ui.nodes.get('filter-error-valor_total_estimado_min').hidden, true);
+});
+
+test('FILTERS-UI: intervalo invertido mantém o modal e a consulta anterior', async () => {
+  const ui = await interfaceFixture();
+  await ui.nodes.get('filters-button').fire('click');
+  await ui.editFilter('data_publicacao_inicio', '2026-12-01');
+  await ui.editFilter('data_publicacao_fim', '2026-01-01');
+  const url = ui.browser.href();
+  await ui.nodes.get('apply-filters').fire('click');
+  assert.equal(ui.requests.length, 1);
+  assert.equal(ui.browser.href(), url);
+  assert.equal(ui.nodes.get('filters-dialog').open, true);
+  assert.match(ui.nodes.get('filter-validation-error').textContent, /Publicação.*menor ou igual.*Publicação/i);
+  assert.equal(ui.focusedField(), 'filter-data_publicacao_inicio');
 });
 
 test('FILTERS-UI-27: campos de data vazios indicam o formato dd/mm/aaaa para navegadores móveis', async () => {

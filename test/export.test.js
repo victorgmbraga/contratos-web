@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { service, document, query, csvBytes } from './helpers.js';
+import { QueryService } from '../src/query-core.js';
+import { service, document, query, csvBytes, config } from './helpers.js';
 
 test('EXP-01: nova coleta completa sem recorte da página visível', async () => {
   const s = service(Array.from({ length: 12 }, (_, i) => document(i + 1)));
@@ -100,4 +101,20 @@ test('EXP-05: textos não são fórmulas ao abrir o CSV; valores monetários neg
     assert(csv.includes('"\'' + text + '"'), text);
     assert(csv.includes('"-9007199254740993.12345"'));
   }
+});
+
+test('EXP: falha de consistência cancela todas as páginas antecipadas', async () => {
+  const pending = [];
+  const service = new QueryService(config({ PNCP_EXPORT_PAGE_SIZE: 10, PNCP_MAX_CONCURRENT_REQUESTS: 2 }), {
+    async search(_query, page, _size, operation) {
+      if (page === 1) return { total: 40, items: [] };
+      pending.push(operation.signal);
+      return new Promise((_, reject) =>
+        operation.signal.addEventListener('abort', () => reject(operation.signal.reason), { once: true })
+      );
+    }
+  });
+  await assert.rejects(service.export(query()), { code: 'SOURCE_CHANGED' });
+  assert.equal(pending.length, 2);
+  assert(pending.every(signal => signal.aborted));
 });

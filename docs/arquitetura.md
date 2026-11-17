@@ -44,8 +44,8 @@ Cada decisão registra o contexto, a escolha e suas consequências. Novas decis�
 ### D5. Domínios validados no Worker e reutilizados
 
 - **Contexto:** filtros de lista fechada precisam de IDs válidos, e as listas são grandes.
-- **Decisão:** o Worker valida os IDs antes de pesquisar ou exportar. A pré-carga da interface e a validação usam o mesmo cache de 4 horas e compartilham a requisição em andamento; a interface também persiste as listas no `localStorage`/IndexedDB.
-- **Consequências:** nenhuma requisição duplicada de `/filters` na mesma aba. O cache do Worker é reconstruído a cada recarga.
+- **Decisão:** o Worker valida os IDs antes de pesquisar ou exportar. Quando a pré-carga consulta o PNCP, ela e a validação compartilham a requisição em andamento e o cache de quatro horas do Worker. A interface também persiste as listas no `localStorage` ou IndexedDB.
+- **Consequências:** requisições simultâneas para o mesmo domínio são deduplicadas no Worker. Ao recarregar, a interface reutiliza listas persistidas, enquanto o Worker inicia com cache vazio.
 
 ### D6. Sem framework nem dependências de produção
 

@@ -27,6 +27,11 @@ jobs:
       # vulnerabilidade conhecida. As de desenvolvimento são acompanhadas pelo Dependabot.
       - name: Auditar dependências de execução
         run: npm audit --omit=dev
+      - name: Auditar ferramentas de desenvolvimento
+        run: |
+          if ! npm audit --audit-level=high; then
+            echo "::warning::Confira os alertas de auditoria das ferramentas de desenvolvimento."
+          fi
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck

@@ -1,4 +1,4 @@
-import { compareDecimal } from '../src/validation.js';
+import { compareDecimal, validateQuery } from '../src/validation.js';
 import { decimalKind, formatDecimalInput, parseDecimalInput, sanitizeDecimalInput } from './decimal-input.js';
 import { createFilterLabelCache } from '../src/browser/filter-label-cache.js';
 import { createRecentFilterOptions } from '../src/browser/recent-filter-options.js';
@@ -145,7 +145,6 @@ export function createFiltersPanel({
   function syncFilterEditor(editor) {
     if (!editor) return;
     const value = state.draft.pncp_filters[editor.cap.name];
-    editor.clear.hidden = value === undefined;
     if (editor.selected) {
       editor.selected = (value || []).map(
         id =>
@@ -168,6 +167,7 @@ export function createFiltersPanel({
       if (editor.input.value) delete editor.input.dataset.empty;
       else editor.input.dataset.empty = 'true';
     }
+    editor.clear.hidden = value === undefined && !editor.invalid;
     refreshSelects(editor.input);
     updateDraftActions();
   }
@@ -183,7 +183,7 @@ export function createFiltersPanel({
       );
       count.hidden = active === 0;
     }
-    $('clear-draft-filters').disabled = active === 0;
+    $('clear-draft-filters').disabled = active === 0 && ![...filterFields.values()].some(editor => editor.invalid);
   }
   function clearDraftFilters() {
     if (!state.draft) return;
@@ -193,11 +193,13 @@ export function createFiltersPanel({
     state.legalError = false;
     if ($('legal-error')) $('legal-error').hidden = true;
     if ($('apply-filters')) $('apply-filters').disabled = false;
+    $('filter-validation-error').hidden = true;
     state.draft.pncp_filters = {};
     for (const editor of filterFields.values()) syncFilterEditor(editor);
     updateDraftActions();
   }
   async function setDraftFilter(name, value) {
+    $('filter-validation-error').hidden = true;
     const draft = state.draft,
       previous = JSON.stringify(draft.pncp_filters[name]);
     if (value === undefined) delete draft.pncp_filters[name];
@@ -270,6 +272,7 @@ export function createFiltersPanel({
     state.legalError = false;
     $('apply-filters').disabled = false;
     $('legal-error').hidden = true;
+    $('filter-validation-error').hidden = true;
     state.draft = structuredClone(state.query);
     state.draft.q = $('search').value;
     filterFields.clear();
@@ -323,7 +326,7 @@ export function createFiltersPanel({
         editor.group = group;
         filterFields.set(cap.name, editor);
         grid.append(editor.area);
-        if (cap.domain)
+        if (cap.domain && !editor.municipal)
           loads.push(
             loadFilterOptions(
               editor,
@@ -477,7 +480,7 @@ export function createFiltersPanel({
       });
       editor.input.addEventListener('keydown', event => filterDropdownKeydown(editor, event));
       editor.input.addEventListener('input', () => searchFilterOptions(editor));
-      editor.input.disabled = true;
+      editor.input.disabled = !editor.municipal;
     } else {
       editor.input.addEventListener(cap.domain || cap.type === 'boolean' ? 'change' : 'input', () =>
         editFilter(editor)
@@ -820,7 +823,12 @@ export function createFiltersPanel({
       );
       return;
     }
-    showSuggestions(editor, [{ options: filterChoices(editor) }]);
+    const options = filterChoices(editor);
+    showSuggestions(
+      editor,
+      [{ options: options.slice(0, 50) }],
+      options.length > 50 ? `Mostrando 50 de ${fmtCount(options.length)} opções. Continue digitando para refinar.` : ''
+    );
   }
   /**
    * @param {{ heading?: string, options: { id: string, label: string, active?: boolean }[] }[]} groups
@@ -924,17 +932,37 @@ export function createFiltersPanel({
         editor.input.removeAttribute('aria-describedby');
     }
   }
+  function revealFilter(editor) {
+    if (!editor) return;
+    $('filter-search').value = '';
+    searchFilterFields();
+    editor.group.open = true;
+    editor.input.focus();
+    editor.area.scrollIntoView({ block: 'nearest' });
+  }
   function apply() {
     if (state.legalPending || state.legalError) return null;
     // Valores decimais mal formados não são descartados em silêncio: bloqueiam a aplicação.
     const invalid = [...filterFields.values()].find(editor => editor.decimalKind && editor.invalid);
     if (invalid) {
-      invalid.input.focus();
+      revealFilter(invalid);
       return null;
     }
     state.draft.q = $('search').value;
     state.draft.status = $('status').value;
-    return structuredClone(state.draft);
+    try {
+      return validateQuery({ ...state.draft, page: 1 }, { PNCP_VALIDATED_FILTERS: '' });
+    } catch (error) {
+      const field = error.details?.field;
+      const start = filterFields.get(field);
+      const end = filterFields.get(error.details?.end_field);
+      const notice = $('filter-validation-error');
+      notice.textContent =
+        start && end ? `“${start.cap.label}” deve ser menor ou igual a “${end.cap.label}”.` : error.message;
+      notice.hidden = false;
+      revealFilter(start);
+      return null;
+    }
   }
   function mergeDomains(domains) {
     if (!domains?.filters) return;
