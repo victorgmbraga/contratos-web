@@ -121,19 +121,6 @@ export function projectItemResult(record) {
     motivo_cancelamento: text('motivoCancelamento')
   };
 }
-export const FILE_TIMEOUT_FACTOR = 10;
-/** Nome do arquivo em Content-Disposition (filename* em UTF-8 tem precedência). */
-export function dispositionName(header) {
-  if (typeof header !== 'string') return null;
-  const extended = header.match(/filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/);
-  if (extended)
-    try {
-      return decodeURIComponent(extended[1].trim()) || null;
-    } catch {}
-  const plainName = header.match(/filename\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^;]+))/);
-  const value = plainName ? (plainName[1] ?? plainName[2]).replace(/\\(.)/g, '$1').trim() : '';
-  return value || null;
-}
 export class PncpClient {
   /**
    * @param {any} config
@@ -181,9 +168,9 @@ export class PncpClient {
     if (next) next.resolve();
     else this.active--;
   }
-  async readBody(response, op, signal = op.signal, binary = false) {
+  async readBody(response, op, signal = op.signal) {
     const reader = response.body?.getReader();
-    if (!reader) return binary ? [] : '';
+    if (!reader) return '';
     const decoder = new TextDecoder(),
       chunks = [];
     const abort = () => {
@@ -205,9 +192,8 @@ export class PncpClient {
           'Limite de volume da operação excedido. Delimite a pesquisa.',
           422
         );
-        chunks.push(binary ? value : decoder.decode(value, { stream: true }));
+        chunks.push(decoder.decode(value, { stream: true }));
       }
-      if (binary) return chunks;
       chunks.push(decoder.decode());
       return chunks.join('');
     } catch (error) {
@@ -218,11 +204,8 @@ export class PncpClient {
       reader.releaseLock();
     }
   }
-  /**
-   * Com `binary`, devolve o corpo bruto (partes Uint8Array), o tipo e o nome indicado pelo PNCP.
-   * @returns {Promise<any>}
-   */
-  async get(url, op, allowNoContent = false, binary = false) {
+  /** @returns {Promise<any>} */
+  async get(url, op, allowNoContent = false) {
     const origin = new URL(url).origin;
     for (let attempt = 0; attempt <= this.config.PNCP_MAX_RETRIES; attempt++) {
       op.check();
@@ -240,9 +223,7 @@ export class PncpClient {
           }
           await delay(wait, op.signal);
         }
-        // Arquivos podem ter dezenas de MB; o prazo de leitura cobre o download inteiro.
-        const readTimeout = this.config.PNCP_READ_TIMEOUT_SECONDS * 1000 * (binary ? FILE_TIMEOUT_FACTOR : 1);
-        const signal = AbortSignal.any([op.signal, AbortSignal.timeout(readTimeout)]);
+        const signal = AbortSignal.any([op.signal, AbortSignal.timeout(this.config.PNCP_READ_TIMEOUT_SECONDS * 1000)]);
         let current = url;
         let response;
         for (let redirects = 0; redirects <= 3; redirects++) {
@@ -257,8 +238,7 @@ export class PncpClient {
             signal,
             redirect: 'manual',
             headers: { Accept: 'application/json' },
-            ...this.fetchOptions,
-            ...(binary ? { headers: { Accept: '*/*' } } : {})
+            ...this.fetchOptions
           });
           if (response.type === 'opaque' || response.type === 'opaqueredirect' || response.status === 0) {
             await response.body?.cancel();
@@ -314,12 +294,6 @@ export class PncpClient {
             await response.body?.cancel();
             fail('PNCP_HTTP_ERROR', `PNCP retornou HTTP ${status}.`, 502, { upstream_status: status, origin: 'pncp' });
           }
-          if (binary)
-            return {
-              chunks: await this.readBody(response, op, signal, true),
-              content_type: response.headers.get('content-type'),
-              filename: dispositionName(response.headers.get('content-disposition'))
-            };
           if (!(response.headers.get('content-type') || '').toLowerCase().includes('json')) {
             await response.body?.cancel();
             fail('INVALID_UPSTREAM', 'PNCP retornou conteúdo diferente de JSON.', 502);
@@ -738,20 +712,6 @@ export class PncpClient {
       return { files: (files || []).map(record => projectRelated('arquivos', record, document)) };
     }
     return { fields: recordFields(resource, await this.get(path, op)) };
-  }
-  /** Baixa um arquivo público do PNCP; só aceita links HTTPS do próprio PNCP. */
-  async file(url, op) {
-    let parsed = null;
-    try {
-      parsed = new URL(url);
-    } catch {}
-    assert(
-      parsed?.origin === 'https://pncp.gov.br' && !parsed.username && !parsed.password,
-      'UNSAFE_FILE_URL',
-      'Link de arquivo fora do PNCP.',
-      422
-    );
-    return this.get(parsed.href, op, false, true);
   }
   async close() {}
 }

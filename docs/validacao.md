@@ -51,7 +51,7 @@ O runner nativo executa até quatro arquivos de `test/*.test.js` em paralelo, co
 - Pesquisa, paginação, ordenações compatíveis por tipo, projeção de dados, identidades e detalhes dos três tipos.
 - HTTP 204/404 nos recursos permitidos, histórico de contrato com total desconhecido, falhas de formato, transporte e contagem.
 - CSV, consistência entre páginas, limites de bytes/documentos, progresso, cancelamento e proteção de campos textuais contra interpretação como fórmulas, preservando decimais negativos.
-- Exportação completa ([`test/full-export.test.js`](../test/full-export.test.js)): ZIP lido e conferido por CRC, JSON por documento com itens, resultados, listagens e registros filhos, arquivos em pastas, limite de 100 documentos, bloqueio de downloads pelo navegador, falhas por seção e cancelamento.
+- Exportação completa ([`test/full-export.test.js`](../test/full-export.test.js)): JSON por documento com itens, resultados, listagens, registros filhos e links dos arquivos, sem downloads, limite de 100 documentos, falhas por seção e cancelamento.
 - Configuração pública, fila, tentativas, prazo de operação e comunicação com o Worker. [`pncp-rate.test.js`](../test/pncp-rate.test.js) verifica com relógio controlado o cancelamento durante a espera e `Retry-After` aplicado às chamadas já enfileiradas.
 - URL compartilhável da busca e dos detalhes, restauração dos controles, página, documento e aba, Voltar/Avançar e descarte de respostas atrasadas. Links diretos de editais consultam a API de consulta quando a linha não está disponível na busca.
 - Pré-carga das opções, validade de quatro horas, compactação, armazenamento indisponível, deduplicação e amparos por normativo.

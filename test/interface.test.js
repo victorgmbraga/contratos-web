@@ -186,8 +186,8 @@ async function interfaceFixture(options = {}) {
           result = options.fullExportHandler
             ? await options.fullExportHandler(payload, callOptions, core)
             : {
-                mime: 'application/zip',
-                filename: 'contratos-web-completa.zip',
+                mime: 'application/json',
+                filename: 'contratos-web-completa.json',
                 ...(await fullExport(core, payload.query, callOptions.signal || new AbortController().signal, 'ui', {
                   onProgress: callOptions.onProgress
                 }))
@@ -1170,7 +1170,7 @@ test('MOBILE-UI-01: menu mobile alterna a visualização e exporta os dois escop
   assert.equal(ui.downloads.length, 2);
 });
 
-test('FULL-UI-01: exportação completa baixa o ZIP dos últimos critérios concluídos', async () => {
+test('FULL-UI-01: exportação completa baixa o JSON dos últimos critérios concluídos', async () => {
   const ui = await interfaceFixture();
   ui.nodes.get('search').value = 'firewall';
   await ui.nodes.get('search-form').fire('submit');
@@ -1182,8 +1182,8 @@ test('FULL-UI-01: exportação completa baixa o ZIP dos últimos critérios conc
   assert.deepEqual(ui.fullExportRequests, [{ query: completed }]);
   assert.equal(ui.exportRequests.length, 0);
   assert.equal(ui.downloads.length, 1);
-  assert.equal(ui.downloads[0].filename, 'contratos-web-completa.zip');
-  assert.match(ui.nodes.get('notice-message').textContent, /\d+ documentos exportados com \d+ de \d+ arquivos\./);
+  assert.equal(ui.downloads[0].filename, 'contratos-web-completa.json');
+  assert.match(ui.nodes.get('notice-message').textContent, /\d+ documentos exportados com links de \d+ arquivos\./);
   assert.equal(ui.nodes.get('export-full-button').disabled, false);
   assert.equal(ui.nodes.get('cancel-export-button').hidden, true);
   await ui.nodes.get('mobile-export-full-button').fire('click');
@@ -1200,7 +1200,7 @@ test('FULL-UI-02: exportação completa exige de 1 a 100 documentos e mostra pro
     },
     fullExportHandler: (payload, options) =>
       new Promise((resolve, reject) => {
-        options.onProgress({ phase: 'documents', documents: 1, total: 4, files: 3, bytes: 10 });
+        options.onProgress({ documents: 1, total: 4 });
         options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
         release = resolve;
       })
@@ -1222,10 +1222,7 @@ test('FULL-UI-02: exportação completa exige de 1 a 100 documentos e mostra pro
   assert.equal(ui.nodes.get('cancel-export-button').hidden, false);
   assert.equal(ui.nodes.get('cancel-export-button').getAttribute('aria-label'), 'Cancelar exportação');
   assert.equal(ui.nodes.get('export-button').getAttribute('aria-label'), 'Gerando exportação completa');
-  assert.match(
-    ui.nodes.get('notice-message').textContent,
-    /Exportação completa: 1 de 4 documentos, 3 arquivos baixados/
-  );
+  assert.match(ui.nodes.get('notice-message').textContent, /Exportação completa: 1 de 4 documentos…/);
   await ui.nodes.get('cancel-export-button').fire('click');
   await exporting;
   assert.equal(release !== undefined, true);

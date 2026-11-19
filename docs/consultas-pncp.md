@@ -17,7 +17,7 @@ O Worker consulta `https://pncp.gov.br/api/search/` para pesquisa, filtros e sug
 | `documentRelated` | `{document, resource, page, size, pagination_mode?}` | Listagem dos detalhes de qualquer tipo documental |
 | `contractChild` | `{document, resource, sequence}` | Detalhes do registro filho de contrato |
 | `export` | `{query}` | Buffers CSV, nome, MIME e metadados compactos |
-| `fullExport` | `{query}` | Buffers do ZIP com JSON estruturado e arquivos por documento, nome, MIME e metadados |
+| `fullExport` | `{query}` | Buffer do JSON estruturado por documento, com os links dos arquivos, nome, MIME e metadados |
 
 Esses métodos são locais, não URLs HTTP. Campos e métodos desconhecidos são rejeitados antes da consulta à fonte. Cancelamento rejeita a chamada com `AbortError`; erros do Worker preservam `code`, `message`, `status`, `details` e `retryable`.
 
@@ -326,9 +326,9 @@ Total acima do limite, mudança de total, duplicação, identidade ausente, pág
 
 `service.call("fullExport", {query}, {signal, onProgress})` ([`src/full-export.js`](../src/full-export.js)) refaz a busca com os critérios da última pesquisa e exige até `FULL_EXPORT_LIMIT` (100) documentos; acima disso falha com `EXPORT_TOO_BROAD` antes de qualquer detalhe. Para cada documento, chama os mesmos métodos do painel: `documentDetails`; em editais, todas as páginas de `details` e `itemResults` dos itens com `temResultado`; todas as páginas de `documentRelated` de cada aba (páginas de 50, porque o PNCP recusa 100 em contratos de uma contratação; o histórico de contratos segue `until_empty` quando necessário); e, em contratos, `contractChild` de cada termo, empenho e instrumento de cobrança. Cada chamada é uma operação própria, com seus prazos e limites, e todas passam pelo cliente compartilhado do Worker, que impõe `PNCP_MAX_CONCURRENT_REQUESTS` e `PNCP_REQUESTS_PER_SECOND`. Dois documentos são processados por vez. Falhas de uma seção (exceto cancelamento) ficam em `erros` do documento, sem interromper os demais.
 
-Os arquivos das listagens e dos termos são baixados por `PncpClient.file`, que só aceita links HTTPS de `pncp.gov.br`, lê o corpo em binário e usa prazo de leitura dez vezes maior. O volume total de arquivos é limitado a 512 MB. Hoje o PNCP envia `Access-Control-Allow-Origin` duplicado nos downloads de arquivos, o que faz o navegador recusar a leitura; após duas falhas de transporte seguidas, os demais arquivos não são tentados e ficam com `situacao: "nao_baixado"` e o link. A aplicação não contorna essa restrição.
+Os arquivos não são baixados: cada documento traz em `arquivos` a origem (`arquivos` ou `termos/<sequencial>`), o título, o tipo, a data de publicação e o link público de download no PNCP. O PNCP envia `Access-Control-Allow-Origin` duplicado nos downloads de arquivos, o que faz o navegador recusar a leitura; a aplicação não contorna essa restrição.
 
-`onProgress` recebe `{phase, documents, total, files, bytes}`; `phase` é `"documents"` durante a coleta e `"zip"` ao montar o arquivo. O ZIP ([`src/zip.js`](../src/zip.js)) usa nomes UTF-8, armazena os arquivos baixados e comprime o JSON e o índice com `deflate-raw` quando `CompressionStream` está disponível. Contém `exportacao.json` (`formato: "contratos-web/exportacao-completa"`, `versao: 1`, critérios, resumo e `documentos`), `arquivos.html` e uma pasta por documento (`NNN-<controle PNCP>`) com nomes de arquivo saneados e únicos. Os metadados acrescentam `files_total`, `files_included`, `files_bytes`, `files_blocked` e `errors`, com `export_scope: "full"`.
+`onProgress` recebe `{documents, total}`. O resultado é um único arquivo JSON (`mime: "application/json"`) com `formato: "contratos-web/exportacao-completa"`, `versao: 1`, critérios, resumo e `documentos`. Os metadados acrescentam `files_total` e `errors`, com `export_scope: "full"`.
 
 ## Erros e diagnóstico
 

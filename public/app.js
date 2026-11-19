@@ -771,7 +771,7 @@ export function createApplicationUI(
     const estimator = createProgressEstimator();
     updateExportButton();
     notice(
-      'Consultando o PNCP para a exportação completa: detalhes, itens, listagens e arquivos de cada documento. Pode levar alguns minutos.'
+      'Consultando o PNCP para a exportação completa: detalhes, itens e listagens de cada documento. Pode levar alguns minutos.'
     );
     try {
       const result = /** @type {import('../types/contracts.js').FullExportResult} */ (
@@ -782,10 +782,9 @@ export function createApplicationUI(
             signal: controller.signal,
             onProgress: (/** @type {import('../types/contracts.js').FullExportProgress} */ progress) => {
               if (!session.current('export', seq)) return;
-              if (progress.phase === 'zip') return notice('Montando o arquivo ZIP…');
               const remaining = estimator.update({ rows: progress.documents, total: progress.total });
               notice(
-                `Exportação completa: ${fmtInt(progress.documents)} de ${fmtInt(progress.total)} documentos, ${fmtInt(progress.files)} arquivos baixados…${remaining ? ` Cerca de ${remaining} s restantes.` : ''}`
+                `Exportação completa: ${fmtInt(progress.documents)} de ${fmtInt(progress.total)} documentos…${remaining ? ` Cerca de ${remaining} s restantes.` : ''}`
               );
             }
           }
@@ -793,10 +792,10 @@ export function createApplicationUI(
       );
       if (!session.current('export', seq) || controller.signal.aborted) return;
       saveDownload(result);
-      const { exported_rows: rows, files_total: files, files_included: included, errors } = result.metadata;
+      const { exported_rows: rows, files_total: files, errors } = result.metadata;
       notice(
-        `${fmtInt(rows)} documentos exportados com ${fmtInt(included)} de ${fmtInt(files)} arquivos.${included < files ? ' Os arquivos não baixados têm o link em arquivos.html.' : ''}${errors ? ` ${fmtInt(errors)} consultas falharam e estão listadas no JSON.` : ''}`,
-        included < files || errors ? 'warning' : undefined
+        `${fmtInt(rows)} documentos exportados com links de ${fmtInt(files)} arquivos.${errors ? ` ${fmtInt(errors)} consultas falharam e estão listadas no JSON.` : ''}`,
+        errors ? 'warning' : undefined
       );
     } catch (error) {
       if (session.current('export', seq) && error.name !== 'AbortError') {

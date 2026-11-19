@@ -205,8 +205,8 @@ export function createRuntime(input, options = {}) {
             result = {
               chunks: ownBuffers(chunks),
               metadata,
-              mime: 'application/zip',
-              filename: `contratos-web-completa-${stamp}.zip`
+              mime: 'application/json',
+              filename: `contratos-web-completa-${stamp}.json`
             };
             break;
           }

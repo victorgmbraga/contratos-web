@@ -8,7 +8,7 @@ Aplicação para pesquisar editais e avisos de contratações, atas de registro 
 - Consulta de detalhes com todos os campos do registro, itens, arquivos, registros vinculados e histórico dos documentos.
 - Resultados paginados, tabela com colunas personalizáveis (visibilidade, ordem e largura persistidas por tipo) e cartões para dispositivos móveis.
 - Exportação dos resultados completos ou somente da página atual em CSV pelo menu **Exportar**, com progresso e estimativa de tempo.
-- **Exportação completa** em ZIP para consultas de até 100 documentos: JSON estruturado com detalhes, itens, resultados e listagens de cada documento e uma pasta de arquivos por documento.
+- **Exportação completa** em JSON para consultas de até 100 documentos: detalhes, itens, resultados e listagens de cada documento, com os links de download dos arquivos.
 - Links compartilháveis para buscas e detalhes de documentos.
 - Filtros organizados com o grupo **Principais**, busca pelo nome do filtro e contador de critérios ativos.
 - Detalhes com os campos principais de cada tipo em destaque, no início da lista.
