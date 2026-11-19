@@ -2,6 +2,7 @@ import { AppError, assert, checkKeys } from '../errors.js';
 import { schema } from '../schema.js';
 import { plain } from '../adapter.js';
 import { QueryService } from '../query-core.js';
+import { fullExport } from '../full-export.js';
 import { browserSettings, createBrowserClient } from './client.js';
 import { PROTOCOL_VERSION } from './protocol.js';
 
@@ -17,8 +18,20 @@ const methods = [
   'documentDetails',
   'documentRelated',
   'contractChild',
-  'export'
+  'export',
+  'fullExport'
 ];
+const binaryMethods = ['export', 'fullExport'];
+/** Buffers próprios de cada parte, sem duplicatas, para transferir ao Blob da interface sem cópia. */
+function ownBuffers(chunks) {
+  const seen = new Set();
+  return chunks.map(chunk => {
+    const own = chunk.byteOffset === 0 && chunk.byteLength === chunk.buffer.byteLength && !seen.has(chunk.buffer);
+    const buffer = own ? chunk.buffer : chunk.slice().buffer;
+    seen.add(buffer);
+    return buffer;
+  });
+}
 export function errorRecord(error) {
   if (error?.name === 'AbortError')
     return {
@@ -120,7 +133,8 @@ export function createRuntime(input, options = {}) {
           documentDetails: ['document'],
           documentRelated: ['document', 'resource', 'page', 'size', 'pagination_mode'],
           contractChild: ['document', 'resource', 'sequence'],
-          export: ['query', 'scope']
+          export: ['query', 'scope'],
+          fullExport: ['query']
         };
         checkKeys(payload, allowed[method], 'operação');
         let result;
@@ -178,16 +192,27 @@ export function createRuntime(input, options = {}) {
             const stamp = metadata.finished_at.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
             const pageSuffix = metadata.export_scope === 'page' ? `-pagina-${metadata.page}` : '';
             result = {
-              chunks: chunks.map(c => c.buffer),
+              chunks: ownBuffers(chunks),
               metadata,
               mime: 'text/csv; charset=utf-8',
               filename: `contratos-web-${stamp}${pageSuffix}.csv`
             };
             break;
           }
+          case 'fullExport': {
+            const { chunks, metadata } = await fullExport(service, payload.query, signal, id, { onProgress });
+            const stamp = metadata.finished_at.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+            result = {
+              chunks: ownBuffers(chunks),
+              metadata,
+              mime: 'application/zip',
+              filename: `contratos-web-completa-${stamp}.zip`
+            };
+            break;
+          }
         }
         signal.throwIfAborted();
-        return method === 'export' ? result : plain(result);
+        return binaryMethods.includes(method) ? result : plain(result);
       } finally {
         controllers.delete(id);
         releaseSlot();
@@ -231,7 +256,7 @@ export function attachWorker(scope, options) {
       const result = await runtime.run(data.id, data.method, data.payload, progress =>
         scope.postMessage({ id: data.id, progress })
       );
-      scope.postMessage({ id: data.id, result }, data.method === 'export' ? result.chunks : []);
+      scope.postMessage({ id: data.id, result }, binaryMethods.includes(data.method) ? result.chunks : []);
     } catch (error) {
       scope.postMessage({ id: data?.id, error: errorRecord(error) });
     }

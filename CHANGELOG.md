@@ -4,6 +4,8 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 
 ## Próxima versão
 
+- Adiciona a **Exportação completa** ao menu Exportar: para consultas de até 100 documentos, gera um ZIP com um JSON estruturado por documento (detalhes, itens e resultados homologados, listagens das abas e registros filhos) e uma pasta de arquivos por documento, respeitando o limite de requisições do PNCP. Arquivos que o navegador não consegue baixar ficam listados com o link.
+
 - Oculta as barras de rolagem no layout mobile e preserva a rolagem do conteúdo.
 
 - Preserva entradas decimais negativas para correção, revela filtros inválidos e valida intervalos antes de aplicar a busca.

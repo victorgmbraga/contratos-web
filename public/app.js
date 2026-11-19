@@ -46,6 +46,8 @@ export function createApplicationUI(
   const clone = value => structuredClone(value);
   const documentName = (type = state.query.document_type) => state.schema.document_types.find(d => d.id === type);
   const TABLE_PAGE_SIZE = 100;
+  // Mesmo limite do Worker (src/full-export.js), repetido para não levar o módulo ao bundle da interface.
+  const FULL_EXPORT_LIMIT = 100;
   const RESULT_CACHE_TTL = 30000;
   const RESULT_CACHE_LIMIT = 20;
   const filterHeaderIcon =
@@ -89,6 +91,7 @@ export function createApplicationUI(
     tableReady = false,
     queryRequested = false,
     exportWarning = false,
+    exportFull = false,
     searchFocusReturn = false;
   const toolbarButtonIds = [
     'theme-button',
@@ -263,13 +266,20 @@ export function createApplicationUI(
     menu.style.maxHeight = `${Math.max(120, (window.visualViewport?.height || window.innerHeight) - anchorRect.bottom - 14)}px`;
   }
   function enabledExportOptions() {
-    return [$('export-all-button'), $('export-page-button')].filter(option => option && !option.disabled);
+    return [$('export-all-button'), $('export-page-button'), $('export-full-button')].filter(
+      option => option && !option.disabled
+    );
   }
   function updateExportButton() {
     const busy = !!state.exportAbort,
       ready = ['success', 'empty'].includes(state.status),
-      hasPage = !!state.lastResult?.data?.length;
+      hasPage = !!state.lastResult?.data?.length,
+      total = state.lastResult?.total ?? 0,
+      fullReady = ready && total > 0 && total <= FULL_EXPORT_LIMIT;
     $('export-button').disabled = busy || !ready;
+    $('export-full-button').disabled = busy || !fullReady;
+    $('mobile-export-full-button').disabled = busy || !fullReady;
+    $('mobile-export-full-button').setAttribute('aria-busy', String(busy));
     $('export-all-button').disabled = busy || !ready;
     $('export-page-button').disabled = busy || !ready || !hasPage;
     $('mobile-export-all-button').disabled = busy || !ready;
@@ -279,9 +289,19 @@ export function createApplicationUI(
     $('mobile-export-page-button').setAttribute('aria-busy', String(busy));
     $('cancel-export-button').hidden = !busy;
     if (!busy) $('cancel-export-button-tooltip').hidden = true;
-    $('export-button-tooltip').textContent = busy ? 'Consultando e gerando CSV…' : 'Exportar';
+    const cancelLabel = busy && exportFull ? 'Cancelar exportação' : 'Cancelar CSV';
+    $('cancel-export-button').setAttribute('aria-label', cancelLabel);
+    $('cancel-export-button-tooltip').textContent = cancelLabel;
+    $('export-button-tooltip').textContent = busy
+      ? exportFull
+        ? 'Gerando exportação completa…'
+        : 'Consultando e gerando CSV…'
+      : 'Exportar';
     if (busy) $('export-button-tooltip').hidden = true;
-    $('export-button').setAttribute('aria-label', busy ? 'Gerando CSV' : 'Exportar');
+    $('export-button').setAttribute(
+      'aria-label',
+      busy ? (exportFull ? 'Gerando exportação completa' : 'Gerando CSV') : 'Exportar'
+    );
     if (busy || !ready) closeExportMenu();
   }
   function status(value, query = state.query) {
@@ -730,9 +750,71 @@ export function createApplicationUI(
       invalidQueryUrl(error);
     }
   }
+  function saveDownload(result) {
+    const blob = new Blob(result.chunks, { type: result.mime });
+    const href = URL.createObjectURL(blob),
+      link = el('a');
+    link.href = href;
+    link.download = result.filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    schedule(() => URL.revokeObjectURL(href), 10000);
+  }
+  async function exportFullZip() {
+    if (!state.lastQuery || state.exportAbort || $('export-full-button').disabled) return;
+    const query = clone(state.lastQuery);
+    const seq = session.next('export');
+    const controller = new AbortController();
+    state.exportAbort = controller;
+    exportFull = true;
+    const estimator = createProgressEstimator();
+    updateExportButton();
+    notice(
+      'Consultando o PNCP para a exportação completa: detalhes, itens, listagens e arquivos de cada documento. Pode levar alguns minutos.'
+    );
+    try {
+      const result = /** @type {import('../types/contracts.js').FullExportResult} */ (
+        await service.call(
+          'fullExport',
+          { query },
+          {
+            signal: controller.signal,
+            onProgress: (/** @type {import('../types/contracts.js').FullExportProgress} */ progress) => {
+              if (!session.current('export', seq)) return;
+              if (progress.phase === 'zip') return notice('Montando o arquivo ZIP…');
+              const remaining = estimator.update({ rows: progress.documents, total: progress.total });
+              notice(
+                `Exportação completa: ${fmtInt(progress.documents)} de ${fmtInt(progress.total)} documentos, ${fmtInt(progress.files)} arquivos baixados…${remaining ? ` Cerca de ${remaining} s restantes.` : ''}`
+              );
+            }
+          }
+        )
+      );
+      if (!session.current('export', seq) || controller.signal.aborted) return;
+      saveDownload(result);
+      const { exported_rows: rows, files_total: files, files_included: included, errors } = result.metadata;
+      notice(
+        `${fmtInt(rows)} documentos exportados com ${fmtInt(included)} de ${fmtInt(files)} arquivos.${included < files ? ' Os arquivos não baixados têm o link em arquivos.html.' : ''}${errors ? ` ${fmtInt(errors)} consultas falharam e estão listadas no JSON.` : ''}`,
+        included < files || errors ? 'warning' : undefined
+      );
+    } catch (error) {
+      if (session.current('export', seq) && error.name !== 'AbortError') {
+        $('notice').dataset.code = error.code || '';
+        notice(`Falha na exportação completa: ${error.message}`, 'error');
+      }
+    } finally {
+      if (session.current('export', seq)) {
+        state.exportAbort = null;
+        exportFull = false;
+        updateExportButton();
+      }
+    }
+  }
   async function exportCsv(scope = 'all') {
     if (!state.lastQuery || state.exportAbort || !['success', 'empty'].includes(state.status)) return;
     if (scope === 'page' && !state.lastResult?.data?.length) return;
+    exportFull = false;
     const query = clone(state.lastQuery);
     if (scope === 'page') query.page = state.lastResult.page;
     const seq = session.next('export');
@@ -759,15 +841,7 @@ export function createApplicationUI(
         })
       );
       if (!session.current('export', seq) || controller.signal.aborted) return;
-      const blob = new Blob(result.chunks, { type: result.mime });
-      const href = URL.createObjectURL(blob),
-        link = el('a');
-      link.href = href;
-      link.download = result.filename;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      schedule(() => URL.revokeObjectURL(href), 10000);
+      saveDownload(result);
       notice(
         `${result.metadata.exported_rows} linhas exportadas${scope === 'page' ? ` (página ${result.metadata.page})` : ''}.`
       );
@@ -834,6 +908,7 @@ export function createApplicationUI(
     );
     $('mobile-export-all-button').addEventListener('click', () => exportCsv());
     $('mobile-export-page-button').addEventListener('click', () => exportCsv('page'));
+    $('mobile-export-full-button').addEventListener('click', () => exportFullZip());
     const exportMenu = $('export-menu');
     $('export-all-button').addEventListener('click', () => {
       closeExportMenu();
@@ -842,6 +917,10 @@ export function createApplicationUI(
     $('export-page-button').addEventListener('click', () => {
       closeExportMenu();
       return exportCsv('page');
+    });
+    $('export-full-button').addEventListener('click', () => {
+      closeExportMenu();
+      return exportFullZip();
     });
     $('export-button').addEventListener('keydown', event => {
       if (!['ArrowDown', 'ArrowUp'].includes(event.key) || $('export-button').disabled || exportMenuOpen()) return;

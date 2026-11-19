@@ -77,7 +77,7 @@ export function initializeButtonMotion(document) {
         }));
     }
     if (button.id === 'columns-button' && paths[0]) return one(paths[0], columns, 560);
-    if (['export-button', 'mobile-export-all-button'].includes(button.id) && paths[0])
+    if (['export-button', 'mobile-export-all-button', 'mobile-export-full-button'].includes(button.id) && paths[0])
       return one(paths[0], download, 560);
     if (button.id === 'mobile-export-page-button' && paths[0]) return one(paths[0], columns, 500);
     if (button.id === 'theme-button')

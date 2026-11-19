@@ -543,11 +543,11 @@ try {
   await page.waitForFunction(() => document.querySelector('#export-button').getAttribute('aria-expanded') === 'true');
   assert.deepEqual(
     await page.locator('#export-menu [role="menuitem"]').evaluateAll(nodes => nodes.map(node => node.id)),
-    ['export-all-button', 'export-page-button']
+    ['export-all-button', 'export-page-button', 'export-full-button']
   );
   await page.waitForFunction(() => document.activeElement.id === 'export-all-button');
   await page.keyboard.press('End');
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'export-page-button');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'export-full-button');
   await page.keyboard.press('Home');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'export-all-button');
   await page.keyboard.press('Escape');

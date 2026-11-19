@@ -95,8 +95,21 @@ O botão **Exportar** oferece:
 
 - **Toda a consulta**: refaz a pesquisa no PNCP e coleta todos os resultados, até 10.000 documentos, com progresso e estimativa de tempo. Pode levar cerca de um minuto para consultas grandes e pode ser cancelada.
 - **Página atual**: exporta somente os documentos da página exibida.
+- **Exportação completa**: gera um ZIP com tudo o que o painel de detalhes mostra de cada documento. Disponível para consultas com até 100 documentos.
 
 O arquivo usa UTF-8 com separador vírgula e inclui todas as colunas do tipo, mesmo as ocultas na tabela. Como a exportação consulta a fonte de novo, os dados podem diferir ligeiramente do que estava na tela. Abra-o no Excel, LibreOffice ou Google Planilhas.
+
+## Exportação completa (ZIP)
+
+A exportação completa consulta, para cada documento da última pesquisa concluída, os detalhes, os itens com os resultados homologados (editais) e todas as listagens das abas do painel: arquivos, atas, contratos, partes envolvidas, empenhos, instrumentos de cobrança, termos e histórico. Faz muitas chamadas ao PNCP e respeita o mesmo limite de requisições simultâneas e por segundo das demais consultas; por isso pode levar alguns minutos. O progresso mostra os documentos concluídos e os arquivos baixados, e a operação pode ser cancelada.
+
+O ZIP contém:
+
+- `exportacao.json`: os critérios da consulta e a lista `documentos`, uma entrada por documento com a pasta, os dados da busca, os detalhes, os itens, as listagens, a lista `arquivos` (nome, tipo, data, link, situação, nome original, tipo de conteúdo, tamanho e caminho no ZIP) e eventuais `erros` de consultas que falharam;
+- uma pasta por documento (`001-…`, `002-…`), com os arquivos baixados do PNCP;
+- `arquivos.html`: índice com os links públicos de todos os arquivos e a situação de cada um.
+
+Arquivos que não puderem ser baixados (por bloqueio do navegador, tempo esgotado ou volume total acima de 512 MB) continuam listados no JSON e em `arquivos.html` com o link do PNCP.
 
 ## Quando algo dá errado
 

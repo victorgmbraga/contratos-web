@@ -7,6 +7,7 @@ import { schema } from '../src/schema.js';
 import { demoFetch, demoContracts, demoAtas, demoDocuments } from './demo-fixtures.js';
 import { PncpClient } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
+import { fullExport } from '../src/full-export.js';
 import { config, service, document, memoryStorage } from './helpers.js';
 import { FILTER_OPTIONS_TTL } from '../src/browser/filter-options-cache.js';
 import { project } from '../src/adapter.js';
@@ -155,6 +156,7 @@ async function interfaceFixture(options = {}) {
     documentRequests = [],
     childRequests = [],
     exportRequests = [],
+    fullExportRequests = [],
     domainRequests = [],
     suggestRequests = [];
   let detailFailures = options.detailFailures || 0,
@@ -178,6 +180,18 @@ async function interfaceFixture(options = {}) {
           result = options.exportHandler
             ? await options.exportHandler(payload, callOptions, core)
             : await core.export(payload.query, callOptions.signal);
+          break;
+        case 'fullExport':
+          fullExportRequests.push(payload);
+          result = options.fullExportHandler
+            ? await options.fullExportHandler(payload, callOptions, core)
+            : {
+                mime: 'application/zip',
+                filename: 'contratos-web-completa.zip',
+                ...(await fullExport(core, payload.query, callOptions.signal || new AbortController().signal, 'ui', {
+                  onProgress: callOptions.onProgress
+                }))
+              };
           break;
         case 'domains':
           domainRequests.push(payload);
@@ -406,6 +420,7 @@ async function interfaceFixture(options = {}) {
     documentRequests,
     childRequests,
     exportRequests,
+    fullExportRequests,
     domainRequests,
     suggestRequests,
     downloads,
@@ -1153,6 +1168,71 @@ test('MOBILE-UI-01: menu mobile alterna a visualização e exporta os dois escop
   await ui.nodes.get('mobile-export-all-button').fire('click');
   assert.equal(ui.exportRequests.at(-1).scope, undefined);
   assert.equal(ui.downloads.length, 2);
+});
+
+test('FULL-UI-01: exportação completa baixa o ZIP dos últimos critérios concluídos', async () => {
+  const ui = await interfaceFixture();
+  ui.nodes.get('search').value = 'firewall';
+  await ui.nodes.get('search-form').fire('submit');
+  const completed = ui.state();
+  ui.nodes.get('search').value = 'texto ainda não pesquisado';
+  assert.equal(ui.nodes.get('export-full-button').disabled, false);
+  assert.equal(ui.nodes.get('mobile-export-full-button').disabled, false);
+  await ui.nodes.get('export-full-button').fire('click');
+  assert.deepEqual(ui.fullExportRequests, [{ query: completed }]);
+  assert.equal(ui.exportRequests.length, 0);
+  assert.equal(ui.downloads.length, 1);
+  assert.equal(ui.downloads[0].filename, 'contratos-web-completa.zip');
+  assert.match(ui.nodes.get('notice-message').textContent, /\d+ documentos exportados com \d+ de \d+ arquivos\./);
+  assert.equal(ui.nodes.get('export-full-button').disabled, false);
+  assert.equal(ui.nodes.get('cancel-export-button').hidden, true);
+  await ui.nodes.get('mobile-export-full-button').fire('click');
+  assert.equal(ui.fullExportRequests.length, 2);
+  assert.equal(ui.downloads.length, 2);
+});
+
+test('FULL-UI-02: exportação completa exige de 1 a 100 documentos e mostra progresso e cancelamento', async () => {
+  let release;
+  const ui = await interfaceFixture({
+    queryHandler: async (query, options, core) => {
+      const result = await core.execute(query, options.signal);
+      return query.q === 'amplo' ? { ...result, total: 101, source_total: 101 } : result;
+    },
+    fullExportHandler: (payload, options) =>
+      new Promise((resolve, reject) => {
+        options.onProgress({ phase: 'documents', documents: 1, total: 4, files: 3, bytes: 10 });
+        options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+        release = resolve;
+      })
+  });
+  ui.nodes.get('search').value = 'amplo';
+  await ui.nodes.get('search-form').fire('submit');
+  assert.equal(ui.nodes.get('export-full-button').disabled, true);
+  assert.equal(ui.nodes.get('mobile-export-full-button').disabled, true);
+  assert.equal(ui.nodes.get('export-all-button').disabled, false);
+  ui.nodes.get('search').value = 'benchmark-ui';
+  await ui.nodes.get('search-form').fire('submit');
+  assert.equal(ui.nodes.get('export-full-button').disabled, true);
+  ui.nodes.get('search').value = 'firewall';
+  await ui.nodes.get('search-form').fire('submit');
+  const exporting = ui.nodes.get('export-full-button').fire('click');
+  await settle();
+  assert.equal(ui.nodes.get('export-button').disabled, true);
+  assert.equal(ui.nodes.get('export-full-button').disabled, true);
+  assert.equal(ui.nodes.get('cancel-export-button').hidden, false);
+  assert.equal(ui.nodes.get('cancel-export-button').getAttribute('aria-label'), 'Cancelar exportação');
+  assert.equal(ui.nodes.get('export-button').getAttribute('aria-label'), 'Gerando exportação completa');
+  assert.match(
+    ui.nodes.get('notice-message').textContent,
+    /Exportação completa: 1 de 4 documentos, 3 arquivos baixados/
+  );
+  await ui.nodes.get('cancel-export-button').fire('click');
+  await exporting;
+  assert.equal(release !== undefined, true);
+  assert.equal(ui.downloads.length, 0);
+  assert.equal(ui.nodes.get('cancel-export-button').hidden, true);
+  assert.equal(ui.nodes.get('cancel-export-button').getAttribute('aria-label'), 'Cancelar CSV');
+  assert.equal(ui.nodes.get('export-button').getAttribute('aria-label'), 'Exportar');
 });
 
 test('EXPORT-UI-02: geração desabilita o botão e impede exportações duplicadas', async () => {

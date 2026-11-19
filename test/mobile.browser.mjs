@@ -307,6 +307,7 @@ try {
       'clear-button',
       'mobile-export-all-button',
       'mobile-export-page-button',
+      'mobile-export-full-button',
       'theme-button'
     ]
   );
@@ -342,6 +343,8 @@ try {
   assert.equal(await page.locator('#mobile-export-page-button').getAttribute('aria-label'), 'Exportar página');
   await fits('#mobile-export-all-button', { touch: true });
   await fits('#mobile-export-page-button', { touch: true });
+  assert.equal(await page.locator('#mobile-export-full-button').getAttribute('aria-label'), 'Exportação completa');
+  await fits('#mobile-export-full-button', { touch: true });
   const download = page.waitForEvent('download');
   await page.locator('#mobile-export-all-button').click();
   assert.match((await download).suggestedFilename(), /\.csv$/);

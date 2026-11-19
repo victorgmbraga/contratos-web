@@ -331,6 +331,12 @@
               <path d="M8 9h8M8 13h8M8 17h5" />
             </svg>
           </button>
+          <button type="button" id="mobile-export-full-button" class="button" aria-label="Exportação completa" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 10v7m-3-3 3 3 3-3" />
+              <path d="M4 7h16v13H4zM3 3h18v4H3z" />
+            </svg>
+          </button>
         </div>
       </div>
     </header>
@@ -342,6 +348,10 @@
       <button type="button" id="export-page-button" class="export-option" role="menuitem">
         <span class="export-option-label">Página atual</span
         ><span class="export-option-note">Somente os registros desta página</span>
+      </button>
+      <button type="button" id="export-full-button" class="export-option" role="menuitem" disabled>
+        <span class="export-option-label">Exportação completa</span
+        ><span class="export-option-note">Até 100 documentos, com detalhes e arquivos, em ZIP</span>
       </button>
     </div>
     <main class="workspace">

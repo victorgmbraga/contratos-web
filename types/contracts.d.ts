@@ -61,6 +61,28 @@ export interface ExportResult {
   filename: string;
   metadata: ExportMetadata;
 }
+export type FullExportMetadata = Omit<SearchResult, 'data'> & {
+  exported_rows: number;
+  export_scope: 'full';
+  files_total: number;
+  files_included: number;
+  files_bytes: number;
+  files_blocked: boolean;
+  errors: number;
+};
+export interface FullExportResult {
+  chunks: ArrayBuffer[];
+  mime: string;
+  filename: string;
+  metadata: FullExportMetadata;
+}
+export interface FullExportProgress {
+  phase: 'documents' | 'zip';
+  documents: number;
+  total: number;
+  files: number;
+  bytes: number;
+}
 export interface ResultCacheEntry {
   at: number;
   result: SearchResult;

@@ -47,9 +47,10 @@ export async function assertHeaderControls(page) {
   await page.getByRole('button', { name: 'Exportar', exact: true }).click();
   const menu = page.getByRole('menu', { name: 'Exportar resultados' });
   await menu.waitFor({ state: 'visible' });
-  assert.equal(await menu.getByRole('menuitem').count(), 2);
+  assert.equal(await menu.getByRole('menuitem').count(), 3);
   assert.equal(await menu.getByRole('menuitem', { name: /^Toda a consulta/ }).count(), 1);
   assert.equal(await menu.getByRole('menuitem', { name: /^Página atual/ }).count(), 1);
+  assert.equal(await menu.getByRole('menuitem', { name: /^Exportação completa/ }).count(), 1);
   assert.equal(await page.locator('#export-button').getAttribute('aria-expanded'), 'true');
   await page.keyboard.press('Escape');
   await menu.waitFor({ state: 'hidden' });

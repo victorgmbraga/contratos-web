@@ -32,6 +32,7 @@ export function initializeMobileLayout({ document, window }) {
     'cancel-export-button',
     'mobile-export-all-button',
     'mobile-export-page-button',
+    'mobile-export-full-button',
     'theme-button',
     'repository-link'
   ]
