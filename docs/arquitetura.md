@@ -1,6 +1,6 @@
 # Arquitetura e organização do código
 
-O Contratos Web é uma aplicação estática. Um Web Worker por aba valida entradas, consulta diretamente as APIs do PNCP e gera CSV. O tema é aplicado por um boot mínimo antes da primeira pintura e um Service Worker opcional mantém os assets com hash em cache. A hospedagem entrega os arquivos compilados; Node.js, Vite e Playwright são ferramentas de desenvolvimento, build e testes.
+O Contratos Web é uma aplicação estática que pesquisa editais, atas e contratos. Um Web Worker por aba valida entradas, consulta diretamente as APIs do PNCP e gera os arquivos de exportação em CSV e JSON. O tema é aplicado antes da primeira pintura e um Service Worker opcional mantém os assets com hash em cache. A hospedagem entrega os arquivos compilados. Node.js, Vite e Playwright são ferramentas de desenvolvimento, build e testes.
 
 ```mermaid
 flowchart LR
@@ -10,7 +10,7 @@ flowchart LR
     Core --> Native[fetch do navegador]
     Native --> PNCP[APIs Search, Consulta v1 e PNCP v1]
     Worker -->|Buffers transferíveis| UI
-    UI --> CSV[Blob e download local]
+    UI --> Download[Blob e download local de CSV ou JSON]
 ```
 
 ## Decisões de arquitetura
@@ -111,6 +111,8 @@ Vite, Playwright, ESLint e Prettier são ferramentas de desenvolvimento. O ESLin
 
 `state.query` é a fonte única dos critérios: `updateCriteria` projeta a consulta nos controles do cabeçalho, e a interface só relê os campos ao pesquisar. Os contadores de operação ficam em `session.js`; cada módulo recebe o mesmo registro e invalida respostas antigas com um token novo, sem campos de sequência espalhados pelo estado.
 
+Para rastrear uma busca, comece em [`public/app.js`](../public/app.js) para critérios, paginação e recuperação da interface. Siga por [`src/browser/runtime.js`](../src/browser/runtime.js) para validação e despacho, [`src/query-core.js`](../src/query-core.js) para projeção e coleta por páginas, e [`src/pncp-core.js`](../src/pncp-core.js) para transporte, ritmo e retentativas. Os [testes com dados sintéticos e a verificação periódica do PNCP real](validacao.md#contrato-com-o-pncp-real) cobrem riscos diferentes: a suíte local verifica o comportamento da aplicação, e a verificação periódica detecta mudanças nas respostas da fonte.
+
 ## Serviço e fluxo de dados
 
 A interface usa `service.call(method, payload, {signal, onProgress})`. A ponte do navegador confirma a versão e envia `{id, method, payload}` ao Worker. Cada resultado, erro ou progresso pertence ao mesmo ID. O `AbortSignal` permanece na interface e seu evento gera uma mensagem de cancelamento. Dados projetados são objetos simples; decimais e identificadores preservam a representação textual exata.
@@ -133,13 +135,13 @@ A paginação remota usa `loadResultsPage` para abrir diretamente a página do l
 
 Os comportamentos detalhados da interface (filtros, seletores, temas, tabela e painéis) estão em [Comportamento da interface](interface.md).
 
-## CSV e recursos
+## Exportações
 
 O botão **Exportar** abre um menu com as opções **Toda a consulta** e **Página atual**. Qualquer escopo inicia uma nova coleta com os últimos critérios concluídos, desde a primeira página, ou somente da página atual quando esse escopo é escolhido. A coleta completa usa `PNCP_EXPORT_PAGE_SIZE` (100 por padrão); o escopo **Página atual** preserva `query.page` e `query.size`, independentemente dessa configuração. Até duas páginas seguintes ficam solicitadas enquanto a atual é codificada. Cada página confere total, tamanho e identidade; duplicação ou alteração encerra a operação. O Worker projeta uma página e codifica lotes de 25 documentos, devolvendo controle ao loop de eventos entre lotes/páginas. Mantém chunks de bytes e um conjunto de identidades. O resultado contém bytes e metadados compactos.
 
 A **Exportação completa** (`fullExport`, em [`src/full-export.js`](../src/full-export.js)) aceita até 100 documentos e reúne num JSON os detalhes, itens, resultados e listagens de cada documento, com os links dos arquivos. Usa as mesmas operações do painel de detalhes e o mesmo cliente com fila e ritmo, sem concorrência própria além de dois documentos por vez. Detalhes em [Consultas ao PNCP](consultas-pncp.md#exportação-completa).
 
-Progresso contém páginas, linhas, total e bytes. Só a coleta completa transfere os `ArrayBuffer` à interface, junto de nome, MIME e metadados compactos. A interface cria o Blob e revoga a URL após o download. Não há download parcial. Campos textuais que poderiam ser interpretados como fórmulas recebem um apóstrofo antes do conteúdo; valores decimais válidos, inclusive negativos, mantêm sua representação exata. `snapshot_guaranteed` é `false`, pois o PNCP pode mudar entre chamadas.
+Ao concluir qualquer exportação, o Worker transfere os `ArrayBuffer` à interface, junto de nome, MIME e metadados compactos. A interface cria o Blob e revoga a URL após o download. No CSV, o progresso inclui páginas, linhas, total e bytes. Campos textuais que poderiam ser interpretados como fórmulas recebem um apóstrofo antes do conteúdo, e valores decimais válidos, inclusive negativos, mantêm sua representação exata. `snapshot_guaranteed` é `false`, pois o PNCP pode mudar entre chamadas.
 
 ## Persistência e segurança
 

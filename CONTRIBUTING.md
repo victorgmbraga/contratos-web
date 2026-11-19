@@ -6,12 +6,20 @@ Obrigado pelo interesse no Contratos Web. Este guia resume o fluxo de trabalho; 
 
 Requisitos: Node.js 24 (veja [`.nvmrc`](.nvmrc)) e npm.
 
+Se você usa nvm, execute `nvm install` na raiz do repositório para instalar e ativar a versão indicada em `.nvmrc`.
+
 ```sh
 npm ci
 npm run dev          # http://localhost:8000, consultando o PNCP real
 ```
 
 Para os testes de navegador, instale o Chromium uma vez com `npx playwright install chromium`.
+
+Em Linux, também é possível usar um Chromium já instalado. Ajuste o caminho para o executável da sua máquina.
+
+```sh
+CONTRATOS_QA_CHROMIUM_EXECUTABLE=/usr/bin/chromium npm run test:browser
+```
 
 ## Antes de abrir um pull request
 
