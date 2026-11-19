@@ -65,6 +65,7 @@ export type FullExportMetadata = Omit<SearchResult, 'data'> & {
   exported_rows: number;
   export_scope: 'full';
   files_total: number;
+  files_with_url: number;
   errors: number;
 };
 export interface FullExportResult {

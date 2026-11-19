@@ -2,20 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PncpClient } from '../src/pncp-core.js';
 import { QueryService } from '../src/query-core.js';
-import { fullExport, FULL_EXPORT_LIMIT, fullExportSections } from '../src/full-export.js';
+import { fullExport, FULL_EXPORT_LIMIT } from '../src/full-export.js';
+import { documentResources } from '../src/document-details.js';
 import { createRuntime } from '../src/browser/runtime.js';
 import { demoFetch, demoDocuments } from './demo-fixtures.js';
 import { config, service as fixtureService, document, query } from './helpers.js';
 
 const fileDownload = u => /\/arquivos\/\d+$/.test(u.pathname);
-function demoService({ fail = () => null } = {}) {
-  const cfg = config({ PNCP_MAX_RETRIES: 0 }),
+function demoService({ fail = () => null, settings = {} } = {}) {
+  const cfg = config(settings),
     requests = [];
-  const fetcher = async url => {
+  const fetcher = async (url, init) => {
     const u = new URL(url);
     requests.push(u);
     assert.equal(fileDownload(u), false, 'a exportação não baixa arquivos');
-    const failure = fail(u);
+    const failure = fail(u, init);
     if (failure) return failure;
     const result = await demoFetch(url);
     return result instanceof Response ? result : Response.json(result);
@@ -49,7 +50,7 @@ test('FULL-01: JSON traz um registro por documento com itens, resultados, listag
     assert.equal(doc.tipo_documento, 'edital');
     assert.deepEqual(doc.erros, []);
     assert(doc.detalhes.fields.length > 0);
-    assert.deepEqual(Object.keys(doc.listagens), fullExportSections.edital);
+    assert.deepEqual(Object.keys(doc.listagens), documentResources.edital);
     assert(Array.isArray(doc.itens) && doc.itens.length > 0);
     for (const item of doc.itens) assert.equal('resultados' in item, item.temResultado === true);
     assert(doc.itens.some(item => item.resultados?.length));
@@ -66,7 +67,14 @@ test('FULL-01: JSON traz um registro por documento com itens, resultados, listag
     result.metadata.files_total,
     json.documentos.reduce((sum, doc) => sum + doc.arquivos.length, 0)
   );
-  assert.deepEqual(json.resumo, { documentos: expected.length, arquivos: result.metadata.files_total, erros: 0 });
+  assert.deepEqual(json.resumo, {
+    documentos: expected.length,
+    arquivos: result.metadata.files_total,
+    links_disponiveis: result.metadata.files_total,
+    erros: 0
+  });
+  assert.equal(result.metadata.files_with_url, result.metadata.files_total);
+  assert.equal(result.chunks.length, expected.length + 2);
 });
 
 test('FULL-02: atas e contratos trazem registros filhos e os links dos arquivos dos termos', async () => {
@@ -74,12 +82,12 @@ test('FULL-02: atas e contratos trazem registros filhos e os links dos arquivos 
   const ata = exportJson(await run(service, { document_type: 'ata', q: 'firewall' }));
   assert(ata.documentos.length > 0);
   for (const doc of ata.documentos) {
-    assert.deepEqual(Object.keys(doc.listagens), fullExportSections.ata);
+    assert.deepEqual(Object.keys(doc.listagens), documentResources.ata);
     assert.equal('itens' in doc, false);
     assert.deepEqual(doc.erros, []);
   }
   const doc = exportJson(await run(service, { document_type: 'contrato', q: 'firewall' })).documentos[0];
-  assert.deepEqual(Object.keys(doc.listagens), fullExportSections.contrato);
+  assert.deepEqual(Object.keys(doc.listagens), documentResources.contrato);
   assert.deepEqual(doc.erros, []);
   assert(doc.listagens.empenhos.every(record => !record.sequencial || Array.isArray(record.detalhe)));
   const term = doc.listagens.termos.find(record => record.sequencial);
@@ -146,5 +154,116 @@ test('FULL-06: runtime expõe fullExport com JSON transferível', async () => {
     );
   } finally {
     await runtime.close();
+  }
+});
+
+test('FULL-07: rejeita identidades repetidas antes de iniciar os detalhes', async () => {
+  for (const duplicate of [document(12), document(13, { numero_sequencial: '0012' })]) {
+    const { service, requests } = fixtureService([document(12), duplicate]);
+    await assert.rejects(run(service), { code: 'SOURCE_CHANGED' });
+    assert.equal(requests.length, 1);
+  }
+});
+
+test('FULL-08: resumo distingue arquivos listados de links disponíveis', async () => {
+  const { service } = demoService({
+    fail: u =>
+      u.pathname.endsWith('/arquivos')
+        ? Response.json(
+            Array.from({ length: 12 }, (_, index) => ({
+              titulo: 'Arquivo de teste',
+              url: index % 2 ? null : 'https://pncp.gov.br/arquivo'
+            }))
+          )
+        : null
+  });
+  const result = await run(service, { q: 'firewall' });
+  const json = exportJson(result);
+  assert(json.resumo.arquivos > 0);
+  assert.equal(json.resumo.links_disponiveis, json.resumo.arquivos / 2);
+  assert.equal(result.metadata.files_with_url, json.resumo.links_disponiveis);
+  const files = json.documentos.flatMap(doc => doc.arquivos);
+  assert.equal(files.filter(file => file.url === null).length, json.resumo.links_disponiveis);
+});
+
+test('FULL-09: contabiliza chamadas da busca, detalhes e tentativas no orçamento comum', async () => {
+  const { service, requests } = demoService({ settings: { PNCP_MAX_FULL_EXPORT_REQUESTS: 3 } });
+  await assert.rejects(run(service, { q: 'firewall' }), { code: 'FULL_EXPORT_REQUEST_LIMIT' });
+  assert.equal(requests.length, 3);
+  assert(requests.some(url => url.pathname.includes('/orgaos/')));
+
+  const retry = demoService({
+    settings: { PNCP_MAX_FULL_EXPORT_REQUESTS: 1, PNCP_MAX_RETRIES: 1 },
+    fail: () => new Response(null, { status: 503 })
+  });
+  await assert.rejects(run(retry.service, { q: 'firewall' }), { code: 'FULL_EXPORT_REQUEST_LIMIT' });
+  assert.equal(retry.requests.length, 1);
+});
+
+test('FULL-10: limite inclui todos os blocos e o cabeçalho do JSON', async () => {
+  const options = { now: () => new Date('2026-11-19T10:00:00Z') };
+  const { service, requests } = demoService();
+  const result = await run(service, { q: 'firewall' }, undefined, options);
+  assert.equal(result.metadata.upstream_requests, requests.length);
+  const bytes = Buffer.concat(result.chunks).byteLength;
+  service.config.PNCP_MAX_FULL_EXPORT_BYTES = bytes;
+  assert.equal(Buffer.concat((await run(service, { q: 'firewall' }, undefined, options)).chunks).byteLength, bytes);
+  service.config.PNCP_MAX_FULL_EXPORT_BYTES--;
+  await assert.rejects(run(service, { q: 'firewall' }, undefined, options), { code: 'FULL_EXPORT_BYTES_LIMIT' });
+});
+
+test('FULL-11: prazo geral interrompe detalhes em andamento sem devolver JSON', async () => {
+  let aborted = 0;
+  const { service, requests } = demoService({
+    settings: { PNCP_FULL_EXPORT_TIMEOUT_SECONDS: 1 },
+    fail: (url, { signal }) =>
+      url.pathname.includes('/orgaos/')
+        ? new Promise((_resolve, reject) => {
+            signal.addEventListener(
+              'abort',
+              () => {
+                aborted++;
+                reject(signal.reason);
+              },
+              { once: true }
+            );
+          })
+        : null
+  });
+  await assert.rejects(run(service, { q: 'firewall' }), { code: 'OPERATION_TIMEOUT' });
+  assert(aborted > 0);
+  assert.equal(requests.length, aborted + 1);
+});
+
+test('FULL-12: coleta de itens usa duas contagens e verifica páginas e total final', async () => {
+  for (const scenario of ['estável', 'página incompleta', 'total alterado']) {
+    let counts = 0;
+    const { service, requests } = fixtureService([document(1)], {
+      handler: url =>
+        url.pathname.endsWith('/itens/quantidade')
+          ? Response.json(++counts === 2 && scenario === 'total alterado' ? 252 : 251)
+          : null,
+      items: (_sequence, page) =>
+        Array.from(
+          {
+            length: page < 3 ? 100 : scenario === 'página incompleta' ? 50 : 51
+          },
+          (_, i) => ({ numeroItem: (page - 1) * 100 + i + 1 })
+        )
+    });
+    const result = exportJson(await run(service));
+    const [entry] = result.documentos;
+    assert.deepEqual(
+      requests.filter(url => url.pathname.endsWith('/itens')).map(url => url.searchParams.get('pagina')),
+      ['1', '2', '3']
+    );
+    if (scenario === 'estável') {
+      assert.equal(entry.itens.length, 251);
+      assert.equal(entry.itens.at(-1).numeroItem, 251);
+    } else {
+      assert.equal(entry.itens, null);
+      assert(entry.erros.some(error => error.secao === 'itens' && error.codigo === 'SOURCE_CHANGED'));
+    }
+    assert.equal(counts, scenario === 'página incompleta' ? 1 : 2);
   }
 });

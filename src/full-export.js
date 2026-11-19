@@ -1,8 +1,9 @@
 import { AppError, assert } from './errors.js';
 import { validateQuery } from './validation.js';
 import { project, plain } from './adapter.js';
-import { operation } from './operation.js';
+import { delay, operation } from './operation.js';
 import { documentNames } from './schema.js';
+import { documentResources } from './document-details.js';
 
 // Exportação completa: os documentos da consulta com tudo o que o painel de detalhes mostra
 // (detalhes, itens e resultados, listagens vinculadas e seus registros filhos) num JSON, com os
@@ -16,17 +17,38 @@ const PAGE_SIZE = 100;
 // Listagens vinculadas: o PNCP recusa páginas de 100 em contratos de uma contratação.
 const RELATED_PAGE_SIZE = 50;
 const MAX_PAGES = 1000;
-export const fullExportSections = {
-  edital: ['arquivos', 'atas', 'contratos', 'historico'],
-  ata: ['partesenvolvidas', 'contratos', 'arquivos', 'historico'],
-  contrato: ['empenhos', 'instrumentocobranca', 'termos', 'arquivos', 'historico']
-};
 const childResources = ['termos', 'empenhos', 'instrumentocobranca'];
 
 function documentIdentity(doc) {
   return (
     doc._document || (doc.tipo_documento === 'edital' && doc._purchase ? { type: 'edital', ...doc._purchase } : null)
   );
+}
+function checkDuplicates(documents) {
+  const searchIds = new Set(),
+    nativeIds = new Set();
+  for (const doc of documents) {
+    const identity = documentIdentity(doc);
+    const nativeId =
+      identity &&
+      [
+        identity.type,
+        identity.cnpj,
+        identity.ano,
+        BigInt(identity.sequencial),
+        identity.type === 'ata' ? BigInt(identity.sequencial_compra) : ''
+      ].join('/');
+    assert(
+      !searchIds.has(doc._identity) && !nativeIds.has(nativeId),
+      'SOURCE_CHANGED',
+      'O PNCP retornou um documento duplicado. Repita a consulta.',
+      409,
+      {},
+      true
+    );
+    if (doc._identity) searchIds.add(doc._identity);
+    if (nativeId) nativeIds.add(nativeId);
+  }
 }
 const omit = (record, keys) => Object.fromEntries(Object.entries(record).filter(([key]) => !keys.includes(key)));
 const publicFields = doc => Object.fromEntries(Object.entries(doc).filter(([key]) => !key.startsWith('_')));
@@ -53,11 +75,37 @@ export async function fullExport(
   requestId,
   { onProgress = () => {}, now = () => new Date() } = {}
 ) {
+  const config = service.config;
+  const op = operation(
+    { ...config, PNCP_OPERATION_TIMEOUT_SECONDS: config.PNCP_FULL_EXPORT_TIMEOUT_SECONDS },
+    signal,
+    requestId
+  );
+  const reserveRequest = () => {
+    op.check();
+    assert(
+      op.requests < config.PNCP_MAX_FULL_EXPORT_REQUESTS,
+      'FULL_EXPORT_REQUEST_LIMIT',
+      'Limite de chamadas da exportação completa excedido. Delimite a pesquisa.',
+      422,
+      { limit: config.PNCP_MAX_FULL_EXPORT_REQUESTS }
+    );
+    op.requests++;
+  };
+  try {
+    return await collectExport(service, input, op, reserveRequest, onProgress, now);
+  } finally {
+    op.finish(true);
+  }
+}
+
+async function collectExport(service, input, exportOp, reserveRequest, onProgress, now) {
   const config = service.config,
     query = validateQuery({ ...input, page: 1, size: PAGE_SIZE }, config);
+  const { id: requestId, signal } = exportOp;
   let serial = 0;
   const nextId = () => `${requestId}:${++serial}`;
-  const op = operation(config, signal, requestId);
+  const op = operation(config, signal, requestId, 'foreground', reserveRequest);
   let head, searchMetadata;
   try {
     await service.verifyDomains(query, op);
@@ -83,7 +131,26 @@ export async function fullExport(
     op.finish();
   }
   const documents = head.items.map(project);
-  let done = 0;
+  checkDuplicates(documents);
+  const encoder = new TextEncoder();
+  let done = 0,
+    files = 0,
+    links = 0,
+    errors = 0,
+    bytes = 0;
+  function encode(text) {
+    exportOp.check();
+    const chunk = encoder.encode(text);
+    bytes += chunk.byteLength;
+    assert(
+      bytes <= config.PNCP_MAX_FULL_EXPORT_BYTES,
+      'FULL_EXPORT_BYTES_LIMIT',
+      'Limite de tamanho do JSON da exportação completa excedido. Delimite a pesquisa.',
+      422,
+      { limit: config.PNCP_MAX_FULL_EXPORT_BYTES }
+    );
+    return chunk;
+  }
   const progress = () => onProgress({ documents: done, total: documents.length });
   progress();
 
@@ -92,7 +159,7 @@ export async function fullExport(
       return await task();
     } catch (error) {
       if (signal.aborted) throw signal.reason;
-      if (error?.name === 'AbortError') throw error;
+      if (error?.name === 'AbortError' || error?.code === 'FULL_EXPORT_REQUEST_LIMIT') throw error;
       entry.erros.push({
         secao: section,
         codigo: error?.code || 'INTERNAL_ERROR',
@@ -137,23 +204,27 @@ export async function fullExport(
       return entry;
     }
     await guard(entry, 'detalhes', async () => {
-      entry.detalhes = withoutEnvelope(plain(await service.documentDetails(identity, signal, nextId())));
+      entry.detalhes = withoutEnvelope(
+        plain(await service.documentDetails(identity, signal, nextId(), reserveRequest))
+      );
     });
     if (type === 'edital')
       await guard(entry, 'itens', async () => {
-        const items = await pages(page => service.details(identity, page, PAGE_SIZE, signal, nextId()));
+        const items = await service.collectItems(identity, PAGE_SIZE, signal, nextId(), reserveRequest);
         for (const item of items)
           if (item.temResultado === true && Number.isSafeInteger(item.numeroItem) && item.numeroItem > 0)
             await guard(entry, `itens/${item.numeroItem}/resultados`, async () => {
-              item.resultados = plain(await service.itemResults(identity, item.numeroItem, signal, nextId())).data;
+              item.resultados = plain(
+                await service.itemResults(identity, item.numeroItem, signal, nextId(), reserveRequest)
+              ).data;
             });
         entry.itens = items;
       });
-    for (const resource of fullExportSections[type]) {
+    for (const resource of documentResources[type]) {
       await guard(entry, resource, async () => {
         const records = plain(
           await pages((page, mode) =>
-            service.documentRelated(identity, resource, page, RELATED_PAGE_SIZE, signal, nextId(), mode)
+            service.documentRelated(identity, resource, page, RELATED_PAGE_SIZE, signal, nextId(), mode, reserveRequest)
           )
         );
         entry.listagens[resource] = records;
@@ -162,7 +233,9 @@ export async function fullExport(
           for (const record of records) {
             if (!record.sequencial) continue;
             await guard(entry, `${resource}/${record.sequencial}`, async () => {
-              const child = plain(await service.contractChild(identity, resource, record.sequencial, signal, nextId()));
+              const child = plain(
+                await service.contractChild(identity, resource, record.sequencial, signal, nextId(), reserveRequest)
+              );
               if (child.files) {
                 record.arquivos = child.files;
                 entry.arquivos.push(...child.files.map(file => fileRecord(`${resource}/${record.sequencial}`, file)));
@@ -174,31 +247,38 @@ export async function fullExport(
     return entry;
   }
 
-  // Dois documentos por vez mantêm a fila do cliente cheia; o limite real de
-  // concorrência e de chamadas por segundo continua no cliente compartilhado.
-  const entries = new Array(documents.length);
+  // Os blocos ocupam a posição da busca, mesmo quando os documentos terminam fora de ordem.
+  const chunks = new Array(documents.length + 2);
+  chunks[chunks.length - 1] = encode('\n]}\n');
   let cursor = 0;
   await Promise.all(
     Array.from({ length: Math.min(documents.length, Math.max(1, config.PNCP_MAX_CONCURRENT_REQUESTS)) }, async () => {
       while (cursor < documents.length) {
         const index = cursor++;
-        entries[index] = await collect(documents[index], index);
+        const entry = await collect(documents[index], index);
+        files += entry.arquivos.length;
+        links += entry.arquivos.filter(file => file.url).length;
+        errors += entry.erros.length;
+        chunks[index + 1] = encode((index ? ',\n' : '\n') + JSON.stringify(entry));
         done++;
         progress();
+        await delay(0, signal);
       }
     })
   );
-  signal.throwIfAborted();
+  exportOp.check();
 
-  const generatedAt = now().toISOString(),
-    files = entries.reduce((sum, entry) => sum + entry.arquivos.length, 0),
-    errors = entries.reduce((sum, entry) => sum + entry.erros.length, 0);
+  const generatedAt = now().toISOString();
   const metadata = {
     ...searchMetadata,
+    started_at: exportOp.started_at,
     finished_at: generatedAt,
+    elapsed_ms: Date.now() - exportOp.started,
+    upstream_requests: exportOp.requests,
     export_scope: 'full',
-    exported_rows: entries.length,
+    exported_rows: done,
     files_total: files,
+    files_with_url: links,
     errors
   };
   const json = {
@@ -212,12 +292,14 @@ export async function fullExport(
       criterios: searchMetadata.effective_filters,
       total: head.total
     },
-    resumo: { documentos: entries.length, arquivos: files, erros: errors },
+    resumo: { documentos: done, arquivos: files, links_disponiveis: links, erros: errors },
     observacoes: [
       'Os dados foram consultados no PNCP durante a exportação e podem diferir da tabela.',
       'Os arquivos não são baixados; a lista "arquivos" de cada documento traz o link público de download no PNCP.'
-    ],
-    documentos: entries
+    ]
   };
-  return { chunks: [new TextEncoder().encode(JSON.stringify(json, null, 2))], metadata };
+  // Os totais do cabeçalho só são conhecidos depois de codificar os documentos.
+  chunks[0] = encode(JSON.stringify(json).slice(0, -1) + ',"documentos":[');
+  exportOp.check();
+  return { chunks, metadata };
 }

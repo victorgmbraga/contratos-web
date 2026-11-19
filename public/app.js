@@ -761,7 +761,7 @@ export function createApplicationUI(
     link.remove();
     schedule(() => URL.revokeObjectURL(href), 10000);
   }
-  async function exportFullZip() {
+  async function exportFullJson() {
     if (!state.lastQuery || state.exportAbort || $('export-full-button').disabled) return;
     const query = clone(state.lastQuery);
     const seq = session.next('export');
@@ -792,9 +792,9 @@ export function createApplicationUI(
       );
       if (!session.current('export', seq) || controller.signal.aborted) return;
       saveDownload(result);
-      const { exported_rows: rows, files_total: files, errors } = result.metadata;
+      const { exported_rows: rows, files_total: files, files_with_url: links, errors } = result.metadata;
       notice(
-        `${fmtInt(rows)} documentos exportados com links de ${fmtInt(files)} arquivos.${errors ? ` ${fmtInt(errors)} consultas falharam e estão listadas no JSON.` : ''}`,
+        `${fmtInt(rows)} documentos exportados. ${fmtInt(links)} links disponíveis de ${fmtInt(files)} arquivos listados.${errors ? ` ${fmtInt(errors)} consultas falharam e estão listadas no JSON.` : ''}`,
         errors ? 'warning' : undefined
       );
     } catch (error) {
@@ -907,7 +907,7 @@ export function createApplicationUI(
     );
     $('mobile-export-all-button').addEventListener('click', () => exportCsv());
     $('mobile-export-page-button').addEventListener('click', () => exportCsv('page'));
-    $('mobile-export-full-button').addEventListener('click', () => exportFullZip());
+    $('mobile-export-full-button').addEventListener('click', () => exportFullJson());
     const exportMenu = $('export-menu');
     $('export-all-button').addEventListener('click', () => {
       closeExportMenu();
@@ -919,7 +919,7 @@ export function createApplicationUI(
     });
     $('export-full-button').addEventListener('click', () => {
       closeExportMenu();
-      return exportFullZip();
+      return exportFullJson();
     });
     $('export-button').addEventListener('keydown', event => {
       if (!['ArrowDown', 'ArrowUp'].includes(event.key) || $('export-button').disabled || exportMenuOpen()) return;

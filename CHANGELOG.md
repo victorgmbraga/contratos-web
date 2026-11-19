@@ -5,6 +5,7 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 ## Próxima versão
 
 - Adiciona a **Exportação completa** ao menu Exportar: para consultas de até 100 documentos, gera um JSON estruturado por documento (detalhes, itens e resultados homologados, listagens das abas e registros filhos) com os links de download dos arquivos, respeitando o limite de requisições do PNCP.
+- A exportação completa rejeita documentos duplicados, distingue arquivos de links disponíveis, gera o JSON em blocos e aplica limites à operação inteira. A coleta de itens de editais consulta o total no início e o reconfere no fim quando há várias páginas.
 
 - Oculta as barras de rolagem no layout mobile e preserva a rolagem do conteúdo.
 

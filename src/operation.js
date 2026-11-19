@@ -23,8 +23,15 @@ export const delay = (ms, signal) =>
  * @param {AbortSignal} [parentSignal]
  * @param {string} [requestId]
  * @param {string} [priority]
+ * @param {() => void} [reserveRequest]
  */
-export function operation(config, parentSignal, requestId = globalThis.crypto.randomUUID(), priority = 'foreground') {
+export function operation(
+  config,
+  parentSignal,
+  requestId = globalThis.crypto.randomUUID(),
+  priority = 'foreground',
+  reserveRequest
+) {
   const controller = new AbortController();
   const started = Date.now();
   const timeout = setTimeout(
@@ -47,6 +54,7 @@ export function operation(config, parentSignal, requestId = globalThis.crypto.ra
     requests: 0,
     bytes: 0,
     itemCount: 0,
+    reserveRequest,
     check() {
       if (Date.now() >= this.deadline && !controller.signal.aborted)
         controller.abort(

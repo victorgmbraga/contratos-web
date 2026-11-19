@@ -234,6 +234,7 @@ export class PncpClient {
             'Limite de chamadas da operação excedido.',
             422
           );
+          op.reserveRequest?.();
           response = await this.fetcher(current, {
             signal,
             redirect: 'manual',

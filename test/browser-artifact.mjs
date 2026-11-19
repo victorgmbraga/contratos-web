@@ -5,7 +5,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { createStaticServer } from './static-server.js';
 import { launchTestBrowser } from './browser-launch.js';
 import { assertBrowserLayout } from './browser-layout.js';
-import { demoDocument } from './demo-fixtures.js';
+import { demoDocument, demoDocuments } from './demo-fixtures.js';
 import { routePncp } from './pncp-route.js';
 import { PROTOCOL_VERSION } from '../src/browser/protocol.js';
 const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -123,6 +123,31 @@ try {
         'PASS Link direto no build de produção usa a API de consulta sem acessar a rota antiga com HTTP 301 em ' +
           prefix
       );
+      if (prefix === '/') {
+        const total = demoDocuments.filter(doc => doc.description.toLowerCase().includes('firewall')).length;
+        await page.goto(`http://127.0.0.1:${app.server.address().port}/?q=firewall`);
+        await page.waitForFunction(
+          title => document.querySelector('#result-title').textContent === title,
+          `${total} editais`
+        );
+        await page.locator('#export-button').click();
+        const [download] = await Promise.all([
+          page.waitForEvent('download'),
+          page.getByRole('menuitem', { name: /Exportação completa/ }).click()
+        ]);
+        assert.match(download.suggestedFilename(), /^contratos-web-completa-\d{8}T\d{6}Z\.json$/);
+        const json = JSON.parse(await readFile(await download.path(), 'utf8'));
+        assert.equal(json.formato, 'contratos-web/exportacao-completa');
+        assert.equal(json.consulta.criterios.q, 'firewall');
+        assert.equal(json.documentos.length, total);
+        assert.equal(json.resumo.erros, 0);
+        assert(json.documentos.some(doc => doc.itens.some(item => item.resultados?.length)));
+        const files = json.documentos.flatMap(doc => doc.arquivos);
+        assert(files.length > 0);
+        assert.equal(json.resumo.arquivos, files.length);
+        assert.equal(json.resumo.links_disponiveis, files.filter(file => file.url).length);
+        console.log('PASS Menu da exportação completa baixa JSON válido com detalhes, itens e links dos arquivos');
+      }
     } catch (error) {
       await diagnoseBrowserFailure(error);
       throw error;

@@ -317,6 +317,18 @@ export class QueryService {
       op.finish();
     }
   }
+  async checkedItemPage(purchase, page, size, total, op) {
+    const items = total === 0 ? [] : await this.client.itemPage(purchase, page, size, op);
+    assert(
+      items.length === Math.min(size, total - (page - 1) * size),
+      'SOURCE_CHANGED',
+      'A página de itens não corresponde à quantidade informada pelo PNCP. Atualize os itens.',
+      409,
+      {},
+      true
+    );
+    return plain(items);
+  }
   async details(purchase, page, size, signal, requestId) {
     validateDocument(purchase, ['edital']);
     validateDetailPage(page, size);
@@ -328,20 +340,12 @@ export class QueryService {
         last_page: pages,
         total_items: total
       });
-      const items = total === 0 ? [] : await this.client.itemPage(purchase, page, size, op);
-      assert(
-        items.length === Math.min(size, total - (page - 1) * size),
-        'SOURCE_CHANGED',
-        'A página de itens não corresponde à quantidade informada pelo PNCP. Atualize os itens.',
-        409,
-        {},
-        true
-      );
+      const items = await this.checkedItemPage(purchase, page, size, total, op);
       return {
         api_version: '2.0',
         request_id: op.id,
         source: 'pncp',
-        data: plain(items),
+        data: items,
         page,
         size,
         total_items: total,
@@ -357,10 +361,45 @@ export class QueryService {
       op.finish();
     }
   }
-  async itemResults(purchase, item, signal, requestId) {
+  async collectItems(purchase, size, signal, requestId, reserveRequest) {
+    validateDocument(purchase, ['edital']);
+    validateDetailPage(1, size);
+    const op = operation(
+      { ...this.config, PNCP_OPERATION_TIMEOUT_SECONDS: this.config.PNCP_FULL_EXPORT_TIMEOUT_SECONDS },
+      signal,
+      requestId,
+      'foreground',
+      reserveRequest
+    );
+    try {
+      const total = await this.client.itemQuantity(purchase, op);
+      assert(
+        total <= this.config.PNCP_MAX_DETAIL_ITEMS,
+        'DETAIL_ITEM_LIMIT',
+        'Limite de itens da operação excedido.',
+        422
+      );
+      const items = [];
+      for (let page = 1; page <= Math.ceil(total / size); page++)
+        items.push(...(await this.checkedItemPage(purchase, page, size, total, op)));
+      if (total > size)
+        assert(
+          (await this.client.itemQuantity(purchase, op)) === total,
+          'SOURCE_CHANGED',
+          'A quantidade de itens do PNCP mudou durante a coleta. Atualize os itens.',
+          409,
+          {},
+          true
+        );
+      return items;
+    } finally {
+      op.finish();
+    }
+  }
+  async itemResults(purchase, item, signal, requestId, reserveRequest = undefined) {
     validateDocument(purchase, ['edital']);
     assert(Number.isSafeInteger(item) && item > 0, 'INVALID_ITEM', 'Número do item inválido.');
-    const op = operation(this.config, signal, requestId);
+    const op = operation(this.config, signal, requestId, 'foreground', reserveRequest);
     try {
       const data = await this.client.itemResults(purchase, item, op);
       return {
@@ -401,9 +440,9 @@ export class QueryService {
       op.finish();
     }
   }
-  async documentDetails(document, signal, requestId) {
+  async documentDetails(document, signal, requestId, reserveRequest = undefined) {
     validateDocument(document);
-    const op = operation(this.config, signal, requestId);
+    const op = operation(this.config, signal, requestId, 'foreground', reserveRequest);
     try {
       return {
         api_version: '2.0',
@@ -416,7 +455,7 @@ export class QueryService {
       op.finish();
     }
   }
-  async documentRelated(document, resource, page, size, signal, requestId, paginationMode) {
+  async documentRelated(document, resource, page, size, signal, requestId, paginationMode, reserveRequest = undefined) {
     validateDocument(document);
     validateDetailPage(page, size);
     assert(
@@ -425,7 +464,7 @@ export class QueryService {
       'INVALID_PAGINATION',
       'Paginação sem total disponível somente no histórico de contratos.'
     );
-    const op = operation(this.config, signal, requestId);
+    const op = operation(this.config, signal, requestId, 'foreground', reserveRequest);
     try {
       const result = await this.client.documentRelatedPage(document, resource, page, size, op, paginationMode);
       return {
@@ -447,9 +486,9 @@ export class QueryService {
       op.finish();
     }
   }
-  async contractChild(document, resource, sequence, signal, requestId) {
+  async contractChild(document, resource, sequence, signal, requestId, reserveRequest = undefined) {
     validateDocument(document);
-    const op = operation(this.config, signal, requestId);
+    const op = operation(this.config, signal, requestId, 'foreground', reserveRequest);
     try {
       return {
         ...(await this.client.contractChild(document, resource, sequence, op)),

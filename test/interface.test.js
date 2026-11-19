@@ -1183,7 +1183,10 @@ test('FULL-UI-01: exportação completa baixa o JSON dos últimos critérios con
   assert.equal(ui.exportRequests.length, 0);
   assert.equal(ui.downloads.length, 1);
   assert.equal(ui.downloads[0].filename, 'contratos-web-completa.json');
-  assert.match(ui.nodes.get('notice-message').textContent, /\d+ documentos exportados com links de \d+ arquivos\./);
+  assert.match(
+    ui.nodes.get('notice-message').textContent,
+    /\d+ documentos exportados\. \d+ links disponíveis de \d+ arquivos listados\./
+  );
   assert.equal(ui.nodes.get('export-full-button').disabled, false);
   assert.equal(ui.nodes.get('cancel-export-button').hidden, true);
   await ui.nodes.get('mobile-export-full-button').fire('click');
