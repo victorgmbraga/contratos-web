@@ -182,9 +182,20 @@ async function collectExport(service, input, exportOp, budget, onProgress, now) 
   }
   async function pages(load) {
     const records = [];
-    let mode;
+    let mode, total;
     for (let page = 1; page <= MAX_PAGES; page++) {
       const result = await load(page, mode);
+      if (result.total !== null) {
+        assert(
+          total === undefined || result.total === total,
+          'SOURCE_CHANGED',
+          'O total da listagem mudou durante a coleta no PNCP. Repita a consulta.',
+          409,
+          {},
+          true
+        );
+        total = result.total;
+      }
       records.push(...result.data);
       if (result.pagination_mode === 'until_empty') mode = 'until_empty';
       if (result.complete || !result.has_more) return records;

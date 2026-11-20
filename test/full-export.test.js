@@ -54,7 +54,7 @@ test('FULL-01: JSON traz um registro por documento com itens, resultados, listag
     assert(Array.isArray(doc.itens) && doc.itens.length > 0);
     for (const item of doc.itens) assert.equal('resultados' in item, item.temResultado === true);
     assert(doc.itens.some(item => item.resultados?.length));
-    assert([0, 12].includes(doc.arquivos.length), 'todas as páginas da listagem de arquivos');
+    assert([0, 12].includes(doc.arquivos.length), 'arquivos previstos para o edital no cenário');
     assert.equal(doc.arquivos.length, doc.listagens.arquivos.length);
     for (const file of doc.arquivos) {
       assert.deepEqual(Object.keys(file), ['origem', 'titulo', 'tipo', 'data_publicacao', 'url']);
@@ -334,4 +334,64 @@ test('FULL-14: soma os bytes das respostas e cancela a leitura antes da próxima
     ['1']
   );
   assert(requests.at(-1).pathname.endsWith('/itens'));
+});
+
+test('FULL-15: exporta todas as páginas de anexos com total estável e sinaliza redução do total', async () => {
+  for (const changed of [false, true]) {
+    let counts = 0;
+    const { service, requests } = demoService({
+      fail: url => {
+        if (url.pathname === '/api/search/') return Response.json({ items: demoDocuments.slice(0, 1), total: 1 });
+        if (url.pathname.endsWith('/arquivos/quantidade')) return Response.json(++counts > 1 && changed ? 51 : 102);
+        if (!url.pathname.endsWith('/arquivos')) return null;
+        const page = Number(url.searchParams.get('pagina'));
+        const start = (page - 1) * 50;
+        const total = changed && page > 1 ? 51 : 102;
+        return Response.json(
+          Array.from({ length: Math.min(50, total - start) }, (_, index) => ({
+            titulo: `Arquivo ${start + index + 1}`,
+            url: `https://pncp.gov.br/arquivos/${start + index + 1}`
+          }))
+        );
+      }
+    });
+    const [entry] = exportJson(await run(service)).documentos;
+    const pages = requests.filter(url => url.pathname.endsWith('/arquivos')).map(url => url.searchParams.get('pagina'));
+    assert.deepEqual(pages, changed ? ['1', '2'] : ['1', '2', '3']);
+    assert(entry.listagens.historico.length > 0);
+    if (changed) {
+      assert(!Object.hasOwn(entry.listagens, 'arquivos'));
+      assert.equal(entry.arquivos.length, 0);
+      assert(entry.erros.some(error => error.secao === 'arquivos' && error.codigo === 'SOURCE_CHANGED'));
+    } else {
+      assert.deepEqual(entry.erros, []);
+      assert.equal(entry.arquivos.length, 102);
+      assert.equal(entry.arquivos.at(-1).titulo, 'Arquivo 102');
+    }
+  }
+});
+
+test('FULL-16: o limite de exportação não encerra a busca que aguarda o mesmo domínio', async () => {
+  const started = Promise.withResolvers(),
+    response = Promise.withResolvers();
+  let calls = 0;
+  const { service } = fixtureService(
+    [document(1)],
+    {
+      handler: url => {
+        if (!url.pathname.endsWith('/filters') || ++calls > 1) return null;
+        started.resolve();
+        return response.promise;
+      }
+    },
+    { PNCP_MAX_FULL_EXPORT_BYTES: 1024 }
+  );
+  const input = { pncp_filters: { modalidades: ['6'] } };
+  const exporting = assert.rejects(run(service, input), { code: 'FULL_EXPORT_RESPONSE_BYTES_LIMIT' });
+  await started.promise;
+  const searching = service.execute(query(input));
+  response.resolve(Response.json({ filters: { modalidades: [{ id: 6, nome: 'x'.repeat(2048) }] } }));
+  const [, search] = await Promise.all([exporting, searching]);
+  assert.equal(search.total, 1);
+  assert.equal(calls, 2);
 });

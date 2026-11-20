@@ -33,6 +33,8 @@ O comando também executa [`tsconfig.contracts.json`](../tsconfig.contracts.json
 
 As regressões incluem o recorte de exportação independente do tamanho de coleta, tentativas HTTP sem reter vagas durante a espera, rejeição de cache que excede limites e recuperação de preferências de colunas inválidas. [`test/options-db.test.js`](../test/options-db.test.js) cobre conclusão e aborto de transações, indisponibilidade do banco e fallback do cache em memória.
 
+[`test/full-export.test.js`](../test/full-export.test.js) cobre o JSON dos três tipos documentais, a coleta de anexos em várias páginas, mudanças do total, itens duplicados, cancelamento e limites compartilhados. [`test/export.test.js`](../test/export.test.js) confere a integridade dos dois escopos do CSV. Para executar esses casos isoladamente, use `node --test test/full-export.test.js test/export.test.js`.
+
 ```sh
 npm test
 ```
@@ -132,7 +134,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Build de produção | `dist-browser/`, assets e Worker na raiz e em subdiretório |
 | Layout | Cores, fontes, espaçamentos e bordas comparados com [`test/layout-baseline.json`](../test/layout-baseline.json), nos três tipos em 1440, 1068 e 390 pixels; o subdiretório conserva seus testes de assets, Worker e links |
 | CORS controlado | Uma verificação por navegador com duas origens locais, permissão e bloqueio de leitura e exposição de `Retry-After`, independente do caminho de hospedagem |
-| Exportação | 10.000 documentos sintéticos, resposta da interface durante a coleta, cancelamento e reutilização do Worker |
+| Exportação | [`test/browser-artifact.mjs`](../test/browser-artifact.mjs): download pelo menu e leitura do JSON com detalhes, itens e links de arquivos. No CSV, coleta de 10.000 documentos sintéticos, resposta da interface durante a operação, cancelamento e reutilização do Worker |
 | Bundles | Ausência de dependências de Node, variáveis do processo e fixtures de teste em produção |
 
 Esses ensaios servem arquivos estáticos e verificam a ausência de chamadas a uma API da hospedagem. A fonte de grande volume e os casos de falha são sintéticos. O teste de CORS usa requisições entre origens locais; a integração com o PNCP é verificada separadamente.

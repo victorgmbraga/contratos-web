@@ -68,7 +68,7 @@ export class QueryService {
       const entry =
         cached && now - cached.at < DOMAIN_VALIDATION_TTL
           ? cached
-          : { at: now, promise: this.client.domains(type, normatives, op, ownField ? field : null) };
+          : { at: now, signal: op.signal, promise: this.client.domains(type, normatives, op, ownField ? field : null) };
       if (entry !== cached) {
         this.domainValidationCache.set(key, entry);
         if (this.domainValidationCache.size > 64)
@@ -81,8 +81,14 @@ export class QueryService {
         // Quem reaproveita a requisição de outra operação continua respeitando o próprio cancelamento e prazo.
         return await (entry === cached ? untilAborted(entry.promise, op.signal) : entry.promise);
       } catch (error) {
-        // A requisição compartilhada pode ter sido cancelada por outra operação; esta repete com o próprio sinal.
-        if (entry === cached && !op.signal.aborted && (error?.name === 'AbortError' || error?.code === 'CANCELLED'))
+        // Quem esperava um domínio pode refazer a chamada se o dono foi cancelado ou atingiu um limite próprio.
+        if (
+          entry === cached &&
+          !op.signal.aborted &&
+          ((entry.signal.aborted && entry.signal.reason === error) ||
+            error?.name === 'AbortError' ||
+            error?.code === 'CANCELLED')
+        )
           continue;
         throw error;
       }
