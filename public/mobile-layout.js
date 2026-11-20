@@ -6,9 +6,6 @@ export function initializeMobileLayout({ document, window }) {
     { signal } = lifetime;
   const panel = document.getElementById('more-actions'),
     trigger = document.getElementById('more-actions-button');
-  const toolbar = document.querySelector('.header-toolbar'),
-    triggerMarker = document.createComment('more-actions-button');
-  trigger.before(triggerMarker);
   const controls = [
     'refresh-button',
     'columns-button',
@@ -50,16 +47,11 @@ export function initializeMobileLayout({ document, window }) {
     panel.style.maxHeight = `${Math.max(0, (window.visualViewport?.height || window.innerHeight) - anchor.bottom - 14)}px`;
   }
   function resize() {
-    const focused = document.activeElement;
     close();
     for (const { element, marker } of controls) {
       if (!media.matches) marker.after(element);
     }
-    if (media.matches) {
-      toolbar.after(trigger);
-      for (const element of order) panel.append(element);
-    } else triggerMarker.after(trigger);
-    if (focused === trigger && media.matches) trigger.focus({ preventScroll: true });
+    if (media.matches) for (const element of order) panel.append(element);
   }
   function viewport() {
     const view = window.visualViewport;
@@ -108,8 +100,6 @@ export function initializeMobileLayout({ document, window }) {
       marker.after(element);
       marker.remove();
     }
-    triggerMarker.after(trigger);
-    triggerMarker.remove();
     document.documentElement.style.removeProperty('--viewport-height');
     document.documentElement.style.removeProperty('--viewport-top');
   }

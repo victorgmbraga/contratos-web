@@ -74,7 +74,7 @@
   }
   .topbar-content {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
     overflow: visible;
     margin: 0;
@@ -89,12 +89,6 @@
   }
   #more-actions-button {
     display: inline-flex;
-    grid-row: 2;
-    grid-column: 2;
-    min-width: 44px;
-    width: 44px;
-    height: 44px;
-    padding: 0;
   }
   #more-actions {
     inset: auto max(8px, env(safe-area-inset-right)) auto auto;
@@ -106,7 +100,6 @@
   }
   .search-row {
     grid-row: 1;
-    grid-column: 1/-1;
     width: 100%;
     min-width: 0;
     flex-basis: auto;

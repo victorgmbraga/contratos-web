@@ -73,35 +73,32 @@ async function headerLayout(width) {
   assert(Math.abs(boxes.type.width - boxes.status.width) < 1);
   assert(boxes.type.x < boxes.status.x && boxes.status.x < boxes.order.x);
   assert.equal(boxes.type.x, boxes.search.x, 'Seletores começam na borda esquerda da linha');
-  assert.equal(
-    boxes.more.x + boxes.more.width,
-    boxes.filters.x + boxes.filters.width,
+  assert(
+    Math.abs(boxes.order.x + boxes.order.width - (boxes.more.x + boxes.more.width)) < 1,
     'Segunda linha ocupa toda a largura disponível'
   );
   assert.equal(boxes.search.y, boxes.submit.y);
   assert.equal(boxes.search.y, boxes.filters.y);
   assert.deepEqual(await page.locator('.search-row>button:visible').evaluateAll(nodes => nodes.map(node => node.id)), [
     'search-button',
-    'filters-button'
+    'filters-button',
+    'more-actions-button'
   ]);
   assert.equal(boxes.type.y, boxes.order.y);
   assert(boxes.search.y + boxes.search.height < boxes.type.y, 'Busca ocupa a primeira linha e seletores a segunda');
   assert.equal(boxes.more.width, 44);
   assert.equal(boxes.more.height, 44);
-  assert(
-    Math.abs(boxes.type.y + boxes.type.height / 2 - (boxes.more.y + boxes.more.height / 2)) < 1,
-    'Seletores e Mais ficam alinhados na segunda linha'
-  );
-  assert(boxes.order.x + boxes.order.width < boxes.more.x, 'Mais fica à direita dos seletores');
+  assert.equal(boxes.more.y, boxes.filters.y, 'Mais e Filtros ficam alinhados na primeira linha');
+  assert(Math.abs(boxes.more.x - (boxes.filters.x + boxes.filters.width) - 6) < 1, 'Mais fica ao lado de Filtros');
   await page.locator('#search').focus();
   const sequence = [
     'search-help-button',
     'search-button',
     'filters-button',
+    'more-actions-button',
     'document-type-control',
     'status-control',
-    'order-control',
-    'more-actions-button'
+    'order-control'
   ];
   for (const id of sequence) {
     await page.keyboard.press('Tab');
@@ -360,10 +357,7 @@ try {
   assert.equal(await page.locator('#details-links').count(), 0);
   assert.equal(await page.evaluate(() => document.activeElement.id), 'document-type-control');
   assert.equal(await page.locator('.brand').isVisible(), true);
-  await page.waitForFunction(
-    () => document.querySelector('#more-actions-button').nextElementSibling?.id === 'search-form'
-  );
-  assert.equal(await page.locator('#more-actions-button').evaluate(node => node.nextElementSibling.id), 'search-form');
+  await page.locator('#search-form #more-actions-button').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#search-form #clear-button').count(), 1);
   assert.equal(await page.locator('.header-toolbar').evaluate(node => node.previousElementSibling.id), 'search-form');
   assert.equal(await page.locator('#document-type').inputValue(), selectedType);

@@ -10,6 +10,7 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 - Sinaliza mudanças no total de listagens paginadas no JSON e preserva buscas simultâneas quando a exportação que carregava o mesmo domínio atinge um limite.
 
 - Oculta as barras de rolagem no layout mobile e preserva a rolagem do conteúdo.
+- Move o botão **Mais** para junto de **Filtros** no cabeçalho mobile.
 
 - Preserva entradas decimais negativas para correção, revela filtros inválidos e valida intervalos antes de aplicar a busca.
 - Valida buscas antes de salvar e informa quando elas ficam disponíveis apenas na sessão.
