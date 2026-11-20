@@ -267,3 +267,71 @@ test('FULL-12: coleta de itens usa duas contagens e verifica páginas e total fi
     assert.equal(counts, scenario === 'página incompleta' ? 1 : 2);
   }
 });
+
+test('FULL-13: itens repetidos entre páginas ou sem número deixam a seção com erro', async () => {
+  for (const repeated of ['001', null]) {
+    const { service, requests } = fixtureService([document(1)], {
+      itemQuantity: 200,
+      items: (_sequence, page) =>
+        Array.from({ length: 100 }, (_, i) => ({
+          numeroItem: page === 2 && i === 0 ? repeated : (page - 1) * 100 + i + 1,
+          temResultado: true
+        }))
+    });
+    const [entry] = exportJson(await run(service)).documentos;
+    assert.equal(entry.itens, null);
+    assert(entry.erros.some(error => error.secao === 'itens' && error.codigo === 'SOURCE_CHANGED'));
+    assert.equal(requests.filter(url => url.pathname.endsWith('/itens')).length, 2);
+    assert(requests.every(url => !url.pathname.endsWith('/resultados')));
+  }
+});
+
+test('FULL-14: soma os bytes das respostas e cancela a leitura antes da próxima página', async () => {
+  const search = JSON.stringify({ items: demoDocuments.slice(0, 1), total: 1 });
+  const items = JSON.stringify(
+    Array.from({ length: 100 }, (_, index) => ({
+      numeroItem: index + 1,
+      descricao: 'x'.repeat(512)
+    }))
+  );
+  const encoded = new TextEncoder().encode(items);
+  const limit = encoded.byteLength;
+  let produced = 0,
+    cancelled = false;
+  const textJson = body => new Response(body, { headers: { 'Content-Type': 'application/json' } });
+  const { service, requests } = demoService({
+    settings: { PNCP_MAX_FULL_EXPORT_BYTES: limit },
+    fail: url => {
+      if (url.pathname === '/api/search/') return textJson(search);
+      if (url.pathname.endsWith('/itens/quantidade')) return Response.json(300);
+      if (!url.pathname.endsWith('/itens')) return null;
+      return textJson(
+        new ReadableStream(
+          {
+            pull(controller) {
+              if (produced === encoded.byteLength) {
+                controller.close();
+                return;
+              }
+              const chunk = encoded.subarray(produced, produced + 512);
+              produced += chunk.byteLength;
+              controller.enqueue(chunk);
+            },
+            cancel() {
+              cancelled = true;
+            }
+          },
+          { highWaterMark: 0 }
+        )
+      );
+    }
+  });
+  await assert.rejects(run(service), { code: 'FULL_EXPORT_RESPONSE_BYTES_LIMIT' });
+  assert(produced > 0 && produced < limit);
+  assert(cancelled);
+  assert.deepEqual(
+    requests.filter(url => url.pathname.endsWith('/itens')).map(url => url.searchParams.get('pagina')),
+    ['1']
+  );
+  assert(requests.at(-1).pathname.endsWith('/itens'));
+});

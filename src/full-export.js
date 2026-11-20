@@ -81,31 +81,43 @@ export async function fullExport(
     signal,
     requestId
   );
-  const reserveRequest = () => {
+  function checkBudget(used, limit, code, message) {
+    if (used > limit) op.cancel(new AppError(code, message, 422, { limit }));
     op.check();
-    assert(
-      op.requests < config.PNCP_MAX_FULL_EXPORT_REQUESTS,
-      'FULL_EXPORT_REQUEST_LIMIT',
-      'Limite de chamadas da exportação completa excedido. Delimite a pesquisa.',
-      422,
-      { limit: config.PNCP_MAX_FULL_EXPORT_REQUESTS }
-    );
-    op.requests++;
+  }
+  const budget = {
+    reserveRequest() {
+      checkBudget(
+        ++op.requests,
+        config.PNCP_MAX_FULL_EXPORT_REQUESTS,
+        'FULL_EXPORT_REQUEST_LIMIT',
+        'Limite de chamadas da exportação completa excedido. Delimite a pesquisa.'
+      );
+    },
+    consumeBytes(bytes) {
+      op.bytes += bytes;
+      checkBudget(
+        op.bytes,
+        config.PNCP_MAX_FULL_EXPORT_BYTES,
+        'FULL_EXPORT_RESPONSE_BYTES_LIMIT',
+        'Limite de dados recebidos do PNCP para a exportação completa excedido. Delimite a pesquisa.'
+      );
+    }
   };
   try {
-    return await collectExport(service, input, op, reserveRequest, onProgress, now);
+    return await collectExport(service, input, op, budget, onProgress, now);
   } finally {
     op.finish(true);
   }
 }
 
-async function collectExport(service, input, exportOp, reserveRequest, onProgress, now) {
+async function collectExport(service, input, exportOp, budget, onProgress, now) {
   const config = service.config,
     query = validateQuery({ ...input, page: 1, size: PAGE_SIZE }, config);
   const { id: requestId, signal } = exportOp;
   let serial = 0;
   const nextId = () => `${requestId}:${++serial}`;
-  const op = operation(config, signal, requestId, 'foreground', reserveRequest);
+  const op = operation(config, signal, requestId, 'foreground', budget);
   let head, searchMetadata;
   try {
     await service.verifyDomains(query, op);
@@ -159,7 +171,7 @@ async function collectExport(service, input, exportOp, reserveRequest, onProgres
       return await task();
     } catch (error) {
       if (signal.aborted) throw signal.reason;
-      if (error?.name === 'AbortError' || error?.code === 'FULL_EXPORT_REQUEST_LIMIT') throw error;
+      if (error?.name === 'AbortError') throw error;
       entry.erros.push({
         secao: section,
         codigo: error?.code || 'INTERNAL_ERROR',
@@ -204,18 +216,16 @@ async function collectExport(service, input, exportOp, reserveRequest, onProgres
       return entry;
     }
     await guard(entry, 'detalhes', async () => {
-      entry.detalhes = withoutEnvelope(
-        plain(await service.documentDetails(identity, signal, nextId(), reserveRequest))
-      );
+      entry.detalhes = withoutEnvelope(plain(await service.documentDetails(identity, signal, nextId(), budget)));
     });
     if (type === 'edital')
       await guard(entry, 'itens', async () => {
-        const items = await service.collectItems(identity, PAGE_SIZE, signal, nextId(), reserveRequest);
+        const items = await service.collectItems(identity, PAGE_SIZE, signal, nextId(), budget);
         for (const item of items)
           if (item.temResultado === true && Number.isSafeInteger(item.numeroItem) && item.numeroItem > 0)
             await guard(entry, `itens/${item.numeroItem}/resultados`, async () => {
               item.resultados = plain(
-                await service.itemResults(identity, item.numeroItem, signal, nextId(), reserveRequest)
+                await service.itemResults(identity, item.numeroItem, signal, nextId(), budget)
               ).data;
             });
         entry.itens = items;
@@ -224,7 +234,7 @@ async function collectExport(service, input, exportOp, reserveRequest, onProgres
       await guard(entry, resource, async () => {
         const records = plain(
           await pages((page, mode) =>
-            service.documentRelated(identity, resource, page, RELATED_PAGE_SIZE, signal, nextId(), mode, reserveRequest)
+            service.documentRelated(identity, resource, page, RELATED_PAGE_SIZE, signal, nextId(), mode, budget)
           )
         );
         entry.listagens[resource] = records;
@@ -234,7 +244,7 @@ async function collectExport(service, input, exportOp, reserveRequest, onProgres
             if (!record.sequencial) continue;
             await guard(entry, `${resource}/${record.sequencial}`, async () => {
               const child = plain(
-                await service.contractChild(identity, resource, record.sequencial, signal, nextId(), reserveRequest)
+                await service.contractChild(identity, resource, record.sequencial, signal, nextId(), budget)
               );
               if (child.files) {
                 record.arquivos = child.files;

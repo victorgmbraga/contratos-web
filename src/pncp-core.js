@@ -185,6 +185,7 @@ export class PncpClient {
         op.check();
         signal.throwIfAborted();
         if (done) break;
+        op.budget?.consumeBytes(value.byteLength);
         op.bytes += value.byteLength;
         assert(
           op.bytes <= this.config.PNCP_MAX_OPERATION_BYTES,
@@ -234,7 +235,7 @@ export class PncpClient {
             'Limite de chamadas da operação excedido.',
             422
           );
-          op.reserveRequest?.();
+          op.budget?.reserveRequest();
           response = await this.fetcher(current, {
             signal,
             redirect: 'manual',

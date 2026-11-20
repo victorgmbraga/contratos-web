@@ -23,14 +23,14 @@ export const delay = (ms, signal) =>
  * @param {AbortSignal} [parentSignal]
  * @param {string} [requestId]
  * @param {string} [priority]
- * @param {() => void} [reserveRequest]
+ * @param {{reserveRequest: () => void, consumeBytes: (bytes: number) => void}} [budget]
  */
 export function operation(
   config,
   parentSignal,
   requestId = globalThis.crypto.randomUUID(),
   priority = 'foreground',
-  reserveRequest
+  budget
 ) {
   const controller = new AbortController();
   const started = Date.now();
@@ -54,13 +54,16 @@ export function operation(
     requests: 0,
     bytes: 0,
     itemCount: 0,
-    reserveRequest,
+    budget,
     check() {
       if (Date.now() >= this.deadline && !controller.signal.aborted)
         controller.abort(
           new AppError('OPERATION_TIMEOUT', 'Tempo total da operação esgotado. Delimite a pesquisa.', 504, {}, true)
         );
       if (controller.signal.aborted) throw controller.signal.reason;
+    },
+    cancel(reason) {
+      controller.abort(reason);
     },
     finish(cancelPending = false) {
       if (cancelPending) controller.abort();

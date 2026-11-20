@@ -37,6 +37,14 @@ test('EXP-01C: escopo page exporta somente a página atual', async () => {
   assert.equal(csvBytes(r).toString().split('\r\n').length, 4);
 });
 
+test('EXP-01D: os dois escopos rejeitam documentos duplicados ou sem identidade', async () => {
+  for (const docs of [[document(7), document(7)], [document(7, { id: null, numero_controle_pncp: null })]]) {
+    const { service: exporter } = service(docs);
+    for (const scope of ['all', 'page'])
+      await assert.rejects(exporter.export(query(), null, null, { scope }), { code: 'SOURCE_CHANGED' });
+  }
+});
+
 test('EXP-02: última página falha ou buffer excede não devolve CSV parcial', async () => {
   const docs = Array.from({ length: 12 }, (_, i) => document(i + 1));
   const s = service(docs, {

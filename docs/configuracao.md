@@ -63,7 +63,7 @@ O cliente tenta novamente erros de transporte e respostas HTTP 429, 502, 503 e 5
 | `PNCP_MAX_DETAIL_ITEMS` | `20000` | Limite dos itens de contratação, das listagens de atas/contratos e dos arquivos de termos recebidos por operação; o total disponível nas páginas não consome esse limite. Listas sem paginação são contabilizadas antes do recorte local |
 | `PNCP_MAX_EXPORT_DOCUMENTS` | `10000` | Total máximo aceito para exportar; não pode superar 10.000 |
 | `PNCP_MAX_EXPORT_BYTES` | `52428800` (50 MiB) | Limite do CSV montado em memória |
-| `PNCP_MAX_FULL_EXPORT_BYTES` | `52428800` (50 MiB) | Limite do JSON completo, incluindo cabeçalho e todos os documentos |
+| `PNCP_MAX_FULL_EXPORT_BYTES` | `52428800` (50 MiB) | Teto aplicado separadamente à soma dos bytes lidos das respostas do PNCP e ao JSON final, incluindo cabeçalho e documentos |
 | `PNCP_MAX_FULL_EXPORT_REQUESTS` | `1500` | Chamadas ao PNCP por exportação completa em JSON, incluindo busca, seções e tentativas |
 | `PNCP_MAX_OPERATION_BYTES` | `104857600` (100 MiB) | Soma dos bytes lidos das respostas da fonte na operação |
 | `PNCP_MAX_REQUESTS_PER_OPERATION` | `1000` | Orçamento de chamadas, incluindo domínios e tentativas |

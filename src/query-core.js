@@ -1,6 +1,6 @@
 import { assert } from './errors.js';
 import { validateQuery, validateDomains, validateSuggest, validateDocument, validateDetailPage } from './validation.js';
-import { project, identity, plain } from './adapter.js';
+import { project, identity, plain, scalarText } from './adapter.js';
 import { operation, delay } from './operation.js';
 import { csvWriter } from './csv.js';
 import { catalogDomains, referenceDomains } from './filter-domains.js';
@@ -33,6 +33,21 @@ export const DOMAIN_VALIDATION_TTL = 4 * 60 * 60 * 1000;
  */
 function exportMetadata({ data: _data, ...metadata }, rows, scope) {
   return { ...metadata, exported_rows: rows, export_scope: scope };
+}
+function projectCsvDocuments(items, seen = new Set()) {
+  return items.map(raw => {
+    const key = identity(raw);
+    assert(
+      key && !seen.has(key),
+      'SOURCE_CHANGED',
+      'Documento duplicado ou sem identidade durante a coleta. Repita a consulta.',
+      409,
+      {},
+      true
+    );
+    seen.add(key);
+    return project(raw);
+  });
 }
 export class QueryService {
   constructor(config, client) {
@@ -147,20 +162,7 @@ export class QueryService {
         {},
         true
       );
-      const documents = [];
-      for (const raw of current.items) {
-        const key = identity(raw);
-        assert(
-          key && !seen.has(key),
-          'SOURCE_CHANGED',
-          'Documento duplicado ou sem identidade durante a coleta. Repita a consulta.',
-          409,
-          {},
-          true
-        );
-        seen.add(key);
-        documents.push(project(raw));
-      }
+      const documents = projectCsvDocuments(current.items, seen);
       yield { documents, source_total: head.total, page, pages };
       await delay(0, op.signal);
     }
@@ -263,7 +265,7 @@ export class QueryService {
           'O PNCP retornou uma página incompatível com o total e o tamanho solicitado.',
           502
         );
-        const documents = current.items.map(project);
+        const documents = projectCsvDocuments(current.items);
         for (let offset = 0; offset < documents.length; offset += 25) {
           op.check();
           writer.append(documents.slice(offset, offset + 25));
@@ -361,7 +363,7 @@ export class QueryService {
       op.finish();
     }
   }
-  async collectItems(purchase, size, signal, requestId, reserveRequest) {
+  async collectItems(purchase, size, signal, requestId, budget) {
     validateDocument(purchase, ['edital']);
     validateDetailPage(1, size);
     const op = operation(
@@ -369,7 +371,7 @@ export class QueryService {
       signal,
       requestId,
       'foreground',
-      reserveRequest
+      budget
     );
     try {
       const total = await this.client.itemQuantity(purchase, op);
@@ -379,9 +381,24 @@ export class QueryService {
         'Limite de itens da operação excedido.',
         422
       );
-      const items = [];
-      for (let page = 1; page <= Math.ceil(total / size); page++)
-        items.push(...(await this.checkedItemPage(purchase, page, size, total, op)));
+      const items = [],
+        seen = new Set();
+      for (let page = 1; page <= Math.ceil(total / size); page++) {
+        const batch = await this.checkedItemPage(purchase, page, size, total, op);
+        for (const item of batch) {
+          const number = scalarText(item.numeroItem)?.replace(/^0+/, '');
+          assert(
+            number && /^\d+$/.test(number) && !seen.has(number),
+            'SOURCE_CHANGED',
+            'O PNCP retornou um item duplicado ou sem número válido. Atualize os itens.',
+            409,
+            {},
+            true
+          );
+          seen.add(number);
+          items.push(item);
+        }
+      }
       if (total > size)
         assert(
           (await this.client.itemQuantity(purchase, op)) === total,
@@ -396,10 +413,10 @@ export class QueryService {
       op.finish();
     }
   }
-  async itemResults(purchase, item, signal, requestId, reserveRequest = undefined) {
+  async itemResults(purchase, item, signal, requestId, budget = undefined) {
     validateDocument(purchase, ['edital']);
     assert(Number.isSafeInteger(item) && item > 0, 'INVALID_ITEM', 'Número do item inválido.');
-    const op = operation(this.config, signal, requestId, 'foreground', reserveRequest);
+    const op = operation(this.config, signal, requestId, 'foreground', budget);
     try {
       const data = await this.client.itemResults(purchase, item, op);
       return {
@@ -440,9 +457,9 @@ export class QueryService {
       op.finish();
     }
   }
-  async documentDetails(document, signal, requestId, reserveRequest = undefined) {
+  async documentDetails(document, signal, requestId, budget = undefined) {
     validateDocument(document);
-    const op = operation(this.config, signal, requestId, 'foreground', reserveRequest);
+    const op = operation(this.config, signal, requestId, 'foreground', budget);
     try {
       return {
         api_version: '2.0',
@@ -455,7 +472,7 @@ export class QueryService {
       op.finish();
     }
   }
-  async documentRelated(document, resource, page, size, signal, requestId, paginationMode, reserveRequest = undefined) {
+  async documentRelated(document, resource, page, size, signal, requestId, paginationMode, budget = undefined) {
     validateDocument(document);
     validateDetailPage(page, size);
     assert(
@@ -464,7 +481,7 @@ export class QueryService {
       'INVALID_PAGINATION',
       'Paginação sem total disponível somente no histórico de contratos.'
     );
-    const op = operation(this.config, signal, requestId, 'foreground', reserveRequest);
+    const op = operation(this.config, signal, requestId, 'foreground', budget);
     try {
       const result = await this.client.documentRelatedPage(document, resource, page, size, op, paginationMode);
       return {
@@ -486,9 +503,9 @@ export class QueryService {
       op.finish();
     }
   }
-  async contractChild(document, resource, sequence, signal, requestId, reserveRequest = undefined) {
+  async contractChild(document, resource, sequence, signal, requestId, budget = undefined) {
     validateDocument(document);
-    const op = operation(this.config, signal, requestId, 'foreground', reserveRequest);
+    const op = operation(this.config, signal, requestId, 'foreground', budget);
     try {
       return {
         ...(await this.client.contractChild(document, resource, sequence, op)),

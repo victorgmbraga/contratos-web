@@ -105,7 +105,7 @@ A exportação completa consulta, para cada documento da última pesquisa conclu
 
 O arquivo `contratos-web-completa-<data>.json` traz os critérios da consulta e a lista `documentos`, uma entrada por documento com os dados da busca, os detalhes, os itens, as listagens, eventuais `erros` de consultas que falharam e a lista `arquivos`, com título, tipo, data de publicação e o link para baixar cada arquivo no PNCP. Os arquivos não são baixados junto, porque o PNCP hoje impede que o navegador leia esses downloads; abra os links para baixá-los.
 
-O resumo distingue arquivos listados de links disponíveis. Se a exportação atingir o limite de tempo, chamadas ou tamanho do JSON, refine a pesquisa por texto, período, UF ou órgão e tente novamente.
+O resumo distingue arquivos listados de links disponíveis. Se a exportação atingir o limite de tempo, chamadas ou volume de dados, refine a pesquisa por texto, período, UF ou órgão e tente novamente.
 
 ## Quando algo dá errado
 
