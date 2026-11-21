@@ -1,6 +1,16 @@
 export const FILTER_LABELS_KEY = 'contratos-web:filter-labels:v1';
 const MAX_LABELS = 1000;
 
+function validEntry(key, label) {
+  if (typeof key !== 'string' || typeof label !== 'string' || !label) return false;
+  try {
+    const parsed = JSON.parse(key);
+    return Array.isArray(parsed) && parsed.length === 3 && parsed.every(v => typeof v === 'string' && v.length > 0);
+  } catch {
+    return false;
+  }
+}
+
 // Rótulos de seleções são metadados de apresentação, não catálogos de opções.
 export function createFilterLabelCache(getStorage = () => globalThis.localStorage) {
   const labels = new Map();
@@ -11,24 +21,25 @@ export function createFilterLabelCache(getStorage = () => globalThis.localStorag
     /* Armazenamento bloqueado: mantém a sessão. */
   }
   function read() {
+    if (!storage) return;
+    let raw;
     try {
-      const entries = JSON.parse(storage?.getItem(FILTER_LABELS_KEY) ?? '[]');
+      raw = storage.getItem(FILTER_LABELS_KEY);
+    } catch {
+      storage = undefined;
+      return;
+    }
+    try {
+      const entries = JSON.parse(raw ?? '[]');
       if (!Array.isArray(entries) || entries.length > MAX_LABELS) throw new Error('Cache inválido');
       for (const entry of entries) {
-        if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string' || typeof entry[1] !== 'string')
+        if (!Array.isArray(entry) || entry.length !== 2 || !validEntry(entry[0], entry[1]))
           throw new Error('Rótulo inválido');
-        const key = JSON.parse(entry[0]);
-        if (
-          !Array.isArray(key) ||
-          key.length !== 3 ||
-          !key.every(value => typeof value === 'string' && value.length > 0)
-        )
-          throw new Error('Chave inválida');
       }
       for (const [key, label] of entries) labels.set(key, label);
     } catch {
       try {
-        storage?.removeItem(FILTER_LABELS_KEY);
+        storage.removeItem?.(FILTER_LABELS_KEY);
       } catch {
         /* Falhas de cache não bloqueiam filtros. */
       }
@@ -40,6 +51,7 @@ export function createFilterLabelCache(getStorage = () => globalThis.localStorag
       return labels.get(key);
     },
     set(key, label) {
+      if (!validEntry(key, label)) return;
       // Preserva seleções gravadas por outras abas antes de atualizar esta entrada.
       read();
       labels.delete(key);
@@ -48,7 +60,8 @@ export function createFilterLabelCache(getStorage = () => globalThis.localStorag
       try {
         storage?.setItem(FILTER_LABELS_KEY, JSON.stringify([...labels]));
       } catch {
-        /* Quota: mantém a sessão. */
+        // Quota ou bloqueio: deixa de reler o armazenamento para preservar a sessão.
+        storage = undefined;
       }
     }
   };

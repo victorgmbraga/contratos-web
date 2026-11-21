@@ -18,6 +18,7 @@ export function createBrowserClient(config, { fetcher = globalThis.fetch.bind(gl
       credentials: 'omit',
       cache: 'no-store',
       redirect: 'error',
+      referrerPolicy: 'no-referrer',
       headers: { Accept: 'application/json' }
     }
   });

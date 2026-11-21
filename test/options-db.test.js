@@ -157,3 +157,99 @@ test('OPTIONS-DB-05: falha de persistência libera a fila do cache e preserva o 
     cache.close();
   }
 });
+
+test('OPTIONS-DB-06: timeout, objectStore ausente e reabertura após onversionchange', async () => {
+  const late = {
+    result: {
+      objectStoreNames: { contains: () => true },
+      close() {
+        this.closed = true;
+      }
+    }
+  };
+  const timedOut = await openOptionsDatabase({ open: () => late }, { timeoutMs: 5 });
+  assert.equal(timedOut, null);
+  late.onsuccess();
+  assert.equal(late.result.closed, true);
+
+  const missingStoreDb = {
+    objectStoreNames: { contains: () => false },
+    close() {
+      this.closed = true;
+    }
+  };
+  const missing = await openOptionsDatabase({
+    open() {
+      const req = { result: missingStoreDb };
+      queueMicrotask(() => req.onsuccess());
+      return req;
+    }
+  });
+  assert.equal(missing, null);
+  assert.equal(missingStoreDb.closed, true);
+
+  let opens = 0,
+    lastDb;
+  const values = new Map();
+  const indexedDB = {
+    open() {
+      opens++;
+      const db = {
+        objectStoreNames: { contains: () => true },
+        close() {},
+        transaction() {
+          const tx = {
+            objectStore: () => ({
+              get(key) {
+                const req = {};
+                queueMicrotask(() => {
+                  req.result = values.get(key);
+                  req.onsuccess();
+                  queueMicrotask(() => tx.oncomplete());
+                });
+                return req;
+              },
+              put(val, key) {
+                const req = {};
+                queueMicrotask(() => {
+                  values.set(key, val);
+                  req.onsuccess();
+                  queueMicrotask(() => tx.oncomplete());
+                });
+                return req;
+              },
+              delete(key) {
+                const req = {};
+                queueMicrotask(() => {
+                  values.delete(key);
+                  req.onsuccess();
+                  queueMicrotask(() => tx.oncomplete());
+                });
+                return req;
+              }
+            })
+          };
+          return tx;
+        }
+      };
+      lastDb = db;
+      const req = { result: db };
+      queueMicrotask(() => req.onsuccess());
+      return req;
+    }
+  };
+  const cache = createFilterOptionsCache(
+    { call: async () => ({ filters: { ufs: [{ id: 'SP', label: 'São Paulo' }] } }) },
+    schema(config()),
+    { getStorage: () => null, indexedDB }
+  );
+  try {
+    await cache.get({ type: 'edital' });
+    assert.equal(opens, 1);
+    lastDb.onversionchange();
+    await cache.get({ type: 'ata' });
+    assert.equal(opens, 2);
+  } finally {
+    cache.close();
+  }
+});

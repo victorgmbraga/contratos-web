@@ -76,4 +76,6 @@ test('DETAIL-URL-05: detalhes são independentes da validação e serialização
   const href = writeDetailUrl(writeQueryUrl(base, query, definition), selection);
   assert.deepEqual(readQueryUrl(href, definition), query);
   assert.deepEqual(readDetailUrl(href), selection);
+  assert.deepEqual(detailTabs('unknown'), []);
+  assert.deepEqual(detailTabs('__proto__'), []);
 });

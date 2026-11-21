@@ -2,7 +2,10 @@ import { assert } from '../errors.js';
 import { validateDocument } from '../validation.js';
 import { documentResources } from '../document-details.js';
 
-export const detailTabs = type => ['detalhes', ...(type === 'edital' ? ['itens'] : []), ...documentResources[type]];
+export const detailTabs = type =>
+  Object.hasOwn(documentResources, type)
+    ? ['detalhes', ...(type === 'edital' ? ['itens'] : []), ...documentResources[type]]
+    : [];
 
 export function detailDocumentPath(document) {
   assert(

@@ -1,7 +1,7 @@
 import { csvBytes } from './helpers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRuntime, errorRecord } from '../src/browser/runtime.js';
+import { createRuntime, errorRecord, attachWorker, PROTOCOL_VERSION } from '../src/browser/runtime.js';
 import { createWorkerService } from '../src/browser/service.js';
 import { browserSettings } from '../src/browser/client.js';
 import { defaults } from '../src/settings.js';
@@ -56,6 +56,7 @@ test('BROWSER-02: transporte usa GET simples e nunca presume HTTP em falha de fe
         credentials: options.credentials,
         cache: options.cache,
         redirect: options.redirect,
+        referrerPolicy: options.referrerPolicy,
         headers: options.headers
       },
       {
@@ -63,6 +64,7 @@ test('BROWSER-02: transporte usa GET simples e nunca presume HTTP em falha de fe
         credentials: 'omit',
         cache: 'no-store',
         redirect: 'error',
+        referrerPolicy: 'no-referrer',
         headers: { Accept: 'application/json' }
       }
     );
@@ -661,4 +663,107 @@ test('BROWSER-17: inicialização expirada rejeita chamadas e versões incompat�
     aborted = assert.rejects(pending, e => e.name === 'AbortError');
   closing.close();
   await aborted;
+  await assert.rejects(closing.call('schema'), e => e.name === 'AbortError');
+});
+
+test('BROWSER-32: loader de configuração tenta novamente após falha, signal cancela antes do ready e factory síncrona é isolada', async () => {
+  let configAttempts = 0;
+  const workers = [];
+  const bridge = createWorkerService(
+    () => {
+      if (++configAttempts === 1) throw new Error('Falha transitória');
+      return {};
+    },
+    {
+      workerFactory: () => {
+        const w = new FakeWorker();
+        workers.push(w);
+        return w;
+      }
+    }
+  );
+  await assert.rejects(bridge.call('schema'), /Falha transitória/);
+  const ok = bridge.call('schema');
+  await delay(0);
+  workers.at(-1).reply(workers.at(-1).sent.at(-1).id, { ok: true });
+  assert.deepEqual(await ok, { ok: true });
+  assert.equal(configAttempts, 2);
+  // Uma reinicialização seguinte reutiliza a configuração já carregada.
+  workers.at(-1).dispatchEvent(new Event('error'));
+  const afterCrash = bridge.call('schema');
+  await delay(0);
+  workers.at(-1).reply(workers.at(-1).sent.at(-1).id, { ok: 2 });
+  assert.deepEqual(await afterCrash, { ok: 2 });
+  assert.equal(configAttempts, 2);
+  bridge.close();
+
+  // Abort durante a espera pela configuração não aguarda startupTimeout.
+  let release;
+  const slow = createWorkerService(
+    new Promise(resolve => {
+      release = resolve;
+    }),
+    { workerFactory: () => new FakeWorker(), startupTimeout: 10000 }
+  );
+  const controller = new AbortController();
+  const pending = slow.call('schema', {}, { signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, e => e.name === 'AbortError');
+  release({});
+  slow.close();
+
+  // Erro síncrono no workerFactory não derruba a criação do serviço e permite recuperação.
+  let allowFactory = false;
+  const flakyWorkers = [];
+  const flaky = createWorkerService(
+    {},
+    {
+      workerFactory: () => {
+        if (!allowFactory) throw new Error('Worker bloqueado');
+        const w = new FakeWorker();
+        flakyWorkers.push(w);
+        return w;
+      }
+    }
+  );
+  await assert.rejects(flaky.call('schema'), /Worker bloqueado/);
+  allowFactory = true;
+  const recovered = flaky.call('schema');
+  await delay(0);
+  flakyWorkers[0].reply(flakyWorkers[0].sent.at(-1).id, { recovered: true });
+  assert.deepEqual(await recovered, { recovered: true });
+  flaky.close();
+});
+
+test('BROWSER-33: close rejeita fila sem iniciar novas operações e attachWorker valida mensagens e confirma close', async () => {
+  const runtime = createRuntime(settings({ PNCP_MAX_CONCURRENT_OPERATIONS: 1 }), {
+    fetcher: async (_url, { signal }) => {
+      await delay(10000, signal);
+      return json({ items: [], total: 0 });
+    }
+  });
+  const running = runtime.run('1', 'execute', { query: {} }),
+    queued = runtime.run('2', 'schema');
+  const checks = Promise.all([
+    assert.rejects(running, e => e.name === 'AbortError'),
+    assert.rejects(queued, e => e.name === 'AbortError')
+  ]);
+  await runtime.close();
+  await checks;
+  await assert.rejects(runtime.run('3', 'schema'), e => e.name === 'AbortError');
+
+  const scope = new EventTarget(),
+    posted = [];
+  scope.postMessage = message => posted.push(message);
+  attachWorker(scope, { fetcher: async () => json({ items: [], total: 0 }) });
+  scope.dispatchEvent(new MessageEvent('message', { data: null }));
+  assert.equal(posted.length, 0);
+  scope.dispatchEvent(
+    new MessageEvent('message', { data: { id: 'i', type: 'init', version: PROTOCOL_VERSION, config: settings() } })
+  );
+  await delay(0);
+  assert.deepEqual(posted.at(-1), { id: 'i', result: { version: PROTOCOL_VERSION } });
+  scope.dispatchEvent(new MessageEvent('message', { data: { id: 'c', type: 'close' } }));
+  await delay(0);
+  assert.deepEqual(posted.at(-1), { id: 'c', result: { closed: true } });
 });

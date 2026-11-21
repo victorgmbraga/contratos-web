@@ -55,9 +55,25 @@ test('FILTER-LABELS-03: armazenamento bloqueado, sem quota ou com leitura negada
   }
 });
 
-test('FILTER-LABELS-04: limita o histórico aos mil rótulos mais recentes', () => {
-  const cache = createFilterLabelCache(() => undefined);
+test('FILTER-LABELS-04: limita o histórico aos mil rótulos mais recentes e ignora entradas inválidas', () => {
+  const storage = memoryStorage(),
+    cache = createFilterLabelCache(() => storage);
+  cache.set('invalida', 'X');
+  cache.set(key('1'), '');
+  assert.equal(cache.get('invalida'), undefined);
+  assert.equal(storage.getItem(FILTER_LABELS_KEY), null);
   for (let i = 0; i <= 1000; i++) cache.set(key(String(i)), 'Nome ' + i);
   assert.equal(cache.get(key('0')), undefined);
   assert.equal(cache.get(key('1000')), 'Nome 1000');
+
+  const full = memoryStorage();
+  full.setItem(FILTER_LABELS_KEY, JSON.stringify([[key('1'), 'Antigo']]));
+  full.setItem = () => {
+    throw new Error('QuotaExceededError');
+  };
+  const quota = createFilterLabelCache(() => full);
+  quota.set(key('1'), 'Novo');
+  quota.set(key('2'), 'Outro');
+  assert.equal(quota.get(key('1')), 'Novo');
+  assert.equal(quota.get(key('2')), 'Outro');
 });

@@ -116,17 +116,26 @@ export function createFilterOptionsCache(
     closed = false;
   function databaseReady() {
     if (closed) return Promise.resolve(null);
-    if (!databasePromise)
-      databasePromise = openOptionsDatabase(indexedDB)
+    if (!databasePromise) {
+      const opening = openOptionsDatabase(indexedDB, {
+        onClose: () => {
+          if (databasePromise === opening) {
+            database = null;
+            databasePromise = null;
+          }
+        }
+      })
         .then(db => {
-          database = db;
           if (closed) {
             db?.close();
             return null;
           }
+          if (databasePromise === opening) database = db;
           return db;
         })
         .catch(() => null);
+      databasePromise = opening;
+    }
     return databasePromise;
   }
   const prefix = `${FILTER_OPTIONS_PREFIX}${schema.source}:${schema.api_version}:`;
@@ -136,7 +145,7 @@ export function createFilterOptionsCache(
     controller = new AbortController();
   let active = false;
 
-  function describe({ type, field = null, normatives }) {
+  function describe({ type, field = null, normatives }, priority = 'background') {
     assert(
       schema.document_types.some(document => document.enabled && document.id === type),
       'INVALID_DOMAIN',
@@ -171,7 +180,7 @@ export function createFilterOptionsCache(
         type,
         field: provider === 'search' ? (selected.length ? 'amparos_legais' : null) : field,
         ...(selected.length ? { normatives: selected } : {}),
-        priority: 'background'
+        priority
       }
     };
   }
@@ -179,46 +188,91 @@ export function createFilterOptionsCache(
   function discard(key) {
     memory.delete(key);
     try {
-      storage?.removeItem(key);
+      storage?.removeItem?.(key);
     } catch {
       /* An in-memory cache still works. */
     }
     database?.delete(key).catch(() => {});
   }
-  async function persist(key, entry) {
-    if (storage) {
+  function pruneExpiredStorage() {
+    if (!storage || typeof storage.length !== 'number' || typeof storage.key !== 'function') return;
+    const keys = [];
+    for (let i = 0; i < storage.length; i++) {
+      const storedKey = storage.key(i);
+      if (storedKey?.startsWith(FILTER_OPTIONS_PREFIX)) keys.push(storedKey);
+    }
+    const time = now();
+    for (const storedKey of keys) {
       try {
-        const stored = await encodeEntry(entry);
-        controller.signal.throwIfAborted();
-        storage.setItem(key, JSON.stringify(stored));
-        return;
+        const parsed = JSON.parse(storage.getItem(storedKey) || '');
+        if (!Number.isSafeInteger(parsed?.expires_at) || parsed.expires_at <= time) storage.removeItem?.(storedKey);
       } catch {
         try {
-          storage?.setItem(DB_MARKER, '1');
+          storage.removeItem?.(storedKey);
+        } catch {}
+      }
+    }
+  }
+  async function persist(key, entry) {
+    controller.signal.throwIfAborted();
+    if (storage) {
+      let encoded;
+      try {
+        encoded = JSON.stringify(await encodeEntry(entry));
+      } catch {}
+      controller.signal.throwIfAborted();
+      if (encoded !== undefined) {
+        try {
+          storage.setItem(key, encoded);
+          return;
         } catch {
-          /* The marker is best effort. */
+          pruneExpiredStorage();
+          try {
+            storage.setItem(key, encoded);
+            return;
+          } catch {
+            try {
+              storage.removeItem?.(key);
+            } catch {}
+            try {
+              storage.setItem(DB_MARKER, '1');
+            } catch {
+              /* The marker is best effort. */
+            }
+          }
         }
       }
     }
+    controller.signal.throwIfAborted();
     try {
       const db = database || (await databaseReady());
-      if (db) await db.set(key, entry);
+      if (db && !closed) await db.set(key, entry);
     } catch {
       /* The in-memory cache still works. */
     }
   }
   async function read(key) {
-    let entry = memory.get(key);
-    const fromStorage = !entry;
-    let checkDatabase = !storage;
+    let entry = memory.get(key),
+      fromLocalStorage = false,
+      checkDatabase = !storage;
     if (!entry && storage) {
+      let text;
       try {
-        const text = storage.getItem(key);
-        if (text) entry = JSON.parse(text);
-        else checkDatabase = storage.getItem(DB_MARKER) === '1';
+        text = storage.getItem(key);
+        if (!text) checkDatabase = storage.getItem(DB_MARKER) === '1';
       } catch {
         storage = null;
         checkDatabase = true;
+      }
+      if (text) {
+        try {
+          entry = JSON.parse(text);
+          fromLocalStorage = true;
+        } catch {
+          try {
+            storage?.removeItem?.(key);
+          } catch {}
+        }
       }
     }
     if (!entry && checkDatabase) {
@@ -249,8 +303,8 @@ export function createFilterOptionsCache(
         'Atualize as opções de ano fornecidas pelo PNCP.'
       );
       const normalized = { version: 1, fetched_at: entry.fetched_at, expires_at: entry.expires_at, value };
-      // Upgrade large legacy entries without querying PNCP or extending their TTL.
-      if (fromStorage && entry.encoding === undefined && JSON.stringify(value).length >= COMPRESSION_THRESHOLD)
+      // Upgrade large legacy localStorage entries without querying PNCP or extending their TTL.
+      if (fromLocalStorage && entry.encoding === undefined && JSON.stringify(value).length >= COMPRESSION_THRESHOLD)
         await persist(key, normalized);
       assert(now() < entry.expires_at, 'EXPIRED_OPTIONS', 'Opções expiradas.');
       memory.set(key, normalized);
@@ -263,7 +317,9 @@ export function createFilterOptionsCache(
   function pump() {
     if (active || !queue.length || controller.signal.aborted) return;
     active = true;
-    const job = queue.shift();
+    let index = queue.findIndex(item => item.priority === 'foreground');
+    if (index < 0) index = 0;
+    const job = queue.splice(index, 1)[0];
     Promise.resolve()
       .then(job.run)
       .then(job.resolve, job.reject)
@@ -272,10 +328,19 @@ export function createFilterOptionsCache(
         pump();
       });
   }
-  function load(key, payload) {
-    if (pending.has(key)) return pending.get(key);
+  function load(key, payload, priority) {
+    const existing = pending.get(key);
+    if (existing) {
+      if (priority === 'foreground' && existing.job) {
+        existing.job.priority = 'foreground';
+        existing.payload.priority = 'foreground';
+      }
+      return existing.promise;
+    }
+    let job;
     const promise = new Promise((resolve, reject) => {
-      queue.push({
+      job = {
+        priority,
         resolve,
         reject,
         async run() {
@@ -289,24 +354,25 @@ export function createFilterOptionsCache(
           memory.set(key, entry);
           return value;
         }
-      });
+      };
+      queue.push(job);
     }).finally(() => pending.delete(key));
-    pending.set(key, promise);
+    pending.set(key, { promise, job, payload });
     pump();
     return promise;
   }
   /**
    * @param {any} payload
-   * @param {{signal?: AbortSignal}} [options]
+   * @param {{signal?: AbortSignal, priority?: 'foreground' | 'background'}} [options]
    */
-  async function get(payload, { signal } = {}) {
+  async function get(payload, { signal, priority = 'background' } = {}) {
     signal?.throwIfAborted();
     controller.signal.throwIfAborted();
-    const { key, payload: request } = describe(payload),
+    const { key, payload: request } = describe(payload, priority),
       cached = await read(key);
     signal?.throwIfAborted();
     controller.signal.throwIfAborted();
-    const value = cached ?? (await waitFor(load(key, request), signal));
+    const value = cached ?? (await waitFor(load(key, request, priority), signal));
     signal?.throwIfAborted();
     return structuredClone(value);
   }

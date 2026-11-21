@@ -69,7 +69,8 @@ export function createRuntime(input, options = {}) {
   // Operações excedentes aguardam numa fila FIFO em vez de falhar; só uma fila
   // muito longa (sinal de uso anômalo) devolve CONCURRENCY_LIMIT.
   const waiting = [];
-  let active = 0;
+  let active = 0,
+    closed = false;
   const maxWaiting = config.PNCP_MAX_CONCURRENT_OPERATIONS * 4;
   function acquireSlot(signal) {
     if (active < config.PNCP_MAX_CONCURRENT_OPERATIONS) {
@@ -89,10 +90,15 @@ export function createRuntime(input, options = {}) {
         resolve: () => {
           signal.removeEventListener('abort', abort);
           resolve(undefined);
+        },
+        reject: error => {
+          signal.removeEventListener('abort', abort);
+          reject(error);
         }
       };
       const abort = () => {
-        waiting.splice(waiting.indexOf(waiter), 1);
+        const index = waiting.indexOf(waiter);
+        if (index >= 0) waiting.splice(index, 1);
         reject(signal.reason);
       };
       signal.addEventListener('abort', abort, { once: true });
@@ -106,6 +112,7 @@ export function createRuntime(input, options = {}) {
   }
   return {
     async run(id, method, payload = {}, onProgress = () => {}) {
+      if (closed) throw new DOMException('Aplicação encerrada.', 'AbortError');
       assert(methods.includes(method), 'NOT_FOUND', 'Operação não disponível.');
       assert(
         typeof id === 'string' && id.length > 0 && id.length <= 128 && !controllers.has(id),
@@ -222,9 +229,10 @@ export function createRuntime(input, options = {}) {
       controllers.get(id)?.abort(new DOMException('Operação cancelada.', 'AbortError'));
     },
     async close() {
-      for (const waiter of waiting.splice(0)) waiter.resolve();
-      for (const controller of controllers.values())
-        controller.abort(new DOMException('Aplicação encerrada.', 'AbortError'));
+      closed = true;
+      const reason = new DOMException('Aplicação encerrada.', 'AbortError');
+      for (const waiter of waiting.splice(0)) waiter.reject(reason);
+      for (const controller of controllers.values()) controller.abort(reason);
       await client.close();
     }
   };
@@ -233,6 +241,7 @@ export function createRuntime(input, options = {}) {
 export function attachWorker(scope, options) {
   let runtime;
   scope.addEventListener('message', async ({ data }) => {
+    if (!data || typeof data !== 'object') return;
     try {
       if (data.type === 'init') {
         assert(
@@ -250,7 +259,10 @@ export function attachWorker(scope, options) {
         return;
       }
       if (data.type === 'close') {
-        await runtime.close();
+        const current = runtime;
+        runtime = null;
+        await current.close();
+        if (data.id !== undefined) scope.postMessage({ id: data.id, result: { closed: true } });
         return;
       }
       const result = await runtime.run(data.id, data.method, data.payload, progress =>

@@ -1,6 +1,6 @@
 import { PROTOCOL_VERSION } from './protocol.js';
 
-/** @param {any} config Configuração pública ou promessa que a resolve. */
+/** @param {any} config Configuração pública, promessa ou função que a resolve. */
 export function createWorkerService(
   config,
   {
@@ -10,11 +10,23 @@ export function createWorkerService(
 ) {
   let worker,
     ready,
+    configPromise = null,
     failed = false,
     disposed = false,
     serial = 0,
     abortStartup = null;
   const pending = new Map();
+  function loadConfig() {
+    if (typeof config !== 'function') return Promise.resolve(config);
+    if (!configPromise) {
+      const pendingConfig = Promise.resolve().then(config);
+      configPromise = pendingConfig;
+      pendingConfig.catch(() => {
+        if (configPromise === pendingConfig) configPromise = null;
+      });
+    }
+    return configPromise;
+  }
   function failure(error) {
     failed = true;
     worker?.terminate();
@@ -59,7 +71,15 @@ export function createWorkerService(
   }
   function start() {
     failed = false;
-    const instance = workerFactory();
+    let instance;
+    try {
+      instance = workerFactory();
+    } catch (error) {
+      failed = true;
+      ready = Promise.reject(error);
+      ready.catch(() => {});
+      return;
+    }
     worker = instance;
     instance.addEventListener('message', ({ data }) => {
       if (worker !== instance) return;
@@ -98,7 +118,7 @@ export function createWorkerService(
     );
     // O Worker começa a carregar imediatamente; a configuração pode chegar depois (promessa).
     // O prazo de inicialização e falhas do Worker também valem durante a espera pela configuração.
-    ready = Promise.race([Promise.resolve(config), startupFailed])
+    ready = Promise.race([loadConfig(), startupFailed])
       .then(value => {
         if (worker !== instance || failed)
           throw Object.assign(new Error('O serviço de navegador foi interrompido. Tente novamente.'), {
@@ -123,11 +143,40 @@ export function createWorkerService(
   start();
   return {
     async call(method, payload = {}, options = {}) {
-      if (disposed) throw new Error('Aplicação encerrada.');
-      if (failed) start();
-      await ready;
       if (disposed) throw new DOMException('Aplicação encerrada.', 'AbortError');
       if (options.signal?.aborted) throw new DOMException('Operação cancelada.', 'AbortError');
+      if (failed) start();
+      const currentReady = ready,
+        currentWorker = worker;
+      if (options.signal) {
+        await new Promise((resolve, reject) => {
+          const abort = () => {
+            cleanup();
+            reject(new DOMException('Operação cancelada.', 'AbortError'));
+          };
+          const cleanup = () => options.signal.removeEventListener('abort', abort);
+          options.signal.addEventListener('abort', abort, { once: true });
+          currentReady.then(
+            value => {
+              cleanup();
+              resolve(value);
+            },
+            error => {
+              cleanup();
+              reject(error);
+            }
+          );
+        });
+      } else {
+        await currentReady;
+      }
+      if (disposed) throw new DOMException('Aplicação encerrada.', 'AbortError');
+      if (options.signal?.aborted) throw new DOMException('Operação cancelada.', 'AbortError');
+      if (failed || worker !== currentWorker)
+        throw Object.assign(new Error('O serviço de navegador foi interrompido. Tente novamente.'), {
+          code: 'WORKER_UNAVAILABLE',
+          retryable: true
+        });
       return send({ method, payload }, options);
     },
     close() {

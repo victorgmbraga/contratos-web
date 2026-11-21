@@ -178,4 +178,7 @@ test('QUERY-URL-07: anos fornecidos pela fonte preservam formatos não AAAA e ze
     assert.deepEqual(query.pncp_filters.anos, ['20', '20260', '0002', '0']);
     assert.deepEqual(readQueryUrl(writeQueryUrl(base, query, definition), definition), query);
   }
+  assert.deepEqual(read('?ufs=SP%7CDF&ufs=SP').pncp_filters.ufs, ['SP', 'DF']);
+  const encoded = writeQueryUrl(base, { ...read(''), pncp_filters: { ufs: undefined } }, definition);
+  assert(!encoded.includes('ufs='));
 });

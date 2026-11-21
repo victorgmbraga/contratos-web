@@ -61,8 +61,25 @@ test('RECENT-OPTIONS-03: descarta dados inválidos sem apagar outras chaves e ig
     assert.equal(storage.getItem('preferencia-do-usuario'), 'preservar');
     recents.add('orgaos', { id: '', label: 'Sem ID' });
     recents.add('orgaos', { id: '1', label: '' });
+    recents.add('orgaos', { id: null, label: 'Nulo' });
+    recents.add('orgaos', null);
     assert.equal(storage.getItem(RECENT_FILTER_OPTIONS_KEY), null);
   }
+  const storage = memoryStorage();
+  storage.setItem(
+    RECENT_FILTER_OPTIONS_KEY,
+    JSON.stringify({
+      orgaos: [
+        ['1', 'A'],
+        ['1', 'Duplicado']
+      ]
+    })
+  );
+  const deduped = createRecentFilterOptions(() => storage);
+  const items = deduped.list('orgaos');
+  assert.deepEqual(items, [{ id: '1', label: 'A' }]);
+  items[0].label = 'Mutado';
+  assert.deepEqual(deduped.list('orgaos'), [{ id: '1', label: 'A' }]);
 });
 
 test('RECENT-OPTIONS-04: armazenamento bloqueado ou sem espaço mantém as escolhas na sessão', () => {

@@ -441,3 +441,43 @@ test('OPTIONS-15: listas que omitiram anos são atualizadas uma vez, inclusive c
     assert.equal(restored.calls.length, 0);
   }
 });
+
+test('OPTIONS-17: JSON corrompido não desativa localStorage e prioridade foreground passa à frente da fila', async () => {
+  const storage = memoryStorage(),
+    f = fixture({ storage });
+  await f.cache.get({ type: 'edital' });
+  await f.cache.get({ type: 'ata' });
+  const [editalKey] = [...storage.data.keys()];
+  storage.setItem(editalKey, '{corrompido');
+  const restored = fixture({ storage });
+  await restored.cache.get({ type: 'edital' });
+  assert.equal(restored.calls.length, 1);
+  // A entrada válida de ata continua sendo lida do localStorage sem nova chamada.
+  await restored.cache.get({ type: 'ata' });
+  assert.equal(restored.calls.length, 1);
+
+  // Prioridade foreground fura fila de pré-carga em segundo plano.
+  const order = [];
+  let releaseFirst;
+  const queued = fixture({
+    handler: payload => {
+      order.push([payload.type, payload.priority]);
+      if (order.length === 1)
+        return new Promise(resolve => {
+          releaseFirst = () => resolve({ filters: { ufs: [{ id: 'SP', label: 'São Paulo' }] } });
+        });
+      return { filters: { ufs: [{ id: 'SP', label: 'São Paulo' }] } };
+    }
+  });
+  const p1 = queued.cache.get({ type: 'edital' }, { priority: 'background' });
+  const p2 = queued.cache.get({ type: 'ata' }, { priority: 'background' });
+  const p3 = queued.cache.get({ type: 'contrato' }, { priority: 'foreground' });
+  await tick();
+  releaseFirst();
+  await Promise.all([p1, p2, p3]);
+  assert.deepEqual(order, [
+    ['edital', 'background'],
+    ['contrato', 'foreground'],
+    ['ata', 'background']
+  ]);
+});

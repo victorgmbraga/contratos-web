@@ -17,26 +17,38 @@ export function createRecentFilterOptions(getStorage = () => globalThis.localSto
   function read() {
     // Sem armazenamento utilizável, as escolhas ficam só na memória desta página.
     if (!storage) return;
+    let text;
     try {
-      const raw = JSON.parse(storage?.getItem(RECENT_FILTER_OPTIONS_KEY) ?? '{}');
+      text = storage.getItem(RECENT_FILTER_OPTIONS_KEY);
+    } catch {
+      storage = undefined;
+      return;
+    }
+    try {
+      const raw = JSON.parse(text ?? '{}');
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Cache inválido');
       const entries = Object.entries(raw);
       if (entries.length > MAX_FIELDS) throw new Error('Cache inválido');
       const next = new Map();
       for (const [field, options] of entries) {
-        if (!Array.isArray(options) || options.length > RECENT_OPTIONS_PER_FIELD) throw new Error('Cache inválido');
+        if (!valid(field) || !Array.isArray(options) || options.length > RECENT_OPTIONS_PER_FIELD)
+          throw new Error('Cache inválido');
         if (!options.every(option => Array.isArray(option) && option.length === 2 && option.every(valid)))
           throw new Error('Opção inválida');
-        next.set(
-          field,
-          options.map(([id, label]) => ({ id, label }))
-        );
+        const seen = new Set(),
+          items = [];
+        for (const [id, label] of options) {
+          if (seen.has(id)) continue;
+          seen.add(id);
+          items.push({ id, label });
+        }
+        next.set(field, items);
       }
       fields = next;
     } catch {
       fields = new Map();
       try {
-        storage?.removeItem(RECENT_FILTER_OPTIONS_KEY);
+        storage.removeItem?.(RECENT_FILTER_OPTIONS_KEY);
       } catch {
         /* Falhas de cache não bloqueiam filtros. */
       }
@@ -46,10 +58,12 @@ export function createRecentFilterOptions(getStorage = () => globalThis.localSto
   return {
     /** @param {string} field */
     list(field) {
-      return [...(fields.get(field) || [])];
+      read();
+      return (fields.get(field) || []).map(item => ({ ...item }));
     },
     /** @param {string} field @param {{ id: unknown, label: unknown }} option */
     add(field, option) {
+      if (!option || typeof option !== 'object' || option.id == null || option.label == null) return;
       const id = String(option.id),
         label = String(option.label);
       if (!valid(field) || !valid(id) || !valid(label)) return;

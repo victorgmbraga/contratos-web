@@ -39,7 +39,7 @@ export function readQueryUrl(href, schema, size = 100) {
       `Filtro ${cap.name} não está disponível para ${type}.`
     );
     let value;
-    if (cap.type === 'list') value = params.getAll(cap.name).flatMap(text => text.split('|'));
+    if (cap.type === 'list') value = [...new Set(params.getAll(cap.name).flatMap(text => text.split('|')))];
     else {
       value = single(params, cap.name);
       if (cap.type === 'boolean') {
@@ -67,6 +67,7 @@ export function writeQueryUrl(href, query, schema) {
   url.searchParams.set('pagina', String(query.page));
   for (const name of Object.keys(query.pncp_filters).sort()) {
     const value = query.pncp_filters[name];
+    if (value === undefined) continue;
     url.searchParams.set(name, Array.isArray(value) ? value.join('|') : String(value));
   }
   return url.href;
