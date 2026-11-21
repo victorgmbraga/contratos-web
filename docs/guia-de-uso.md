@@ -81,7 +81,7 @@ O PNCP permite navegar somente pelos primeiros 10.000 resultados de uma pesquisa
 
 ## Ver os detalhes
 
-Clique em uma linha ou cartão para abrir o painel de detalhes. Na aba **Detalhes**, a identificação (Controle PNCP, documentos de origem, fonte e processo eletrônico) e os campos principais (como órgão, situação, valor e datas) aparecem primeiro, em negrito; o link de **Controle PNCP** abre a página oficial do documento. As abas mostram todos os campos, itens, arquivos, documentos vinculados e o histórico. Abas de listas carregam em segundo plano; com economia de dados ativada, elas só carregam quando selecionadas.
+Clique em uma linha ou cartão para abrir o painel de detalhes. Na aba **Detalhes**, a identificação (Controle PNCP, documentos de origem, fonte e processo eletrônico) e os campos principais (como órgão, situação, valor e datas) aparecem primeiro, com peso de fonte normal; o link de **Controle PNCP** abre a página oficial do documento. As abas mostram todos os campos, itens, arquivos, documentos vinculados e o histórico. Abas de listas carregam em segundo plano; com economia de dados ativada, elas só carregam quando selecionadas.
 
 Em editais, a aba **Itens** mostra, para cada item já homologado, o **resultado homologado** separado dos valores estimados: fornecedor, quantidade, valor unitário e total homologados, data do resultado e quanto o valor unitário homologado ficou abaixo ou acima do estimado. Em registro de preços, aparece um resultado por fornecedor classificado. O CPF de fornecedores pessoa física não é exibido. Os resultados são consultados no PNCP quando a aba Itens é aberta.
 
@@ -91,15 +91,16 @@ O endereço da página guarda o tipo, o texto, os filtros, a ordenação, a pág
 
 ## Exportar para CSV
 
-O botão **Exportar** oferece:
+O botão **Exportar** oferece, para planilhas em CSV:
 
 - **Toda a consulta**: refaz a pesquisa no PNCP e coleta todos os resultados, até 10.000 documentos, com progresso e estimativa de tempo. Pode levar cerca de um minuto para consultas grandes e pode ser cancelada.
 - **Página atual**: exporta somente os documentos da página exibida.
-- **Exportação completa**: gera um JSON com tudo o que o painel de detalhes mostra de cada documento e os links dos arquivos. Disponível para consultas com até 100 documentos.
 
 O arquivo usa UTF-8 com separador vírgula e inclui todas as colunas do tipo, mesmo as ocultas na tabela. Como a exportação consulta a fonte de novo, os dados podem diferir ligeiramente do que estava na tela. Abra-o no Excel, LibreOffice ou Google Planilhas.
 
 ## Exportação completa (JSON)
+
+No mesmo menu **Exportar**, a opção **Exportação completa** gera um JSON com tudo o que o painel de detalhes mostra de cada documento e os links dos arquivos, disponível para consultas com até 100 documentos.
 
 A exportação completa consulta, para cada documento da última pesquisa concluída, os detalhes, os itens com os resultados homologados (editais) e todas as listagens das abas do painel: arquivos, atas, contratos, partes envolvidas, empenhos, instrumentos de cobrança, termos e histórico. Faz muitas chamadas ao PNCP e respeita o mesmo limite de requisições simultâneas e por segundo das demais consultas; por isso pode levar alguns minutos. O progresso mostra os documentos concluídos, e a operação pode ser cancelada.
 

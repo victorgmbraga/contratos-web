@@ -25,7 +25,7 @@ npm ci
 npm run dev
 ```
 
-Abra [http://localhost:8000](http://localhost:8000). As consultas exigem acesso à internet ao PNCP.
+Abra [http://127.0.0.1:8000](http://127.0.0.1:8000) (ou `http://localhost:8000`). As consultas exigem acesso à internet ao PNCP.
 
 | Comando | Finalidade |
 | --- | --- |
@@ -34,6 +34,7 @@ Abra [http://localhost:8000](http://localhost:8000). As consultas exigem acesso 
 | `npm test` | Executar os testes automatizados |
 | `npm run test:coverage` | Executar os testes e conferir a cobertura mínima |
 | `npm run build` | Gerar a distribuição estática em `dist-browser/` |
+| `npm run build:qa` | Gerar os builds de produção e de teste (`dist-browser/` e `dist-browser-test/`) |
 | `npm run preview` | Servir o build localmente |
 | `npm run test:budget` | Conferir os limites de tamanho do build (requer `npm run build`) |
 | `npm run format` | Formatar o código com Prettier |

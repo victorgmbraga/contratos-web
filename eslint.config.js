@@ -43,7 +43,7 @@ export default [
     }
   },
   {
-    // The JSON parser deliberately scans control characters in filter values.
+    // Filter validation deliberately scans control characters in input values.
     files: ['src/validation.js'],
     rules: { 'no-control-regex': 'off' }
   },

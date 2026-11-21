@@ -18,6 +18,10 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 - Consulta o catálogo local de municípios mesmo quando a lista inicial do PNCP falha.
 - Cancela páginas pendentes ao encerrar a exportação CSV e limita a quantidade de opções renderizadas nos filtros.
 - Exclui a pasta de navegadores do lint e inclui avisos de auditoria das ferramentas de desenvolvimento no CI.
+- Reforça validações e limites do núcleo PNCP: rejeição de `ExactJsonNumber` em objetos externos, teto de `Retry-After` (5 min), normalização de links `/app/...` e zeros à esquerda em notação científica, travessia iterativa de detalhes e campos extras sem vulnerabilidade a protótipos, limite `PNCP_MAX_DETAIL_ITEMS` nas listagens e exportação completa, neutralização de fórmulas CSV com prefixos invisíveis/de controle e teto de timeout de 32 bits.
+- Corrige ciclo de vida do Web Worker, caches persistentes e Service Worker: configuração recarregável em caso de falha transitória, descarte consistente de filas e erros de aborto, timeout e recuperação de conexões do IndexedDB, prioridade de domínios em primeiro plano ao abrir filtros, validação de rótulos/recentes entre abas e cache do Service Worker restrito ao escopo com respostas `200` `basic`.
+- Melhora interface, acessibilidade e teclado virtual: preserva popovers/seletores ao redimensionar apenas altura no mobile, evita fechamento acidental de diálogos por arraste, respeita `prefers-reduced-motion` nas animações de ícones, corrige o cabeçalho de detalhes no mobile, amplia indicadores de foco e alto contraste (`forced-colors`), separa folha de estilos enxuta para `pncp-diagnostic.html` (reduzindo o CSS total de 18,5 para 12,1 KiB gzip) e reforça a CSP (`form-action 'self'`) e `_headers`.
+- Aprimora CI, testes e manutenção: protege execuções da `main` contra cancelamento concorrente, estabiliza o cache `apt-browser` pela revisão do Playwright, corrige detecção de quebras de contrato em `test/pncp-contract.mjs`, amplia testes de acessibilidade (claro/escuro, editais/atas/contratos) e movimento reduzido, endurece `scripts/update-municipios.mjs` e atualiza a documentação.
 
 ## 2.10.3 — 2026-11-16
 

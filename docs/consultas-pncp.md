@@ -8,7 +8,7 @@ O Worker consulta `https://pncp.gov.br/api/search/` para pesquisa, filtros e sug
 | --- | --- | --- |
 | `schema` | `{}` | Colunas, filtros, status, ordenações e limites |
 | `execute` | `{query}` | Uma página de documentos e metadados |
-| `domains` | `{type, normatives, field}` | Opções normalizadas e avisos; `normatives` e `field` podem ser omitidos |
+| `domains` | `{type, normatives?, field?, priority?}` | Opções normalizadas e avisos; `normatives`, `field` e `priority` podem ser omitidos |
 | `suggest` | `{type, field, q, size}` | Sugestões de IDs e rótulos |
 | `details` | `{document, page, size}` | Quantidade e página de itens de contratação |
 | `itemResults` | `{document, item}` | Resultados homologados de um item de contratação |
@@ -16,8 +16,8 @@ O Worker consulta `https://pncp.gov.br/api/search/` para pesquisa, filtros e sug
 | `documentDetails` | `{document}` | Campos documentais de edital, ata ou contrato |
 | `documentRelated` | `{document, resource, page, size, pagination_mode?}` | Listagem dos detalhes de qualquer tipo documental |
 | `contractChild` | `{document, resource, sequence}` | Detalhes do registro filho de contrato |
-| `export` | `{query}` | Buffers CSV, nome, MIME e metadados compactos |
-| `fullExport` | `{query}` | Buffer do JSON estruturado por documento, com os links dos arquivos, nome, MIME e metadados |
+| `export` | `{query, scope?}` | Buffers CSV (`ArrayBuffer[]`), nome, MIME e metadados compactos |
+| `fullExport` | `{query}` | Buffers (`ArrayBuffer[]`) do JSON estruturado por documento, com os links dos arquivos, nome, MIME e metadados |
 
 Esses métodos são locais, não URLs HTTP. Campos e métodos desconhecidos são rejeitados antes da consulta à fonte. Cancelamento rejeita a chamada com `AbortError`; erros do Worker preservam `code`, `message`, `status`, `details` e `retryable`.
 
@@ -247,7 +247,7 @@ Todos os serviços de página recebem `pagina` e `tamanhoPagina`. Arquivos e his
 
 A resposta de `documentRelated` contém `api_version`, `request_id`, `document_type`, `source`, `resource`, `data`, `page`, `size`, `total`, `total_pages`, `has_more`, `complete`, `snapshot_guaranteed: false`, `queried_at` e `upstream_requests`. O método `related`, restrito a contratações, usa o mesmo formato sem `document_type`. `complete` identifica a última página. `valor_global` preserva os decimais como string. `url` é `null` quando o link de download é inválido ou os identificadores do registro não permitem gerar um link de acesso. O link de ata usa o ano da compra presente no número de controle PNCP, que pode diferir de `anoAta`.
 
-O histórico apresenta o evento, o nome do documento quando fornecido, a data/hora e a justificativa. Uma justificativa ausente ou vazia é apresentada como `Exigência Legal`, seguindo o portal oficial. Textos são exibidos como texto; downloads aceitam apenas HTTP/HTTPS sem credenciais, e os links de atas e contratos apontam para o PNCP. Listagens não são consultadas durante pesquisa ou exportação. Quando faltam identificadores originais válidos, as seções mostram essa informação e não fazem requisições.
+O histórico apresenta o evento, o nome do documento quando fornecido, a data/hora e a justificativa. Uma justificativa ausente ou vazia é apresentada como `Exigência Legal`, seguindo o portal oficial. Textos são exibidos como texto; downloads aceitam apenas HTTP/HTTPS sem credenciais, e os links de atas e contratos apontam para o PNCP. Listagens não são consultadas durante a pesquisa ou a exportação CSV (na exportação completa em JSON, elas são coletadas sob demanda). Quando faltam identificadores originais válidos, as seções mostram essa informação e não fazem requisições.
 
 Links de download cujo domínio é exatamente `pncp.gov.br` têm portas não padrão removidas na projeção dos arquivos: o PNCP pode expor uma porta interna, como `:52210`, embora o arquivo esteja disponível na porta pública padrão. O tratamento cobre arquivos de editais, atas, contratos e termos de contrato; preserva protocolo, caminho, parâmetros e fragmento. Links já sem porta continuam válidos, e portas de outros domínios e links genéricos não são modificados. A validação de HTTP/HTTPS sem credenciais continua obrigatória.
 

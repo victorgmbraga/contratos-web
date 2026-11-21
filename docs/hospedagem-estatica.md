@@ -15,7 +15,7 @@ npm run build
 npm run preview
 ```
 
-Abra `http://localhost:8000` para consultar a fonte real. O preview usa os arquivos compilados.
+Abra `http://127.0.0.1:8000` (ou `http://localhost:8000`) para consultar a fonte real. O preview usa os arquivos compilados.
 
 Publique **todo o conteúdo de `dist-browser/`**, incluindo `assets/`. Os caminhos relativos permitem servir na raiz ou em um diretório como `/contratos-web/`; abra a URL do diretório com barra final. A hospedagem precisa fornecer MIME apropriado: `text/javascript` para módulos e Worker, `text/css` e `application/json`. Use HTTPS; a abertura por `file://` não é suportada.
 
