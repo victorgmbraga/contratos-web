@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseExactJson as parse } from '../src/exact-json.js';
-import { project, safeLink, itemSituation } from '../src/adapter.js';
+import { project, safeLink, itemSituation, documentIdentity } from '../src/adapter.js';
 import { validateQuery } from '../src/validation.js';
 import { config, document, query, service, json } from './helpers.js';
 
@@ -39,6 +39,21 @@ test('AUDIT-02: caminho da busca /compras abre /app/editais e mantém validaçã
   assert.equal(
     safeLink('/app/editais/76208867000107/2026/534', true),
     'https://pncp.gov.br/app/editais/76208867000107/2026/534'
+  );
+  assert.equal(
+    safeLink('https://pncp.gov.br/atas/76208867000107/2025/10/2', true),
+    'https://pncp.gov.br/app/atas/76208867000107/2025/10/2'
+  );
+  assert.deepEqual(
+    documentIdentity({
+      document_type: 'ata',
+      orgao_cnpj: '76208867000107',
+      ano: '2026',
+      numero_sequencial: '2',
+      numero_sequencial_compra_ata: '10',
+      item_url: 'https://pncp.gov.br/atas/76208867000107/2025/10/2'
+    }),
+    { type: 'ata', cnpj: '76208867000107', ano: '2025', sequencial_compra: '10', sequencial: '2' }
   );
   for (const value of [
     '//evil.example/compras/1',

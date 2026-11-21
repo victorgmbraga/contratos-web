@@ -25,6 +25,13 @@ function untilAborted(promise, signal) {
   });
 }
 export const DOMAIN_VALIDATION_TTL = 4 * 60 * 60 * 1000;
+const ownerLimitCodes = new Set([
+  'REQUEST_BUDGET',
+  'OPERATION_BYTES_LIMIT',
+  'OPERATION_TIMEOUT',
+  'FULL_EXPORT_REQUEST_LIMIT',
+  'FULL_EXPORT_RESPONSE_BYTES_LIMIT'
+]);
 /**
  * @param {import('../types/contracts.js').SearchResult} result
  * @param {number} rows
@@ -87,7 +94,8 @@ export class QueryService {
           !op.signal.aborted &&
           ((entry.signal.aborted && entry.signal.reason === error) ||
             error?.name === 'AbortError' ||
-            error?.code === 'CANCELLED')
+            error?.code === 'CANCELLED' ||
+            ownerLimitCodes.has(error?.code))
         )
           continue;
         throw error;
@@ -250,10 +258,8 @@ export class QueryService {
    */
   async export(input, signal, requestId, { onProgress = () => {}, scope = 'all' } = {}) {
     assert(scope === 'all' || scope === 'page', 'INVALID_EXPORT_SCOPE', 'Escopo de exportação inválido.', 422);
-    const query = validateQuery(
-        { ...input, ...(scope === 'all' ? { page: 1, size: this.config.PNCP_EXPORT_PAGE_SIZE } : {}) },
-        this.config
-      ),
+    const validated = validateQuery(input, this.config),
+      query = scope === 'all' ? { ...validated, page: 1, size: this.config.PNCP_EXPORT_PAGE_SIZE } : validated,
       op = operation(this.config, signal, requestId);
     try {
       await this.verifyDomains(query, op);

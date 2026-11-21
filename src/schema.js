@@ -194,7 +194,7 @@ const previouslyEnabled = [
   ...itemEnabled
 ];
 export const initialEnabled = argumentsList
-  .filter(a => !reserved.includes(a.name) && (a.context === 'Geral' || /\b[EC]\b/.test(a.context)))
+  .filter(a => !reserved.includes(a.name) && (a.context === 'Geral' || /\b[ECA]\b/.test(a.context)))
   .map(a => a.name);
 export function capabilities(config) {
   const additional = config.PNCP_VALIDATED_FILTERS.split(',')

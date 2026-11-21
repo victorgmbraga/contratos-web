@@ -1,6 +1,15 @@
-import { scalarText, decimalText, safeLink } from './adapter.js';
+import { scalarText, decimalText, safeLink, isPlainObject } from './adapter.js';
 import { isExactJsonNumber } from './exact-json.js';
 import { assert } from './errors.js';
+
+const own = (object, key) => (object && Object.hasOwn(object, key) ? object[key] : undefined);
+function optionalDecimal(value) {
+  try {
+    return decimalText(value);
+  } catch {
+    return null;
+  }
+}
 
 export const documentResources = {
   edital: ['arquivos', 'atas', 'contratos', 'historico'],
@@ -144,11 +153,30 @@ const indexedLabels = {
 };
 const indexedTypes = { data_inicio_vigencia: { edital: 'datetime' }, data_fim_vigencia: { edital: 'datetime' } };
 function displayValue(value) {
-  if (isExactJsonNumber(value)) return value.toString();
-  if (Array.isArray(value)) return value.map(displayValue);
-  if (value && typeof value === 'object')
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, displayValue(item)]));
-  return value;
+  const leaf = item => (isExactJsonNumber(item) ? item.toString() : item);
+  const root = leaf(value);
+  if (root === null || typeof root !== 'object') return root;
+  const output = Array.isArray(root) ? [] : {},
+    pending = [[root, output]];
+  const seen = new WeakMap([[root, output]]);
+  while (pending.length) {
+    const [source, target] = pending.pop();
+    for (const [key, item] of Object.entries(source)) {
+      let normalized = leaf(item);
+      if (normalized !== null && typeof normalized === 'object') {
+        const previous = seen.get(normalized);
+        if (previous) normalized = previous;
+        else {
+          const child = Array.isArray(normalized) ? [] : {};
+          seen.set(normalized, child);
+          pending.push([normalized, child]);
+          normalized = child;
+        }
+      }
+      Object.defineProperty(target, key, { value: normalized, enumerable: true, writable: true, configurable: true });
+    }
+  }
+  return output;
 }
 function indexedValue(value) {
   value = displayValue(value);
@@ -165,13 +193,24 @@ function indexedValue(value) {
 }
 function indexedType(key, value) {
   if (typeof value === 'boolean') return 'boolean';
-  if (/^valor_|_(?:valor|preco|desconto)(?:_|$)/.test(key))
-    return /^-?\d+(?:\.\d+)?$/.test(String(value)) ? 'decimal' : 'text';
+  if (/^valor_|_(?:valor|preco|desconto)(?:_|$)/.test(key)) return optionalDecimal(value) !== null ? 'decimal' : 'text';
   if (key === 'createdAt') return 'datetime';
   if (/^data_/.test(key)) return 'date';
   if (/link|url/i.test(key)) return 'link';
   return 'text';
 }
+const labelAcronyms = {
+  id: 'ID',
+  url: 'URL',
+  pncp: 'PNCP',
+  nfe: 'NF-e',
+  cnpj: 'CNPJ',
+  cpf: 'CPF',
+  uf: 'UF',
+  srp: 'SRP',
+  ibge: 'IBGE',
+  irp: 'IRP'
+};
 function indexedLabel(path) {
   return path
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -179,18 +218,7 @@ function indexedLabel(path) {
     .filter(Boolean)
     .map(
       part =>
-        ({
-          id: 'ID',
-          url: 'URL',
-          pncp: 'PNCP',
-          nfe: 'NF-e',
-          cnpj: 'CNPJ',
-          cpf: 'CPF',
-          uf: 'UF',
-          srp: 'SRP',
-          ibge: 'IBGE',
-          irp: 'IRP'
-        })[part.toLocaleLowerCase('pt-BR')] || part.charAt(0).toLocaleUpperCase('pt-BR') + part.slice(1)
+        own(labelAcronyms, part.toLocaleLowerCase('pt-BR')) || part.charAt(0).toLocaleUpperCase('pt-BR') + part.slice(1)
     )
     .join(' ');
 }
@@ -359,12 +387,7 @@ export function joinOrganizationFields(fields, source = 'indexed') {
   return joinLocations(joinFieldValues(fields, organizationJoins[source]), locationJoins[source]);
 }
 export function indexedDocumentFields(record) {
-  assert(
-    record && typeof record === 'object' && !Array.isArray(record),
-    'INVALID_UPSTREAM',
-    'Documento PNCP inválido.',
-    502
-  );
+  assert(isPlainObject(record), 'INVALID_UPSTREAM', 'Documento PNCP inválido.', 502);
   const type = scalarText(record.document_type),
     fields = [],
     seen = new Set();
@@ -375,11 +398,11 @@ export function indexedDocumentFields(record) {
     if (hasDescription(definition.path)) continue;
     const value = indexedValue(record[definition.path]);
     if (value == null) continue;
-    const fieldType = indexedTypes[definition.path]?.[type] || definition.type,
+    const fieldType = own(own(indexedTypes, definition.path), type) || definition.type,
       resolvedType = fieldType === 'datetime' && !/\d{1,2}:\d{2}/.test(String(value)) ? 'date' : fieldType;
     const field = indexedField(
       definition.path,
-      indexedLabels[definition.path]?.[type] || definition.title,
+      own(own(indexedLabels, definition.path), type) || definition.title,
       resolvedType,
       value
     );
@@ -546,12 +569,7 @@ function read(record, path) {
   let value = record;
   for (const part of path.split('.')) {
     if (value == null) return null;
-    assert(
-      typeof value === 'object' && !Array.isArray(value),
-      'INVALID_UPSTREAM',
-      `Campo ${path} inválido no PNCP.`,
-      502
-    );
+    assert(isPlainObject(value), 'INVALID_UPSTREAM', `Campo ${path} inválido no PNCP.`, 502);
     value = value[part];
   }
   return value;
@@ -580,13 +598,18 @@ function nativeExtraValue(value) {
   return indexedValue(value);
 }
 function nativeExtraField(path, value) {
-  const label = nativeLabels[path] || indexedLabel(path.split('.').pop()),
+  const label = own(nativeLabels, path) || indexedLabel(path.split('.').pop()),
     normalized = nativeExtraValue(value);
   if (normalized == null) return null;
   if (typeof normalized === 'boolean') return { field: path, title: label, type: 'boolean', value: normalized };
   if (/valor/i.test(path)) {
-    const text = String(normalized);
-    return { field: path, title: label, type: /^-?\d+(?:\.\d+)?$/.test(text) ? 'decimal' : 'text', value: text };
+    const decimal = optionalDecimal(normalized);
+    return {
+      field: path,
+      title: label,
+      type: decimal !== null ? 'decimal' : 'text',
+      value: decimal ?? String(normalized)
+    };
   }
   if (/numeroControlePncp/i.test(path)) {
     const text = scalarText(normalized);
@@ -608,21 +631,26 @@ function nativeExtraField(path, value) {
 }
 function nativeExtraFields(record, curated) {
   record = displayValue(record);
-  const leaves = [];
-  const walk = (value, path) => {
-    if (path && omittedFields.has(path)) return;
-    if (value == null || value === '' || (Array.isArray(value) && !value.length)) return;
-    if (Array.isArray(value) || typeof value === 'object') {
-      if (Array.isArray(value)) {
-        leaves.push({ path, value });
-        return;
+  const leaves = [],
+    stack = [{ value: record, path: '' }];
+  while (stack.length) {
+    const { value, path } = stack.pop();
+    if (path && omittedFields.has(path)) continue;
+    if (value == null || value === '' || (Array.isArray(value) && !value.length)) continue;
+    if (Array.isArray(value)) {
+      leaves.push({ path, value });
+      continue;
+    }
+    if (typeof value === 'object') {
+      const entries = Object.entries(value);
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const [key, item] = entries[i];
+        stack.push({ value: item, path: path ? `${path}.${key}` : key });
       }
-      for (const [key, item] of Object.entries(value)) walk(item, path ? `${path}.${key}` : key);
-      return;
+      continue;
     }
     leaves.push({ path, value });
-  };
-  walk(record, '');
+  }
   // Curated fields are still considered as descriptions for their code pairs.
   const described = new Set(leaves.map(({ path }) => path));
   return leaves
@@ -631,12 +659,7 @@ function nativeExtraFields(record, curated) {
     .filter(Boolean);
 }
 export function recordFields(kind, record) {
-  assert(
-    record && typeof record === 'object' && !Array.isArray(record),
-    'INVALID_UPSTREAM',
-    'Documento PNCP inválido.',
-    502
-  );
+  assert(isPlainObject(record), 'INVALID_UPSTREAM', 'Documento PNCP inválido.', 502);
   const fields = definitions[kind].flatMap(({ path, title, type, required }) => {
     let value = read(record, path);
     if (value == null && !required) return [];

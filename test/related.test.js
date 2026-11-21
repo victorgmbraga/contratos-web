@@ -177,4 +177,39 @@ test('RELATED-07: número de controle real de ata usa o ano da compra e preserva
   assert.equal(result.data.length, 1);
   assert.equal(result.has_more, false);
   assert.equal(result.data[0].url, 'https://pncp.gov.br/app/atas/00000000000000/2025/1/10');
+  assert.equal(result.pagination_source, 'pncp');
+});
+
+test('RELATED-09: portalLink normaliza zeros à esquerda e relatedPage respeita PNCP_MAX_DETAIL_ITEMS', async () => {
+  const padded = fixture(() =>
+    Response.json({
+      data: [
+        {
+          numeroAtaRegistroPreco: '100',
+          anoAta: 2026,
+          numeroControlePNCP: '00000000000000-1-000001/2025-000010',
+          sequencialAta: '00010'
+        }
+      ],
+      totalRegistros: 1
+    })
+  );
+  const res = await padded.service.related({ ...purchase, sequencial: '00001' }, 'atas', 1, 10);
+  assert.equal(res.data[0].url, 'https://pncp.gov.br/app/atas/00000000000000/2025/1/10');
+
+  const cfg = config({ PNCP_MAX_DETAIL_ITEMS: 1 });
+  const limited = new QueryService(
+    cfg,
+    new PncpClient(cfg, {
+      fetcher: async () =>
+        Response.json({
+          data: [
+            { anoContrato: 2026, sequencialContrato: 1 },
+            { anoContrato: 2026, sequencialContrato: 2 }
+          ],
+          totalRegistros: 2
+        })
+    })
+  );
+  await assert.rejects(limited.related(purchase, 'contratos', 1, 10), e => e.code === 'DETAIL_ITEM_LIMIT');
 });

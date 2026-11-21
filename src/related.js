@@ -1,4 +1,4 @@
-import { scalarText, decimalText, safeFileLink } from './adapter.js';
+import { scalarText, decimalText, safeFileLink, isPlainObject } from './adapter.js';
 import { assert } from './errors.js';
 
 export const relatedResources = ['arquivos', 'atas', 'contratos', 'historico'];
@@ -21,7 +21,7 @@ function portalLink(kind, cnpj, year, sequence, purchaseSequence = null) {
     (kind === 'atas' && !positive(purchaseSequence))
   )
     return null;
-  return `https://pncp.gov.br/app/${kind}/${cnpj}/${year}/${kind === 'atas' ? purchaseSequence + '/' : ''}${sequence}`;
+  return `https://pncp.gov.br/app/${kind}/${cnpj}/${year}/${kind === 'atas' ? `${BigInt(purchaseSequence)}/` : ''}${BigInt(sequence)}`;
 }
 export function projectRelated(resource, record, purchase) {
   if (resource === 'arquivos')
@@ -47,21 +47,11 @@ export function projectRelated(resource, record, purchase) {
   const ata = resource === 'atas',
     control = text(record, 'numeroControlePNCP'),
     entity = record.orgaoEntidade,
-    unit = record.unidadeOrgao || record.unidade;
+    unit = record.unidadeOrgao ?? record.unidade;
   const year = ata ? control?.match(/\/(\d{4})(?:-\d+)?$/)?.[1] : text(record, 'anoContrato');
   const sequence = text(record, ata ? 'sequencialAta' : 'sequencialContrato');
-  assert(
-    entity == null || (typeof entity === 'object' && !Array.isArray(entity)),
-    'INVALID_UPSTREAM',
-    'Órgão do registro inválido.',
-    502
-  );
-  assert(
-    unit == null || (typeof unit === 'object' && !Array.isArray(unit)),
-    'INVALID_UPSTREAM',
-    'Unidade do registro inválida.',
-    502
-  );
+  assert(entity == null || isPlainObject(entity), 'INVALID_UPSTREAM', 'Órgão do registro inválido.', 502);
+  assert(unit == null || isPlainObject(unit), 'INVALID_UPSTREAM', 'Unidade do registro inválida.', 502);
   const cnpj = ata ? purchase.cnpj : text(entity || {}, 'cnpj');
   return {
     numero: text(record, ata ? 'numeroAtaRegistroPreco' : 'numeroContratoEmpenho'),

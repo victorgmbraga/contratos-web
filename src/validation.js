@@ -1,4 +1,5 @@
 import { assert, checkKeys } from './errors.js';
+import { isPlainObject } from './adapter.js';
 import { capabilities, reserved, documentStatuses, documentOrders, MAX_QUERY_TEXT } from './schema.js';
 
 export function validateDocumentType(type) {
@@ -48,9 +49,11 @@ export function validateSuggest(type, field, text, size, config) {
   );
 }
 export function validateDocument(document, allowed = ['edital', 'ata', 'contrato']) {
+  const type = allowed.length === 1 && allowed[0] === 'edital' ? (document?.type ?? 'edital') : document?.type;
   assert(
-    document &&
-      allowed.includes(document.type ?? 'edital') &&
+    isPlainObject(document) &&
+      typeof type === 'string' &&
+      allowed.includes(type) &&
       typeof document.cnpj === 'string' &&
       /^\d{14}$/.test(document.cnpj) &&
       typeof document.ano === 'string' &&
@@ -61,7 +64,7 @@ export function validateDocument(document, allowed = ['edital', 'ata', 'contrato
   const positive = value =>
     typeof value === 'string' && value.length <= 256 && /^\d+$/.test(value) && BigInt(value) > 0n;
   assert(
-    positive(document.sequencial) && (document.type !== 'ata' || positive(document.sequencial_compra)),
+    positive(document.sequencial) && (type !== 'ata' || positive(document.sequencial_compra)),
     'INVALID_DOCUMENT_IDENTITY',
     'Identificadores do documento inválidos.'
   );
@@ -82,9 +85,11 @@ export const validDate = s =>
 export const validDecimal = s => typeof s === 'string' && /^\d+(?:\.\d+)?$/.test(s) && s.length <= 100;
 export function compareDecimal(a, b) {
   const parts = s => {
-    const neg = s.startsWith('-');
-    const [i, f = ''] = (neg ? s.slice(1) : s).split('.');
-    return { neg, i: i.replace(/^0+(?=\d)/, ''), f };
+    const rawNeg = s.startsWith('-');
+    const [rawI, f = ''] = (rawNeg ? s.slice(1) : s).split('.');
+    const i = rawI.replace(/^0+(?=\d)/, '');
+    const neg = rawNeg && !(i === '0' && /^0*$/.test(f));
+    return { neg, i, f };
   };
   const x = parts(a),
     y = parts(b);
@@ -97,17 +102,18 @@ export function compareDecimal(a, b) {
   return x.neg ? -Math.sign(out) : Math.sign(out);
 }
 export function validateFilters(filters, config, documentType = 'edital') {
+  assert(isPlainObject(filters), 'INVALID_TYPE', 'pncp_filters deve ser um objeto.');
+  for (const name of Object.keys(filters))
+    assert(!reserved.includes(name), 'RESERVED_PARAMETER', `${name} é reservado ao adaptador.`);
+  const caps = capabilities(config);
   checkKeys(
     filters,
-    capabilities(config)
-      .filter(c => !c.reserved)
-      .map(c => c.name),
+    caps.filter(c => !c.reserved).map(c => c.name),
     'pncp_filters'
   );
-  const map = Object.fromEntries(capabilities(config).map(c => [c.name, c]));
+  const map = Object.fromEntries(caps.map(c => [c.name, c]));
   const out = {};
   for (const [name, value] of Object.entries(filters)) {
-    assert(!reserved.includes(name), 'RESERVED_PARAMETER', `${name} é reservado ao adaptador.`);
     const cap = map[name];
     assert(
       cap.documents.includes(documentType),
@@ -215,7 +221,6 @@ export function validateFilters(filters, config, documentType = 'edital') {
         `${name} exige string única.`
       );
     if (name === 'codigo_ibge') assert(/^\d{7}$/.test(value), 'INVALID_DOMAIN', 'codigo_ibge exige sete dígitos.');
-    if (name === 'tipos_item') assert(['S', 'M'].includes(value), 'INVALID_DOMAIN', 'tipos_item exige S ou M.');
     if (name.startsWith('resultado_percentual_desconto_'))
       assert(
         compareDecimal(value, '100') <= 0,

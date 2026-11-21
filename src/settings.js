@@ -37,6 +37,8 @@ export function validateSettings(input = {}) {
       );
       if (key !== 'PNCP_REQUESTS_PER_SECOND')
         assert(Number.isInteger(value), 'INVALID_CONFIG', `${key} deve ser inteiro.`);
+      if (key.endsWith('_TIMEOUT_SECONDS'))
+        assert(value <= 2_147_483, 'INVALID_CONFIG', `${key} excede o limite máximo de temporizador.`);
     }
   }
   for (const key of ['PNCP_SEARCH_BASE_URL', 'PNCP_DETAIL_BASE_URL', 'PNCP_CONSULTATION_BASE_URL']) {
@@ -51,7 +53,7 @@ export function validateSettings(input = {}) {
       'INVALID_CONFIG',
       `${key} exige URL base HTTPS sem credenciais, query ou fragmento.`
     );
-    config[key] = url.href.replace(/\/$/, '');
+    config[key] = url.href.replace(/\/+$/, '');
   }
   assert(
     config.PNCP_MAX_EXPORT_DOCUMENTS <= 10000,

@@ -395,3 +395,98 @@ test('FULL-16: o limite de exportação não encerra a busca que aguarda o mesmo
   assert.equal(search.total, 1);
   assert.equal(calls, 2);
 });
+
+test('FULL-17: rejeita consulta não objeto, trata numeroItem textual ou fora de faixa e aplica limite de listagem', async () => {
+  const empty = fixtureService([]);
+  for (const bad of [null, []])
+    await assert.rejects(fullExport(empty.service, bad, new AbortController().signal, 'x'), { code: 'INVALID_TYPE' });
+  assert.equal(empty.requests.length, 0);
+
+  const missingIdentity = fixtureService([document(1, { orgao_cnpj: null })]);
+  const [noId] = exportJson(await run(missingIdentity.service)).documentos;
+  assert.equal(noId.identificacao, null);
+  assert.deepEqual(
+    noId.erros.map(e => [e.secao, e.codigo]),
+    [['documento', 'MISSING_IDENTITY']]
+  );
+
+  const mixedItems = fixtureService([document(1)], {
+    itemQuantity: 2,
+    items: () => [
+      { numeroItem: '01', temResultado: true },
+      { numeroItem: '9007199254740993', temResultado: true }
+    ],
+    handler: url =>
+      url.pathname.endsWith('/itens/1/resultados')
+        ? Response.json([{ sequencialResultado: 1, nomeRazaoSocialFornecedor: 'Empresa A' }])
+        : null
+  });
+  const [itemDoc] = exportJson(await run(mixedItems.service)).documentos;
+  assert.equal(itemDoc.itens[0].resultados.length, 1);
+  assert.equal(itemDoc.itens[0].resultados[0].fornecedor, 'Empresa A');
+  assert(itemDoc.erros.some(e => e.secao === 'itens/9007199254740993/resultados' && e.codigo === 'INVALID_ITEM'));
+
+  const limitedRelated = demoService({
+    settings: { PNCP_MAX_DETAIL_ITEMS: 10 },
+    fail: url => {
+      if (url.pathname === '/api/search/') return Response.json({ items: demoDocuments.slice(0, 1), total: 1 });
+      if (url.pathname.endsWith('/arquivos/quantidade')) return Response.json(20);
+      if (url.pathname.endsWith('/arquivos'))
+        return Response.json(Array.from({ length: 20 }, (_, i) => ({ titulo: `A${i + 1}`, url: null })));
+      return null;
+    }
+  });
+  const [limitedDoc] = exportJson(await run(limitedRelated.service)).documentos;
+  assert(limitedDoc.erros.some(e => e.secao === 'arquivos' && e.codigo === 'DETAIL_ITEM_LIMIT'));
+});
+
+test('FULL-18: isola falhas em detalhes, resultados e filhos de contrato e coleta histórico até vazio', async () => {
+  let historyCalls = 0;
+  const { service } = demoService({
+    fail: url => {
+      if (url.pathname.endsWith('/contratos/2026/1')) return new Response('{}', { status: 500 });
+      if (url.pathname.endsWith('/termos/1/arquivos')) return new Response('{}', { status: 500 });
+      if (url.pathname.endsWith('/historico/quantidade')) return Response.json(0);
+      if (url.pathname.endsWith('/historico')) {
+        historyCalls++;
+        const page = Number(url.searchParams.get('pagina'));
+        return page === 1
+          ? Response.json([{ tipoLogManutencaoNome: 'Inclusão', documentoTitulo: 'Contrato' }])
+          : Response.json([]);
+      }
+      return null;
+    }
+  });
+  const [contractDoc] = exportJson(await run(service, { document_type: 'contrato', q: 'firewall' })).documentos;
+  assert.equal(contractDoc.detalhes, null);
+  assert(contractDoc.erros.some(e => e.secao === 'detalhes' && e.codigo === 'PNCP_HTTP_ERROR'));
+  assert(contractDoc.erros.some(e => e.secao === 'termos/1' && e.codigo === 'PNCP_HTTP_ERROR'));
+  assert.equal(contractDoc.listagens.historico.length, 1);
+  assert(historyCalls >= 2);
+
+  const started = Promise.withResolvers(),
+    response = Promise.withResolvers();
+  let calls = 0;
+  const shared = fixtureService(
+    [document(1)],
+    {
+      handler: url => {
+        if (!url.pathname.endsWith('/filters')) return null;
+        if (++calls === 1) {
+          started.resolve();
+          return response.promise;
+        }
+        return Response.json({ filters: { modalidades: [{ id: 6, nome: 'Pregão' }] } });
+      }
+    },
+    { PNCP_MAX_OPERATION_BYTES: 1024 }
+  );
+  const input = { pncp_filters: { modalidades: ['6'] } };
+  const first = assert.rejects(shared.service.execute(query(input)), { code: 'OPERATION_BYTES_LIMIT' });
+  await started.promise;
+  const second = shared.service.execute(query(input));
+  response.resolve(Response.json({ filters: { modalidades: [{ id: 6, nome: 'x'.repeat(2048) }] } }));
+  const [, ok] = await Promise.all([first, second]);
+  assert.equal(ok.total, 1);
+  assert.equal(calls, 2);
+});

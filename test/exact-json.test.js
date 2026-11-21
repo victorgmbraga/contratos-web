@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { parseExactJson, ExactJsonNumber, isExactJsonNumber } from '../src/exact-json.js';
-import { plain, scalarText, decimalText } from '../src/adapter.js';
+import { plain, scalarText, decimalText, isPlainObject } from '../src/adapter.js';
 
 const corpus = JSON.parse(await readFile(new URL('./fixtures/exact-json-corpus.json', import.meta.url), 'utf8'));
 const represent = value =>
@@ -92,4 +92,18 @@ test('EXACT-06: normalização mantém texto preciso, inteiros seguros e proprie
   let deep = plain(parseExactJson('['.repeat(20000) + '1' + ']'.repeat(20000)));
   for (let i = 0; i < 20000; i++) deep = deep[0];
   assert.equal(deep, 1);
+  for (const [input, expected] of [
+    ['0.5e2', '50'],
+    ['0.123e2', '12.3'],
+    ['0.005e2', '0.5'],
+    ['0e3', '0'],
+    ['-0.5e2', '-50'],
+    ['0.5e-1', '0.05'],
+    ['1e-3', '0.001']
+  ])
+    assert.equal(decimalText(parseExactJson(input)), expected, input);
+  assert.equal(isPlainObject({}), true);
+  assert.equal(isPlainObject(parseExactJson('123')), false);
+  assert.equal(isPlainObject([]), false);
+  assert.equal(isPlainObject(null), false);
 });

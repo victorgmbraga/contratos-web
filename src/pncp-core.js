@@ -1,6 +1,6 @@
 import { parseExactJson as parse, isExactJsonNumber } from './exact-json.js';
 import { AppError, assert, fail } from './errors.js';
-import { scalarText, itemSituation, decimalText } from './adapter.js';
+import { scalarText, itemSituation, decimalText, isPlainObject } from './adapter.js';
 import { domainAliases, catalogDomains, referenceDomains, partialDomains } from './filter-domains.js';
 import { relatedResources, projectRelated } from './related.js';
 import {
@@ -14,6 +14,7 @@ import {
 import { delay } from './operation.js';
 export { delay, operation } from './operation.js';
 export const UNPAGED_CACHE_TTL = 30_000;
+const MAX_RETRY_AFTER_MS = 300_000;
 
 export function serializeSearch(query, page, size) {
   const params = new URLSearchParams({
@@ -43,7 +44,7 @@ export function normalizeOptions(value, domain = null) {
   if (!Array.isArray(list)) return [];
   return list
     .map(option => {
-      if (option && typeof option === 'object' && !Array.isArray(option)) {
+      if (isPlainObject(option)) {
         const id = scalarText(domain === 'anos' ? (option.ano ?? option.id) : option.id);
         return {
           id,
@@ -60,12 +61,7 @@ export function normalizeOptions(value, domain = null) {
 export function normalizeCatalog(value) {
   assert(Array.isArray(value), 'INVALID_UPSTREAM', 'Catálogo PNCP não retornou uma lista.', 502);
   return value.map(option => {
-    assert(
-      option && typeof option === 'object' && !Array.isArray(option),
-      'INVALID_UPSTREAM',
-      'Opção de catálogo PNCP inválida.',
-      502
-    );
+    assert(isPlainObject(option), 'INVALID_UPSTREAM', 'Opção de catálogo PNCP inválida.', 502);
     const id = scalarText(option.id),
       label = scalarText(option.nome);
     assert(
@@ -94,8 +90,7 @@ const resultText = (record, field) => {
 };
 const resultName = (record, field) => {
   const value = record[field];
-  if (value && typeof value === 'object' && !Array.isArray(value) && !isExactJsonNumber(value))
-    return resultText(value, 'nome');
+  if (isPlainObject(value)) return resultText(value, 'nome');
   return resultText(record, field);
 };
 /** Resultado homologado de um item: valores decimais como texto exato, sem conversão. */
@@ -237,10 +232,10 @@ export class PncpClient {
           );
           op.budget?.reserveRequest();
           response = await this.fetcher(current, {
+            ...this.fetchOptions,
             signal,
-            redirect: 'manual',
-            headers: { Accept: 'application/json' },
-            ...this.fetchOptions
+            redirect: this.fetchOptions.redirect ?? 'manual',
+            headers: { Accept: 'application/json', ...this.fetchOptions.headers }
           });
           if (response.type === 'opaque' || response.type === 'opaqueredirect' || response.status === 0) {
             await response.body?.cancel();
@@ -255,9 +250,19 @@ export class PncpClient {
           status = response.status;
           if (![301, 302, 303, 307, 308].includes(status)) break;
           await response.body?.cancel();
-          const next = new URL(response.headers.get('location') || '', current);
+          const location = response.headers.get('location')?.trim();
+          let next = null;
+          if (location)
+            try {
+              next = new URL(location, current);
+            } catch {}
           assert(
-            next.origin === origin && next.protocol === 'https:' && !next.username && !next.password && redirects < 3,
+            next &&
+              next.origin === origin &&
+              next.protocol === 'https:' &&
+              !next.username &&
+              !next.password &&
+              redirects < 3,
             'UNSAFE_REDIRECT',
             'Redirecionamento PNCP para origem não autorizada.',
             502
@@ -265,14 +270,15 @@ export class PncpClient {
           current = next.href;
         }
         if ([429, 502, 503, 504].includes(status)) {
-          const after = response.headers.get('retry-after');
+          const after = response.headers.get('retry-after')?.trim();
           const seconds =
             after && /^\d+(?:\.\d+)?$/.test(after)
               ? Number(after) * 1000
               : after
                 ? Math.max(0, Date.parse(after) - Date.now())
                 : 0;
-          retryDelay = Math.max(Number.isFinite(seconds) ? seconds : 0, 500 * 2 ** attempt + Math.random() * 200);
+          const bounded = Number.isFinite(seconds) ? Math.min(seconds, MAX_RETRY_AFTER_MS) : 0;
+          retryDelay = Math.max(bounded, 500 * 2 ** attempt + Math.random() * 200);
           if (status === 429) this.nextSlot = Math.max(this.nextSlot, Date.now() + retryDelay);
           await response.body?.cancel();
           if (attempt === this.config.PNCP_MAX_RETRIES)
@@ -286,11 +292,7 @@ export class PncpClient {
         } else {
           if (status === 204) {
             if (allowNoContent) return null;
-            fail(
-              'INVALID_UPSTREAM',
-              'Busca PNCP retornou 204 sem conteúdo; não foi interpretado como zero resultados.',
-              502
-            );
+            fail('INVALID_UPSTREAM', 'Resposta PNCP retornou 204 sem conteúdo; não foi interpretada como vazia.', 502);
           }
           if (status < 200 || status >= 300) {
             await response.body?.cancel();
@@ -343,10 +345,7 @@ export class PncpClient {
   async search(query, page, size, op) {
     const result = await this.get(`${this.config.PNCP_SEARCH_BASE_URL}/?${serializeSearch(query, page, size)}`, op);
     assert(
-      result &&
-        typeof result === 'object' &&
-        Array.isArray(result.items) &&
-        result.items.every(v => v && typeof v === 'object' && !Array.isArray(v)),
+      isPlainObject(result) && Array.isArray(result.items) && result.items.every(isPlainObject),
       'INVALID_UPSTREAM',
       'Resposta da busca PNCP não contém items válidos.',
       502
@@ -389,12 +388,7 @@ export class PncpClient {
     const params = new URLSearchParams({ tipos_documento: type });
     if (normatives) params.set('normativos_base', normatives.join('|'));
     const result = await this.get(`${this.config.PNCP_SEARCH_BASE_URL}/filters?${params}`, op);
-    assert(
-      result?.filters && typeof result.filters === 'object' && !Array.isArray(result.filters),
-      'INVALID_UPSTREAM',
-      'PNCP não retornou o objeto filters.',
-      502
-    );
+    assert(isPlainObject(result?.filters), 'INVALID_UPSTREAM', 'PNCP não retornou o objeto filters.', 502);
     const filters = Object.fromEntries(Object.entries(result.filters).map(([k, v]) => [k, normalizeOptions(v, k)]));
     return { filters, warnings: [], partial_domains: partialDomains };
   }
@@ -419,7 +413,7 @@ export class PncpClient {
       true
     );
     assert(
-      result === null || (Array.isArray(result) && result.every(v => v && typeof v === 'object' && !Array.isArray(v))),
+      result === null || (Array.isArray(result) && result.every(isPlainObject)),
       'INVALID_UPSTREAM',
       'Serviço de itens retornou formato inesperado.',
       502
@@ -443,7 +437,7 @@ export class PncpClient {
           { field }
         );
       assert(
-        item.catalogo == null || (typeof item.catalogo === 'object' && !Array.isArray(item.catalogo)),
+        item.catalogo == null || isPlainObject(item.catalogo),
         'INVALID_UPSTREAM',
         'Catálogo do item com tipo incompatível no PNCP.',
         502
@@ -460,10 +454,7 @@ export class PncpClient {
       true
     );
     assert(
-      result === null ||
-        (Array.isArray(result) &&
-          result.length <= MAX_ITEM_RESULTS &&
-          result.every(v => v && typeof v === 'object' && !Array.isArray(v) && !isExactJsonNumber(v))),
+      result === null || (Array.isArray(result) && result.length <= MAX_ITEM_RESULTS && result.every(isPlainObject)),
       'INVALID_UPSTREAM',
       'Serviço de resultados do item retornou formato inesperado.',
       502
@@ -500,10 +491,17 @@ export class PncpClient {
     const data = counted ? result || [] : result === null ? [] : result?.data;
     if (!counted) total = result === null ? 0 : integer(result?.totalRegistros, 'Total de registros');
     assert(
-      Array.isArray(data) && data.every(v => v && typeof v === 'object' && !Array.isArray(v)),
+      Array.isArray(data) && data.every(isPlainObject),
       'INVALID_UPSTREAM',
       'Listagem PNCP retornou formato inesperado.',
       502
+    );
+    op.itemCount += data.length;
+    assert(
+      op.itemCount <= this.config.PNCP_MAX_DETAIL_ITEMS,
+      'DETAIL_ITEM_LIMIT',
+      'Limite de registros da operação excedido.',
+      422
     );
     const pages = Math.max(1, Math.ceil(total / size));
     assert(page <= pages, 'PAGE_OUT_OF_RANGE', 'Página além da listagem atual.', 422, { last_page: pages });
@@ -522,7 +520,12 @@ export class PncpClient {
       {},
       true
     );
-    return { data: data.map(record => projectRelated(resource, record, purchase)), total, total_pages: pages };
+    return {
+      data: data.map(record => projectRelated(resource, record, purchase)),
+      total,
+      total_pages: pages,
+      pagination_source: 'pncp'
+    };
   }
   async document(document, op) {
     assert(['edital', 'ata', 'contrato'].includes(document.type), 'NOT_FOUND', 'Tipo de detalhe não disponível.', 404);
@@ -530,10 +533,7 @@ export class PncpClient {
     const record = await this.get(nativeDocumentPath(document, base), op);
     const expected = `https://pncp.gov.br/app/${document.type === 'ata' ? 'atas' : document.type === 'edital' ? 'editais' : 'contratos'}/${document.cnpj}/${document.ano}/${document.type === 'ata' ? `${BigInt(document.sequencial_compra)}/` : ''}${BigInt(document.sequencial)}`;
     assert(
-      record &&
-        typeof record === 'object' &&
-        !Array.isArray(record) &&
-        controlLink(record.numeroControlePNCP) === expected,
+      isPlainObject(record) && controlLink(record.numeroControlePNCP) === expected,
       'INVALID_UPSTREAM',
       'PNCP retornou detalhes de outro documento ou sem identidade válida.',
       502
@@ -597,7 +597,7 @@ export class PncpClient {
           ? 0
           : integer(result?.totalRegistros, 'Total de registros');
     assert(
-      Array.isArray(data) && data.every(v => v && typeof v === 'object' && !Array.isArray(v)),
+      Array.isArray(data) && data.every(isPlainObject),
       'INVALID_UPSTREAM',
       'Listagem PNCP retornou formato inesperado.',
       502
@@ -700,7 +700,7 @@ export class PncpClient {
     if (resource === 'termos') {
       const files = await this.get(`${path}/arquivos`, op, true);
       assert(
-        files === null || (Array.isArray(files) && files.every(v => v && typeof v === 'object' && !Array.isArray(v))),
+        files === null || (Array.isArray(files) && files.every(isPlainObject)),
         'INVALID_UPSTREAM',
         'Arquivos do termo retornaram formato inesperado.',
         502

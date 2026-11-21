@@ -1,9 +1,18 @@
 import { assert } from './errors.js';
 
+function startsWithFormula(text) {
+  let i = 0;
+  while (i < text.length) {
+    const code = text.charCodeAt(i);
+    if (code <= 0x20 || code === 0x7f || code === 0x200b || code === 0xfeff || /\s/u.test(text[i])) i++;
+    else break;
+  }
+  return i < text.length && '=+-@'.includes(text[i]);
+}
 function cell(value, type) {
   let text = value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
   const decimal = type === 'decimal' && /^-?\d+(?:\.\d+)?$/.test(text);
-  if (!decimal && /^\s*[=+\-@]/u.test(text)) text = "'" + text;
+  if (!decimal && startsWithFormula(text)) text = "'" + text;
   return '"' + text.replace(/"/g, '""') + '"';
 }
 

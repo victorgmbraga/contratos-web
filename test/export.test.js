@@ -101,7 +101,18 @@ test('EXP-04: aspas e quebras escapadas; decimal sem moeda', async () => {
 });
 
 test('EXP-05: textos não são fórmulas ao abrir o CSV; valores monetários negativos mantêm precisão', async () => {
-  for (const text of ['=1+1', '+SUM(1,2)', '-1+2', '@SUM(1,2)', ' \t=1+1', '\r\n@SUM(1,2)']) {
+  for (const text of [
+    '=1+1',
+    '+SUM(1,2)',
+    '-1+2',
+    '@SUM(1,2)',
+    ' \t=1+1',
+    '\r\n@SUM(1,2)',
+    '\u0000=1+1',
+    '\u200b+1',
+    '\ufeff-1',
+    '\u001f@SUM(1,2)'
+  ]) {
     const s = service([
       document(1, { title: text, description: text, valor_total_estimado: '-9007199254740993.12345' })
     ]);
@@ -109,6 +120,10 @@ test('EXP-05: textos não são fórmulas ao abrir o CSV; valores monetários neg
     assert(csv.includes('"\'' + text + '"'), text);
     assert(csv.includes('"-9007199254740993.12345"'));
   }
+  const invalid = service([]);
+  for (const bad of [null, [], 'texto', { page: '1' }])
+    await assert.rejects(invalid.service.export(bad), e => ['INVALID_TYPE', 'INVALID_PAGE'].includes(e.code));
+  assert.equal(invalid.requests.length, 0);
 });
 
 test('EXP: falha de consistência cancela todas as páginas antecipadas', async () => {

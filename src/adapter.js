@@ -1,6 +1,8 @@
 import { isExactJsonNumber } from './exact-json.js';
 import { assert, fail } from './errors.js';
 
+export const isPlainObject = value =>
+  value !== null && typeof value === 'object' && !Array.isArray(value) && !isExactJsonNumber(value);
 export const scalarText = value =>
   value === null || value === undefined
     ? null
@@ -49,14 +51,12 @@ export function decimalText(value) {
   if (!match || Math.abs(Number(match[4])) > 1000) fail('INVALID_UPSTREAM', 'Valor monetário inválido no PNCP.', 502);
   const digits = match[2] + (match[3] || '');
   const at = match[2].length + Number(match[4]);
-  return (
-    match[1] +
-    (at <= 0
-      ? '0.' + '0'.repeat(-at) + digits
-      : at >= digits.length
-        ? digits + '0'.repeat(at - digits.length)
-        : digits.slice(0, at) + '.' + digits.slice(at))
+  if (at <= 0) return match[1] + '0.' + '0'.repeat(-at) + digits;
+  const intPart = (at >= digits.length ? digits + '0'.repeat(at - digits.length) : digits.slice(0, at)).replace(
+    /^0+(?=\d)/,
+    ''
   );
+  return match[1] + (at >= digits.length ? intPart : `${intPart}.${digits.slice(at)}`);
 }
 export function safeLink(value, portal = false) {
   if (typeof value !== 'string' || !value) return portal ? 'https://pncp.gov.br/app' : null;
@@ -74,7 +74,10 @@ export function safeLink(value, portal = false) {
     )
       return portal ? 'https://pncp.gov.br/app' : null;
     // The search index uses /compras; the public portal opens purchases at /app/editais.
-    if (portal) url.pathname = url.pathname.replace(/^\/(?:app\/)?compras\//, '/app/editais/');
+    if (portal)
+      url.pathname = url.pathname
+        .replace(/^\/(?:app\/)?compras\//, '/app/editais/')
+        .replace(/^\/(editais|atas|contratos|irp|pca)\//, '/app/$1/');
     return url.href;
   } catch {
     return portal ? 'https://pncp.gov.br/app' : null;

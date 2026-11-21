@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateQuery } from '../src/validation.js';
-import { serializeSearch } from '../src/pncp-core.js';
+import { validateQuery, compareDecimal, validateDocument } from '../src/validation.js';
+import { serializeSearch, normalizeOptions, PncpClient } from '../src/pncp-core.js';
 import { project, safeLink } from '../src/adapter.js';
 import { parseExactJson as parse } from '../src/exact-json.js';
+import { indexedDocumentFields, recordFields } from '../src/document-details.js';
+import { validateSettings } from '../src/settings.js';
 import { config, document, service, query, json } from './helpers.js';
 
 test('HTTP-01: pipe codificado uma vez; false e zero preservados', () => {
@@ -174,4 +176,110 @@ test('HTTP-04: orçamento global interrompe espera', async () => {
     { PNCP_OPERATION_TIMEOUT_SECONDS: 0.1 }
   );
   await assert.rejects(s.service.execute(query()), e => e.code === 'OPERATION_TIMEOUT');
+});
+test('HTTP-05: Retry-After extremo é limitado, fetchOptions preserva signal/Accept e Location inválido falha sem repetir', async () => {
+  const limited = service(
+    [],
+    { handler: () => new Response(null, { status: 429, headers: { 'Retry-After': '9999999999' } }) },
+    { PNCP_MAX_RETRIES: 0 }
+  );
+  await assert.rejects(
+    limited.service.execute(query()),
+    e => e.code === 'PNCP_UNAVAILABLE' && e.details.retry_after_seconds === 300
+  );
+  let seenInit;
+  const customClient = new PncpClient(config(), {
+    fetcher: async (_url, init) => {
+      seenInit = init;
+      return json({ items: [], total: 0 });
+    },
+    fetchOptions: { signal: new AbortController().signal, headers: { 'X-Trace': '1' } }
+  });
+  await customClient.search(validateQuery(query(), config()), 1, 10, {
+    id: '1',
+    priority: 'foreground',
+    signal: new AbortController().signal,
+    requests: 0,
+    bytes: 0,
+    itemCount: 0,
+    check() {}
+  });
+  assert.notEqual(seenInit.signal, customClient.fetchOptions.signal);
+  assert.equal(seenInit.headers.Accept, 'application/json');
+  assert.equal(seenInit.headers['X-Trace'], '1');
+  assert.equal(seenInit.redirect, 'manual');
+
+  for (const location of ['', '   ', 'http://[invalido']) {
+    const redirected = service(
+      [],
+      {
+        handler: () => new Response(null, { status: 302, headers: location ? { Location: location } : {} })
+      },
+      { PNCP_MAX_RETRIES: 2 }
+    );
+    await assert.rejects(redirected.service.execute(query()), e => e.code === 'UNSAFE_REDIRECT');
+    assert.equal(redirected.requests.length, 1);
+  }
+});
+test('DATA-03: ExactJsonNumber escalar em opções, protótipos seguros, aninhamento profundo e notação científica em detalhes', () => {
+  assert.deepEqual(normalizeOptions(parse('[2026, 2025]'), 'anos'), [
+    { id: '2026', label: '2026' },
+    { id: '2025', label: '2025' }
+  ]);
+  const indexed = indexedDocumentFields(
+    parse(
+      '{"document_type":"toString","data_inicio_vigencia":"2026-10-01","constructor":"abc","valor_extra":1e5,"valor_texto":"Sigiloso"}'
+    )
+  );
+  assert.equal(indexed.find(f => f.field === 'valor_extra')?.type, 'decimal');
+  assert.equal(indexed.find(f => f.field === 'valor_extra')?.value, '100000');
+  assert.equal(indexed.find(f => f.field === 'valor_texto')?.type, 'text');
+  assert.equal(indexed.find(f => f.field === 'constructor')?.title, 'Constructor');
+
+  let deep = { valorExtra: parse('1.5e2'), toString: 'ok' };
+  for (let i = 0; i < 600; i++) deep = { n: deep };
+  const fields = recordFields('edital', {
+    numeroControlePNCP: '00000000000000-1-000001/2026',
+    orgaoEntidade: { cnpj: '00000000000000', razaoSocial: 'Órgão' },
+    unidadeOrgao: { nomeUnidade: 'Unidade', ufSigla: 'DF', municipioNome: 'Brasília' },
+    modalidadeNome: 'Pregão',
+    situacaoCompraNome: 'Divulgada',
+    dataPublicacaoPncp: '2026-10-01',
+    dataAtualizacao: '2026-10-01',
+    valorTotalEstimado: parse('10'),
+    valorTotalHomologado: null,
+    valorExtra: parse('1.5e2'),
+    valorSigiloso: 'Sigiloso',
+    deep
+  });
+  assert.equal(fields.find(f => f.field === 'valorExtra')?.value, '150');
+  assert.equal(fields.find(f => f.field === 'valorExtra')?.type, 'decimal');
+  assert.equal(fields.find(f => f.field === 'valorSigiloso')?.type, 'text');
+  assert(fields.some(f => f.field.endsWith('.toString') && f.title === 'To String'));
+});
+test('VAL-01: reservados retornam RESERVED_PARAMETER, -0 equivale a 0 e limites de configuração são validados', () => {
+  assert.throws(
+    () => validateQuery(query({ pncp_filters: { total: true } }), config()),
+    e => e.code === 'RESERVED_PARAMETER'
+  );
+  assert.equal(compareDecimal('-0', '0'), 0);
+  assert.equal(compareDecimal('-0.00', '0.0'), 0);
+  assert.equal(compareDecimal('-0.01', '0'), -1);
+  assert.throws(
+    () => validateDocument({ cnpj: '00000000000000', ano: '2026', sequencial: '1' }),
+    e => e.code === 'INVALID_DOCUMENT_IDENTITY'
+  );
+  assert.throws(
+    () => validateDocument([]),
+    e => e.code === 'INVALID_DOCUMENT_IDENTITY'
+  );
+  assert.doesNotThrow(() => validateDocument({ cnpj: '00000000000000', ano: '2026', sequencial: '1' }, ['edital']));
+  assert.throws(
+    () => validateSettings({ PNCP_READ_TIMEOUT_SECONDS: 2_147_484 }),
+    e => e.code === 'INVALID_CONFIG'
+  );
+  assert.equal(
+    validateSettings({ PNCP_SEARCH_BASE_URL: 'https://pncp.gov.br/api/search///' }).PNCP_SEARCH_BASE_URL,
+    'https://pncp.gov.br/api/search'
+  );
 });

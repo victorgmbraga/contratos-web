@@ -1,6 +1,6 @@
 import { AppError, assert } from './errors.js';
 import { validateQuery } from './validation.js';
-import { project, plain } from './adapter.js';
+import { project, plain, scalarText } from './adapter.js';
 import { delay, operation } from './operation.js';
 import { documentNames } from './schema.js';
 import { documentResources } from './document-details.js';
@@ -113,7 +113,7 @@ export async function fullExport(
 
 async function collectExport(service, input, exportOp, budget, onProgress, now) {
   const config = service.config,
-    query = validateQuery({ ...input, page: 1, size: PAGE_SIZE }, config);
+    query = { ...validateQuery(input, config), page: 1, size: PAGE_SIZE };
   const { id: requestId, signal } = exportOp;
   let serial = 0;
   const nextId = () => `${requestId}:${++serial}`;
@@ -197,6 +197,12 @@ async function collectExport(service, input, exportOp, budget, onProgress, now) 
         total = result.total;
       }
       records.push(...result.data);
+      assert(
+        records.length <= config.PNCP_MAX_DETAIL_ITEMS,
+        'DETAIL_ITEM_LIMIT',
+        'Limite de registros da listagem excedido.',
+        422
+      );
       if (result.pagination_mode === 'until_empty') mode = 'until_empty';
       if (result.complete || !result.has_more) return records;
     }
@@ -233,12 +239,20 @@ async function collectExport(service, input, exportOp, budget, onProgress, now) 
       await guard(entry, 'itens', async () => {
         const items = await service.collectItems(identity, PAGE_SIZE, signal, nextId(), budget);
         for (const item of items)
-          if (item.temResultado === true && Number.isSafeInteger(item.numeroItem) && item.numeroItem > 0)
-            await guard(entry, `itens/${item.numeroItem}/resultados`, async () => {
-              item.resultados = plain(
-                await service.itemResults(identity, item.numeroItem, signal, nextId(), budget)
-              ).data;
-            });
+          if (item.temResultado === true) {
+            const rawNumber = scalarText(item.numeroItem)?.replace(/^0+/, '');
+            const number = rawNumber && /^\d+$/.test(rawNumber) ? Number(rawNumber) : NaN;
+            if (Number.isSafeInteger(number) && number > 0)
+              await guard(entry, `itens/${number}/resultados`, async () => {
+                item.resultados = plain(await service.itemResults(identity, number, signal, nextId(), budget)).data;
+              });
+            else
+              entry.erros.push({
+                secao: `itens/${scalarText(item.numeroItem) ?? 'desconhecido'}/resultados`,
+                codigo: 'INVALID_ITEM',
+                mensagem: 'Número do item fora do intervalo suportado para consultar resultados.'
+              });
+          }
         entry.itens = items;
       });
     for (const resource of documentResources[type]) {
