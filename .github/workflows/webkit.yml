@@ -29,13 +29,13 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-webkit-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
-      # Os pacotes .deb das dependências ficam em cache: o espelho do Ubuntu às vezes entrega as
-      # fontes a dezenas de KB/s. A chave muda a cada execução para o cache acompanhar novas versões.
+      # Os pacotes .deb das dependências ficam em cache por revisão do Playwright: o espelho do Ubuntu
+      # às vezes entrega as fontes a dezenas de KB/s, e uma chave estável evita recriar o cache a cada run.
       - name: Restaurar pacotes do sistema do navegador
         uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/apt-browser
-          key: apt-browser-${{ runner.os }}-webkit-${{ github.run_id }}
+          key: apt-browser-${{ runner.os }}-webkit-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
           restore-keys: apt-browser-${{ runner.os }}-webkit-
       - name: Instalar as dependências do sistema do navegador
         timeout-minutes: 15
@@ -45,6 +45,7 @@ jobs:
           mkdir -p ~/.cache/apt-browser
           sudo cp ~/.cache/apt-browser/*.deb /var/cache/apt/archives/ 2> /dev/null || true
           npx playwright install-deps webkit
+          rm -f ~/.cache/apt-browser/*.deb
           cp /var/cache/apt/archives/*.deb ~/.cache/apt-browser/ 2> /dev/null || true
       - name: Instalar o navegador do Playwright
         timeout-minutes: 8

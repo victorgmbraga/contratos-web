@@ -20,8 +20,8 @@ const checks = [
 ];
 let failed = false;
 for (const [label, size, limit] of checks) {
-  const status = size <= limit ? 'ok' : 'excedido';
+  const status = size === 0 ? 'ausente' : size <= limit ? 'ok' : 'excedido';
   console.log(`${label}: ${kb(size)} KiB gzip (limite ${kb(limit)} KiB) — ${status}`);
-  if (size > limit) failed = true;
+  if (size === 0 || size > limit) failed = true;
 }
 if (failed) process.exitCode = 1;

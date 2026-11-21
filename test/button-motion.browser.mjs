@@ -199,8 +199,39 @@ try {
   await touchPage.waitForFunction(
     () => document.querySelector('.results-page.active')?.getAttribute('data-page') === '2'
   );
+
+  const reducedContext = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      reducedMotion: 'reduce'
+    }),
+    reducedPage = await reducedContext.newPage();
+  reducedPage.on('pageerror', error => errors.push(error.message));
+  await reducedPage.goto(origin + '/');
+  await reducedPage.waitForFunction(() => !document.querySelector('#refresh-button').disabled);
+  await reducedPage.evaluate(() => {
+    const animate = SVGElement.prototype.animate;
+    window.reducedMotionCalls = [];
+    SVGElement.prototype.animate = function (...args) {
+      if (this.closest('button,a.repository-link')) window.reducedMotionCalls.push(this.tagName.toLowerCase());
+      return animate.apply(this, args);
+    };
+  });
+  await reducedPage.locator('#refresh-button').hover();
+  await reducedPage.locator('#search-button').hover();
+  await reducedPage.locator('#filters-button').hover();
+  await reducedPage.locator('#refresh-button').focus();
+  await reducedPage.keyboard.press('Tab');
+  await reducedPage.locator('#theme-button').click();
+  assert.equal(
+    await reducedPage.evaluate(() => window.reducedMotionCalls.length),
+    0,
+    'prefers-reduced-motion: reduce deve suprimir animações dos ícones'
+  );
+
   assert.deepEqual(errors, []);
-  console.log('PASS Ícones animam no hover e no foco; toque mantém feedback sem alterar a geometria dos botões');
+  console.log(
+    'PASS Ícones animam no hover e no foco, respeitam movimento reduzido e mantêm feedback no toque sem alterar geometria'
+  );
 } catch (error) {
   await diagnoseBrowserFailure(error);
   throw error;

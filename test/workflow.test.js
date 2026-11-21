@@ -31,11 +31,16 @@ function assertBrowserInstall(job, browser) {
   );
   // Dependências do sistema num passo próprio, com retentativas do apt e sem timeout que deixe o apt órfão.
   assert(job.includes(`npx playwright install-deps ${browser}`));
-  // Pacotes .deb em cache, restaurados antes e guardados depois da instalação.
-  assert(job.includes(`key: apt-browser-\${{ runner.os }}-${browser}-\${{ github.run_id }}`));
+  // Pacotes .deb em cache por revisão do Playwright, restaurados antes e renovados sem acúmulo depois da instalação.
+  assert(
+    job.includes(
+      `key: apt-browser-\${{ runner.os }}-${browser}-\${{ hashFiles('node_modules/playwright-core/browsers.json') }}`
+    )
+  );
   assert(job.includes(`restore-keys: apt-browser-\${{ runner.os }}-${browser}-`));
   assert(job.indexOf('sudo cp ~/.cache/apt-browser/') < job.indexOf('install-deps'));
-  assert(job.indexOf('install-deps') < job.indexOf('cp /var/cache/apt/archives/'));
+  assert(job.indexOf('install-deps') < job.indexOf('rm -f ~/.cache/apt-browser/*.deb'));
+  assert(job.indexOf('rm -f ~/.cache/apt-browser/*.deb') < job.indexOf('cp /var/cache/apt/archives/'));
   assert.match(job, /Acquire::Retries/);
   assert(job.includes(`timeout 150 npx playwright install ${browser};`));
   assert(!job.includes('--with-deps'), 'O download do navegador não instala pacotes do sistema');
@@ -85,6 +90,8 @@ test('WORKFLOW-01: Chromium e Firefox validam em paralelo o mesmo build, sem rec
 test('WORKFLOW-02: Pages depende de toda a validação e publica somente o artefato testado da main', async () => {
   const deploy = jobs.get('deploy');
   assert(deploy);
+  assert.match(source, /cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/);
+  assert.match(deploy, /^ {4}timeout-minutes: \d+$/m);
   assert.deepEqual(needs(deploy).sort(), ['browser', 'validate']);
   assert.equal(
     deploy.match(/^ {4}if: (.+)$/m)?.[1],

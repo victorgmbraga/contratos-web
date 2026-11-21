@@ -16,12 +16,12 @@
     "test:budget": "node test/performance-budget.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.contracts.json",
-    "format": "prettier --write \"{src,public,test,types}/**/*.{js,mjs,ts,css,html}\" \"*.{js,json}\" \"types/*.ts\"",
+    "format": "prettier --write \"{src,public,test,types,scripts}/**/*.{js,mjs,ts,css,html}\" \"*.{js,json}\"",
     "build": "vite build",
     "build:qa": "vite build && vite build --mode test",
     "preview": "vite preview",
     "test:browser": "node test/browser-smoke.mjs",
-    "format:check": "prettier --check \"{src,public,test,types}/**/*.{js,mjs,ts,css,html}\" \"*.{js,json}\" \"types/*.ts\""
+    "format:check": "prettier --check \"{src,public,test,types,scripts}/**/*.{js,mjs,ts,css,html}\" \"*.{js,json}\""
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
@@ -32,7 +32,7 @@
     "playwright": "1.65.1",
     "prettier": "3.10.1",
     "typescript": "7.0.2",
-    "vite": "^8.3.8"
+    "vite": "8.3.8"
   },
   "overrides": {
     "minimatch": "11.0.5"

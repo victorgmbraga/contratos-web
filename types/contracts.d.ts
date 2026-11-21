@@ -29,6 +29,7 @@ export interface ProjectedDocument {
   uf: string | null;
   _identity: string | null;
   _document: DocumentIdentity | null;
+  _purchase?: { cnpj: string; ano: string; sequencial: string } | null;
   _raw?: Record<string, unknown>;
 }
 export interface SearchResult {

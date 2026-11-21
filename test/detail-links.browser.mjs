@@ -152,9 +152,26 @@ try {
   assert.match(await page.locator('#details-kind').innerText(), /Ata/);
   assert.equal(await page.locator('#details-back').isVisible(), true);
   await page.setViewportSize({ width: 390, height: 844 });
+  const kindBox = await page.locator('#details-kind').boundingBox();
   const backBox = await page.locator('#details-back').boundingBox();
   const closeBox = await page.locator('#details-dialog .close-dialog').boundingBox();
-  assert(backBox.x + backBox.width <= closeBox.x && Math.abs(backBox.y - closeBox.y) < 1);
+  assert(
+    kindBox.x + kindBox.width <= backBox.x &&
+      backBox.x + backBox.width <= closeBox.x &&
+      closeBox.x + closeBox.width <= 390 &&
+      Math.abs(backBox.y - closeBox.y) < 1
+  );
+  await page.setViewportSize({ width: 650, height: 844 });
+  const kindBox650 = await page.locator('#details-kind').boundingBox();
+  const backBox650 = await page.locator('#details-back').boundingBox();
+  const closeBox650 = await page.locator('#details-dialog .close-dialog').boundingBox();
+  assert(
+    kindBox650.x + kindBox650.width <= backBox650.x &&
+      backBox650.x + backBox650.width <= closeBox650.x &&
+      closeBox650.x + closeBox650.width <= 650 &&
+      Math.abs(backBox650.y - closeBox650.y) < 1
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('#details-back').click();
   await waitTab('atas');
   assert.equal(new URL(page.url()).searchParams.get('detalhe'), 'edital/00000000000000/2026/1');

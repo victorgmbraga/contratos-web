@@ -15,7 +15,8 @@ const call = (method, payload) => runtime.run(`contrato-${++serial}`, method, pa
 const results = [];
 // Falhas temporárias do PNCP (indisponível, limite de requisições) não indicam mudança na API:
 // a verificação é repetida e, se o PNCP seguir indisponível, fica registrada à parte.
-const transient = error => error.retryable === true || error.status === 429 || error.status >= 500;
+const transient = error =>
+  error.retryable === true || error.details?.upstream_status === 429 || error.details?.upstream_status >= 500;
 async function check(name, fn) {
   const start = performance.now();
   let outcome;
@@ -156,13 +157,14 @@ await check('Sugestões exigem três caracteres e usam IDs do IBGE nos municípi
   let short;
   for (let attempt = 1; attempt <= 5; attempt++) {
     short = await fetch(
-      'https://pncp.gov.br/api/search/suggest?tipos_documento=edital&campo=orgaos&q=un&tam_pagina=5'
+      'https://pncp.gov.br/api/search/suggest?tipos_documento=edital&campo=orgaos&q=un&tam_pagina=5',
+      { signal: AbortSignal.timeout(15000) }
     ).catch(() => null);
-    if (short && short.status < 500) break;
+    if (short && short.status < 500 && short.status !== 429) break;
     await new Promise(resolve => setTimeout(resolve, attempt * 3000));
   }
   // PNCP fora do ar em todas as tentativas: indisponibilidade, não mudança de contrato.
-  if (!short || short.status >= 500)
+  if (!short || short.status >= 500 || short.status === 429)
     throw Object.assign(new Error(`O PNCP não respondeu à sugestão curta (${short?.status ?? 'erro de rede'}).`), {
       retryable: true
     });
@@ -214,6 +216,31 @@ await check('Resultado homologado de item de referência', async () => {
   return `${results.data.length} resultado(s); unitário ${first.valor_unitario_homologado}`;
 });
 
+await check('Ordenação por valor em editais e atas', async () => {
+  const [edital, ata] = [
+    await call('execute', { query: { document_type: 'edital', order: '-valor_total_estimado', size: 10 } }),
+    await call('execute', { query: { document_type: 'ata', order: 'valor', size: 10 } })
+  ];
+  expect(edital.total > 0 && edital.data.length > 0, 'ordenação -valor_total_estimado em edital sem dados');
+  expect(ata.total > 0 && ata.data.length > 0, 'ordenação valor em ata sem dados');
+  return `edital ${fmt(edital.total)}; ata ${fmt(ata.total)}`;
+});
+
+await check('Recursos relacionados de documentos de referência', async () => {
+  const [arquivos, historicoEdital, historicoContrato] = [
+    await call('documentRelated', { document: documents[0], resource: 'arquivos', page: 1, size: 10 }),
+    await call('documentRelated', { document: documents[0], resource: 'historico', page: 1, size: 10 }),
+    await call('documentRelated', { document: documents[2], resource: 'historico', page: 1, size: 10 })
+  ];
+  expect(Array.isArray(arquivos.data) && arquivos.data.length > 0, 'edital de referência sem arquivos');
+  expect(Array.isArray(historicoEdital.data) && historicoEdital.data.length > 0, 'edital de referência sem histórico');
+  expect(
+    Array.isArray(historicoContrato.data) && historicoContrato.data.length > 0,
+    'contrato de referência sem histórico'
+  );
+  return `edital: ${arquivos.total_items} arquivo(s), ${historicoEdital.total_items} histórico; contrato: ${historicoContrato.total_items} histórico`;
+});
+
 await runtime.close();
 const failed = results.filter(result => result.status === 'falhou'),
   unavailable = results.filter(result => result.status === 'indisponível'),
@@ -228,7 +255,7 @@ const report = [
   '| --- | --- | --- |',
   ...results.map(
     result =>
-      `| ${result.name} | ${result.status === 'falhou' ? '**falhou**' : result.status} | ${result.detail.replace(/\|/g, '\\|')} |`
+      `| ${result.name} | ${result.status === 'falhou' ? '**falhou**' : result.status} | ${result.detail.replace(/\r?\n/g, ' ').replace(/\|/g, '\\|')} |`
   )
 ].join('\n');
 if (process.env.CONTRATOS_PNCP_REPORT) await writeFile(process.env.CONTRATOS_PNCP_REPORT, report + '\n');

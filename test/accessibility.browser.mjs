@@ -32,46 +32,92 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
+  async function checkDetails(label) {
+    await page.locator('#results-table tbody .results-open').first().click();
+    await page.waitForFunction(
+      () =>
+        document.querySelector('#details-dialog')?.open === true &&
+        document.querySelectorAll('#details-dialog .detail-tab').length > 0 &&
+        [...document.querySelectorAll('#details-dialog .detail-tab')].every(tab => tab.dataset.state === 'loaded')
+    );
+    await settle(page);
+    assert.deepEqual(describe(await analyze(page)), [], `violações no painel de detalhes (${label})`);
+    await page.locator('#details-dialog .close-dialog').first().click();
+    await page.waitForFunction(() => !document.querySelector('#details-dialog')?.open);
+  }
+
   await page.goto(`${origin}/`);
   await page.waitForFunction(() => document.querySelector('#result-title')?.textContent === '64 editais');
   await settle(page);
-  assert.deepEqual(describe(await analyze(page)), [], 'violações na busca em desktop');
+  assert.deepEqual(describe(await analyze(page)), [], 'violações na busca em desktop (tema claro)');
 
   await openAllFilters(page);
   await page.locator('#filter-groups .filter-field').first().waitFor();
   await settle(page);
-  assert.deepEqual(describe(await analyze(page)), [], 'violações no modal de filtros');
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no modal de filtros (tema claro)');
 
   await page.locator('#filters-dialog .close-dialog').first().click();
   await page.locator('#columns-button').click();
   await settle(page);
-  assert.deepEqual(describe(await analyze(page)), [], 'violações no diálogo de colunas');
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no diálogo de colunas (tema claro)');
   await page.locator('#columns-dialog .close-dialog').first().click();
   await page.locator('#export-button').click();
   await page.locator('#export-menu').waitFor({ state: 'visible' });
   await settle(page);
-  assert.deepEqual(describe(await analyze(page)), [], 'violações no menu de exportação');
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no menu de exportação (tema claro)');
   await page.keyboard.press('Escape');
   await page.locator('#export-menu').waitFor({ state: 'hidden' });
-  await page.locator('#results-table tbody .results-open').first().click();
-  await page.waitForFunction(() => document.querySelector('#details-dialog')?.open === true);
-  await page.locator('#details-dialog .detail-tab').first().waitFor();
-  await settle(page);
-  assert.deepEqual(describe(await analyze(page)), [], 'violações no painel de detalhes');
+  await checkDetails('edital, tema claro');
 
-  await page.locator('#details-dialog .close-dialog').first().click();
+  for (const [type, title] of [
+    ['ata', '24 atas'],
+    ['contrato', '32 contratos']
+  ]) {
+    await page.locator('#document-type').selectOption(type);
+    await page.waitForFunction(expected => document.querySelector('#result-title')?.textContent === expected, title);
+    await settle(page);
+    assert.deepEqual(describe(await analyze(page)), [], `violações na busca de ${type} (tema claro)`);
+    await checkDetails(`${type}, tema claro`);
+  }
+  await page.locator('#document-type').selectOption('edital');
+  await page.waitForFunction(() => document.querySelector('#result-title')?.textContent === '64 editais');
+
   await page.setViewportSize({ width: 390, height: 844 });
   await settle(page);
-  assert.deepEqual(describe(await analyze(page)), [], 'violações na visualização móvel');
+  assert.deepEqual(describe(await analyze(page)), [], 'violações na visualização móvel (tema claro)');
   await page.locator('#more-actions-button').click();
   await page.locator('#mobile-view-button').waitFor({ state: 'visible' });
   await settle(page);
-  assert.deepEqual(describe(await analyze(page)), [], 'violações no menu Mais ações em mobile');
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no menu Mais ações em mobile (tema claro)');
+  await page.keyboard.press('Escape');
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator('#theme-button').waitFor({ state: 'visible' });
+  await page.locator('#theme-button').click();
+  assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
+  await settle(page);
+  assert.deepEqual(describe(await analyze(page)), [], 'violações na busca em desktop (tema escuro)');
+
+  await openAllFilters(page);
+  await page.locator('#filter-groups .filter-field').first().waitFor();
+  await settle(page);
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no modal de filtros (tema escuro)');
+  await page.locator('#filters-dialog .close-dialog').first().click();
+
+  await checkDetails('edital, tema escuro');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await settle(page);
+  assert.deepEqual(describe(await analyze(page)), [], 'violações na visualização móvel (tema escuro)');
+  await page.locator('#more-actions-button').click();
+  await page.locator('#mobile-view-button').waitFor({ state: 'visible' });
+  await settle(page);
+  assert.deepEqual(describe(await analyze(page)), [], 'violações no menu Mais ações em mobile (tema escuro)');
   await page.keyboard.press('Escape');
 
   assert.deepEqual(errors, [], 'erros JavaScript durante a verificação');
   console.log(
-    'PASS Acessibilidade: axe sem violações críticas ou sérias em busca, filtros, menu de exportação, detalhes, menu mobile e visualização móvel'
+    'PASS Acessibilidade: axe sem violações críticas ou sérias em claro/escuro, editais/atas/contratos, filtros, exportação, detalhes e mobile'
   );
 } catch (error) {
   await diagnoseBrowserFailure(error);
