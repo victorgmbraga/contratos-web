@@ -305,6 +305,7 @@ export function createDetailsPanel({
       retry = el('button', 'Tentar novamente', 'button small'),
       status = el('p', 'Preparando consulta…', 'items-status'),
       list = el('div', undefined, 'related-list');
+    retry.type = 'button';
     retry.hidden = true;
     toolbar.append(retry);
     const pagination = createPagination({
@@ -376,10 +377,14 @@ export function createDetailsPanel({
             );
             appendFields(card, record.fields);
             if (record.sequencial && ['termos', 'empenhos', 'instrumentocobranca'].includes(resource)) {
-              const button = el('button', resource === 'termos' ? 'Arquivos do termo' : 'Ver detalhes', 'button small'),
+              const label = resource === 'termos' ? 'Arquivos do termo' : 'Ver detalhes',
+                button = el('button', label, 'button small'),
                 extra = el('div', undefined, 'related-extra');
+              button.type = 'button';
+              extra.id = `related-extra-${resource}-${record.sequencial}`;
               extra.hidden = true;
               button.setAttribute('aria-expanded', 'false');
+              button.setAttribute('aria-controls', extra.id);
               card.append(button, extra);
               let fetched = false,
                 busy = false,
@@ -419,6 +424,7 @@ export function createDetailsPanel({
                     if (!data.files.length) extra.append(el('p', 'Este termo não possui arquivos.', 'panel-note'));
                   }
                   fetched = true;
+                  button.textContent = label;
                 } catch (error) {
                   if (current() && error.name !== 'AbortError') {
                     extra.replaceChildren(el('p', error.message, 'inline-error'));
@@ -731,23 +737,22 @@ export function createDetailsPanel({
               'data_atualizacao_pncp'
             ])
     ];
-    const fields =
-      kind === 'edital' && doc._raw
-        ? indexedDocumentFields(doc._raw)
-        : joinOrganizationFields(
-            fieldNames.map(name => {
-              const column = state.schema.columns_by_document[kind].find(c => c.field === name),
-                value = doc[name];
-              return {
-                field: name,
-                title: column.title,
-                type: column.mask === 'cpf-cnpj' ? 'cpf-cnpj' : column.mask === 'cnpj' ? 'cnpj' : column.type,
-                value,
-                ...(name === 'numero_controle_pncp' && value ? { url: controlLink(value) } : {})
-              };
-            }),
-            'schema'
-          );
+    const schemaFields = source =>
+      joinOrganizationFields(
+        fieldNames.map(name => {
+          const column = state.schema.columns_by_document[kind].find(c => c.field === name),
+            value = source[name];
+          return {
+            field: name,
+            title: column.title,
+            type: column.mask === 'cpf-cnpj' ? 'cpf-cnpj' : column.mask === 'cnpj' ? 'cnpj' : column.type,
+            value,
+            ...(name === 'numero_controle_pncp' && value ? { url: controlLink(value) } : {})
+          };
+        }),
+        'schema'
+      );
+    const fields = kind === 'edital' && doc._raw ? indexedDocumentFields(doc._raw) : schemaFields(doc);
     const detailPanel = el('section', undefined, 'detail-information');
     let grid = appendFields(detailPanel, prioritizeFields(kind, fields), 'detail-grid');
     const updateDetails = addTab('detalhes', 'Detalhes', detailPanel);
@@ -756,6 +761,7 @@ export function createDetailsPanel({
     if (kind !== 'edital' || forceDetails) {
       const detailStatus = el('p', 'Preparando consulta dos detalhes…', 'items-status'),
         retryDetails = el('button', 'Tentar novamente', 'button small');
+      retryDetails.type = 'button';
       retryDetails.hidden = true;
       detailStatus.setAttribute('role', 'status');
       detailPanel.append(detailStatus, retryDetails);
@@ -763,6 +769,7 @@ export function createDetailsPanel({
         retryDetails.hidden = true;
         detailStatus.hidden = false;
         detailPanel.setAttribute('aria-busy', 'true');
+        updateDetails(null, 'loading');
         try {
           const data = await schedule(async () => {
             detailStatus.textContent = 'Consultando detalhes no PNCP…';
@@ -792,7 +799,7 @@ export function createDetailsPanel({
               const row = await searchRowFor(identity, searchReady, doc, detailController.signal);
               if (!session.current('detail', token)) return;
               if (row) {
-                const fallbackFields = row._raw ? indexedDocumentFields(row._raw) : [];
+                const fallbackFields = row._raw ? indexedDocumentFields(row._raw) : schemaFields(row);
                 if (fallbackFields.length) {
                   const holder = el('div');
                   grid = appendFields(holder, prioritizeFields(kind, fallbackFields), 'detail-grid');
@@ -834,6 +841,7 @@ export function createDetailsPanel({
         toolbar = el('div', undefined, 'items-toolbar'),
         retry = el('button', 'Tentar consultar itens', 'button small'),
         itemsTitle = el('h3', 'Itens da contratação');
+      retry.type = 'button';
       retry.hidden = true;
       toolbar.append(itemsTitle, retry);
       section.append(toolbar);
@@ -1044,8 +1052,13 @@ export function createDetailsPanel({
         false,
         false
       );
+    const wasOpen = $('details-dialog').open;
     state.detailActivate(tab);
     openDialog('details-dialog');
+    if (navigationMode === 'linked' && wasOpen)
+      ($('details-back').hidden ? $('details-dialog').querySelector('.close-dialog') : $('details-back'))?.focus({
+        preventScroll: true
+      });
     if (sync) syncDetailUrl();
     // Start the visible tab first; the remaining first pages continue in background.
     const priority = [tab, 'detalhes', 'itens', ...sections[kind].map(([resource]) => resource)],

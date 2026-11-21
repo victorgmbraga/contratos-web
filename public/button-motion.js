@@ -102,6 +102,7 @@ export function initializeButtonMotion(document) {
   }
 
   function animateIcons(button) {
+    if (document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
     for (const icon of button.querySelectorAll(':scope > svg')) {
       for (const animation of running.get(icon) || []) animation.cancel();
       const animations = [];

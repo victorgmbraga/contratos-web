@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { json, service } from './helpers.js';
 import { MAX_ITEM_RESULTS } from '../src/pncp-core.js';
-import { price, priceDifference, differenceText, supplierText } from '../public/item-results.js';
+import { price, priceDifference, differenceText, supplierText, renderItemResults } from '../public/item-results.js';
 
 const purchase = { cnpj: '00394452000103', ano: '2026', sequencial: '21678' };
 const raw = body => new Response(body, { headers: { 'Content-Type': 'application/json' } });
@@ -101,4 +101,15 @@ test('RESULTS-04: preço, diferença para o estimado e fornecedor como exibidos'
   );
   assert.equal(supplierText({ fornecedor: 'B', tipo_pessoa: 'PF', fornecedor_ni: '12345678909' }), 'B · Pessoa física');
   assert.equal(supplierText({ fornecedor: null, tipo_pessoa: 'PE', fornecedor_ni: 'X1' }), 'Fornecedor não informado');
+  const el = (tag, text, className) => ({
+    tag,
+    textContent: text ?? '',
+    className,
+    children: [],
+    append(...nodes) {
+      this.children.push(...nodes);
+    }
+  });
+  const list = renderItemResults(el, [{ fornecedor: 'Empresa X', tipo_pessoa: 'PJ' }], null);
+  assert(!list.children[0].children.some(child => /Cancelado/.test(child.textContent)));
 });

@@ -15,11 +15,15 @@ export function initializeSearchHelp(document, window) {
     panel.style.left = `${Math.max(8, Math.min(anchor.right - width, viewport - width - 8))}px`;
     panel.style.maxHeight = `${Math.max(160, (window.visualViewport?.height || window.innerHeight) - anchor.bottom - 14)}px`;
   }
+  let lastWidth = window.innerWidth;
   panel.addEventListener('beforetoggle', event => {
     if (event.newState === 'open') position();
   });
   panel.addEventListener('toggle', () => {
-    trigger.setAttribute('aria-expanded', String(panel.matches(':popover-open')));
+    const open = panel.matches(':popover-open');
+    trigger.setAttribute('aria-expanded', String(open));
+    if (!open && (document.activeElement === document.body || panel.contains?.(document.activeElement)))
+      trigger.focus({ preventScroll: true });
   });
   panel.addEventListener('click', event => {
     const example = event.target.closest?.('.search-help-example');
@@ -31,6 +35,13 @@ export function initializeSearchHelp(document, window) {
     input.setSelectionRange?.(input.value.length, input.value.length);
   });
   window.addEventListener('resize', () => {
-    if (panel.matches(':popover-open')) panel.hidePopover();
+    if (!panel.matches(':popover-open')) {
+      lastWidth = window.innerWidth;
+      return;
+    }
+    if (window.innerWidth !== lastWidth) {
+      lastWidth = window.innerWidth;
+      panel.hidePopover();
+    } else position();
   });
 }

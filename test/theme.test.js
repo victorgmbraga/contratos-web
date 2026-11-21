@@ -113,4 +113,8 @@ test('THEME-05: sincroniza outras abas e volta ao sistema ao remover a preferên
   assert.equal(ui.theme(), 'dark');
   ui.window.emit('storage', { key: null, newValue: null });
   assert.equal(ui.theme(), 'light');
+  // Chamar initializeTheme novamente no mesmo document não duplica o ouvinte de clique.
+  initializeTheme({ document: ui.document, window: ui.window });
+  ui.button.emit('click');
+  assert.equal(ui.theme(), 'dark');
 });

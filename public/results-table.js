@@ -162,7 +162,7 @@ export function createResultsTable({
         event.preventDefault();
         event.stopPropagation();
         closeMenu(true);
-      } else if (event.key === 'Tab') closeMenu();
+      } else if (event.key === 'Tab') closeMenu(true);
       else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault();
         const next =
@@ -235,7 +235,11 @@ export function createResultsTable({
       resize,
       moved: false
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      /* Synthetic or non-capturable pointer. */
+    }
     if (resize) event.preventDefault();
   }
   document.addEventListener(
@@ -376,7 +380,9 @@ export function createResultsTable({
           button.type = 'button';
           button.setAttribute('aria-label', `Ver detalhes: ${row[column.field] || 'documento'}`);
           button.append(content);
-          button.addEventListener('click', () => onOpenDocument?.(view.row));
+          button.addEventListener('click', () => {
+            if (!busy) onOpenDocument?.(view.row);
+          });
           td.append(button);
         } else td.append(content);
         tr.append(td);
@@ -476,6 +482,9 @@ export function createResultsTable({
           event.preventDefault();
           const index = visible.indexOf(column) + (event.key === 'ArrowLeft' ? -1 : 1);
           if (visible[index]) moveColumn(column.field, fields.indexOf(visible[index]));
+        } else if ((event.key === 'Enter' || event.key === ' ') && column.native_order && !busy) {
+          event.preventDefault();
+          onSort?.(column.field, sortOrder === column.native_order.desc ? 'asc' : 'desc');
         }
       });
       title.append(label);

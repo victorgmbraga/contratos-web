@@ -3574,6 +3574,8 @@ test('DOCUMENTS-UI-04: falha em arquivos de termo fica visível e uma nova tenta
   await button.fire('click');
   assert.equal(extra.hidden, false);
   assert.equal(extra.children.length, 2);
+  assert.equal(button.textContent, 'Arquivos do termo');
+  assert.equal(button.getAttribute('aria-controls'), extra.id);
   assert.equal(ui.childRequests.length, 2);
   assert.equal(ui.relatedRequests.length, 5);
 });
@@ -4012,4 +4014,40 @@ test('DETAILS-RESULTS-02: falha no resultado permite repetir só aquele item', a
   assert.equal(ui.resultRequests.length, 2);
   assert.equal(retry().hidden, true);
   assert(ui.all.some(n => n.className === 'item-result-supplier'));
+});
+
+test('UI-FIX-01: remoção de chip desabilitado em amparos_legais e fallback de campos da busca em link direto de contrato', async () => {
+  // 1) Chip de amparos_legais pode ser removido mesmo quando o campo ficou desabilitado após falha em normativos_base.
+  let failLegal = true;
+  const ui = await interfaceFixture({
+    domainHandler: async (payload, options, core) => {
+      if (payload.field === 'amparos_legais' && failLegal) throw new Error('Amparos indisponíveis.');
+      return core.domains(payload.type, payload.normatives, options.signal, undefined, payload.field);
+    }
+  });
+  await ui.nodes.get('filters-button').fire('click');
+  await ui.setFilter('amparos_legais', ['1', '2']);
+  await ui.setFilter('normativos_base', ['1']);
+  assert.equal(ui.nodes.get('apply-filters').disabled, true);
+  assert.equal(ui.nodes.get('filter-amparos_legais').disabled, true);
+  // Remover apenas um dos dois amparos mantém o bloqueio de legalError.
+  await ui.nodes.get('filter-selected-amparos_legais').children[0].fire('click');
+  assert.deepEqual(ui.draft().pncp_filters.amparos_legais, ['2']);
+  assert.equal(ui.nodes.get('apply-filters').disabled, true);
+  // Remover o último amparo libera o botão Aplicar.
+  await ui.nodes.get('filter-selected-amparos_legais').children[0].fire('click');
+  assert.equal(ui.draft().pncp_filters.amparos_legais, undefined);
+  assert.equal(ui.nodes.get('apply-filters').disabled, false);
+
+  // 2) Link direto de contrato com falha em documentDetails usa os campos projetados da busca em vez de traços.
+  const direct = await interfaceFixture({
+    href: 'https://example.test/contratos-web/?tipos_documento=contrato&detalhe=contrato/00000000000000/2026/1',
+    documentHandler: async () => {
+      throw new Error('Detalhes indisponíveis.');
+    }
+  });
+  const fields = direct.nodes.get('detail-panel-detalhes').children[0].children,
+    byLabel = label => fields.find(field => field.children[0].textContent === label);
+  assert.equal(byLabel('CPF/CNPJ do fornecedor').children[1].textContent, '01.234.567/0001-89');
+  assert.equal(byLabel('Fornecedor').children[1].textContent, 'Fornecedor sintético A');
 });

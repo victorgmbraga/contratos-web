@@ -40,11 +40,14 @@ export function initializeMobileLayout({ document, window }) {
   }
   function position() {
     const anchor = trigger.getBoundingClientRect(),
+      view = window.visualViewport,
+      left = view?.offsetLeft || 0,
+      viewportWidth = view?.width || window.innerWidth,
       width = panel.getBoundingClientRect().width || parseFloat(window.getComputedStyle(panel).width);
     panel.style.top = `${anchor.bottom + 6}px`;
-    panel.style.left = `${Math.max(8, Math.min(anchor.right - width, window.innerWidth - width - 8))}px`;
+    panel.style.left = `${Math.max(left + 8, Math.min(anchor.right - width, left + viewportWidth - width - 8))}px`;
     panel.style.right = 'auto';
-    panel.style.maxHeight = `${Math.max(0, (window.visualViewport?.height || window.innerHeight) - anchor.bottom - 14)}px`;
+    panel.style.maxHeight = `${Math.max(0, (view?.height || window.innerHeight) - anchor.bottom - 14)}px`;
   }
   function resize() {
     close();
@@ -73,6 +76,11 @@ export function initializeMobileLayout({ document, window }) {
       const opened = panel.matches(':popover-open');
       trigger.setAttribute('aria-expanded', String(opened));
       if (opened) position();
+      else if (
+        (document.activeElement === document.body || panel.contains?.(document.activeElement)) &&
+        ![...document.querySelectorAll('dialog')].some(dialog => dialog.open)
+      )
+        trigger.focus({ preventScroll: true });
     },
     { signal }
   );

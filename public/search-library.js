@@ -243,7 +243,7 @@ export function initializeSearchLibrary({
   form.addEventListener('submit', event => {
     event.preventDefault();
     const query = current(),
-      label = name.value.trim() || query.q.slice(0, MAX_NAME) || 'Busca sem texto';
+      label = name.value.trim() || query.q.trim().slice(0, MAX_NAME) || 'Busca sem texto';
     const search = querySearch(query, schema);
     try {
       readSearch(search, schema, size);

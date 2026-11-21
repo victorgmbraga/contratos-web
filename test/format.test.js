@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatCnpj, formatCpf, formatCpfCnpj, createCellRenderer } from '../public/format.js';
+import { formatCnpj, formatCpf, formatCpfCnpj, createCellRenderer, time } from '../public/format.js';
 
 const node = (tag, text, className) => ({ tag, textContent: text, className, title: '' });
 
@@ -54,4 +54,6 @@ test('CHIPS-01: critérios ativos mostram datas e números no padrão brasileiro
   assert.equal(filterValueText({ name: 'srp', type: 'boolean' }, false), 'Não');
   assert.equal(filterValueText({ name: 'codigo_ibge', type: 'text' }, '5300108'), '5300108');
   assert.equal(filterValueText(undefined, 'livre'), 'livre');
+  assert.equal(time('2026-10-01'), '01/10/2026');
+  assert.equal(time(null), '—');
 });

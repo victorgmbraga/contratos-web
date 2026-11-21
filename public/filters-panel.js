@@ -174,19 +174,20 @@ export function createFiltersPanel({
   function updateDraftActions() {
     if (!state.draft) return;
     const active = Object.keys(state.draft.pncp_filters).length,
-      count = $('filter-active-count');
+      count = $('filter-active-count'),
+      statusRegion = $('filter-active-status'),
+      summary = active ? `${active} ${active === 1 ? 'filtro ativo' : 'filtros ativos'}` : 'Nenhum filtro ativo';
     if (count) {
       count.textContent = String(active);
-      count.setAttribute(
-        'aria-label',
-        active ? `${active} ${active === 1 ? 'filtro ativo' : 'filtros ativos'}` : 'Nenhum filtro ativo'
-      );
+      count.setAttribute('aria-label', summary);
       count.hidden = active === 0;
     }
+    if (statusRegion) statusRegion.textContent = active ? summary : '';
     $('clear-draft-filters').disabled = active === 0 && ![...filterFields.values()].some(editor => editor.invalid);
   }
   function clearDraftFilters() {
     if (!state.draft) return;
+    const hadNormatives = Boolean(state.draft.pncp_filters.normativos_base?.length);
     state.legalAbort?.abort();
     session.next('legal');
     state.legalPending = false;
@@ -196,6 +197,9 @@ export function createFiltersPanel({
     $('filter-validation-error').hidden = true;
     state.draft.pncp_filters = {};
     for (const editor of filterFields.values()) syncFilterEditor(editor);
+    const legalEditor = filterFields.get('amparos_legais');
+    if (legalEditor && state.domainAbort && (hadNormatives || legalEditor.input.disabled))
+      void loadFilterOptions(legalEditor, state.domainAbort.signal);
     updateDraftActions();
   }
   async function setDraftFilter(name, value) {
@@ -206,7 +210,7 @@ export function createFiltersPanel({
     else draft.pncp_filters[name] = value;
     syncFilterEditor(filterFields.get(name));
     if (name === 'amparos_legais') {
-      if (state.legalPending) return;
+      if (state.legalPending || value !== undefined) return;
       state.legalAbort?.abort();
       session.next('legal');
       state.legalPending = false;
@@ -367,7 +371,7 @@ export function createFiltersPanel({
         ...(field === 'amparos_legais' ? { normatives: state.draft?.pncp_filters.normativos_base } : {}),
         field
       },
-      { signal }
+      { signal, priority: 'foreground' }
     );
   }
   function createFilterEditor(definition) {
@@ -414,6 +418,7 @@ export function createFiltersPanel({
           ? 'Digite ao menos 3 caracteres'
           : 'Buscar e selecionar opções';
       editor.input.autocomplete = 'off';
+      if (cap.domain_kind === 'suggest' && !editor.municipal) editor.input.maxLength = 128;
       editor.selected = [];
     } else if (cap.domain) {
       input.disabled = true;
@@ -466,6 +471,7 @@ export function createFiltersPanel({
       suggestions.setAttribute('aria-label', cap.label);
       suggestions.setAttribute('aria-multiselectable', 'true');
       suggestions.hidden = true;
+      suggestions.addEventListener('mousedown', event => event.preventDefault());
       editor.suggestions = suggestions;
       editor.input.setAttribute('role', 'combobox');
       editor.input.setAttribute('aria-autocomplete', 'list');
@@ -646,6 +652,7 @@ export function createFiltersPanel({
       editor.visibleOptions
     )
       renderChoices(editor);
+    else if (editor.suggestFailed) searchFilterOptions(editor);
     positionFilterDropdown();
   }
   function updateFilterChoices(editor) {
@@ -708,6 +715,7 @@ export function createFiltersPanel({
     clearTimeout(editor.suggestTimer);
     editor.suggestAbort?.abort();
     const token = ++editor.suggestSeq;
+    editor.suggestFailed = false;
     editor.error.hidden = true;
     editor.visibleOptions = null;
     if (openFilterEditor !== editor) openFilterDropdown(editor);
@@ -732,6 +740,7 @@ export function createFiltersPanel({
         if (currentEditor(editor) && token === editor.suggestSeq) showSuggestions(editor, [{ options: result.items }]);
       } catch (error) {
         if (error.name !== 'AbortError' && currentEditor(editor) && token === editor.suggestSeq) {
+          editor.suggestFailed = true;
           editor.choices = [];
           editor.suggestions.replaceChildren();
           appendListNote(editor, 'Sugestões indisponíveis. Tente novamente.');
@@ -857,7 +866,7 @@ export function createFiltersPanel({
     }
     if (note) appendListNote(editor, note, 'suggestion-hint');
     updateFilterChoices(editor);
-    positionFilterDropdown();
+    if (openFilterEditor === editor) positionFilterDropdown();
   }
   // Uma listbox só pode conter opções acessíveis: as orientações ficam visíveis na lista, mas são
   // anunciadas pela região de status do painel, fora dela.
@@ -865,7 +874,7 @@ export function createFiltersPanel({
     const note = el('p', text, `panel-note${className ? ' ' + className : ''}`);
     note.setAttribute('aria-hidden', 'true');
     editor.suggestions.append(note);
-    optionsStatus(text);
+    if (openFilterEditor === editor) optionsStatus(text);
   }
   function optionsStatus(text) {
     const region = $('filter-options-status');
@@ -896,8 +905,10 @@ export function createFiltersPanel({
       button.type = 'button';
       button.setAttribute('aria-label', `Remover ${option.label} de ${editor.cap.label}`);
       button.addEventListener('click', async () => {
-        editor.selected = editor.selected.filter(o => o.id !== option.id);
-        await editFilter(editor);
+        if (!currentEditor(editor)) return;
+        const next = editor.selected.filter(o => o.id !== option.id);
+        editor.selected = next;
+        await setDraftFilter(editor.cap.name, next.length ? next.map(o => o.id) : undefined);
       });
       area.append(button);
     }
@@ -923,14 +934,11 @@ export function createFiltersPanel({
     editor.invalid = !!message;
     editor.error.textContent = message || '';
     editor.error.hidden = !message;
-    if (message) {
-      editor.input.setAttribute('aria-invalid', 'true');
-      editor.input.setAttribute('aria-describedby', editor.error.id);
-    } else {
-      editor.input.removeAttribute('aria-invalid');
-      if (editor.input.getAttribute('aria-describedby') === editor.error.id)
-        editor.input.removeAttribute('aria-describedby');
-    }
+    if (message) editor.input.setAttribute('aria-invalid', 'true');
+    else editor.input.removeAttribute('aria-invalid');
+    const describedBy = [!editor.help.hidden && editor.help.id, message && editor.error.id].filter(Boolean);
+    if (describedBy.length) editor.input.setAttribute('aria-describedby', describedBy.join(' '));
+    else editor.input.removeAttribute('aria-describedby');
   }
   function revealFilter(editor) {
     if (!editor) return;
@@ -982,7 +990,10 @@ export function createFiltersPanel({
     stopFilterEditors();
     state.legalAbort?.abort();
     session.next('legal');
+    state.legalPending = false;
+    state.legalError = false;
   }
+  let lastWidth = window.innerWidth;
   $('filter-search').addEventListener('input', searchFilterFields);
   document.addEventListener('select-menu-open', closeFilterDropdown);
   document.addEventListener('pointerdown', event => {
@@ -994,7 +1005,12 @@ export function createFiltersPanel({
       closeFilterDropdown();
   });
   $('filters-dialog').querySelector('.filters-body')?.addEventListener('scroll', positionFilterDropdown);
-  window.addEventListener('resize', closeFilterDropdown);
+  window.addEventListener('resize', () => {
+    if (window.innerWidth !== lastWidth) {
+      lastWidth = window.innerWidth;
+      closeFilterDropdown();
+    } else positionFilterDropdown();
+  });
   return {
     open: openFilters,
     stop: stopFilterEditors,

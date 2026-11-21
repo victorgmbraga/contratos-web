@@ -92,7 +92,9 @@ export function createApplicationUI(
     queryRequested = false,
     exportWarning = false,
     exportFull = false,
-    searchFocusReturn = false;
+    searchFocusReturn = false,
+    hydrateAbort = null,
+    lastWidth = window.innerWidth;
   const toolbarButtonIds = [
     'theme-button',
     'search-help-button',
@@ -360,20 +362,25 @@ export function createApplicationUI(
     if (event.key === 'Escape') tooltips.hideTooltips();
   });
   for (const dialog of document.querySelectorAll('dialog')) {
+    let backdropDown = false;
+    const outside = event => {
+      const rect = dialog.getBoundingClientRect();
+      return (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+      );
+    };
     dialog.addEventListener('close', () =>
       document.querySelectorAll('[role="tooltip"]').forEach(tooltip => tooltip.setAttribute('hidden', ''))
     );
+    dialog.addEventListener('pointerdown', event => {
+      backdropDown = event.target === dialog && outside(event);
+    });
     dialog.addEventListener('click', event => {
-      if (event.target === dialog) {
-        const rect = dialog.getBoundingClientRect();
-        if (
-          event.clientX < rect.left ||
-          event.clientX > rect.right ||
-          event.clientY < rect.top ||
-          event.clientY > rect.bottom
-        )
-          closeDialog(dialog);
-      }
+      if (event.target === dialog && backdropDown && outside(event)) closeDialog(dialog);
+      backdropDown = false;
     });
     dialog
       .querySelectorAll('.close-dialog')
@@ -418,6 +425,7 @@ export function createApplicationUI(
     }
   }
   async function hydrateDomains(type) {
+    hydrateAbort?.abort();
     if (
       !filterOptionsCache ||
       !state.schema ||
@@ -426,6 +434,10 @@ export function createApplicationUI(
       !Object.keys(state.query.pncp_filters).length
     )
       return;
+    const controller = new AbortController();
+    hydrateAbort = controller;
+    const { signal } = controller;
+    const normatives = state.query.pncp_filters.normativos_base;
     const caps = state.schema.capabilities.filter(cap => cap.domain && !cap.reserved && cap.documents.includes(type));
     const activeDomains = new Set(
       Object.keys(state.query.pncp_filters)
@@ -433,18 +445,27 @@ export function createApplicationUI(
         .filter(Boolean)
     );
     const fields = new Map(caps.filter(cap => activeDomains.has(cap.domain)).map(cap => [cap.name, cap]));
-    const requests = [{ type }, ...[...fields.values()].map(cap => ({ type, field: cap.name }))];
+    const requests = [
+      { type },
+      ...[...fields.values()].map(cap => ({
+        type,
+        field: cap.name,
+        ...(cap.name === 'amparos_legais' && Array.isArray(normatives) && normatives.length ? { normatives } : {})
+      }))
+    ];
     for (const request of requests) {
+      if (signal.aborted) return;
       try {
-        const domains = await filterOptionsCache.get(request);
-        if (state.query?.document_type !== type) return;
+        const domains = await filterOptionsCache.get(request, { signal });
+        if (signal.aborted || state.query?.document_type !== type) return;
         filters.mergeDomains(domains);
       } catch {
         /* As opções continuam indisponíveis; os filtros seguem funcionando. */
       }
     }
+    if (signal.aborted) return;
     await filters.resolveLabels(state.query);
-    if (state.query?.document_type === type) updateFilterChips();
+    if (!signal.aborted && state.query?.document_type === type) updateFilterChips();
   }
   function renderCard(doc) {
     const content = el('div'),
@@ -751,15 +772,16 @@ export function createApplicationUI(
     }
   }
   function saveDownload(result) {
+    const urlApi = window.URL || URL;
     const blob = new Blob(result.chunks, { type: result.mime });
-    const href = URL.createObjectURL(blob),
+    const href = urlApi.createObjectURL(blob),
       link = el('a');
     link.href = href;
     link.download = result.filename;
     document.body.append(link);
     link.click();
     link.remove();
-    schedule(() => URL.revokeObjectURL(href), 10000);
+    schedule(() => urlApi.revokeObjectURL(href), 10000);
   }
   async function exportFullJson() {
     if (!state.lastQuery || state.exportAbort || $('export-full-button').disabled) return;
@@ -781,7 +803,7 @@ export function createApplicationUI(
           {
             signal: controller.signal,
             onProgress: (/** @type {import('../types/contracts.js').FullExportProgress} */ progress) => {
-              if (!session.current('export', seq)) return;
+              if (!session.current('export', seq) || controller.signal.aborted) return;
               const remaining = estimator.update({ rows: progress.documents, total: progress.total });
               notice(
                 `Exportação completa: ${fmtInt(progress.documents)} de ${fmtInt(progress.total)} documentos…${remaining ? ` Cerca de ${remaining} s restantes.` : ''}`
@@ -831,7 +853,7 @@ export function createApplicationUI(
         await service.call('export', scope === 'page' ? { query, scope: 'page' } : { query }, {
           signal: controller.signal,
           onProgress: progress => {
-            if (!session.current('export', seq)) return;
+            if (!session.current('export', seq) || controller.signal.aborted) return;
             const remaining = estimator.update({ rows: progress.rows, total: progress.total });
             notice(
               `Coletando ${fmtInt(progress.rows)} de ${fmtInt(progress.total)} documentos para CSV…${remaining ? ` Cerca de ${remaining} s restantes.` : ''}`
@@ -970,7 +992,12 @@ export function createApplicationUI(
         if (trigger && !trigger.disabled) trigger.focus({ preventScroll: true });
       } else if (event.key === 'Tab') closeExportMenu();
     });
-    window.addEventListener('resize', closeExportMenu);
+    window.addEventListener('resize', () => {
+      if (window.innerWidth !== lastWidth) {
+        lastWidth = window.innerWidth;
+        closeExportMenu();
+      } else if (exportMenuOpen()) positionExportMenu();
+    });
     $('reset-columns').addEventListener('click', () => {
       columnLayout.clear(state.query.document_type);
       state.table.setColumns(tableColumnDefinitions());
@@ -1004,6 +1031,10 @@ export function createApplicationUI(
     });
     $('cancel-export-button').addEventListener('click', () => {
       state.exportAbort?.abort();
+      session.next('export');
+      state.exportAbort = null;
+      exportFull = false;
+      updateExportButton();
       notice('Exportação cancelada.');
     });
     $('notice-close').addEventListener('click', () => {
@@ -1028,7 +1059,9 @@ export function createApplicationUI(
       updateCriteria();
       return execute();
     });
-    $('filters-dialog').addEventListener('close', () => filters.onDialogClose());
+    $('filters-dialog').addEventListener('close', () => {
+      if (!$('filters-dialog').open) filters.onDialogClose();
+    });
     $('details-dialog').addEventListener('close', () => {
       if (!$('details-dialog').open) details.close();
     });
@@ -1061,6 +1094,7 @@ export function createApplicationUI(
     });
     window.addEventListener('pagehide', event => {
       if (!event.persisted) {
+        hydrateAbort?.abort();
         filterOptionsCache.close();
         state.table.destroy();
       }

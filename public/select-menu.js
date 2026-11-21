@@ -1,13 +1,15 @@
 // Native selects retain their values, events, form behavior and intrinsic sizing.
 // An accessible combobox and a top-layer list replace only their presentation.
 export function initializeSelectMenus({ document, window }) {
-  if (!window.MutationObserver) return { refresh() {}, destroy() {} };
+  if (!window.MutationObserver || typeof document.createElement('div').showPopover !== 'function')
+    return { refresh() {}, destroy() {} };
   const controls = new Map(),
     lifetime = new window.AbortController(),
     { signal } = lifetime;
   let serial = 0,
     opened = null,
-    destroyed = false;
+    destroyed = false,
+    lastWidth = window.innerWidth;
   const node = (tag, className, text) => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -100,7 +102,9 @@ export function initializeSelectMenus({ document, window }) {
       if (option.hidden) continue;
       if (option.parentElement.tagName === 'OPTGROUP' && option.parentElement !== group) {
         group = option.parentElement;
-        c.menu.append(node('div', 'select-menu-group', group.label));
+        const heading = node('div', 'select-menu-group', group.label);
+        heading.setAttribute('role', 'presentation');
+        c.menu.append(heading);
       }
       const item = node('div', 'select-option'),
         check = node('span', 'select-option-check', '✓');
@@ -231,7 +235,8 @@ export function initializeSelectMenus({ document, window }) {
       c.typedAt = now;
       c.typed += normalize(event.key);
       const query = [...c.typed].every(char => char === c.typed[0]) ? c.typed[0] : c.typed;
-      const items = [...c.items.slice(c.active + 1), ...c.items.slice(0, c.active + 1)];
+      const start = query.length > 1 ? Math.max(0, c.active) : c.active + 1;
+      const items = [...c.items.slice(start), ...c.items.slice(0, start)];
       const found = items.find(item => enabled(item.option) && normalize(item.option.label).startsWith(query));
       if (found) active(c, c.items.indexOf(found));
     }
@@ -380,6 +385,7 @@ export function initializeSelectMenus({ document, window }) {
       'aria-describedby',
       'aria-busy',
       'aria-invalid',
+      'aria-required',
       'hidden'
     ]
   });
@@ -399,7 +405,16 @@ export function initializeSelectMenus({ document, window }) {
   );
   document.addEventListener('close', () => close(), { signal, capture: true });
   document.addEventListener('reset', () => window.queueMicrotask(() => refresh()), { signal });
-  window.addEventListener('resize', () => close(), { signal });
+  window.addEventListener(
+    'resize',
+    () => {
+      if (window.innerWidth !== lastWidth) {
+        lastWidth = window.innerWidth;
+        close();
+      } else position();
+    },
+    { signal }
+  );
   window.visualViewport?.addEventListener('resize', position, { signal });
   window.visualViewport?.addEventListener('scroll', position, { signal });
   window.addEventListener(

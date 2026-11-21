@@ -11,6 +11,7 @@ const integerFormatter = new Intl.NumberFormat('pt-BR'),
 const fmtInt = value => integerFormatter.format(value);
 const time = value => {
   if (!value) return '—';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return date(value);
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? String(value) : timeFormatter.format(parsed);
 };

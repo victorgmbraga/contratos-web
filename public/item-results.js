@@ -60,7 +60,7 @@ export function renderItemResults(el, results, estimated) {
   const list = el('ol', undefined, 'item-results-list');
   for (const result of results) {
     const entry = el('li', undefined, 'item-result');
-    const cancelled = result.data_cancelamento !== null;
+    const cancelled = result.data_cancelamento != null;
     entry.append(el('p', supplierText(result), 'item-result-supplier'));
     const notes = [
       result.situacao,

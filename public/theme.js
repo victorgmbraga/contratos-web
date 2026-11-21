@@ -1,6 +1,9 @@
 export const THEME_STORAGE_KEY = 'contratos-web:theme';
+const initialized = new WeakSet();
 
 export function initializeTheme({ document = globalThis.document, window = globalThis.window } = {}) {
+  if (document && initialized.has(document)) return;
+  if (document) initialized.add(document);
   const valid = value => (value === 'light' || value === 'dark' ? value : null);
   const media = window.matchMedia?.('(prefers-color-scheme: dark)');
   let preference = null,
