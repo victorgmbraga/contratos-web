@@ -8,7 +8,9 @@ import { browserSettings } from './src/browser/client.js';
 const root = fileURLToPath(new URL('./public/', import.meta.url));
 // O boot do tema é embutido no HTML (sem requisição extra antes da primeira pintura)
 // e autorizado na CSP pelo hash exato do conteúdo.
-const themeBoot = readFileSync(new URL('./public/theme-boot.js', import.meta.url), 'utf8').trim();
+const themeBoot = readFileSync(new URL('./public/theme-boot.js', import.meta.url), 'utf8')
+  .replace(/\r\n/g, '\n')
+  .trim();
 const themeBootHash = `'sha256-${createHash('sha256').update(themeBoot).digest('base64')}'`;
 
 // O catálogo de argumentos do PNCP traz uma descrição longa de cada parâmetro, útil como
@@ -41,7 +43,7 @@ export default defineConfig(({ command, mode }) => {
     (development ? " 'unsafe-inline'" : '') +
     "; img-src 'self' data:; connect-src 'self' https://pncp.gov.br" +
     (development ? ' ws:' : '') +
-    "; worker-src 'self'; object-src 'none'; base-uri 'self'";
+    "; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
   const headers = {
     'Content-Security-Policy': csp + "; frame-ancestors 'self'",
     'X-Content-Type-Options': 'nosniff',
@@ -97,22 +99,28 @@ export default defineConfig(({ command, mode }) => {
         transformIndexHtml: {
           order: 'pre',
           handler(html) {
-            return html
-              .replace('<script src="./theme-boot.js" blocking="render"></script>', `<script>${themeBoot}</script>`)
-              .replace(
-                '<head>',
-                `<head>\n<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer">`
-              );
+            const bootTag = '<script src="./theme-boot.js" blocking="render"></script>';
+            let out = html.replace(bootTag, `<script>${themeBoot}</script>`);
+            if (html.includes('theme-boot.js') && out === html)
+              throw new Error('Tag esperada de theme-boot.js não encontrada no HTML.');
+            const withCsp = out.replace(
+              '<head>',
+              `<head>\n<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer">`
+            );
+            if (withCsp === out) throw new Error('Tag <head> não encontrada no HTML.');
+            return withCsp;
           }
         },
         configureServer(server) {
-          server.middlewares.use('/browser-config.json', async (_req, res) => {
+          server.middlewares.use(async (req, res, next) => {
+            if (req.url?.split('?')[0] !== '/browser-config.json') return next();
             try {
               res.setHeader('Content-Type', 'application/json');
               res.setHeader('Cache-Control', 'no-store');
               res.end(await config());
             } catch {
               res.statusCode = 500;
+              res.setHeader('Content-Type', 'text/plain; charset=utf-8');
               res.end('Configuração pública inválida.');
             }
           });
@@ -143,10 +151,12 @@ export default defineConfig(({ command, mode }) => {
             )
             .digest('hex')
             .slice(0, 12);
-          const sw = (await readFile(new URL('./public/sw.js', import.meta.url), 'utf8')).replace(
+          const swSource = await readFile(new URL('./public/sw.js', import.meta.url), 'utf8');
+          const sw = swSource.replace(
             "const CACHE = 'contratos-web-assets-v1';",
             `const CACHE = 'contratos-web-assets-${assetVersion}';`
           );
+          if (sw === swSource) throw new Error('Marcador de cache ausente em public/sw.js.');
           this.emitFile({ type: 'asset', fileName: 'sw.js', source: sw });
           this.emitFile({
             type: 'asset',
@@ -156,7 +166,7 @@ export default defineConfig(({ command, mode }) => {
               Object.entries(headers)
                 .map(([name, value]) => `  ${name}: ${value}\n`)
                 .join('') +
-              '  Cache-Control: no-cache\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n'
+              '  Cache-Control: no-cache\n/assets/*\n  ! Cache-Control\n  Cache-Control: public, max-age=31536000, immutable\n'
           });
         }
       }

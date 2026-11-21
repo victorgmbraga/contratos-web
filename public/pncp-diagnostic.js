@@ -68,12 +68,14 @@ samples.push(
     }
   }
 );
-/** @type {AbortController} */ let controller;
+/** @type {AbortController | null} */ let controller = null;
+/** @type {any} */ let activeService = null;
 /** @type {any} */ let evidence;
 /** @param {string} id @returns {any} */
 const $ = id => document.getElementById(id);
 $('diagnostic-run').addEventListener('click', async () => {
   const service = createWorkerService({ PNCP_MAX_RETRIES: 0, PNCP_READ_TIMEOUT_SECONDS: 15 });
+  activeService = service;
   controller = new AbortController();
   evidence = {
     date: new Date().toISOString(),
@@ -113,7 +115,8 @@ $('diagnostic-run').addEventListener('click', async () => {
         visible_headers: Object.fromEntries(response.headers)
       };
     } catch (error) {
-      evidence.window_fetch = { error: error.name, message: error.message };
+      if (!controller.signal.aborted && error.name !== 'AbortError')
+        evidence.window_fetch = { error: error.name, message: error.message };
     }
     for (const sample of samples) {
       if (controller.signal.aborted) break;
@@ -139,6 +142,7 @@ $('diagnostic-run').addEventListener('click', async () => {
           upstream_requests: result.upstream_requests
         });
       } catch (error) {
+        if (controller.signal.aborted || error.name === 'AbortError') break;
         evidence.samples.push({
           name: sample.name,
           method: sample.method,
@@ -156,6 +160,7 @@ $('diagnostic-run').addEventListener('click', async () => {
       : 'Verificação concluída. Falhas de transporte não identificam automaticamente CORS ou indisponibilidade.';
   } finally {
     service.close();
+    if (activeService === service) activeService = null;
     $('diagnostic-run').disabled = false;
     $('diagnostic-cancel').disabled = true;
     $('diagnostic-save').disabled = false;
@@ -163,10 +168,20 @@ $('diagnostic-run').addEventListener('click', async () => {
 });
 $('diagnostic-cancel').addEventListener('click', () => controller?.abort());
 $('diagnostic-save').addEventListener('click', () => {
+  if (!evidence) return;
   const url = URL.createObjectURL(new Blob([JSON.stringify(evidence, null, 2)], { type: 'application/json' }));
   const link = document.createElement('a');
   link.href = url;
   link.download = 'pncp-browser-evidence.json';
+  document.body.append(link);
   link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+});
+window.addEventListener('pagehide', event => {
+  if (!event.persisted) {
+    controller?.abort();
+    activeService?.close();
+    activeService = null;
+  }
 });

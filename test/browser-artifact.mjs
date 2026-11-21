@@ -23,7 +23,7 @@ assert.match(
 assert.match(headersFile, /X-Content-Type-Options: nosniff/);
 assert.match(headersFile, /Referrer-Policy: no-referrer/);
 assert.doesNotMatch(headersFile, /unsafe-inline/, 'O artefato não depende de estilos injetados');
-assert.match(headersFile, /\/assets\/\*\n {2}Cache-Control: public, max-age=31536000, immutable/);
+assert.match(headersFile, /\/assets\/\*\n {2}! Cache-Control\n {2}Cache-Control: public, max-age=31536000, immutable/);
 const swSource = await readFile(new URL('../dist-browser/sw.js', import.meta.url), 'utf8');
 assert.match(swSource, /contratos-web-assets-[a-f0-9]{12}/);
 assert.doesNotMatch(swSource, /contratos-web-assets-v1/);

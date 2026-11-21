@@ -97,6 +97,11 @@
   outline-offset: -2px;
   background: var(--focus-soft, #137db530);
 }
+.results-col-label:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
 .results-col[data-drop-target] {
   box-shadow: inset 3px 0 var(--focus);
 }

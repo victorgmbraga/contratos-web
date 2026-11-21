@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex, follow" />
     <title>Diagnóstico PNCP · Contratos Web</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <script type="module" src="./theme.js" blocking="render"></script>
-    <script type="module" src="/pncp-diagnostic.js"></script>
+    <link rel="stylesheet" href="./diagnostic.css" />
+    <script src="./theme-boot.js" blocking="render"></script>
+    <script type="module" src="./theme.js"></script>
+    <script type="module" src="./pncp-diagnostic.js"></script>
   </head>
   <body>
     <main class="diagnostic">
@@ -17,9 +18,9 @@
         de leitura.
       </p>
       <p>
-        <button id="diagnostic-run" class="button primary">Verificar acesso</button>
-        <button id="diagnostic-cancel" class="button" disabled>Cancelar</button>
-        <button id="diagnostic-save" class="button" disabled>Salvar evidência</button>
+        <button id="diagnostic-run" type="button" class="button primary">Verificar acesso</button>
+        <button id="diagnostic-cancel" type="button" class="button" disabled>Cancelar</button>
+        <button id="diagnostic-save" type="button" class="button" disabled>Salvar evidência</button>
       </p>
       <p id="diagnostic-status" role="status"></p>
       <pre id="diagnostic-output"></pre>

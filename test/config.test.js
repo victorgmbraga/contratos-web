@@ -27,6 +27,7 @@ test('CSP-02: o build publicado mantém a política restritiva', () => {
   assert.doesNotMatch(build, /unsafe-inline/);
   assert.doesNotMatch(build, /\bws:/);
   assert.match(build, /frame-ancestors 'self'/);
+  assert.match(build, /form-action 'self'/);
 });
 
 test('CSP-03: demo e preview seguem o modo em que são servidos', () => {

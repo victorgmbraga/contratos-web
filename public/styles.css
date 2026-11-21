@@ -46,7 +46,11 @@ summary {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+summary:focus-visible,
+[role='tabpanel']:focus-visible,
+#window-warning:focus-visible,
+#description-content:focus-visible {
   outline: 2px solid var(--focus);
 }
 button {
@@ -147,7 +151,8 @@ svg {
 }
 .icon-button.close-dialog:focus-visible,
 .notice-close:focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
   border-color: var(--focus);
   background: var(--blue-soft);
   box-shadow: inset 0 0 0 1px var(--focus);
@@ -317,7 +322,7 @@ p {
   font-size: 0.8125rem;
 }
 .search-field input::placeholder {
-  color: var(--placeholder, #7a8897);
+  color: var(--placeholder, #757575);
 }
 .search-field-icon {
   display: flex;
@@ -467,7 +472,7 @@ p {
 }
 .search-library-remove:hover {
   border-color: var(--border, #c7d5e4);
-  color: var(--danger, #b42318);
+  color: var(--error-text, #b42318);
 }
 .save-search-form {
   display: grid;
@@ -865,6 +870,10 @@ p {
   line-height: 1.4;
   color: var(--text-muted, #627387);
 }
+.export-option:hover:not(:disabled) .export-option-note,
+.export-option:focus-visible .export-option-note {
+  color: var(--text, #23354a);
+}
 .table-shell {
   flex: 1;
   min-height: 0;
@@ -1065,7 +1074,7 @@ p {
   border-radius: 5px;
   flex-shrink: 0;
 }
-.connectivity-notice.error {
+.connectivity-notice[data-kind='offline'] {
   background: var(--error-bg, #fff3f1);
   color: var(--error-text, #8f3b32);
   border-color: var(--error-border, #eac7c0);
@@ -1414,6 +1423,8 @@ dialog::backdrop {
 }
 .filter-options-popup .suggestion[data-active='true'] {
   box-shadow: inset 0 0 0 2px var(--focus);
+  outline: 2px solid transparent;
+  outline-offset: -2px;
 }
 .suggestion-check {
   display: inline-flex;
@@ -2124,15 +2135,13 @@ dialog select[multiple] {
     font-size: 1.1rem;
   }
 }
-/* Página de diagnóstico: estilos próprios substituem atributos inline bloqueados pela CSP. */
-.diagnostic {
-  max-width: 1000px;
-  margin: 2rem auto;
-  padding: 1rem;
-}
-#diagnostic-output {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+@media (forced-colors: active) {
+  .icon-button.close-dialog:focus-visible,
+  .notice-close:focus-visible,
+  .save-search-row input:focus,
+  .filter-options-popup .suggestion[data-active='true'] {
+    outline-color: Highlight;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   *,

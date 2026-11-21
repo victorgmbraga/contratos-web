@@ -29,7 +29,7 @@ export function createTooltips({ window, state, $: getElementById, toolbarButton
     marker.addEventListener('click', hide);
   }
   function showTooltip(marker, tooltip) {
-    if (marker.hidden || !tooltip.textContent) return;
+    if (marker.hidden || !tooltip.textContent || marker.closest?.('#more-actions')) return;
     hideTooltips();
     tooltip.hidden = false;
     positionTooltip(marker, tooltip);
