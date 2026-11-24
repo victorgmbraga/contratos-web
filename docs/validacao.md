@@ -201,7 +201,7 @@ Os testes de navegador usam dados sintéticos de [`test/demo-fixtures.js`](../te
 
 ## Dependências e actions
 
-As actions dos workflows usam versões exatas (por exemplo, `actions/cache@v6.1.0`), conferidas em `test/workflow.test.js`. O [Dependabot](../.github/dependabot.yml) propõe toda segunda-feira as versões menores e correções das dependências de desenvolvimento, agrupadas num pull request; versões principais ficam de fora, porque exigem validação conjunta com a suíte de navegador. As actions são verificadas mensalmente. O ESLint 10 ainda depende do `minimatch` 10, afetado por uma vulnerabilidade moderada (negação de serviço com padrões glob maliciosos, GHSA-g3hv-75wg-m249). O campo `overrides` do `package.json` força o `minimatch` 11.0.5, que a corrige; o lint foi conferido com ele, inclusive os padrões ignorados. Quando uma versão do ESLint adotar o `minimatch` 11, o `overrides` pode ser removido.
+As actions dos workflows usam versões exatas (por exemplo, `actions/cache@v6.1.0`), conferidas em `test/workflow.test.js`. O [Dependabot](../.github/dependabot.yml) propõe toda segunda-feira as versões menores e correções das dependências de desenvolvimento, agrupadas num pull request; versões principais ficam de fora, porque exigem validação conjunta com a suíte de navegador. As actions são verificadas mensalmente. O ESLint 10.15.0 e seu pacote de configuração já aceitam `minimatch` 11. O lockfile fixa a versão instalada dentro das faixas declaradas por esses pacotes.
 
 ## Esperas nos testes
 

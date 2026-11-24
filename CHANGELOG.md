@@ -4,6 +4,8 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 
 ## Próxima versão
 
+- Atualiza axe-core para 4.14.1 e as dependências transitivas compatíveis. Remove a substituição de minimatch, já aceito na versão 11 pelo ESLint.
+
 - Adiciona a **Exportação completa** ao menu Exportar: para consultas de até 100 documentos, gera um JSON estruturado por documento (detalhes, itens e resultados homologados, listagens das abas e registros filhos) com os links de download dos arquivos, respeitando o limite de requisições do PNCP.
 - A exportação completa rejeita documentos duplicados, distingue arquivos de links disponíveis, gera o JSON em blocos e aplica limites à operação inteira. A coleta de itens de editais consulta o total no início e o reconfere no fim quando há várias páginas.
 - Valida o número de cada item na exportação JSON, aplica o teto de bytes durante a leitura do PNCP e rejeita documentos duplicados ou sem identidade no CSV da página atual.
