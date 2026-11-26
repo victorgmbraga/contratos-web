@@ -43,13 +43,13 @@ const sample = c =>
                           ? ['BRA']
                           : ['1'];
 
-test('COMPLETE-01: todos os 80 filtros chegam à pesquisa e ao CSV com seu nome e valor nativos', async () => {
+test('COMPLETE-01: todos os 84 filtros chegam à pesquisa e ao CSV com seu nome e valor nativos', async () => {
   const caps = capabilities(config()).filter(c => !c.reserved),
     domains = Object.fromEntries(
       caps.filter(c => c.domain_source === 'search').map(c => [c.domain, [{ id: c.name === 'tipos_item' ? 'S' : '1' }]])
     );
   for (const cap of caps) {
-    const type = cap.documents.includes('edital') ? 'edital' : 'contrato',
+    const type = cap.documents.includes('edital') ? 'edital' : cap.documents.includes('contrato') ? 'contrato' : 'ata',
       value = sample(cap),
       raw = document(1, { document_type: type, valor_global: '0.00' });
     const s = service([raw], {
@@ -76,7 +76,7 @@ test('COMPLETE-01: todos os 80 filtros chegam à pesquisa e ao CSV com seu nome 
     }
     assert(!s.requests.some(u => u.pathname.includes('/itens')), cap.name);
   }
-  assert.equal(caps.length, 80);
+  assert.equal(caps.length, 84);
 });
 
 test('COMPLETE-10: validação de domínio fechado reutiliza opções entre páginas e exportação', async () => {
@@ -101,7 +101,7 @@ test('COMPLETE-02: formatos, percentuais e todos os intervalos são verificados 
   const s = service([]),
     caps = capabilities(config()).filter(c => !c.reserved);
   for (const cap of caps) {
-    const type = cap.documents.includes('edital') ? 'edital' : 'contrato';
+    const type = cap.documents.includes('edital') ? 'edital' : cap.documents.includes('contrato') ? 'contrato' : 'ata';
     await assert.rejects(
       s.service.execute(query({ document_type: type, pncp_filters: { [cap.name]: null } })),
       e => e.status === 400,

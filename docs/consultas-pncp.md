@@ -40,6 +40,8 @@ Os campos de `query` podem ser omitidos para usar os padrões; envie `query: {}`
 
 O cliente serializa os controles como `tipos_documento`, `q`, `status`, `ordenacao`, `pagina` e `tam_pagina`. As listas de filtros são unidas por `|` e codificadas uma vez. Cada página faz uma chamada de busca, além de eventuais consultas de domínios e novas tentativas em caso de falha transitória.
 
+A pesquisa usa `/api/search` sem barra final. [Comunicado técnico nº 11/26 do PNCP](https://www.gov.br/pncp/pt-br/central-de-conteudo/comunicados/2026/no-11-26-atualizacao-tecnica-plataformas-adaptem-as-urls-usadas-para-acessar-as-apis-do-pncp).
+
 ### Ordenações por tipo de documento
 
 O seletor usa as opções oferecidas pelo portal oficial em [editais](https://pncp.gov.br/app/editais), [atas](https://pncp.gov.br/app/atas) e [contratos](https://pncp.gov.br/app/contratos). A interface, a validação de consultas e os parâmetros da URL usam o mesmo catálogo.
@@ -115,7 +117,7 @@ CNPJ exige 14 dígitos, ano exige quatro e sequenciais são inteiros positivos d
 | `valor_total_estimado_min`, `valor_total_estimado_max` | Decimais não negativos como strings com ponto, por exemplo `"1000.50"` |
 | `valor_total_homologado_min`, `valor_total_homologado_max` | Mesmo formato decimal |
 
-Os campos de sub-rogação, itens, resultados, fornecedores e contratos estão abaixo. A notação `min/max` e `inicio/fim` representa parâmetros separados:
+Os demais filtros estão abaixo. A notação `min/max` e `inicio/fim` representa parâmetros separados.
 
 | Filtros | Formato e domínio |
 | --- | --- |
@@ -139,6 +141,9 @@ Os campos de sub-rogação, itens, resultados, fornecedores e contratos estão a
 | `fornecedores_subcontratados` | Lista de IDs numéricos em strings obtidos por opções parciais ou sugestões; exclusivo de contrato |
 | `data_assinatura_inicio/fim` | Datas reais `AAAA-MM-DD`; ata e contrato |
 | `data_inicio_vigencia_inicio/fim` | Datas reais `AAAA-MM-DD`; restringem a data de início da vigência em atas e contratos e, em editais, o início do recebimento de propostas (o PNCP indexa esse período como vigência). A capacidade informa o rótulo de edital em `labels_by_document` |
+| `data_fim_vigencia_inicio/fim` | Datas reais `AAAA-MM-DD` que limitam a data de fim da vigência da ata |
+| `situacao_ata` | Exclusivo de atas. `true` para canceladas e `false` para não canceladas. Pode ser combinado com o `status` de vigência |
+| `partes_envolvidas` | Exclusivo de atas. Lista de IDs retornados nas sugestões do PNCP, com a pontuação preservada |
 | `valor_global_min/max` | Decimais não negativos em strings; exclusivo de contrato |
 
 Filtros de itens, resultados e características de fornecedores nessa tabela são exclusivos de edital, exceto onde indicado. Confira `documents` no esquema para a compatibilidade dos demais campos. Intervalos invertidos são rejeitados antes da rede; decimais são comparados sem conversão para ponto flutuante.
@@ -153,9 +158,9 @@ Booleanos exigem valores JSON, sem aspas: `false` é enviado ao PNCP como `false
 
 Filtros de itens selecionam **contratações** na busca nativa. Tabela e CSV continuam contendo uma linha por contratação. Os detalhes exibem todos os itens, inclusive os que não satisfazem os critérios. Uma condição verdadeira na busca pode coexistir com itens que a informam como falsa nos detalhes. Não há garantia de que condições diferentes incidam sobre o mesmo item; a aplicação não aplica um refinamento local para impor essa correlação. Os nomes enviados à busca continuam sendo `categorias_leilao` e `beneficios`, embora os domínios usem aliases.
 
-`service.call("schema", {})` informa `columns`, `columns_by_document`, `capabilities`, `statuses`, `statuses_by_document`, `orders`, `orders_by_document`, `order_labels` e `limits`. O catálogo em [`src/pncp-arguments.json`](../src/pncp-arguments.json) contém 87 argumentos: sete controles reservados ao adaptador e 80 filtros. São 73 aplicáveis a edital, 16 a ata e 31 a contrato. `columns`, `statuses` e `orders` usam os padrões de edital; os mapas por documento fornecem os valores próprios de cada tipo, e `order_labels` contém os nomes exibidos no seletor. A compatibilidade de filtros é definida por `documents`.
+`service.call("schema", {})` informa `columns`, `columns_by_document`, `capabilities`, `statuses`, `statuses_by_document`, `orders`, `orders_by_document`, `order_labels` e `limits`. O catálogo em [`src/pncp-arguments.json`](../src/pncp-arguments.json) contém 91 argumentos: sete controles reservados ao adaptador e 84 filtros. São 73 aplicáveis a edital, 24 a ata e 31 a contrato. `columns`, `statuses` e `orders` usam os padrões de edital; os mapas por documento fornecem os valores próprios de cada tipo, e `order_labels` contém os nomes exibidos no seletor. A compatibilidade de filtros é definida por `documents`.
 
-Atas aceitam `ufs`, `orgaos`, `unidades`, `municipios`, `esferas`, `poderes`, `anos`, `modalidades`, `tipos`, `permite_adesao`, `data_publicacao_inicio/fim`, `data_assinatura_inicio/fim` e `data_inicio_vigencia_inicio/fim`. Filtros de itens, resultados e valores contratuais não são aplicáveis a atas.
+Atas aceitam `ufs`, `orgaos`, `unidades`, `municipios`, `esferas`, `poderes`, `anos`, `modalidades`, `tipos`, `permite_adesao`, `data_publicacao_inicio/fim`, `data_assinatura_inicio/fim` e `data_inicio_vigencia_inicio/fim`. A atualização da busca de atas inclui `fontes`, `normativos_base`, `amparos_legais`, `modos_disputa`, `partes_envolvidas`, `situacao_ata` e `data_fim_vigencia_inicio/fim`. [Comunicado nº 12/26 do PNCP](https://www.gov.br/pncp/pt-br/central-de-conteudo/comunicados/2026/no-12-26-novidade-no-pncp-paginas-de-busca-serao-atualizadas-na-quarta-feira-25-11).
 
 Cada capacidade também informa `label` (e, quando o mesmo parâmetro tem significado próprio num tipo, `labels_by_document`), `group`, `input_hint`, `help_text`, `cardinality`, `domain_source`, `domain_kind`, `evidence` e `validation_status`. `input_hint` fornece exemplos para o placeholder; `help_text` está vazio. `description` mantém a descrição técnica do argumento. O tipo `enum` é singular: `tipos_item` e `tipos_margens_preferencia` usam uma string escolhida no domínio. Unidades de medida preservam caixa e espaços; `UNIDADE` e `Unidade ` são valores distintos.
 
@@ -199,7 +204,7 @@ Sem `field`, ou com um filtro da busca, a origem é `/api/search/filters`. Para 
 
 Opções desses catálogos podem incluir `active: false`; a interface identifica opções inativas e permite consultar registros associados a elas. O aplicativo valida e envia os IDs do catálogo de países, sem conversão BCB.
 
-Domínios fechados são conferidos pelo Worker antes da pesquisa e da exportação. Reservas/remanescentes usam a enumeração fixa do portal, com `domain_source: reference` e sem requisição externa para obter essas opções. Domínios parciais utilizam sugestões e não são tratados como listas exaustivas; incluem sistemas de origem, sub-rogação, fornecedores, municípios de fornecedores e unidades de medida. O `/api/search/suggest` exige ao menos três caracteres em `q` e responde 400 a termos menores; por isso a interface usa a relação local do IBGE para os municípios e mostra as opções usadas recentemente nos demais campos.
+Domínios fechados são conferidos pelo Worker antes da pesquisa e da exportação. Reservas/remanescentes usam a enumeração fixa do portal, com `domain_source: reference` e sem requisição externa para obter essas opções. Entre os domínios parciais com sugestões estão sistemas de origem, partes envolvidas, sub-rogação, fornecedores, municípios de fornecedores e unidades de medida. O `/api/search/suggest` exige ao menos três caracteres em `q` e responde 400 a termos menores. A interface usa a relação local do IBGE para os municípios e mostra as opções usadas recentemente nos demais campos.
 
 Na inicialização, a interface pré-carrega em segundo plano as opções de `edital`, `ata` e `contrato`, os quatro catálogos compartilhados e a referência fixa. São oito operações locais `domains`, sete delas com consulta externa quando não há cache válido. As listas normalizadas ficam no `localStorage` por 4 horas desde o carregamento, sem renovar a validade em leituras. Abrir o modal preenche todos os filtros compatíveis usando essas listas; entradas vencidas são descartadas e obtidas novamente na inicialização ou no próximo uso. Falhas de uma lista não bloqueiam os demais campos; o campo afetado mostra o erro e permite tentar novamente. Quando o armazenamento local falha, a interface tenta IndexedDB e recorre à memória se ambos falharem. Na mesma aba, a validação de domínios reutiliza as respostas já obtidas pelo Worker, inclusive requisições em andamento. Se a operação que iniciou a requisição for interrompida por cancelamento, prazo ou limite próprio, quem ainda aguarda pode consultar o domínio novamente dentro do seu prazo. Ao recarregar, o Worker inicia seu próprio cache vazio.
 
@@ -214,7 +219,7 @@ Ao alterar normativos, a interface obtém os amparos do cache específico do tip
 | `q` | Texto entre 3 e 128 caracteres |
 | `size` | Obrigatório: inteiro de 1 a 20; a interface envia `20` |
 
-A resposta contém `items` com pares `{id, label}`, `request_id` e `queried_at`. Listas de domínios podem ser parciais; o retorno de sugestões depende da fonte. Campos com sugestões, como Sistema de origem (`campo=fontes`, em editais e contratos), permanecem disponíveis mesmo quando não constam das opções iniciais de `/filters`, inclusive nas listas em cache. Ao digitar ao menos três caracteres, a interface consulta `/api/search/suggest` com `tipos_documento`, `campo`, `q` e `tam_pagina`. Município e Município do fornecedor usam o catálogo local do IBGE, mesmo quando a lista inicial do PNCP falha. Se o catálogo local estiver indisponível, esses campos recorrem às sugestões remotas. Essas sugestões por texto não são armazenadas no cache de listas com validade de 4 horas. Seleções usam os IDs retornados pela fonte; a pesquisa e o CSV não exigem que esses IDs pertençam à lista inicial parcial.
+A resposta contém `items` com pares `{id, label}`, `request_id` e `queried_at`. Listas de domínios podem ser parciais; o retorno de sugestões depende da fonte. Campos com sugestões, como Sistema de origem (`campo=fontes`, em editais, atas e contratos), permanecem disponíveis mesmo quando não constam das opções iniciais de `/filters`, inclusive nas listas em cache. Ao digitar ao menos três caracteres, a interface consulta `/api/search/suggest` com `tipos_documento`, `campo`, `q` e `tam_pagina`. Município e Município do fornecedor usam o catálogo local do IBGE, mesmo quando a lista inicial do PNCP falha. Se o catálogo local estiver indisponível, esses campos recorrem às sugestões remotas. Essas sugestões por texto não são armazenadas no cache de listas com validade de 4 horas. Seleções usam os IDs retornados pela fonte; a pesquisa e o CSV não exigem que esses IDs pertençam à lista inicial parcial.
 
 ## Itens de uma contratação
 

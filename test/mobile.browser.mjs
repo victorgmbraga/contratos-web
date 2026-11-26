@@ -174,7 +174,7 @@ try {
   await page.setViewportSize({ width: 360, height: 800 });
   for (const [type, title, count] of [
     ['edital', '64 editais', 73],
-    ['ata', '24 atas', 16],
+    ['ata', '24 atas', 24],
     ['contrato', '32 contratos', 31]
   ]) {
     await page.locator('#document-type').selectOption(type);

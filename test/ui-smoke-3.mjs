@@ -180,8 +180,8 @@ try {
   check('Vigência e CSV de atas conservam os mesmos critérios e colunas');
   await page.locator('#clear-button').click();
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '24 atas');
-  assert.equal(await assertFilterCatalog('ata'), 16);
-  check('Os 16 filtros de atas têm controles compatíveis com seus tipos');
+  assert.equal(await assertFilterCatalog('ata'), 24);
+  check('Os 24 filtros de atas têm controles compatíveis com seus tipos');
   await page.locator('#document-type').selectOption('edital');
   await page.waitForFunction(() => document.querySelector('#result-title').textContent === '64 editais');
   check('Voltar a contratações restaura colunas e critérios do tipo escolhido');

@@ -142,8 +142,11 @@ const ataColumns = [
     visible: true,
     native_range: ['data_inicio_vigencia_inicio', 'data_inicio_vigencia_fim']
   }),
-  column('data_fim_vigencia', 'Fim da vigência', 'date', { visible: true }),
-  column('cancelado', 'Cancelada', 'boolean', { visible: true }),
+  column('data_fim_vigencia', 'Fim da vigência', 'date', {
+    visible: true,
+    native_range: ['data_fim_vigencia_inicio', 'data_fim_vigencia_fim']
+  }),
+  column('cancelado', 'Cancelada', 'boolean', { visible: true, domain: 'situacao_ata' }),
   column('permite_adesao', 'Permite adesão', 'boolean', { visible: true })
 ];
 export const columnsFor = type => ({ edital: columns, ata: ataColumns, contrato: contractColumns })[type];

@@ -3259,7 +3259,7 @@ test('ATAS-UI-01: trocar para atas ajusta status, colunas, filtros, contagem e C
     ['todos', 'vigente', 'nao_vigente']
   );
   await ui.nodes.get('filters-button').fire('click');
-  assert.equal(ui.fieldNames().length, 16);
+  assert.equal(ui.fieldNames().length, 24);
   assert.equal(ui.field('situacoes_item'), undefined);
   ui.nodes.get('status').value = 'vigente';
   await ui.nodes.get('apply-filters').fire('click');

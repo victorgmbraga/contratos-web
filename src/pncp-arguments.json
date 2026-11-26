@@ -104,7 +104,7 @@
   {
     "name": "fontes",
     "format": "lista de IDs",
-    "context": "E C",
+    "context": "E C A",
     "description": "IDs dos sistemas ou plataformas que enviaram a publicação ao PNCP. Exemplo observado: 3 para Compras.gov.br."
   },
   {
@@ -134,13 +134,13 @@
   {
     "name": "normativos_base",
     "format": "lista de IDs",
-    "context": "E C",
+    "context": "E C A",
     "description": "IDs dos normativos que fundamentam a contratação. Exemplo observado: 1 para Lei 14.133/2021."
   },
   {
     "name": "amparos_legais",
     "format": "lista de IDs",
-    "context": "E C",
+    "context": "E C A",
     "description": "IDs dos dispositivos legais específicos. O catálogo pode ser restringido por normativos_base em /filters."
   },
   {
@@ -152,8 +152,20 @@
   {
     "name": "modos_disputa",
     "format": "lista de IDs",
-    "context": "E",
+    "context": "E A",
     "description": "IDs dos modos de disputa. Consultar o domínio para os nomes de cada código."
+  },
+  {
+    "name": "partes_envolvidas",
+    "format": "lista de IDs",
+    "context": "A",
+    "description": "Identificadores das partes de uma ata. Envie o ID retornado nas sugestões, preservando a pontuação."
+  },
+  {
+    "name": "situacao_ata",
+    "format": "booleano",
+    "context": "A",
+    "description": "Filtra atas canceladas (true) ou não canceladas (false). Independente do status de vigência."
   },
   {
     "name": "criterios_julgamento",
@@ -286,6 +298,18 @@
     "format": "data",
     "context": "E C A",
     "description": "Limite final aplicado à data de início da vigência (em editais, do recebimento de propostas). Não filtra a data final."
+  },
+  {
+    "name": "data_fim_vigencia_inicio",
+    "format": "data",
+    "context": "A",
+    "description": "Limite inferior aplicado à data de fim da vigência da ata."
+  },
+  {
+    "name": "data_fim_vigencia_fim",
+    "format": "data",
+    "context": "A",
+    "description": "Limite superior aplicado à data de fim da vigência da ata."
   },
   {
     "name": "data_assinatura_inicio",

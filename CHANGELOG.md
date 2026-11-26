@@ -4,6 +4,8 @@ As versões seguem o [versionamento semântico](https://semver.org/lang/pt-BR/).
 
 ## Próxima versão
 
+- Usa a URL de pesquisa do PNCP sem barra final na aplicação e no diagnóstico.
+- Habilita em atas filtros por partes envolvidas, cancelamento, fim da vigência, sistema de origem, normativo legal, amparo legal e modo de disputa. As colunas **Fim da vigência** e **Cancelada** ganham atalhos para os filtros.
 - Atualiza axe-core para 4.14.1 e as dependências transitivas compatíveis. Remove a substituição de minimatch, já aceito na versão 11 pelo ESLint.
 
 - Adiciona a **Exportação completa** ao menu Exportar: para consultas de até 100 documentos, gera um JSON estruturado por documento (detalhes, itens e resultados homologados, listagens das abas e registros filhos) com os links de download dos arquivos, respeitando o limite de requisições do PNCP.

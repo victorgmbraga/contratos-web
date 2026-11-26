@@ -26,6 +26,7 @@ export const partialDomains = [
   'unidades',
   'municipios',
   'fontes',
+  'partes_envolvidas',
   'fornecedores',
   'fornecedores_subcontratados',
   'orgaos_subrogados',
@@ -74,6 +75,8 @@ const labels = {
   normativos_base: 'Normativo legal',
   amparos_legais: 'Amparo legal',
   modos_disputa: 'Modo de disputa',
+  partes_envolvidas: 'Partes envolvidas',
+  situacao_ata: 'Ata cancelada',
   criterios_julgamento: 'Critério de julgamento',
   categorias_leilao: 'Categoria de leilão',
   beneficios: 'Benefício do item',
@@ -121,7 +124,8 @@ const ranges = {
   data_publicacao: 'Publicação',
   data_homologacao: 'Homologação do resultado',
   data_assinatura: 'Assinatura',
-  data_inicio_vigencia: 'Início da vigência'
+  data_inicio_vigencia: 'Início da vigência',
+  data_fim_vigencia: 'Fim da vigência'
 };
 export function filterPresentation(name, documents) {
   const range = name.match(/^(.*)_(min|max|inicio|fim)$/);

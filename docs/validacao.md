@@ -49,7 +49,7 @@ O runner mede linhas, branches e funções somente do código de produção (`sr
 
 O runner nativo executa até quatro arquivos de `test/*.test.js` em paralelo, com isolamento por processo. Os casos dentro de cada arquivo continuam sequenciais. A suíte cobre:
 
-- Critérios, tipos documentais, os 80 filtros, domínios, formatos, intervalos, precisão decimal e identificadores.
+- Critérios, tipos documentais, os 84 filtros, domínios, formatos, intervalos, precisão decimal e identificadores.
 - Pesquisa, paginação, ordenações compatíveis por tipo, projeção de dados, identidades e detalhes dos três tipos.
 - HTTP 204/404 nos recursos permitidos, histórico de contrato com total desconhecido, falhas de formato, transporte e contagem.
 - CSV, consistência entre páginas, limites de bytes/documentos, progresso, cancelamento e proteção de campos textuais contra interpretação como fórmulas, preservando decimais negativos.
@@ -118,7 +118,7 @@ O comando [`test/browser-smoke.mjs`](../test/browser-smoke.mjs) executa as segui
 | Componente de tabela | Cem linhas, conteúdo tratado como texto, paginação, foco, menus, teclado, redimensionamento, movimentação, visibilidade, cabeçalho fixo e destruição |
 | Paginação compartilhada | [`test/pagination.browser.mjs`](../test/pagination.browser.mjs): janela de páginas, atalhos, teclado/foco, carregamento, total desconhecido e números longos nos dois temas, de 320 a 1068 px |
 | Build de testes | `dist-browser-test/` com fonte controlada no Worker |
-| Interface ([`ui-smoke-1.mjs`](../test/ui-smoke-1.mjs), [`-2`](../test/ui-smoke-2.mjs) e [`-3`](../test/ui-smoke-3.mjs), com a sessão comum em [`ui-smoke-session.js`](../test/ui-smoke-session.js)) | Presença e tipos dos 73/16/31 filtros compatíveis, interações representativas por controle, nomes acessíveis do cabeçalho, três tipos, links, histórico, paginação, painéis, CSV e cancelamento; o núcleo confere exaustivamente os 80 filtros |
+| Interface ([`ui-smoke-1.mjs`](../test/ui-smoke-1.mjs), [`-2`](../test/ui-smoke-2.mjs) e [`-3`](../test/ui-smoke-3.mjs), com a sessão comum em [`ui-smoke-session.js`](../test/ui-smoke-session.js)) | Presença e tipos dos 73/24/31 filtros compatíveis, interações representativas por controle, nomes acessíveis do cabeçalho, três tipos, links, histórico, paginação, painéis, CSV e cancelamento; o núcleo confere exaustivamente os 84 filtros |
 | Botões | Transições de cor sem alterar a geometria, movimentos específicos de busca, filtros, colunas, exportação e tema no hover e no foco por teclado, supressão com `prefers-reduced-motion: reduce`, feedback de toque e paginação recriada durante a consulta |
 | Seletores | Menus reais, teclado e cancelamento, busca por letras, URL/Voltar, filtros, menu Mais, detalhes, temas/contraste, limites do viewport, estados e opções dinâmicas, formulários e texto não confiável |
 | Temas | Alternância, restauração, sincronização, contraste mínimo de 4,5:1 nos textos verificados e 3:1 nas barras de rolagem, interação das barras, filtros, detalhes, avisos, carregamento e tela pequena |

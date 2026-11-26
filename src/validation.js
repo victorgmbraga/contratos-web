@@ -196,7 +196,7 @@ export function validateFilters(filters, config, documentType = 'edital') {
           'INVALID_DOMAIN',
           'Países exigem IDs do catálogo PNCP, como BRA; não use códigos BCB.'
         );
-      else if (!['ufs', 'esferas', 'poderes', 'anos', 'unidades_medida'].includes(name))
+      else if (!['ufs', 'esferas', 'poderes', 'anos', 'unidades_medida', 'partes_envolvidas'].includes(name))
         assert(
           value.every(v => /^\d+$/.test(v)),
           'INVALID_DOMAIN',

@@ -72,7 +72,7 @@ Cada decisão registra o contexto, a escolha e suas consequências. Novas decis�
 | [`src/settings.js`](../src/settings.js) | Padrões e validação de configuração portável; whitelist pública |
 | [`src/operation.js`](../src/operation.js) | Operações, cancelamento, prazo absoluto e contadores de recursos |
 | [`src/validation.js`](../src/validation.js) | Consultas, filtros, domínios, sugestões, identidades e paginação; valida antes da rede no Worker |
-| [`src/schema.js`](../src/schema.js), [`src/pncp-arguments.json`](../src/pncp-arguments.json) e [`src/filter-domains.js`](../src/filter-domains.js) | Colunas, 80 filtros, compatibilidade documental, domínios e apresentação; o build remove as descrições do catálogo de argumentos, que só documentam o repositório |
+| [`src/schema.js`](../src/schema.js), [`src/pncp-arguments.json`](../src/pncp-arguments.json) e [`src/filter-domains.js`](../src/filter-domains.js) | Colunas, 84 filtros, compatibilidade documental, domínios e apresentação; o build remove as descrições do catálogo de argumentos, que só documentam o repositório |
 | [`src/pncp-core.js`](../src/pncp-core.js) | Serialização, fila, ritmo, tentativas, leitura incremental, normalização e caminhos PNCP |
 | [`src/exact-json.js`](../src/exact-json.js) | Parser JSON com pilha explícita, validação da gramática e representação exata dos números |
 | [`src/query-core.js`](../src/query-core.js) | Pesquisa, validação de domínios, metadados, detalhes e coleta por páginas |

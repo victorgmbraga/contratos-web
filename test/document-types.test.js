@@ -29,7 +29,7 @@ const demo = () => {
   return new QueryService(cfg, new PncpClient(cfg, { fetcher: demoFetch }));
 };
 
-test('DOCUMENTS-01: os três tipos publicam colunas, status e os 16 filtros compatíveis com atas', async () => {
+test('DOCUMENTS-01: os três tipos publicam colunas, status e os 24 filtros compatíveis com atas', async () => {
   const catalog = schema(config());
   assert.deepEqual(
     catalog.document_types.filter(d => d.enabled).map(d => d.id),
@@ -43,7 +43,7 @@ test('DOCUMENTS-01: os três tipos publicam colunas, status e os 16 filtros comp
         ['situacao_compra_nome_pncp', 'valor_total_estimado', 'valor_total_homologado'].includes(c.field)
       )
     );
-  assert.equal(capabilities(config()).filter(c => !c.reserved && c.documents.includes('ata')).length, 16);
+  assert.equal(capabilities(config()).filter(c => !c.reserved && c.documents.includes('ata')).length, 24);
   const s = demo(),
     result = await s.execute(query({ document_type: 'ata' }));
   assert.equal(result.total, 24);
@@ -149,10 +149,47 @@ test('DOCUMENTS-03: filtros de atas chegam à fonte em pesquisa e CSV; contextos
   for (const input of [
     query({ document_type: 'ata', status: 'recebendo_proposta' }),
     query({ document_type: 'ata', pncp_filters: { valor_global_min: '1' } }),
-    query({ document_type: 'ata', pncp_filters: { situacoes_item: ['1'] } })
+    query({ document_type: 'ata', pncp_filters: { situacoes_item: ['1'] } }),
+    query({ document_type: 'contrato', pncp_filters: { situacao_ata: false } }),
+    query({
+      document_type: 'ata',
+      pncp_filters: { data_fim_vigencia_inicio: '2027-09-01', data_fim_vigencia_fim: '2026-09-30' }
+    })
   ])
     await assert.rejects(s.service.execute(input));
   assert.equal(s.requests.length, 0);
+});
+
+test('DOCUMENTS-26: ata combina partes sugeridas, cancelamento e fim da vigência na busca e no CSV', async () => {
+  const { service, requests } = fixture(demoFetch);
+  const { items } = await service.suggest('ata', 'partes_envolvidas', 'demonstração', 10);
+  assert.deepEqual(
+    items.map(item => item.id),
+    ['00.000.000/0001-00', '11.111.111/0001-11']
+  );
+  assert.equal(requests[0].searchParams.get('campo'), 'partes_envolvidas');
+
+  for (const [party, cancelled, from, to, total] of [
+    [items[0].id, false, '2027-01-01', '2027-12-31', 12],
+    [items[1].id, true, '2026-01-01', '2026-12-31', 4]
+  ]) {
+    const input = query({
+      document_type: 'ata',
+      pncp_filters: {
+        partes_envolvidas: [party],
+        situacao_ata: cancelled,
+        data_fim_vigencia_inicio: from,
+        data_fim_vigencia_fim: to
+      }
+    });
+    const result = await service.execute(input);
+    assert.equal(result.total, total);
+    assert(result.data.every(ata => ata.cancelado === cancelled));
+    assert(result.data.every(ata => ata.data_fim_vigencia >= from && ata.data_fim_vigencia <= to));
+    assert.equal((await service.export(input)).metadata.exported_rows, total);
+    assert.equal(requests.at(-1).searchParams.get('partes_envolvidas'), party);
+    assert.equal(requests.at(-1).searchParams.get('situacao_ata'), String(cancelled));
+  }
 });
 
 test('DOCUMENTS-04: detalhes completos mantêm datas, booleanos, códigos, valores exatos e vínculos seguros', () => {

@@ -183,6 +183,10 @@ export const demoContracts = demoDocuments.slice(0, 32).map((doc, i) => ({
   possui_nfe: itemCondition(i)
 }));
 /** @type {Record<string, any>[]} */
+const ataParties = [
+  { id: '00.000.000/0001-00', nome: 'Parte de demonstração A' },
+  { id: '11.111.111/0001-11', nome: 'Parte de demonstração B' }
+];
 export const demoAtas = demoDocuments.slice(0, 24).map((doc, i) => ({
   ...doc,
   id: `demo-ata-${i + 1}`,
@@ -197,6 +201,7 @@ export const demoAtas = demoDocuments.slice(0, 24).map((doc, i) => ({
   data_inicio_vigencia: '2026-09-01',
   data_fim_vigencia: i % 2 === 0 ? '2027-09-01' : '2026-09-30',
   cancelado: i % 6 === 5,
+  partes_envolvidas: [ataParties[i % 2].id],
   permite_adesao: itemCondition(i)
 }));
 export function demoDocument(type, sequence, ataSequence = null) {
@@ -563,7 +568,10 @@ export function demoFetch(url) {
     };
   else if (u.pathname.endsWith('/suggest'))
     result = {
-      items: (filters[domainAliases[p.get('campo')] || p.get('campo')] || []).filter(o =>
+      items: (p.get('campo') === 'partes_envolvidas'
+        ? ataParties
+        : filters[domainAliases[p.get('campo')] || p.get('campo')] || []
+      ).filter(o =>
         String(o.nome ?? o.ano ?? o.id)
           .toLowerCase()
           .includes(p.get('q').toLowerCase())
@@ -695,9 +703,11 @@ export function demoFetch(url) {
     for (const [key, field] of Object.entries({
       normativos_base: 'normativo_base_id',
       amparos_legais: 'amparo_legal_id',
-      fontes_orcamentarias: 'fonte_orcamentaria_id'
+      fontes_orcamentarias: 'fonte_orcamentaria_id',
+      partes_envolvidas: 'partes_envolvidas'
     }))
       if (p.has(key)) docs = docs.filter(d => d[field].some(id => p.get(key).split('|').includes(id)));
+    if (p.has('situacao_ata')) docs = docs.filter(d => d.cancelado === (p.get('situacao_ata') === 'true'));
     for (const key of [
       'srp',
       'indicador_orcamento_sigiloso',
@@ -773,6 +783,7 @@ export function demoFetch(url) {
       resultado_percentual_desconto: ['result', 'percentualDesconto'],
       data_assinatura: ['document', 'data_assinatura'],
       data_inicio_vigencia: ['document', 'data_inicio_vigencia'],
+      data_fim_vigencia: ['document', 'data_fim_vigencia'],
       data_homologacao: ['result', 'dataResultado']
     };
     for (const [name, [source, field]] of Object.entries(ranges))

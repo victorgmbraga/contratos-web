@@ -66,6 +66,7 @@ test('QUERY-URL-03: cobre roundtrip dos três tipos e todos os filtros compatív
                 poderes: ['E', 'L'],
                 anos: ['2025', '2026'],
                 paises_fornecedor: ['BRA'],
+                partes_envolvidas: ['00.000.000/0001-00', '11.111.111/0001-11'],
                 unidades_medida: ['m²', 'KG']
               }[cap.name] ?? ['1', '2'])
             : cap.type === 'enum'
