@@ -90,14 +90,14 @@ try {
     await trigger.click();
     if ((await tips.getAttribute('open')) === null) await tips.locator('> summary').click();
     // Só pesquisas contam: a pré-carga das listas de filtros pode continuar em segundo plano.
-    const searches = () => pncp.filter(url => url.startsWith('https://pncp.gov.br/api/search/?')).length;
+    const searches = () => pncp.filter(url => url.startsWith('https://pncp.gov.br/api/search?')).length;
     const before = searches();
     await page.locator('.search-help-example', { hasText: 'microsoft OR o365 OR office' }).click();
     await page.waitForFunction(() => !document.querySelector('#search-help').matches(':popover-open'));
     assert.equal(await search.inputValue(), 'microsoft OR o365 OR office');
     assert.equal(await page.evaluate(() => document.activeElement.id), 'search');
     assert.equal(searches(), before, 'Escolher um exemplo não pesquisa');
-    const request = page.waitForRequest(r => r.url().startsWith('https://pncp.gov.br/api/search/?'));
+    const request = page.waitForRequest(r => r.url().startsWith('https://pncp.gov.br/api/search?'));
     await page.keyboard.press('Enter');
     assert.equal(new URL((await request).url()).searchParams.get('q'), 'microsoft OR o365 OR office');
     assert.deepEqual(errors, []);

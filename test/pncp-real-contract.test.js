@@ -15,7 +15,7 @@ const key = address => {
 const snapshots = new Map(
   await Promise.all(
     Object.entries(provenance.responses).map(async ([file, url]) => [
-      key(url),
+      key(url.replace('/api/search/?', '/api/search?')),
       await readFile(new URL(file, root), 'utf8')
     ])
   )

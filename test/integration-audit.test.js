@@ -133,7 +133,7 @@ test('AUDIT-10: anos fora de AAAA fornecidos pelo PNCP são selecionáveis e env
     assert.doesNotThrow(() => validateQuery(input, config()));
     assert.equal((await s.service.execute(input)).total, 0);
     assert.equal((await s.service.export(input)).metadata.exported_rows, 0);
-    const requests = s.requests.filter(url => url.pathname.endsWith('/search/'));
+    const requests = s.requests.filter(url => url.pathname.endsWith('/search'));
     assert.equal(requests.length, 2);
     for (const url of requests) {
       assert.equal(url.searchParams.get('anos'), '20|20260|0002|0');

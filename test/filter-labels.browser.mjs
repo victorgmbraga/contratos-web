@@ -48,7 +48,7 @@ try {
   }
   assert.equal(suggestions, 2, 'Recarregar não repete o autocomplete para recuperar os nomes');
   await page.locator('#filters-dialog .close-dialog').click();
-  await context.route('https://pncp.gov.br/api/search/?**', route =>
+  await context.route('https://pncp.gov.br/api/search?**', route =>
     route.fulfill({
       json: {
         items: [

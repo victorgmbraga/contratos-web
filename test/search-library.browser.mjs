@@ -10,7 +10,7 @@ const app = createStaticServer(new URL('../dist-browser/', import.meta.url));
 await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
 const browser = await launchTestBrowser();
 const searchRequest = page =>
-  page.waitForRequest(request => request.url().startsWith('https://pncp.gov.br/api/search/?'));
+  page.waitForRequest(request => request.url().startsWith('https://pncp.gov.br/api/search?'));
 try {
   for (const [width, colorScheme] of [
     [1280, 'light'],

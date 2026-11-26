@@ -92,7 +92,7 @@ $('diagnostic-run').addEventListener('click', async () => {
     // A direct window fetch records only statuses and headers actually exposed by CORS.
     try {
       const response = await fetch(
-        'https://pncp.gov.br/api/search/?tipos_documento=edital&status=todos&ordenacao=-data&pagina=1&tam_pagina=10&q=software',
+        'https://pncp.gov.br/api/search?tipos_documento=edital&status=todos&ordenacao=-data&pagina=1&tam_pagina=10&q=software',
         {
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
           mode: 'cors',

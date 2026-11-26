@@ -302,7 +302,7 @@ test('FULL-14: soma os bytes das respostas e cancela a leitura antes da próxima
   const { service, requests } = demoService({
     settings: { PNCP_MAX_FULL_EXPORT_BYTES: limit },
     fail: url => {
-      if (url.pathname === '/api/search/') return textJson(search);
+      if (url.pathname === '/api/search') return textJson(search);
       if (url.pathname.endsWith('/itens/quantidade')) return Response.json(300);
       if (!url.pathname.endsWith('/itens')) return null;
       return textJson(
@@ -341,7 +341,7 @@ test('FULL-15: exporta todas as páginas de anexos com total estável e sinaliza
     let counts = 0;
     const { service, requests } = demoService({
       fail: url => {
-        if (url.pathname === '/api/search/') return Response.json({ items: demoDocuments.slice(0, 1), total: 1 });
+        if (url.pathname === '/api/search') return Response.json({ items: demoDocuments.slice(0, 1), total: 1 });
         if (url.pathname.endsWith('/arquivos/quantidade')) return Response.json(++counts > 1 && changed ? 51 : 102);
         if (!url.pathname.endsWith('/arquivos')) return null;
         const page = Number(url.searchParams.get('pagina'));
@@ -429,7 +429,7 @@ test('FULL-17: rejeita consulta não objeto, trata numeroItem textual ou fora de
   const limitedRelated = demoService({
     settings: { PNCP_MAX_DETAIL_ITEMS: 10 },
     fail: url => {
-      if (url.pathname === '/api/search/') return Response.json({ items: demoDocuments.slice(0, 1), total: 1 });
+      if (url.pathname === '/api/search') return Response.json({ items: demoDocuments.slice(0, 1), total: 1 });
       if (url.pathname.endsWith('/arquivos/quantidade')) return Response.json(20);
       if (url.pathname.endsWith('/arquivos'))
         return Response.json(Array.from({ length: 20 }, (_, i) => ({ titulo: `A${i + 1}`, url: null })));

@@ -2,7 +2,7 @@
 
 Este guia descreve `service.call(method, payload, {signal, onProgress})`, usado pela interface para comunicar-se com o Web Worker. A hospedagem entrega arquivos estáticos. Os formatos de critérios e dados usam `api_version: "2.0"`, com `edital`, `ata` e `contrato`.
 
-O Worker consulta `https://pncp.gov.br/api/search/` para pesquisa, filtros e sugestões, `https://pncp.gov.br/api/consulta/v1` para os campos documentais de editais e `https://pncp.gov.br/api/pncp/v1` para os demais detalhes, listagens e catálogos. A [arquitetura](arquitetura.md) descreve a ponte e o [guia de configuração](configuracao.md) informa os limites públicos.
+O Worker consulta `https://pncp.gov.br/api/search` para pesquisa, filtros e sugestões, `https://pncp.gov.br/api/consulta/v1` para os campos documentais de editais e `https://pncp.gov.br/api/pncp/v1` para os demais detalhes, listagens e catálogos. A [arquitetura](arquitetura.md) descreve a ponte e o [guia de configuração](configuracao.md) informa os limites públicos.
 
 | Método | Payload | Resultado |
 | --- | --- | --- |

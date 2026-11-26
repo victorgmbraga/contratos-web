@@ -221,7 +221,7 @@ test('FILTER-09: falha de proxy com código numérico mantém erro de transporte
     op = operation(cfg);
   try {
     await assert.rejects(
-      client.get('https://pncp.gov.br/api/search/', op),
+      client.get('https://pncp.gov.br/api/search', op),
       e => e.code === 'PNCP_TRANSPORT_ERROR' && e.status === 503
     );
   } finally {

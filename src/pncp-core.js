@@ -343,7 +343,7 @@ export class PncpClient {
     }
   }
   async search(query, page, size, op) {
-    const result = await this.get(`${this.config.PNCP_SEARCH_BASE_URL}/?${serializeSearch(query, page, size)}`, op);
+    const result = await this.get(`${this.config.PNCP_SEARCH_BASE_URL}?${serializeSearch(query, page, size)}`, op);
     assert(
       isPlainObject(result) && Array.isArray(result.items) && result.items.every(isPlainObject),
       'INVALID_UPSTREAM',

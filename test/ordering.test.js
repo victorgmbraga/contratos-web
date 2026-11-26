@@ -96,7 +96,7 @@ test('ORDER-05: demonstração ordena valores com precisão decimal e mantém au
     ['contrato', 'valor_global', 'valor_global', 1]
   ]) {
     const response = await demoFetch(
-        `https://pncp.gov.br/api/search/?tipos_documento=${document_type}&ordenacao=${order}&pagina=1&tam_pagina=100`
+        `https://pncp.gov.br/api/search?tipos_documento=${document_type}&ordenacao=${order}&pagina=1&tam_pagina=100`
       ),
       items = (await response.json()).items;
     let missing = false;
