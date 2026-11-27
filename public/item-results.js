@@ -1,3 +1,4 @@
+import { isCnpj } from '../src/cnpj.js';
 import { date, quantity, formatCnpj } from './format.js';
 
 // Resultado homologado dos itens de edital, exibido à parte do valor estimado: são conceitos
@@ -43,7 +44,7 @@ export function differenceText(difference) {
 /** Fornecedor como exibido: CNPJ só de pessoa jurídica; o CPF de pessoa física não é mostrado. */
 export function supplierText(result) {
   const name = result.fornecedor ?? 'Fornecedor não informado';
-  if (result.tipo_pessoa === 'PJ' && /^\d{14}$/.test(result.fornecedor_ni ?? '')) {
+  if (result.tipo_pessoa === 'PJ' && isCnpj(result.fornecedor_ni)) {
     return `${name} · CNPJ ${formatCnpj(result.fornecedor_ni)}`;
   }
   if (result.tipo_pessoa === 'PF') return `${name} · Pessoa física`;

@@ -57,3 +57,26 @@ test('CHIPS-01: critérios ativos mostram datas e números no padrão brasileiro
   assert.equal(time('2026-10-01'), '01/10/2026');
   assert.equal(time(null), '—');
 });
+
+test('CNPJ alfanumérico mantém as letras na identificação mista, fornecedor e links PNCP', async () => {
+  const { supplierText } = await import('../public/item-results.js');
+  const { controlDocument, controlLink, nativeDocumentPath } = await import('../src/document-details.js');
+  const { readDetailUrl, writeDetailUrl } = await import('../src/browser/detail-url.js');
+  const cnpj = '12ABC345000188',
+    masked = '12.ABC.345/0001-88';
+  assert.equal(formatCpfCnpj(cnpj), masked);
+  assert.equal(formatCpfCnpj(masked), masked);
+  assert.equal(formatCpf(cnpj), cnpj);
+  assert.equal(
+    supplierText({ tipo_pessoa: 'PJ', fornecedor: 'Empresa', fornecedor_ni: cnpj }),
+    'Empresa · CNPJ ' + masked
+  );
+  const control = cnpj + '-1-000001/2026-000002';
+  const document = controlDocument(control);
+  assert.deepEqual(document, { type: 'ata', cnpj, ano: '2026', sequencial_compra: '1', sequencial: '2' });
+  assert.equal(controlLink(control), 'https://pncp.gov.br/app/atas/' + cnpj + '/2026/1/2');
+  assert.equal(nativeDocumentPath(document, ''), '/orgaos/' + cnpj + '/compras/2026/1/atas/2');
+  const selection = { document, tab: 'detalhes' };
+  assert.deepEqual(readDetailUrl(writeDetailUrl('https://example.test/', selection)), selection);
+  assert.equal(controlDocument('12ABC3450001XY-1-000001/2026'), null);
+});

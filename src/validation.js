@@ -1,3 +1,4 @@
+import { isCnpj } from './cnpj.js';
 import { assert, checkKeys } from './errors.js';
 import { isPlainObject } from './adapter.js';
 import { capabilities, reserved, documentStatuses, documentOrders, MAX_QUERY_TEXT } from './schema.js';
@@ -55,7 +56,7 @@ export function validateDocument(document, allowed = ['edital', 'ata', 'contrato
       typeof type === 'string' &&
       allowed.includes(type) &&
       typeof document.cnpj === 'string' &&
-      /^\d{14}$/.test(document.cnpj) &&
+      isCnpj(document.cnpj) &&
       typeof document.ano === 'string' &&
       /^\d{4}$/.test(document.ano),
     'INVALID_DOCUMENT_IDENTITY',

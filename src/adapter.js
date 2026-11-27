@@ -1,3 +1,4 @@
+import { isCnpj } from './cnpj.js';
 import { isExactJsonNumber } from './exact-json.js';
 import { assert, fail } from './errors.js';
 
@@ -128,10 +129,7 @@ export function purchaseIdentity(raw) {
   const cnpj = scalarText(raw.orgao_cnpj),
     year = scalarText(raw.ano),
     sequence = scalarText(raw.numero_sequencial);
-  return /^\d{14}$/.test(cnpj || '') &&
-    /^\d{4}$/.test(year || '') &&
-    /^\d+$/.test(sequence || '') &&
-    BigInt(sequence) > 0n
+  return isCnpj(cnpj) && /^\d{4}$/.test(year || '') && /^\d+$/.test(sequence || '') && BigInt(sequence) > 0n
     ? { cnpj, ano: year, sequencial: sequence }
     : null;
 }
@@ -143,7 +141,7 @@ export function documentIdentity(raw) {
   const valid = v => /^\d+$/.test(v || '') && BigInt(v) > 0n;
   if (
     !['edital', 'ata', 'contrato'].includes(type) ||
-    !/^\d{14}$/.test(cnpj || '') ||
+    !isCnpj(cnpj) ||
     !/^\d{4}$/.test(ano || '') ||
     !valid(sequencial)
   )
@@ -153,7 +151,7 @@ export function documentIdentity(raw) {
     if (!valid(sequencial_compra)) return null;
     // The original portal route carries the purchase year; ano can refer to the ata.
     const route = new URL(safeLink(raw.item_url, true)).pathname.match(
-      /^\/app\/atas\/(\d{14})\/(\d{4})\/(\d+)\/(\d+)\/?$/
+      /^\/app\/atas\/([A-Z0-9]{12}\d{2})\/(\d{4})\/(\d+)\/(\d+)\/?$/
     );
     if (
       route &&

@@ -1,3 +1,5 @@
+import { isCnpj } from '../src/cnpj.js';
+
 // Formatação compartilhada dos valores projetados do PNCP.
 // Situação da Contratação: PNCP, Manual de Integração, tabela de domínio 7.13.
 const purchaseStatusClasses = new Map([
@@ -75,26 +77,26 @@ export function createCellRenderer(el) {
     return node;
   };
 }
-const cnpjDigits = value => String(value ?? '').replace(/\D/g, '');
+const unmaskDocument = value => String(value).replace(/[./-]/g, '');
 export function formatCnpj(value) {
   if (value === null || value === undefined) return value;
   const text = String(value);
   // "CNPJ - nome" mantém o nome e mascara somente o identificador.
   const joined = text.match(/^(.*?)(\s+-\s+[\s\S]*)$/);
   if (joined) return formatCnpj(joined[1]) + joined[2];
-  const digits = cnpjDigits(text);
-  return digits.length === 14 ? digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : text;
+  const id = unmaskDocument(text);
+  return isCnpj(id) ? id.replace(/^(.{2})(.{3})(.{3})(.{4})(.{2})$/, '$1.$2.$3/$4-$5') : text;
 }
 export function formatCpf(value) {
   if (value === null || value === undefined) return value;
-  const digits = cnpjDigits(value);
-  return digits.length === 11 ? digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : String(value);
+  const digits = unmaskDocument(value);
+  return /^\d{11}$/.test(digits) ? digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : String(value);
 }
 export function formatCpfCnpj(value) {
   if (value === null || value === undefined) return value;
-  const digits = cnpjDigits(value);
-  if (digits.length === 14) return formatCnpj(digits);
-  if (digits.length === 11) return formatCpf(digits);
+  const digits = unmaskDocument(value);
+  if (isCnpj(digits)) return formatCnpj(digits);
+  if (/^\d{11}$/.test(digits)) return formatCpf(digits);
   return String(value);
 }
 // Valor de um filtro simples como o usuário o lê nos critérios ativos (datas e números no padrão brasileiro).

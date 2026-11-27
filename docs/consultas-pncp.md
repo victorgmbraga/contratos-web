@@ -84,7 +84,7 @@ Abrir um documento escreve `detalhe` e `aba`; clicar em outra aba ou selecioná-
 | `ata` | `detalhes`, `partesenvolvidas`, `contratos`, `arquivos`, `historico` |
 | `contrato` | `detalhes`, `empenhos`, `instrumentocobranca`, `termos`, `arquivos`, `historico` |
 
-CNPJ exige 14 dígitos, ano exige quatro e sequenciais são inteiros positivos de até 256 dígitos. Esses identificadores permanecem strings, sem arredondamento; CNPJ mantém zeros à esquerda e sequenciais são normalizados. Barras em `detalhe` são codificadas como `%2F` na URL gerada. Repetições de `detalhe`/`aba`, identificação incompleta, aba incompatível ou `aba` sem `detalhe` invalidam o link antes das consultas. O título usa a linha da busca quando disponível; em links sem essa linha, usa os dados nativos do documento.
+O CNPJ usa 12 caracteres de A–Z ou 0–9 seguidos de dois dígitos verificadores, o ano exige quatro dígitos e sequenciais são inteiros positivos de até 256 dígitos. Esses identificadores permanecem strings, sem arredondamento; CNPJ mantém zeros à esquerda e sequenciais são normalizados. Barras em `detalhe` são codificadas como `%2F` na URL gerada. Repetições de `detalhe`/`aba`, identificação incompleta, aba incompatível ou `aba` sem `detalhe` invalidam o link antes das consultas. O título usa a linha da busca quando disponível; em links sem essa linha, usa os dados nativos do documento.
 
 ### Filtros disponíveis
 
@@ -223,7 +223,7 @@ A resposta contém `items` com pares `{id, label}`, `request_id` e `queried_at`.
 
 ## Itens de uma contratação
 
-`service.call("details", {document, page, size})` exige `document: {type: "edital", cnpj, ano, sequencial}`, com CNPJ de 14 dígitos, ano de quatro dígitos e sequencial numérico positivo, todos como strings. `page` deve ser um inteiro positivo e `size` aceita 10, 25, 50 ou 100.
+`service.call("details", {document, page, size})` exige `document: {type: "edital", cnpj, ano, sequencial}`, com CNPJ de 14 caracteres sem máscara, ano de quatro dígitos e sequencial numérico positivo, todos como strings. `page` deve ser um inteiro positivo e `size` aceita 10, 25, 50 ou 100.
 
 Cada requisição consulta a quantidade de itens e, quando o total é positivo, a página pedida. O serviço verifica se a quantidade de itens recebida corresponde ao total informado. Retorna `data`, `page`, `size`, `total_items`, `total_pages`, `has_more`, `complete`, `source`, `api_version`, `request_id`, `queried_at`, `upstream_requests`, `pagination_note` e `snapshot_guaranteed: false`. `complete` indica que a página atual é a última; não significa que todas as páginas foram baixadas.
 

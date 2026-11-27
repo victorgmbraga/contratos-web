@@ -1,3 +1,4 @@
+import { isCnpj } from './cnpj.js';
 import { scalarText, decimalText, safeFileLink, isPlainObject } from './adapter.js';
 import { assert } from './errors.js';
 
@@ -15,7 +16,7 @@ const text = (record, field) => {
 const positive = value => /^\d+$/.test(value || '') && BigInt(value) > 0n;
 function portalLink(kind, cnpj, year, sequence, purchaseSequence = null) {
   if (
-    !/^\d{14}$/.test(cnpj || '') ||
+    !isCnpj(cnpj) ||
     !/^\d{4}$/.test(year || '') ||
     !positive(sequence) ||
     (kind === 'atas' && !positive(purchaseSequence))

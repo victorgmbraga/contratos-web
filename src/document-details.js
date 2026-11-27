@@ -1,3 +1,4 @@
+import { isCnpj } from './cnpj.js';
 import { scalarText, decimalText, safeLink, isPlainObject } from './adapter.js';
 import { isExactJsonNumber } from './exact-json.js';
 import { assert } from './errors.js';
@@ -21,7 +22,7 @@ export function nativeDocumentPath(document, base) {
   const positive = v => /^\d+$/.test(v || '') && BigInt(v) > 0n;
   assert(
     Object.hasOwn(documentResources, type) &&
-      /^\d{14}$/.test(cnpj || '') &&
+      isCnpj(cnpj) &&
       /^\d{4}$/.test(ano || '') &&
       positive(sequencial) &&
       (type !== 'ata' || positive(sequencial_compra)),
@@ -31,7 +32,7 @@ export function nativeDocumentPath(document, base) {
   return `${base}/orgaos/${cnpj}/${type === 'contrato' ? 'contratos' : 'compras'}/${ano}/${type === 'ata' ? `${sequencial_compra}/atas/` : ''}${sequencial}`;
 }
 export function controlDocument(control) {
-  const match = scalarText(control)?.match(/^(\d{14})-([12])-(\d+)\/(\d{4})(?:-(\d+))?$/);
+  const match = scalarText(control)?.match(/^([A-Z0-9]{12}\d{2})-([12])-(\d+)\/(\d{4})(?:-(\d+))?$/);
   if (!match || BigInt(match[3]) === 0n) return null;
   const [, cnpj, kind, sequence, year, ataSequence] = match;
   if (ataSequence) {
@@ -47,7 +48,7 @@ export function controlDocument(control) {
   return { type: kind === '2' ? 'contrato' : 'edital', cnpj, ano: year, sequencial: BigInt(sequence).toString() };
 }
 export function controlLink(control) {
-  const match = scalarText(control)?.match(/^(\d{14})-([12])-(\d+)\/(\d{4})(?:-(\d+))?$/);
+  const match = scalarText(control)?.match(/^([A-Z0-9]{12}\d{2})-([12])-(\d+)\/(\d{4})(?:-(\d+))?$/);
   if (!match || BigInt(match[3]) === 0n || (match[5] && (match[2] !== '1' || BigInt(match[5]) === 0n))) return null;
   return `https://pncp.gov.br/app/${match[5] ? 'atas' : match[2] === '2' ? 'contratos' : 'editais'}/${match[1]}/${match[4]}/${BigInt(match[3])}${match[5] ? `/${BigInt(match[5])}` : ''}`;
 }
